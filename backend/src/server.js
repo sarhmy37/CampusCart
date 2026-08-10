@@ -9,6 +9,8 @@ const categoryRoutes = require('./routes/categories');
 
 const orderRoutes = require('./routes/orders');
 
+const wishlistRoutes = require('./routes/wishlist');
+
 const sellerRoutes = require('./routes/sellers');
 
 const authRoutes = require('./routes/auth');
@@ -23,7 +25,9 @@ app.use(cors({
     origin: allowedOrigins.length ? allowedOrigins : '*',
     credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({
+    verify: (req, res, buf) => { req.rawBody = buf; },
+}));
 
 // Serve uploaded avatar/product images
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
@@ -37,6 +41,8 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 
 app.use('/api/orders', orderRoutes);
+
+app.use('/api/wishlist', wishlistRoutes);
 
 app.use('/api/sellers', sellerRoutes);
 

@@ -1,16 +1,20 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
+import api from '../api/client';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck } from 'lucide-react';
+import { openWhatsAppChats } from '../utils/whatsapp';
+import { calcDeliveryFee } from '../utils/distance';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck, Loader2 } from 'lucide-react';
 
 const SERVICE_FEE_RATE = 0.02;
-const DELIVERY_FEE = 15;
+const FALLBACK_DELIVERY_FEE = 15;
 
 function formatWhatsAppNumber(raw) {
     if (!raw) return null;
     let digits = String(raw).replace(/\D/g, '');
-    if (digits.startsWith('0')) digits = '233' + digits.slice(1); // Ghana local -> intl
+    if (digits.startsWith('0')) digits = '233' + digits.slice(1);
     return digits;
 }
 
@@ -39,10 +43,43 @@ function WhatsAppIcon(props) {
 }
 
 export default function Cart() {
-    const { items, removeItem, updateQuantity, total } = useCart();
+    const { items, removeItem, updateQuantity, total, clearCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [deliveryMethod, setDeliveryMethod] = useState('pickup');
+    const [paying, setPaying] = useState(false);
+    const [buyerCoords, setBuyerCoords] = useState(null);
+    const [locating, setLocating] = useState(false);
+    const [locationDenied, setLocationDenied] = useState(false);
+
+    // Group items by seller (needed for both WhatsApp and per-seller delivery fees)
+    const sellerGroups = items.reduce((groups, item) => {
+        const key = item.seller_whatsapp || item.seller_name || 'unknown';
+        if (!groups[key]) {
+            groups[key] = { sellerName: item.seller_name, whatsapp: item.seller_whatsapp, school: item.seller_school, items: [] };
+        }
+        groups[key].items.push(item);
+        return groups;
+    }, {});
+
+    useEffect(() => {
+        if (deliveryMethod !== 'delivery' || buyerCoords || locationDenied) return;
+        if (!navigator.geolocation) {
+            setLocationDenied(true);
+            return;
+        }
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setBuyerCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocating(false);
+            },
+            () => {
+                setLocationDenied(true);
+                setLocating(false);
+            }
+        );
+    }, [deliveryMethod, buyerCoords, locationDenied]);
 
     if (items.length === 0) {
         return (
@@ -69,19 +106,49 @@ export default function Cart() {
 
     const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
     const subtotal = total;
-    const deliveryFee = deliveryMethod === 'delivery' ? DELIVERY_FEE : 0;
+
+    // Compute delivery fee: sum per-seller fee based on distance, or fallback flat rate per seller if location unavailable
+    let deliveryFee = 0;
+    let onCampusForAll = true;
+    if (deliveryMethod === 'delivery') {
+        Object.values(sellerGroups).forEach((group) => {
+            if (buyerCoords && group.school) {
+                const { fee } = calcDeliveryFee(buyerCoords.lat, buyerCoords.lng, group.school);
+                deliveryFee += fee;
+                if (fee > 0) onCampusForAll = false;
+            } else {
+                deliveryFee += FALLBACK_DELIVERY_FEE;
+                onCampusForAll = false;
+            }
+        });
+    }
+
     const serviceFee = subtotal * SERVICE_FEE_RATE;
     const grandTotal = subtotal + deliveryFee + serviceFee;
 
-    // Group cart items by seller so each gets its own WhatsApp message
-    const sellerGroups = items.reduce((groups, item) => {
-        const key = item.seller_whatsapp || item.seller_name || 'unknown';
-        if (!groups[key]) {
-            groups[key] = { sellerName: item.seller_name, whatsapp: item.seller_whatsapp, items: [] };
+    const handleAction = async () => {
+        if (!user) return navigate('/login');
+
+        if (deliveryMethod === 'pickup') {
+            openWhatsAppChats(items, user.location, 'pickup');
+            return;
         }
-        groups[key].items.push(item);
-        return groups;
-    }, {});
+
+        setPaying(true);
+        try {
+            const res = await api.post('/orders', {
+                items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+                delivery_method: deliveryMethod,
+                buyer_lat: buyerCoords?.lat ?? null,
+                buyer_lng: buyerCoords?.lng ?? null,
+            });
+            clearCart();
+            window.location.href = res.data.authorization_url;
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Checkout failed');
+            setPaying(false);
+        }
+    };
 
     return (
         <div>
@@ -127,46 +194,48 @@ export default function Cart() {
                         </div>
                     ))}
 
-                    {/* WHATSAPP — grouped by seller */}
-                    <div className="bg-white border border-slate-200 rounded-2xl p-4 mt-2">
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-                            Chat with sellers
-                        </p>
-                        <div className="space-y-2">
-                            {Object.values(sellerGroups).map((group) => {
-                                const number = formatWhatsAppNumber(group.whatsapp);
-                                const message = buildWhatsAppMessage(group.sellerName, group.items);
-                                const href = number
-                                    ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
-                                    : null;
+                    {/* WHATSAPP — grouped by seller (only shown for pickup) */}
+                    {deliveryMethod === 'pickup' && (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-4 mt-2">
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                                Chat with sellers
+                            </p>
+                            <div className="space-y-2">
+                                {Object.values(sellerGroups).map((group) => {
+                                    const number = formatWhatsAppNumber(group.whatsapp);
+                                    const message = buildWhatsAppMessage(group.sellerName, group.items);
+                                    const href = number
+                                        ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+                                        : null;
 
-                                return (
-                                    <a
-                                        key={group.sellerName + (group.whatsapp || '')}
-                                        href={href || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => {
-                                            if (!href) {
-                                                e.preventDefault();
-                                                alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
-                                            }
-                                        }}
-                                        className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
-                                            href
-                                                ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
-                                                : 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
-                                        }`}
-                                    >
-                                        <span className="flex items-center gap-2.5">
-                                            <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600' : 'text-slate-300'}`} />
-                                            Chat with {group.sellerName} about {group.items.length} item{group.items.length > 1 ? 's' : ''}
-                                        </span>
-                                    </a>
-                                );
-                            })}
+                                    return (
+                                        <a
+                                            key={group.sellerName + (group.whatsapp || '')}
+                                            href={href || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => {
+                                                if (!href) {
+                                                    e.preventDefault();
+                                                    alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
+                                                }
+                                            }}
+                                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+                                                href
+                                                    ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                                                    : 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-2.5">
+                                                <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600' : 'text-slate-300'}`} />
+                                                Chat with {group.sellerName} about {group.items.length} item{group.items.length > 1 ? 's' : ''}
+                                            </span>
+                                        </a>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* SUMMARY */}
@@ -200,10 +269,35 @@ export default function Cart() {
                                 <Truck size={16} className={deliveryMethod === 'delivery' ? 'text-brand-600' : 'text-slate-400'} />
                                 <div>
                                     <p className="text-sm font-semibold text-slate-800">Delivery</p>
-                                    <p className="text-xs text-slate-400">GHS {DELIVERY_FEE.toFixed(2)} — delivered to you</p>
+                                    <p className="text-xs text-slate-400">
+                                        {deliveryMethod === 'delivery' && locating
+                                            ? 'Calculating based on your location…'
+                                            : 'Fee based on distance — free if on campus'}
+                                    </p>
                                 </div>
                             </button>
                         </div>
+
+                        {deliveryMethod === 'delivery' && (
+                            <>
+                                {locating && (
+                                    <p className="text-xs text-slate-400 -mt-3 mb-4 flex items-center gap-1.5">
+                                        <Loader2 size={12} className="animate-spin" /> Getting your location…
+                                    </p>
+                                )}
+                                {locationDenied && (
+                                    <p className="text-xs text-amber-600 -mt-3 mb-4">
+                                        Couldn't access your location — using standard rate. Enable location for accurate pricing.
+                                    </p>
+                                )}
+                                {!locating && buyerCoords && !onCampusForAll && (
+                                    <p className="text-xs text-slate-400 -mt-3 mb-4">Delivered within 1–3 working days.</p>
+                                )}
+                                {!locating && buyerCoords && onCampusForAll && (
+                                    <p className="text-xs text-emerald-600 -mt-3 mb-4">You're on campus — delivery is free!</p>
+                                )}
+                            </>
+                        )}
 
                         <div className="border-t border-slate-100 pt-4 space-y-2.5">
                             <div className="flex items-center justify-between text-sm text-slate-500">
@@ -226,10 +320,11 @@ export default function Cart() {
                         </div>
 
                         <button
-                            onClick={() => navigate(user ? '/checkout' : '/login')}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 hover:opacity-90 text-white font-semibold text-sm transition shadow-sm"
+                            onClick={handleAction}
+                            disabled={paying || (deliveryMethod === 'delivery' && locating)}
+                            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 hover:opacity-90 text-white font-semibold text-sm transition shadow-sm disabled:opacity-60"
                         >
-                            Checkout
+                            {paying ? 'Redirecting to payment…' : (deliveryMethod === 'pickup' ? 'Chat with Seller(s)' : `Pay · GHS ${grandTotal.toFixed(2)}`)}
                         </button>
                         {!user && (
                             <p className="text-xs text-slate-400 text-center mt-3">

@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, MessageCircle, LogOut, PlusCircle, LayoutDashboard, Home, Bell, Menu } from 'lucide-react';
+import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import { useNotifications } from '../context/NotificationContext';
 import ProfileDrawer from './ProfileDrawer';
-import ConfirmModal from './ConfirmModal';
 
 export default function Navbar() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const { count } = useCart();
+    const { items: wishlistItems, count: wishlistCount, removeItem: removeWishlistItem } = useWishlist();
+const [showWishlist, setShowWishlist] = useState(false);
     const { notifications, unreadCount, markAllRead } = useNotifications();
     const navigate = useNavigate();
     const location = useLocation();
     const isHome = location.pathname === '/';
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [confirmLogout, setConfirmLogout] = useState(false);
 
     const toggleNotifications = () => {
         setShowNotifications((s) => {
@@ -120,21 +121,72 @@ export default function Navbar() {
                     </Link>
                     {user ? (
                         <>
-                            <Link to="/messages" className="p-2 rounded-lg hover:bg-slate-100 transition">
-                                <MessageCircle size={20} className="text-slate-700" />
+                            <div className="relative">
+    <button
+        onClick={() => setShowWishlist((s) => !s)}
+        className="relative p-2 rounded-lg hover:bg-slate-100 transition"
+        title="Wishlist"
+    >
+        <Heart size={20} className="text-slate-700" />
+        {wishlistCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-accent-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {wishlistCount}
+            </span>
+        )}
+    </button>
+
+    {showWishlist && (
+        <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowWishlist(false)} />
+            <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 z-50">
+                <div className="px-4 py-3 border-b border-slate-100 font-semibold text-sm text-slate-900">
+                    Wishlist
+                </div>
+                {wishlistItems.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-slate-400">
+                        Nothing saved yet. Tap the heart on any listing to add it here.
+                    </p>
+                ) : (
+                    wishlistItems.map((p) => (
+                        <div
+                            key={p.id}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition"
+                        >
+                            <Link
+                                to={`/product/${p.id}`}
+                                onClick={() => setShowWishlist(false)}
+                                className="flex items-center gap-3 flex-1 min-w-0"
+                            >
+                                {p.primary_image && (
+                                    <img src={p.primary_image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-900 truncate">{p.title}</p>
+                                    <p className="text-xs text-slate-400 truncate">
+                                        GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
+                                    </p>
+                                    <p className="text-xs text-slate-400 truncate">{p.seller_name}</p>
+                                </div>
                             </Link>
+                            <button
+                                onClick={() => removeWishlistItem(p.id)}
+                                className="text-slate-300 hover:text-red-500 p-1.5 transition shrink-0"
+                                title="Remove from wishlist"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    ))
+                )}
+            </div>
+        </>
+    )}
+</div>
                             {user.role === 'admin' && (
                                 <Link to="/admin" className="p-2 rounded-lg hover:bg-slate-100 transition">
                                     <LayoutDashboard size={20} className="text-slate-700" />
                                 </Link>
                             )}
-                            <button
-                                onClick={() => setConfirmLogout(true)}
-                                className="p-2 rounded-lg hover:bg-slate-100 transition"
-                                title="Log out"
-                            >
-                                <LogOut size={20} className="text-slate-700" />
-                            </button>
                         </>
                     ) : (
                         <>
@@ -149,16 +201,6 @@ export default function Navbar() {
             </div>
         </header>
 <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
-        
-
-        <ConfirmModal
-            open={confirmLogout}
-            title="Log out?"
-            message="You'll need to log back in with your university email to continue."
-            confirmLabel="Log out"
-            onConfirm={() => { setConfirmLogout(false); logout(); navigate('/'); }}
-            onCancel={() => setConfirmLogout(false)}
-        />
         </>
     );
 }        

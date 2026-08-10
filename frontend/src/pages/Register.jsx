@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, Eye, EyeOff, User, School, GraduationCap, ShoppingBag, Store, Phone, MapPin } from 'lucide-react';
 
-const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'Other'];
+const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT' , 'UEW', 'UPSA', 'PentUni' , 'KsTU' , 'CU'];
 
 export default function Register() {
     const { register } = useAuth();

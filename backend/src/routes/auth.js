@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { uploadAvatar } = require('../middleware/upload');
-const { sendVerificationEmail } = require('../utils/mailer');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
@@ -35,6 +35,19 @@ function generateCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+const ALLOWED_EMAIL_DOMAINS = [
+    'st.knust.edu.gh',   // KNUST
+    'stu.atu.edu.gh',    // Accra Technical University
+    'st.ug.edu.gh',      // University of Ghana, Legon
+    'st.umat.edu.gh',     // UMAT
+    'kstu.edu.gh'         // Kumasi Technical University
+];
+
+function isAllowedEmailDomain(email) {
+    const domain = email.split('@')[1]?.toLowerCase();
+    return ALLOWED_EMAIL_DOMAINS.some((allowed) => domain === allowed);
+}
+
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -49,6 +62,11 @@ router.post('/register', async (req, res) => {
     if (!whatsapp) {
         return res.status(400).json({ error: 'WhatsApp number is required' });
     }
+    if (!isAllowedEmailDomain(university_email)) {
+        return res.status(400).json({ error: 'Please use a valid university email address' });
+    }
+
+
 
     const resolvedAccountType = account_type === 'seller' ? 'seller' : 'buyer';
 
@@ -165,27 +183,95 @@ router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req
     }
 });
 
-// PATCH /api/auth/me/password
-router.patch('/me/password', requireAuth, async (req, res) => {
-    const { current_password, new_password } = req.body;
-
-    if (!current_password || !new_password) {
-        return res.status(400).json({ error: 'Current and new password are required' });
-    }
-    if (new_password.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
+/// POST /api/auth/me/password/request-code — step 1: verify current password, send code to email
+router.post('/me/password/request-code', requireAuth, async (req, res) => {
+    const { current_password } = req.body;
+    if (!current_password) return res.status(400).json({ error: 'Current password is required' });
 
     try {
-        const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.userId]);
+        const result = await pool.query(
+            'SELECT password_hash, university_email, password_reset_last_sent_at FROM users WHERE id = $1',
+            [req.userId]
+        );
         const user = result.rows[0];
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const match = await bcrypt.compare(current_password, user.password_hash);
         if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
 
+        if (user.password_reset_last_sent_at) {
+            const secondsSince = (Date.now() - new Date(user.password_reset_last_sent_at).getTime()) / 1000;
+            if (secondsSince < RESEND_COOLDOWN_SECONDS) {
+                const wait = Math.ceil(RESEND_COOLDOWN_SECONDS - secondsSince);
+                return res.status(429).json({ error: `Please wait ${wait}s before requesting another code` });
+            }
+        }
+
+        const code = generateCode();
+        const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+        await pool.query(
+            `UPDATE users SET
+                password_reset_code = $1,
+                password_reset_code_expires = $2,
+                password_reset_attempts = 0,
+                password_reset_last_sent_at = now()
+             WHERE id = $3`,
+            [code, expires, req.userId]
+        );
+
+        await sendPasswordResetEmail(user.university_email, code);
+        res.json({ message: 'Verification code sent to your email' });
+    } catch (err) {
+        console.error('Request password reset code error:', err);
+        res.status(500).json({ error: 'Something went wrong sending your verification code' });
+    }
+});
+
+// PATCH /api/auth/me/password — step 2: confirm code + set new password
+router.patch('/me/password', requireAuth, async (req, res) => {
+    const { code, new_password } = req.body;
+
+    if (!code || !new_password) {
+        return res.status(400).json({ error: 'Code and new password are required' });
+    }
+    if (new_password.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT password_reset_code, password_reset_code_expires, password_reset_attempts FROM users WHERE id = $1',
+            [req.userId]
+        );
+        const user = result.rows[0];
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        if (!user.password_reset_code) {
+            return res.status(400).json({ error: 'No pending request — start over' });
+        }
+        if (new Date() > new Date(user.password_reset_code_expires)) {
+            return res.status(400).json({ error: 'Code has expired — request a new one' });
+        }
+        if (user.password_reset_attempts >= MAX_VERIFY_ATTEMPTS) {
+            return res.status(429).json({ error: 'Too many incorrect attempts — request a new code' });
+        }
+        if (user.password_reset_code !== code) {
+            await pool.query('UPDATE users SET password_reset_attempts = password_reset_attempts + 1 WHERE id = $1', [req.userId]);
+            const remaining = MAX_VERIFY_ATTEMPTS - (user.password_reset_attempts + 1);
+            return res.status(400).json({ error: `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} left.` });
+        }
+
         const newHash = await bcrypt.hash(new_password, 10);
-        await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.userId]);
+        await pool.query(
+            `UPDATE users SET
+                password_hash = $1,
+                password_reset_code = NULL,
+                password_reset_code_expires = NULL,
+                password_reset_attempts = 0
+             WHERE id = $2`,
+            [newHash, req.userId]
+        );
 
         res.json({ message: 'Password updated successfully' });
     } catch (err) {
@@ -194,19 +280,37 @@ router.patch('/me/password', requireAuth, async (req, res) => {
     }
 });
 
+const RESEND_COOLDOWN_SECONDS = 60;
+
 // POST /api/auth/me/send-verification
 router.post('/me/send-verification', requireAuth, async (req, res) => {
     try {
-        const userResult = await pool.query('SELECT university_email, verified FROM users WHERE id = $1', [req.userId]);
+        const userResult = await pool.query(
+            'SELECT university_email, verified, verification_last_sent_at FROM users WHERE id = $1',
+            [req.userId]
+        );
         const user = userResult.rows[0];
         if (!user) return res.status(404).json({ error: 'User not found' });
         if (user.verified) return res.status(400).json({ error: 'Account is already verified' });
+
+        if (user.verification_last_sent_at) {
+            const secondsSinceLastSend = (Date.now() - new Date(user.verification_last_sent_at).getTime()) / 1000;
+            if (secondsSinceLastSend < RESEND_COOLDOWN_SECONDS) {
+                const waitSeconds = Math.ceil(RESEND_COOLDOWN_SECONDS - secondsSinceLastSend);
+                return res.status(429).json({ error: `Please wait ${waitSeconds}s before requesting another code` });
+            }
+        }
 
         const code = generateCode();
         const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
         await pool.query(
-            'UPDATE users SET verification_code = $1, verification_code_expires = $2 WHERE id = $3',
+            `UPDATE users SET
+                verification_code = $1,
+                verification_code_expires = $2,
+                verification_attempts = 0,
+                verification_last_sent_at = now()
+             WHERE id = $3`,
             [code, expires, req.userId]
         );
 
@@ -218,6 +322,8 @@ router.post('/me/send-verification', requireAuth, async (req, res) => {
     }
 });
 
+const MAX_VERIFY_ATTEMPTS = 5;
+
 // POST /api/auth/me/verify
 router.post('/me/verify', requireAuth, async (req, res) => {
     const { code } = req.body;
@@ -225,21 +331,31 @@ router.post('/me/verify', requireAuth, async (req, res) => {
 
     try {
         const result = await pool.query(
-            'SELECT verification_code, verification_code_expires FROM users WHERE id = $1',
+            'SELECT verification_code, verification_code_expires, verification_attempts FROM users WHERE id = $1',
             [req.userId]
         );
         const user = result.rows[0];
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        if (!user.verification_code || user.verification_code !== code) {
-            return res.status(400).json({ error: 'Incorrect code' });
+        if (!user.verification_code) {
+            return res.status(400).json({ error: 'No pending code — request a new one' });
         }
         if (new Date() > new Date(user.verification_code_expires)) {
             return res.status(400).json({ error: 'Code has expired — request a new one' });
         }
+        if (user.verification_attempts >= MAX_VERIFY_ATTEMPTS) {
+            return res.status(429).json({ error: 'Too many incorrect attempts — request a new code' });
+        }
+
+        if (user.verification_code !== code) {
+            await pool.query('UPDATE users SET verification_attempts = verification_attempts + 1 WHERE id = $1', [req.userId]);
+            const remaining = MAX_VERIFY_ATTEMPTS - (user.verification_attempts + 1);
+            return res.status(400).json({ error: `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} left.` });
+        }
 
         const updated = await pool.query(
-            `UPDATE users SET verified = TRUE, verification_code = NULL, verification_code_expires = NULL
+            `UPDATE users SET
+                verified = TRUE, verification_code = NULL, verification_code_expires = NULL, verification_attempts = 0
              WHERE id = $1 RETURNING *`,
             [req.userId]
         );
@@ -248,6 +364,27 @@ router.post('/me/verify', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Verify error:', err);
         res.status(500).json({ error: 'Something went wrong verifying your account' });
+    }
+});
+
+// DELETE /api/auth/me — permanently delete your account
+router.delete('/me', requireAuth, async (req, res) => {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Password is required to delete your account' });
+
+    try {
+        const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.userId]);
+        const user = result.rows[0];
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const match = await bcrypt.compare(password, user.password_hash);
+        if (!match) return res.status(401).json({ error: 'Incorrect password' });
+
+        await pool.query('DELETE FROM users WHERE id = $1', [req.userId]);
+        res.json({ message: 'Account deleted' });
+    } catch (err) {
+        console.error('Delete account error:', err);
+        res.status(500).json({ error: 'Something went wrong deleting your account' });
     }
 });
 

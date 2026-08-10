@@ -29,6 +29,7 @@ export function CartProvider({ children }) {
                 seller_id: product.seller_id ?? product.user_id ?? null,
                 seller_name: product.seller_name || 'Seller',
                 seller_whatsapp: product.seller_whatsapp || product.whatsapp || null,
+                seller_school: product.seller_school || null,
             }];
         });
     };

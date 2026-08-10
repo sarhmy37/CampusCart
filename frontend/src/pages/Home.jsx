@@ -20,6 +20,7 @@ const HERO_IMAGES = [
     '/UHAS.jpg',
     '/UCC.jpg',
     '/UDS.jpg',
+    '/UMAT.jpg',
     '/UOE.jpg',
     '/UPSA.jpg',
     '/PentUNI.jpg',

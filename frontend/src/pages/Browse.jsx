@@ -19,6 +19,7 @@ const SCHOOLS = [
     { name: 'PentUni', lat: 5.6262, lng: -0.2742 },
     { name: 'KsTU', lat: 6.6911, lng: -1.6100 },
     { name: 'CU', lat: 5.5663, lng: -0.2410 },
+    { name: 'UMaT', lat: 5.3005, lng: -1.9900 },
 ];
 
 const PRICE_RANGES = [
@@ -124,19 +125,17 @@ export default function Browse() {
     return (
         <div>
             {/* HEADER STRIP */}
-            <section className="overflow-hidden sticky top-0 z-50">
-                <div className="absolute inset-0">
+                   <section className="sticky top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600">                <div className="absolute inset-0">
                     <HeroSlideshow images={[
                         '/IMG_8639 2.jpg', '/knust-hero.jpg', '/ATU.jpg', '/UHAS.jpg', '/UCC.jpg',
-                        '/UDS.jpg', '/UOE.jpg', '/UPSA.jpg', '/PentUNI.jpg', '/KsTU.png', '/CU.jpg',
+                        '/UDS.jpg', '/UOE.jpg', '/UPSA.jpg', '/PentUNI.jpg', '/KsTU.png', '/CU.jpg','/UMAT.jpg',
                     ]} />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40" />
                 </div>
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 rounded-full blur-3xl" />
 
-                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" style={{ minHeight: '260px' }}>
-                    <div className="flex items-center justify-between flex-wrap gap-3">
+                       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">                    <div className="flex items-center justify-between flex-wrap gap-3">
                         <Link
                             to="/"
                             className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
@@ -249,7 +248,7 @@ export default function Browse() {
                 )}
 
                 {loading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                         {Array.from({ length: 8 }).map((_, i) => (
                             <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-100 animate-pulse" />
                         ))}
@@ -264,7 +263,7 @@ export default function Browse() {
                         {isDemo && (
                             <p className="text-sm text-slate-400 mb-4">No live listings yet — here's a preview of how they'll look:</p>
                         )}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                             {visibleProducts.map((p) => <ProductCard key={p.id} product={p} />)}
                         </div>
                     </>

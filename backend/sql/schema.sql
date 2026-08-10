@@ -136,6 +136,11 @@ CREATE TABLE IF NOT EXISTS seller_rewards (
     UNIQUE (seller_id, milestone)
 );
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(6);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_last_sent_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS email_otps (
     id          SERIAL PRIMARY KEY,
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -150,3 +155,11 @@ INSERT INTO categories (name) VALUES
     ('Clothes'), ('Phone accessories'), ('Stationery'), ('Laptops'),
     ('Perfumes'), ('Food'), ('Sneakers'), ('Other')
 ON CONFLICT (name) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS wishlist_items (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_id  UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, product_id)
+);

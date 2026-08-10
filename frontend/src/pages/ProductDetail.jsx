@@ -75,6 +75,7 @@ api.get(`/products/${id}`)
             seller_id: product.seller_id,
             seller_name: product.seller_name,
             seller_whatsapp: product.seller_whatsapp || product.whatsapp,
+            seller_school: product.seller_school,
         });
     }
     toast.success(`Added ${qty} to cart`);

@@ -5,24 +5,45 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck, Info,
-    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent
+    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle
 } from 'lucide-react';
 
 const APP_VERSION = '1.0.0';
-const PLATFORM_FEE_RATE = 5; // %
+const PLATFORM_FEE_RATE = 2; // %
 
 export default function Settings() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const isSeller = user?.account_type === 'seller';
 
+   const [pwStep, setPwStep] = useState(1); // 1 = enter current password, 2 = enter code + new password
     const [current, setCurrent] = useState('');
+    const [code, setCode] = useState('');
     const [next, setNext] = useState('');
     const [confirm, setConfirm] = useState('');
     const [show, setShow] = useState(false);
     const [saving, setSaving] = useState(false);
     const [termsOpen, setTermsOpen] = useState(isSeller);
     const [fullTermsOpen, setFullTermsOpen] = useState(false);
+
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleting, setDeleting] = useState(false);
+    const { logout } = useAuth();
+
+    const handleDeleteAccount = async () => {
+        setDeleting(true);
+        try {
+            await api.delete('/auth/me', { data: { password: deletePassword } });
+            toast.success('Account deleted');
+            logout();
+            navigate('/');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete account');
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     const [notifyListings, setNotifyListings] = useState(
         localStorage.getItem('cc_notify_listings') !== 'false'
@@ -45,7 +66,21 @@ export default function Settings() {
         toast.success(`Default set to ${value === 'pickup' ? 'campus meet-up' : 'delivery'}`);
     };
 
-    const onChangePassword = async (e) => {
+    const requestPasswordCode = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            await api.post('/auth/me/password/request-code', { current_password: current });
+            toast.success('Code sent to your university email');
+            setPwStep(2);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to send code');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const confirmPasswordChange = async (e) => {
         e.preventDefault();
         if (next !== confirm) {
             toast.error("New passwords don't match");
@@ -53,9 +88,11 @@ export default function Settings() {
         }
         setSaving(true);
         try {
-            await api.patch('/auth/me/password', { current_password: current, new_password: next });
+            await api.patch('/auth/me/password', { code, new_password: next });
             toast.success('Password updated');
+            setPwStep(1);
             setCurrent('');
+            setCode('');
             setNext('');
             setConfirm('');
         } catch (err) {
@@ -191,49 +228,88 @@ export default function Settings() {
                         <h2 className="font-bold text-slate-900">Change password</h2>
                     </div>
 
-                    <form onSubmit={onChangePassword} className="space-y-3">
-                        <input
-                            type={show ? 'text' : 'password'}
-                            required
-                            placeholder="Current password"
-                            value={current}
-                            onChange={(e) => setCurrent(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition"
-                        />
-                        <input
-                            type={show ? 'text' : 'password'}
-                            required
-                            minLength={6}
-                            placeholder="New password"
-                            value={next}
-                            onChange={(e) => setNext(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition"
-                        />
-                        <input
-                            type={show ? 'text' : 'password'}
-                            required
-                            placeholder="Confirm new password"
-                            value={confirm}
-                            onChange={(e) => setConfirm(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition"
-                        />
-
-                        <button
-                            type="button"
-                            onClick={() => setShow((s) => !s)}
-                            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700"
-                        >
-                            {show ? <EyeOff size={13} /> : <Eye size={13} />} {show ? 'Hide' : 'Show'} passwords
-                        </button>
-
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 hover:opacity-90 text-white font-semibold text-sm transition disabled:opacity-60 shadow-sm"
-                        >
-                            {saving ? 'Updating…' : 'Update password'}
-                        </button>
-                    </form>
+                   {pwStep === 1 ? (
+                        <form onSubmit={requestPasswordCode} className="space-y-3">
+                            <p className="text-xs text-slate-400 -mt-1">
+                                Confirm your current password — we'll email a verification code to your university email.
+                            </p>
+                            <input
+                                type={show ? 'text' : 'password'}
+                                required
+                                placeholder="Current password"
+                                value={current}
+                                onChange={(e) => setCurrent(e.target.value)}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShow((s) => !s)}
+                                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700"
+                            >
+                                {show ? <EyeOff size={13} /> : <Eye size={13} />} {show ? 'Hide' : 'Show'} password
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 hover:opacity-90 text-white font-semibold text-sm transition disabled:opacity-60 shadow-sm"
+                            >
+                                {saving ? 'Sending code…' : 'Send verification code'}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={confirmPasswordChange} className="space-y-3">
+                            <p className="text-xs text-slate-400 -mt-1">
+                                Enter the code we emailed you, along with your new password.
+                            </p>
+                            <input
+                                type="text"
+                                required
+                                maxLength={6}
+                                placeholder="6-digit code"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value)}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition tracking-widest text-center font-semibold"
+                            />
+                            <input
+                                type={show ? 'text' : 'password'}
+                                required
+                                minLength={6}
+                                placeholder="New password"
+                                value={next}
+                                onChange={(e) => setNext(e.target.value)}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition"
+                            />
+                            <input
+                                type={show ? 'text' : 'password'}
+                                required
+                                placeholder="Confirm new password"
+                                value={confirm}
+                                onChange={(e) => setConfirm(e.target.value)}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShow((s) => !s)}
+                                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700"
+                            >
+                                {show ? <EyeOff size={13} /> : <Eye size={13} />} {show ? 'Hide' : 'Show'} passwords
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 hover:opacity-90 text-white font-semibold text-sm transition disabled:opacity-60 shadow-sm"
+                            >
+                                {saving ? 'Updating…' : 'Confirm & update password'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setPwStep(1)}
+                                className="w-full text-xs text-slate-400 hover:text-slate-600"
+                            >
+                                ← Start over
+                            </button>
+                        </form>
+                    )}
                 </div>
 
                 {/* DEFAULT DELIVERY PREFERENCE */}
@@ -293,6 +369,25 @@ export default function Settings() {
                     />
                 </div>
 
+                {/* DANGER ZONE */}
+                <div className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-9 h-9 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">
+                            <AlertTriangle size={16} />
+                        </div>
+                        <h2 className="font-bold text-slate-900">Danger zone</h2>
+                    </div>
+                    <p className="text-xs text-slate-400 mb-4">
+                        Deleting your account is permanent — your listings, orders, and messages will be removed and cannot be recovered.
+                    </p>
+                    <button
+                        onClick={() => setDeleteOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
+                    >
+                        <Trash2 size={15} /> Delete my account
+                    </button>
+                </div>
+
                 {/* ABOUT */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-2">
@@ -312,6 +407,46 @@ export default function Settings() {
                     </div>
                 </div>
             </div>
+
+            {deleteOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setDeleteOpen(false)} />
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                        <div className="w-11 h-11 rounded-xl bg-red-50 text-red-500 flex items-center justify-center mb-4">
+                            <AlertTriangle size={20} />
+                        </div>
+                        <h3 className="font-bold text-slate-900 text-lg">Delete your account?</h3>
+                        <p className="text-sm text-slate-500 mt-1.5">
+                            This can't be undone. Enter your password to confirm.
+                        </p>
+
+                        <input
+                            type="password"
+                            required
+                            placeholder="Password"
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            className="w-full mt-4 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-red-400 focus:ring-2 focus:ring-red-100 focus:outline-none text-sm transition"
+                        />
+
+                        <div className="flex gap-2 mt-5">
+                            <button
+                                onClick={() => { setDeleteOpen(false); setDeletePassword(''); }}
+                                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={deleting || !deletePassword}
+                                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-60"
+                            >
+                                {deleting ? 'Deleting…' : 'Delete account'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
