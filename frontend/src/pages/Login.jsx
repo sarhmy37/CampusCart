@@ -1,0 +1,107 @@
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import { Mail, Lock, Eye, EyeOff, GraduationCap } from 'lucide-react';
+
+export default function Login() {
+    const { login } = useAuth();
+    const navigate = useNavigate();
+    const [form, setForm] = useState({ university_email: '', password: '' });
+    const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+
+    const onSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await login(form.university_email, form.password);
+            toast.success('Welcome back!');
+            navigate('/');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2">
+            {/* LEFT — visual panel */}
+            <div className="relative hidden lg:block overflow-hidden">
+                <img src="/login.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60" />
+                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
+                <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 rounded-full blur-3xl" />
+
+                <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
+                    <span className="inline-flex items-center gap-1.5 w-fit bg-white/15 backdrop-blur text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20">
+                        <GraduationCap size={13} /> CampusCart
+                    </span>
+                    <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
+                        Welcome back to your campus marketplace.
+                    </h1>
+                    <p className="mt-4 text-white/80 text-sm max-w-sm">
+                        Log in to message sellers, track your orders, and list what you no longer need.
+                    </p>
+                </div>
+            </div>
+
+            {/* RIGHT — form */}
+            <div className="flex items-center justify-center px-4 py-16 bg-slate-50">
+                <div className="w-full max-w-sm">
+                    <h1 className="text-2xl font-extrabold text-slate-900">Welcome back</h1>
+                    <p className="text-sm text-slate-500 mt-1">Log in with your university email.</p>
+
+                    <form onSubmit={onSubmit} className="mt-6 space-y-4">
+                        <div>
+                            <label className="text-sm font-semibold text-slate-700">University Email</label>
+                            <div className="relative mt-1">
+                                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="email"
+                                    required
+                                    value={form.university_email}
+                                    onChange={(e) => setForm({ ...form, university_email: e.target.value })}
+                                    placeholder="you@st.knust.edu.gh"
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm font-semibold text-slate-700">Password</label>
+                            <div className="relative mt-1">
+                                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    required
+                                    value={form.password}
+                                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((s) => !s)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition disabled:opacity-60 shadow-sm"
+                        >
+                            {loading ? 'Logging in…' : 'Log in'}
+                        </button>
+                    </form>
+
+                    <p className="text-sm text-slate-500 mt-6 text-center">
+                        Don't have an account? <Link to="/register" className="text-brand-600 font-semibold">Sign up</Link>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
