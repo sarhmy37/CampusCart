@@ -5,23 +5,35 @@ export default {
   theme: {
     extend: {
       colors: {
+        // 🔴 Cool Red (light mode primary)
         brand: {
-          50: '#eef7ff',
-          100: '#d9edff',
-          200: '#bce0ff',
-          300: '#8ecdff',
-          400: '#59b0ff',
-          500: '#3390fd',
-          600: '#1c6ff2',
-          700: '#1859de',
-          800: '#1a49b3',
-          900: '#1b418d',
-          950: '#152a56',
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+          950: '#450a0a',
         },
+        // 🟠 Warm Amber/Orange (matching accent for red)
         accent: {
-          500: '#ff8a34',
-          600: '#f0701a',
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
+          950: '#431407',
         },
+        // 🟡 Gold (dark mode primary – unchanged)
         gold: {
           50: '#fdf8ec',
           100: '#faedc4',
@@ -34,6 +46,7 @@ export default {
           800: '#794718',
           900: '#663c19',
         },
+        // ⚫ Dark mode backgrounds (unchanged)
         ink: {
           900: '#0d0c0a',
           800: '#161411',
