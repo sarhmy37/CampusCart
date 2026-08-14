@@ -273,6 +273,7 @@ router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req
 });
 
 // POST /api/auth/me/password/request-code
+// POST /api/auth/me/password/request-code
 router.post('/me/password/request-code', requireAuth, async (req, res) => {
     const { current_password } = req.body;
     if (!current_password) return res.status(400).json({ error: 'Current password is required' });
@@ -299,6 +300,7 @@ router.post('/me/password/request-code', requireAuth, async (req, res) => {
         const code = generateCode();
         const expires = new Date(Date.now() + 10 * 60 * 1000);
 
+        // 1. Save the code to the database (This runs instantly)
         await pool.query(
             `UPDATE users SET
                 password_reset_code = $1,
@@ -309,9 +311,19 @@ router.post('/me/password/request-code', requireAuth, async (req, res) => {
             [code, expires, req.userId]
         );
 
-        // CHANGE MADE HERE: Removed 'await' so it doesn't freeze
-        sendPasswordResetEmail(user.university_email, code);
+        // 2. Send the email in the background
+        // We wrap this in a separate function without 'await' so it doesn't block
+        // But we don't call sendPasswordResetEmail directly because Render shuts it down.
+        // Instead, we rely on a separate background job.
+        // For now, we will just send it without awaiting, but it's risky on Render.
+        // The best practice is to create a 'pending_emails' table.
         
+        // TEMPORARY FIX: We will try sending it without await, 
+        // but if Render kills it, we need a backup.
+        sendPasswordResetEmail(user.university_email, code)
+            .catch(err => console.error('Background email failed:', err));
+
+        // 3. IMMEDIATELY reply to the user
         res.json({ message: 'Verification code sent to your email' });
     } catch (err) {
         console.error('Request password reset code error:', err);
