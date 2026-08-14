@@ -41,7 +41,7 @@ export default function ProductCard({ product }) {
         }
         if (stock <= 5) {
             return (
-                <span className="absolute top-1.5 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
+                <span className="hidden sm:block absolute top-1.5 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
                     Low stock
                 </span>
             );
