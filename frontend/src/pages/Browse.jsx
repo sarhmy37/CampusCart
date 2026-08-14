@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
+import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
 import { SlidersHorizontal, ArrowLeft, X, BadgeCheck, Wallet, ChevronDown } from 'lucide-react';
 
@@ -42,7 +43,7 @@ export default function Browse() {
     const [priceRange, setPriceRange] = useState(null);
     const [budgetInput, setBudgetInput] = useState('');
     const [loading, setLoading] = useState(true);
-    const [filterType, setFilterType] = useState('all'); // 'all' | 'new' | 'special' | 'soldout'
+    const [filterType, setFilterType] = useState('all');
     const search = searchParams.get('search') || '';
 
     useEffect(() => {
@@ -167,10 +168,7 @@ export default function Browse() {
             {/* HEADER STRIP */}
             <section className="sticky top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0">
-                    <HeroSlideshow images={[
-                        '/IMG_8639 2.jpg', '/knust-hero.jpg', '/ATU.jpg', '/UHAS.jpg', '/UCC.jpg',
-                        '/UDS.jpg', '/UOE.jpg', '/UPSA.jpg', '/PentUNI.jpg', '/KsTU.png', '/CU.jpg','/UMAT.jpg',
-                    ]} />
+                    <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
                 </div>
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
@@ -230,7 +228,6 @@ export default function Browse() {
                         </div>
                     </div>
 
-                    {/* Heading row — budget input shares this row on mobile */}
                     <div className="flex items-center justify-between gap-3 mt-5">
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white">
                             {search ? `Results for "${search}"` : 'Browse listings'}
@@ -238,7 +235,6 @@ export default function Browse() {
                         <div className="sm:hidden">{budgetInputField}</div>
                     </div>
 
-                    {/* PRICE FILTER ROW — full row, desktop only */}
                     <div className="hidden sm:flex items-center gap-2 flex-wrap mt-5">
                         {PRICE_RANGES.map((r) => (
                             <button

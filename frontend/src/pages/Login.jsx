@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { LOGIN_IMAGE } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, GraduationCap } from 'lucide-react';
 
 export default function Login() {
@@ -64,7 +65,7 @@ export default function Login() {
             <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2">
                 {/* LEFT — visual panel */}
                 <div className="relative hidden lg:block overflow-hidden">
-                    <img src="/login.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={LOGIN_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/45" />
                     <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                     <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/15 rounded-full blur-3xl" />

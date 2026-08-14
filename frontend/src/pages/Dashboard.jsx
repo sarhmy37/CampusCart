@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { DASHBOARD_VIDEO } from '../data/media';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag
@@ -56,7 +57,7 @@ export default function Dashboard() {
             <section className="relative overflow-hidden">
                 {/* VIDEO BACKGROUND */}
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
-                    <source src="/Dashboard.mp4" type="video/mp4" />
+                    <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
                 {/* OVERLAYS */}
                 <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />

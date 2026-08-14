@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { openWhatsAppChats } from '../utils/whatsapp';
 import { calcDeliveryFee, SCHOOL_COORDS, haversineKm } from '../utils/distance';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck, Loader2 } from 'lucide-react';
+import { CART_VIDEO } from '../data/media';
 
 const SERVICE_FEE_RATE = 0.02;
 const FALLBACK_DELIVERY_FEE = 15;
@@ -53,7 +54,7 @@ export default function Cart() {
     const [locationDenied, setLocationDenied] = useState(false);
     const [onCampusChecked, setOnCampusChecked] = useState(false);
     const [verifyingCampus, setVerifyingCampus] = useState(false);
-    const [confirmedOnCampus, setConfirmedOnCampus] = useState(null); // null = not checked, true/false = result
+    const [confirmedOnCampus, setConfirmedOnCampus] = useState(null);
 
     const sellerGroups = items.reduce((groups, item) => {
         const key = item.seller_whatsapp || item.seller_name || 'unknown';
@@ -83,8 +84,6 @@ export default function Cart() {
         );
     }, [deliveryMethod, buyerCoords, locationDenied]);
 
-    // Which school(s) the items in this cart are being sold from — used to check
-    // "on campus" against the actual seller's school, not just any campus.
     const sellerSchoolsInCart = [...new Set(items.map((i) => i.seller_school).filter(Boolean))];
 
     const handleOnCampusToggle = (checked) => {
@@ -151,7 +150,7 @@ export default function Cart() {
     let deliveryFee = 0;
     if (deliveryMethod === 'delivery') {
         if (confirmedOnCampus === true) {
-            deliveryFee = 10 * Object.keys(sellerGroups).length; // GHS 10 per seller, matches backend
+            deliveryFee = 10 * Object.keys(sellerGroups).length;
         } else if (buyerCoords) {
             Object.values(sellerGroups).forEach((group) => {
                 const { fee } = calcDeliveryFee(buyerCoords.lat, buyerCoords.lng, group.school);
@@ -240,47 +239,44 @@ export default function Cart() {
                                 Chat with sellers
                             </p>
                             <div className="space-y-2">
-    {Object.values(sellerGroups).map((group) => {
-        const number = formatWhatsAppNumber(group.whatsapp);
-        const message = buildWhatsAppMessage(group.sellerName, group.items);
-        const href = number
-            ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
-            : null;
+                                {Object.values(sellerGroups).map((group) => {
+                                    const number = formatWhatsAppNumber(group.whatsapp);
+                                    const message = buildWhatsAppMessage(group.sellerName, group.items);
+                                    const href = number
+                                        ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+                                        : null;
 
-        return (
-            <a
-                key={group.sellerName + (group.whatsapp || '')}
-                href={href || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                    // Check if user is logged in
-                    if (!user) {
-                        e.preventDefault();
-                        navigate('/login');
-                        return;
-                    }
-
-                    // Check if WhatsApp number exists
-                    if (!href) {
-                        e.preventDefault();
-                        alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
-                    }
-                }}
-                className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
-                    href
-                        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'
-                        : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 text-slate-400 dark:text-gold-200/40 cursor-not-allowed'
-                }`}
-            >
-                <span className="flex items-center gap-2.5">
-                    <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
-                    Chat with {group.sellerName} about {group.items.length} item{group.items.length > 1 ? 's' : ''}
-                </span>
-            </a>
-        );
-    })}
-</div>
+                                    return (
+                                        <a
+                                            key={group.sellerName + (group.whatsapp || '')}
+                                            href={href || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => {
+                                                if (!user) {
+                                                    e.preventDefault();
+                                                    navigate('/login');
+                                                    return;
+                                                }
+                                                if (!href) {
+                                                    e.preventDefault();
+                                                    alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
+                                                }
+                                            }}
+                                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+                                                href
+                                                    ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'
+                                                    : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 text-slate-400 dark:text-gold-200/40 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-2.5">
+                                                <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
+                                                Chat with {group.sellerName} about {group.items.length} item{group.items.length > 1 ? 's' : ''}
+                                            </span>
+                                        </a>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -409,7 +405,7 @@ function CartHeader({ count }) {
                 className="absolute inset-0 w-full h-full object-cover"
                 style={{ objectPosition: '50% 40%' }}
             >
-                <source src="/Cart.mp4" type="video/mp4" />
+                <source src={CART_VIDEO} type="video/mp4" />
             </video>
             <div className="absolute inset-0 bg-gradient-to-br from-brand-900/50 via-brand-800/35 to-accent-600/25 dark:from-ink-900/80 dark:via-ink-900/60 dark:to-gold-900/35" />
             <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />

@@ -42,6 +42,9 @@ app.use(express.json({
 // Serve uploaded avatar/product images
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+// Serve static site imagery/video (hero photos, campus gallery, promo videos)
+app.use('/media', express.static(path.join(__dirname, '..', 'media')));
+
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);

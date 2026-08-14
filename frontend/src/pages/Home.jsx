@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Reveal from '../components/Reveal';
+import { HERO_IMAGES, GALLERY } from '../data/media';
 import HeroSlideshow from '../components/HeroSlideshow';
 import SellerRequiredModal from '../components/SellerRequiredModal';
 import {
@@ -12,69 +13,6 @@ import {
     ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
-const HERO_IMAGES = [
-    '/knust-hero.jpg',
-    '/IMG_8639 2.jpg',
-    '/ATU.jpg',
-    '/UHAS.jpg',
-    '/UCC.jpg',
-    '/UDS.jpg',
-    '/UMAT.jpg',
-    '/UOE.jpg',
-    '/UPSA.jpg',
-    '/PentUNI.jpg',
-    '/KsTU.png',
-    '/CU.jpg',
-];
-
-const GALLERY = [
-    {
-        label: 'Sneakers in all sizes',
-        images: [
-            '/Shoe.jpg',
-            '/Shoe2.jpg',
-            '/Shoe3.jpg',
-            '/Shoe4.jpg',
-            '/Sneakers.mp4',
-            '/Sneakers2.jpg',
-            '/Sneakers4.jpg',
-        ],
-    },
-
-    {
-        label: 'Meet up on campus',
-        images: [
-            '/MeetOnCampus.jpg',
-            '/MeetOnCampus2.jpg',
-            '/MeetOnCampus3.jpg',
-            '/Meeting.mp4',
-            '/meetme.jpg',
-        ],
-    },
-
-    {
-        label: 'Gadgets, gently used',
-        images: [
-            '/Gadget.jpg',
-            '/Gadget2.jpg',
-            '/Gadget3.jpg',
-            '/Gadget4.jpg',
-            '/Gadjet.mp4',
-        ],
-    },
-
-    {
-        label: 'Food',
-        images: [
-            '/Waakye.jpg',
-            '/Waakye2.jpg',
-            '/Waakye3.jpg',
-            '/Foodie.mp4',
-            '/foood.jpg',
-        ],
-    },
-];
 
 function GalleryImage({ images, label }) {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -211,26 +149,26 @@ export default function Home() {
                     </Reveal>
 
                     <Reveal delay={300}>
-    <div className="mt-8 flex flex-nowrap gap-2 sm:gap-3">
+                        <div className="mt-8 flex flex-nowrap gap-2 sm:gap-3">
 
-        <Link
-            to={user ? '/sell/new' : '/register'}
-            onClick={handleStartSelling}
-            className="inline-flex items-center gap-1.5 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
-        >
-            Start selling
-            <ArrowRight className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" />
-        </Link>
+                            <Link
+                                to={user ? '/sell/new' : '/register'}
+                                onClick={handleStartSelling}
+                                className="inline-flex items-center gap-1.5 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
+                            >
+                                Start selling
+                                <ArrowRight className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" />
+                            </Link>
 
-        <Link
-            to="/browse"
-            className="inline-flex items-center gap-1.5 sm:gap-2 bg-white/10 text-white font-semibold px-4 py-2 sm:px-6 sm:py-3 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-base whitespace-nowrap"
-        >
-            Browse listings
-        </Link>
+                            <Link
+                                to="/browse"
+                                className="inline-flex items-center gap-1.5 sm:gap-2 bg-white/10 text-white font-semibold px-4 py-2 sm:px-6 sm:py-3 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-base whitespace-nowrap"
+                            >
+                                Browse listings
+                            </Link>
 
-    </div>
-</Reveal>
+                        </div>
+                    </Reveal>
                 </div>
             </section>
 

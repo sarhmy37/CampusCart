@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
+import { REGISTER_IMAGE } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, User, School, GraduationCap, ShoppingBag, Store, Phone, MapPin, ChevronDown, Landmark, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU'];
@@ -279,7 +280,7 @@ export default function Register() {
             <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2">
                 {/* LEFT — visual panel */}
                 <div className="relative hidden lg:block overflow-hidden">
-                    <img src="/register.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={REGISTER_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/45" />
                     <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                     <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/15 rounded-full blur-3xl" />
