@@ -11,11 +11,11 @@ function fileUrl(req, filename) {
 }
 
 // GET /api/products/mine — the logged-in seller's own listings
-// Matches Dashboard.jsx: api.get('/products/mine')
 router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.created_at,
+                    p.rating, p.review_count,  -- 👈 added
                     c.name AS category
              FROM products p
              LEFT JOIN categories c ON c.id = p.category_id
@@ -31,8 +31,6 @@ router.get('/mine', requireAuth, async (req, res) => {
 });
 
 // GET /api/products?search=&category=
-// Matches Browse.jsx: api.get('/products', { params: { search, category } })
-// Listings from sellers with an overdue platform-fee balance are hidden until they pay.
 router.get('/', async (req, res) => {
     const { search, category, itemCategory } = req.query;
     const categoryFilter = category || itemCategory;
@@ -55,6 +53,7 @@ router.get('/', async (req, res) => {
         const result = await pool.query(
             `SELECT
                 p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.created_at,
+                p.rating, p.review_count,  -- 👈 added
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified,
                 c.name AS category
@@ -73,14 +72,14 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/products/:id
-// Matches ProductDetail.jsx: api.get(`/products/${id}`)
 router.get('/:id', async (req, res) => {
     try {
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.condition, p.stock, p.created_at,
+                p.rating, p.review_count,  -- 👈 added
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
-                u.whatsapp AS seller_whatsapp, u.verified AS seller_verified,
+                u.whatsapp AS seller_whatsapp, u.verified AS seller_verified, u.last_active AS seller_last_active,
                 c.name AS category
              FROM products p
              JOIN users u ON u.id = p.seller_id
@@ -106,8 +105,6 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/products — create a listing
-// Matches CreateListing.jsx — expects multipart/form-data with fields:
-// title, description, price, condition, category (name), stock, images (up to 6 files)
 router.post('/', requireAuth, uploadProductImages.array('images', 6), async (req, res) => {
     const { title, description, price, condition, category, stock } = req.body;
 
@@ -164,6 +161,44 @@ router.post('/', requireAuth, uploadProductImages.array('images', 6), async (req
         res.status(500).json({ error: 'Something went wrong creating your listing' });
     } finally {
         client.release();
+    }
+});
+
+// PATCH /api/products/:id — edit your own listing
+router.patch('/:id', requireAuth, async (req, res) => {
+    const { title, description, price, condition, category, stock } = req.body;
+
+    try {
+        const existing = await pool.query('SELECT seller_id FROM products WHERE id = $1', [req.params.id]);
+        const product = existing.rows[0];
+        if (!product) return res.status(404).json({ error: 'Listing not found' });
+        if (product.seller_id !== req.userId) {
+            return res.status(403).json({ error: "You can't edit someone else's listing" });
+        }
+
+        let categoryId;
+        if (category !== undefined) {
+            const catResult = await pool.query('SELECT id FROM categories WHERE name = $1', [category]);
+            categoryId = catResult.rows[0]?.id || null;
+        }
+
+        const result = await pool.query(
+            `UPDATE products SET
+                title = COALESCE($1, title),
+                description = COALESCE($2, description),
+                price = COALESCE($3, price),
+                condition = COALESCE($4, condition),
+                stock = COALESCE($5, stock),
+                category_id = COALESCE($6, category_id)
+             WHERE id = $7
+             RETURNING *`,
+            [title, description, price, condition, stock, categoryId, req.params.id]
+        );
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Update product error:', err);
+        res.status(500).json({ error: 'Something went wrong updating your listing' });
     }
 });
 

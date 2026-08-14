@@ -5,8 +5,9 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
-    Award, AlertTriangle, Store, Package, Landmark
+    Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag
 } from 'lucide-react';
+import EditListingModal from '../components/EditListingModal';
 
 const PERIODS = [
     { value: 'week', label: 'This week' },
@@ -46,15 +47,23 @@ export default function Dashboard() {
     }, [isSeller]);
 
     const tabs = isSeller
-        ? ['overview', 'listings', 'orders', 'sales', 'payouts']
-        : ['orders'];
+        ? ['overview', 'listings', 'orders', 'sales', 'payouts', 'reports']
+        : ['orders', 'reports'];
 
     return (
         <div>
-            {/* HEADER */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600">
+            {/* HEADER — with video background */}
+            <section className="relative overflow-hidden">
+                {/* VIDEO BACKGROUND */}
+                <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                    <source src="/Dashboard.mp4" type="video/mp4" />
+                </video>
+                {/* OVERLAYS */}
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 rounded-full blur-3xl" />
+                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
+
+                {/* CONTENT */}
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div>
@@ -74,7 +83,7 @@ export default function Dashboard() {
                             {isSeller && (
                                 <Link
                                     to="/sell/new"
-                                    className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-5 py-2.5 rounded-full hover:bg-brand-50 transition shadow-sm text-sm"
+                                    className="inline-flex items-center gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-5 py-2.5 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-sm text-sm"
                                 >
                                     <Plus size={16} /> New Listing
                                 </Link>
@@ -82,7 +91,7 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                   <div className="grid grid-cols-3 gap-3 mt-8">
+                    <div className="grid grid-cols-3 gap-3 mt-8">
                         {isSeller ? (
                             <>
                                 <StatCard icon={Tag} label="Listings" value={stats.listings} />
@@ -100,14 +109,18 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
                 {tabs.length > 1 && (
-                    <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-fit overflow-x-auto">
+                    <div className="flex gap-1 mb-6 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto overflow-x-auto">
                         {tabs.map((t) => (
                             <button
                                 key={t}
                                 onClick={() => setTab(t)}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${tab === t ? 'bg-white shadow-sm text-brand-700' : 'text-slate-500'}`}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${
+                                    tab === t
+                                        ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
+                                        : 'text-slate-500 dark:text-gold-200/50'
+                                }`}
                             >
                                 {t}
                             </button>
@@ -120,6 +133,7 @@ export default function Dashboard() {
                 {tab === 'orders' && <MyOrders period={period} isSeller={isSeller} />}
                 {tab === 'sales' && <MySales />}
                 {tab === 'payouts' && <PayoutSettings />}
+                {tab === 'reports' && <MyReports />}
             </div>
         </div>
     );
@@ -136,26 +150,39 @@ function StatCard({ icon: Icon, label, value }) {
 }
 
 function PayoutSettings() {
-    const [method, setMethod] = useState('bank'); // 'bank' | 'mobile_money'
+    const { user } = useAuth();
+    const [accounts, setAccounts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [settingDefault, setSettingDefault] = useState(null);
+
+    // Form state for adding new account
+    const [method, setMethod] = useState('bank');
     const [banks, setBanks] = useState([]);
     const [form, setForm] = useState({ bank_code: '', account_number: '', account_name: '' });
     const [resolving, setResolving] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(null);
-    const [loading, setLoading] = useState(true);
+
+    // Fetch accounts
+    const loadAccounts = () => {
+        setLoading(true);
+        api.get('/payouts/accounts') // new endpoint
+            .then((res) => {
+                setAccounts(res.data);
+            })
+            .catch(() => setAccounts([]))
+            .finally(() => setLoading(false));
+    };
 
     useEffect(() => {
-        Promise.all([
-            api.get('/payouts/banks').catch(() => ({ data: [] })),
-            api.get('/payouts/me').catch(() => ({ data: null })),
-        ]).then(([b, mine]) => {
-            setBanks(b.data);
-            setSaved(mine.data);
-            if (mine.data?.method) setMethod(mine.data.method);
-        }).finally(() => setLoading(false));
+        loadAccounts();
+        // Also fetch banks for the add modal
+        api.get('/payouts/banks')
+            .then((res) => setBanks(res.data))
+            .catch(() => {});
     }, []);
 
-    // Auto-resolve account name once both bank/network + full account number are entered
+    // Resolve account name when bank_code and account_number change
     useEffect(() => {
         if (!form.bank_code || form.account_number.length < 9) return;
         setResolving(true);
@@ -168,120 +195,220 @@ function PayoutSettings() {
         return () => clearTimeout(t);
     }, [form.bank_code, form.account_number]);
 
-    const switchMethod = (m) => {
-        setMethod(m);
-        setForm({ bank_code: '', account_number: '', account_name: '' });
+    // Switch default account
+    const setDefault = async (accountId) => {
+        setSettingDefault(accountId);
+        try {
+            await api.patch(`/payouts/default/${accountId}`);
+            toast.success('Default payout account updated');
+            loadAccounts();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update default');
+        } finally {
+            setSettingDefault(null);
+        }
     };
 
-    const handleSave = async () => {
+    // Add new account
+    const handleAddAccount = async () => {
         if (!form.bank_code || !form.account_number || !form.account_name) {
-            toast.error(method === 'bank' ? 'Fill in your bank details first' : 'Fill in your Mobile Money details first');
+            toast.error('Please fill in all fields');
             return;
         }
         setSaving(true);
         try {
-            const res = await api.post('/payouts/me', { ...form, method });
-            setSaved(res.data);
-            toast.success('Payout details saved');
+            await api.post('/payouts/accounts', { ...form, method });
+            toast.success('Account added successfully');
+            setShowAddModal(false);
+            setForm({ bank_code: '', account_number: '', account_name: '' });
+            loadAccounts();
         } catch (err) {
-            toast.error(err.response?.data?.error || 'Failed to save payout details');
+            toast.error(err.response?.data?.error || 'Failed to add account');
         } finally {
             setSaving(false);
         }
     };
 
-    if (loading) return <SkeletonList />;
-
-    const filteredBanks = banks.filter((b) =>
-        method === 'bank' ? b.type !== 'mobile_money' : b.type === 'mobile_money'
-    );
-
-    return (
-        <div className="max-w-md">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6">
-                <div className="flex items-center gap-2.5 mb-1">
-                    <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
-                        <Landmark size={16} />
+    if (loading) {
+        return (
+            <div className="max-w-xl mx-auto">
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
+                    <div className="animate-pulse space-y-4">
+                        <div className="h-6 bg-slate-200 dark:bg-ink-600 rounded w-1/3"></div>
+                        <div className="h-12 bg-slate-200 dark:bg-ink-600 rounded"></div>
+                        <div className="h-12 bg-slate-200 dark:bg-ink-600 rounded"></div>
                     </div>
-                    <h2 className="font-bold text-slate-900">Payout account</h2>
-                </div>
-                <p className="text-xs text-slate-400 mb-5">
-                    This is where your earnings (95% of each sale) get paid out to.
-                </p>
-
-                {/* METHOD SWITCH */}
-                <div className="flex gap-1 mb-5 bg-slate-100 p-1 rounded-xl w-fit">
-                    <button
-                        onClick={() => switchMethod('bank')}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${method === 'bank' ? 'bg-white shadow-sm text-brand-700' : 'text-slate-500'}`}
-                    >
-                        Bank
-                    </button>
-                    <button
-                        onClick={() => switchMethod('mobile_money')}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${method === 'mobile_money' ? 'bg-white shadow-sm text-brand-700' : 'text-slate-500'}`}
-                    >
-                        Mobile Money
-                    </button>
-                </div>
-
-                {saved?.account_number && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4">
-                        <p className="text-sm font-semibold text-emerald-800">{saved.account_name}</p>
-                        <p className="text-xs text-emerald-600 mt-0.5">
-                            {saved.bank_name} · •••• {saved.account_number.slice(-4)}
-                        </p>
-                    </div>
-                )}
-
-                <div className="space-y-3">
-                    <div>
-                        <label className="text-xs font-semibold text-slate-500">
-                            {method === 'bank' ? 'Bank' : 'Network'}
-                        </label>
-                        <select
-                            value={form.bank_code}
-                            onChange={(e) => setForm({ ...form, bank_code: e.target.value, account_name: '' })}
-                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm"
-                        >
-                            <option value="">{method === 'bank' ? 'Select your bank' : 'Select your network'}</option>
-                            {filteredBanks.map((b) => (
-                                <option key={b.code} value={b.code}>{b.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="text-xs font-semibold text-slate-500">
-                            {method === 'bank' ? 'Account number' : 'Mobile Money number'}
-                        </label>
-                        <input
-                            value={form.account_number}
-                            onChange={(e) => setForm({ ...form, account_number: e.target.value.replace(/\D/g, ''), account_name: '' })}
-                            placeholder={method === 'bank' ? '0123456789' : '0551234567'}
-                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm"
-                        />
-                    </div>
-
-                    {(resolving || form.account_name) && (
-                        <div className="text-sm px-1">
-                            {resolving ? (
-                                <span className="text-slate-400">Resolving account name…</span>
-                            ) : (
-                                <span className="font-semibold text-slate-800">{form.account_name}</span>
-                            )}
-                        </div>
-                    )}
-
-                    <button
-                        onClick={handleSave}
-                        disabled={saving || !form.account_name}
-                        className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition disabled:opacity-60"
-                    >
-                        {saving ? 'Saving…' : 'Save payout account'}
-                    </button>
                 </div>
             </div>
+        );
+    }
+
+    const defaultAccount = accounts.find(a => a.is_default);
+
+    return (
+        <div className="max-w-xl mx-auto">
+            <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
+                <div className="flex items-center gap-2.5 mb-1">
+                    <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                        <Landmark size={16} />
+                    </div>
+                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Payout Account</h2>
+                </div>
+                <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-5">
+                    This is where your earnings (95% of each sale) will be sent automatically.
+                </p>
+
+                {accounts.length === 0 ? (
+                    <div className="text-center py-6">
+                        <p className="text-sm text-slate-400 dark:text-gold-200/50">No payout account set up yet.</p>
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="mt-3 text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline"
+                        >
+                            + Add payout account
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {accounts.map((acc) => (
+                            <div
+                                key={acc.id}
+                                className={`flex items-center justify-between p-3 rounded-xl border ${
+                                    acc.is_default
+                                        ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/20'
+                                        : 'border-slate-200 dark:border-ink-600'
+                                }`}
+                            >
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">{acc.account_name}</p>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50">
+                                        {acc.bank_name} · •••• {acc.account_number.slice(-4)}
+                                    </p>
+                                    {acc.is_default && (
+                                        <span className="text-[10px] font-bold text-brand-600 dark:text-gold-400">Default</span>
+                                    )}
+                                </div>
+                                {!acc.is_default && (
+                                    <button
+                                        onClick={() => setDefault(acc.id)}
+                                        disabled={settingDefault === acc.id}
+                                        className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:underline disabled:opacity-50"
+                                    >
+                                        {settingDefault === acc.id ? 'Setting…' : 'Set as default'}
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="w-full mt-3 py-2 text-sm font-semibold text-brand-600 dark:text-gold-400 border border-dashed border-slate-300 dark:border-ink-600 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                        >
+                            + Add another account
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Add Account Modal */}
+            {showAddModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+                        <button
+                            onClick={() => setShowAddModal(false)}
+                            className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">Add payout account</h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">Your earnings will be sent here.</p>
+
+                        <div className="mt-4 space-y-3">
+                            <div className="flex gap-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
+                                <button
+                                    type="button"
+                                    onClick={() => setMethod('bank')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                                        method === 'bank'
+                                            ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                            : 'text-slate-500 dark:text-gold-200/50'
+                                    }`}
+                                >
+                                    Bank
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setMethod('mobile_money')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                                        method === 'mobile_money'
+                                            ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                            : 'text-slate-500 dark:text-gold-200/50'
+                                    }`}
+                                >
+                                    Mobile Money
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">
+                                    {method === 'bank' ? 'Bank' : 'Network'}
+                                </label>
+                                <select
+                                    value={form.bank_code}
+                                    onChange={(e) => setForm({ ...form, bank_code: e.target.value, account_name: '' })}
+                                    className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm"
+                                >
+                                    <option value="">Select {method === 'bank' ? 'bank' : 'network'}</option>
+                                    {banks
+                                        .filter((b) => method === 'bank' ? b.type !== 'mobile_money' : b.type === 'mobile_money')
+                                        .map((b) => (
+                                            <option key={b.code} value={b.code}>{b.name}</option>
+                                        ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">
+                                    Account number
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={form.account_number}
+                                    onChange={(e) => setForm({ ...form, account_number: e.target.value.replace(/\D/g, ''), account_name: '' })}
+                                    placeholder="0123456789"
+                                    className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">
+                                    Account name (as on statement)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={form.account_name}
+                                    onChange={(e) => setForm({ ...form, account_name: e.target.value.toUpperCase() })}
+                                    placeholder="KWAME ASANTE"
+                                    className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm uppercase"
+                                />
+                            </div>
+
+                            {resolving && (
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50">Resolving account name…</p>
+                            )}
+
+                            <button
+                                onClick={handleAddAccount}
+                                disabled={saving || !form.account_name || resolving}
+                                className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60"
+                            >
+                                {saving ? 'Adding…' : 'Add account'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -310,15 +437,15 @@ function SellerOverview({ period }) {
     return (
         <div className="space-y-5">
             {overview.restricted && (
-                <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+                <div className="flex items-start gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-4">
                     <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-sm font-bold text-red-800">Your listings are hidden</p>
-                        <p className="text-xs text-red-600 mt-0.5">
+                        <p className="text-sm font-bold text-red-800 dark:text-red-300">Your listings are hidden</p>
+                        <p className="text-xs text-red-600 dark:text-red-400/70 mt-0.5">
                             You have an overdue platform fee balance of GHS {parseFloat(overview.pending_payment_due).toFixed(2)}.
                             Pay it in Settings to restore your listings and start selling again.
                         </p>
-                        <Link to="/settings" className="inline-block mt-2 text-xs font-bold text-red-700 underline">
+                        <Link to="/settings" className="inline-block mt-2 text-xs font-bold text-red-700 dark:text-red-300 underline">
                             Go to Settings
                         </Link>
                     </div>
@@ -333,38 +460,38 @@ function SellerOverview({ period }) {
             </div>
 
             <div className="grid sm:grid-cols-2 gap-3">
-                <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Successful sales</p>
-                    <p className="text-2xl font-extrabold text-slate-900">{overview.successful_sales}</p>
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
+                    <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-1">Successful sales</p>
+                    <p className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">{overview.successful_sales}</p>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Active listings</p>
-                    <p className="text-2xl font-extrabold text-slate-900">{overview.active_listings}</p>
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
+                    <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-1">Active listings</p>
+                    <p className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">{overview.active_listings}</p>
                 </div>
             </div>
 
             {rewards && (
-                <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
                     <div className="flex items-center gap-2.5 mb-3">
-                        <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
                             <Award size={16} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Next reward</h3>
-                            <p className="text-xs text-slate-400">0.5% of earnings every 30 successful sales</p>
+                            <h3 className="font-bold text-slate-900 dark:text-gold-50 text-sm">Next reward</h3>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50">0.5% of earnings every 30 successful sales</p>
                         </div>
                     </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-brand-600 rounded-full transition-all" style={{ width: `${rewardProgress}%` }} />
+                    <div className="h-2 bg-slate-100 dark:bg-ink-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-brand-600 dark:bg-gold-500 rounded-full transition-all" style={{ width: `${rewardProgress}%` }} />
                     </div>
-                    <p className="text-xs text-slate-400 mt-2">{rewards.progress} / {rewards.next_milestone} successful sales</p>
+                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2">{rewards.progress} / {rewards.next_milestone} successful sales</p>
 
                     {rewards.rewards.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-ink-600 space-y-2">
                             {rewards.rewards.map((r) => (
                                 <div key={r.id} className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-500">Milestone {r.milestone} sales</span>
-                                    <span className="font-semibold text-brand-700">+GHS {parseFloat(r.reward_amount).toFixed(2)}</span>
+                                    <span className="text-slate-500 dark:text-gold-200/60">Milestone {r.milestone} sales</span>
+                                    <span className="font-semibold text-brand-700 dark:text-gold-400">+GHS {parseFloat(r.reward_amount).toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>
@@ -377,10 +504,14 @@ function SellerOverview({ period }) {
 
 function MetricCard({ icon: Icon, label, value, highlight }) {
     return (
-        <div className={`rounded-2xl p-4 border ${highlight ? 'bg-brand-50 border-brand-200' : 'bg-white border-slate-200'}`}>
-            <Icon size={16} className={highlight ? 'text-brand-600 mb-2' : 'text-slate-400 mb-2'} />
-            <p className={`text-lg font-extrabold ${highlight ? 'text-brand-700' : 'text-slate-900'}`}>{value}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{label}</p>
+        <div className={`rounded-2xl p-4 border ${
+            highlight
+                ? 'bg-brand-50 dark:bg-gold-900/40 border-brand-200 dark:border-gold-700'
+                : 'bg-white dark:bg-ink-800 border-slate-200 dark:border-ink-600'
+        }`}>
+            <Icon size={16} className={highlight ? 'text-brand-600 dark:text-gold-400 mb-2' : 'text-slate-400 dark:text-gold-300/50 mb-2'} />
+            <p className={`text-lg font-extrabold ${highlight ? 'text-brand-700 dark:text-gold-300' : 'text-slate-900 dark:text-gold-50'}`}>{value}</p>
+            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">{label}</p>
         </div>
     );
 }
@@ -388,6 +519,7 @@ function MetricCard({ icon: Icon, label, value, highlight }) {
 function MyListings() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [editingProduct, setEditingProduct] = useState(null);
 
     const load = () => {
         api.get('/products/mine').then((res) => setProducts(res.data)).finally(() => setLoading(false));
@@ -408,24 +540,34 @@ function MyListings() {
     if (products.length === 0) return <EmptyState icon={Tag} text="You haven't listed anything yet." cta="List an item" ctaLink="/sell/new" />;
 
     return (
-        <div className="space-y-2">
+        <div className="max-w-2xl mx-auto space-y-2">
             {products.map((p) => (
-                <div key={p.id} className="flex items-center gap-4 bg-white border border-slate-200 rounded-2xl p-3 hover:shadow-sm transition">
-                    <div className="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden shrink-0">
+                <div key={p.id} className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 hover:shadow-sm transition">
+                    <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
                         {p.primary_image && <img src={p.primary_image} className="w-full h-full object-cover" alt={p.title} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-800 text-sm truncate">{p.title}</p>
-                        <p className="text-xs text-slate-400 capitalize mt-0.5">
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${p.status === 'available' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate">{p.title}</p>
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 capitalize mt-0.5">
+                            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${p.status === 'available' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-ink-600'}`} />
                             {p.status} · GHS {parseFloat(p.price).toFixed(2)}
                         </p>
                     </div>
-                    <button onClick={() => remove(p.id)} className="text-slate-300 hover:text-red-500 p-1.5 transition">
+                    <button onClick={() => setEditingProduct(p)} className="text-slate-300 dark:text-gold-300/40 hover:text-brand-600 dark:hover:text-gold-400 p-1.5 transition">
+                        <Pencil size={17} />
+                    </button>
+                    <button onClick={() => remove(p.id)} className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition">
                         <Trash2 size={18} />
                     </button>
                 </div>
             ))}
+
+            <EditListingModal
+                product={editingProduct}
+                open={!!editingProduct}
+                onClose={() => setEditingProduct(null)}
+                onSaved={() => { setEditingProduct(null); load(); }}
+            />
         </div>
     );
 }
@@ -433,29 +575,66 @@ function MyListings() {
 function MyOrders({ period, isSeller }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [confirming, setConfirming] = useState(null);
 
-    useEffect(() => {
+    const loadOrders = () => {
         setLoading(true);
         api.get('/orders/mine', { params: { period } })
             .then((res) => setOrders(res.data))
             .finally(() => setLoading(false));
+    };
+
+    useEffect(() => {
+        loadOrders();
     }, [period]);
+
+    const handleConfirmReceived = async (orderId) => {
+        if (!window.confirm('⚠️ Are you sure you have received this order? This action cannot be undone.')) {
+            return;
+        }
+
+        setConfirming(orderId);
+        try {
+            await api.post(`/orders/${orderId}/confirm-received`);
+            toast.success('Order confirmed as received! ✅');
+            loadOrders();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to confirm');
+        } finally {
+            setConfirming(null);
+        }
+    };
 
     if (loading) return <SkeletonList />;
     if (orders.length === 0) return <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
 
     return (
-        <div className="space-y-3">
+        <div className="max-w-2xl mx-auto space-y-3">
             {orders.map((o) => (
-                <div key={o.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+                <div key={o.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
                     <div className="flex justify-between items-center mb-2">
-                        <p className="font-semibold text-sm text-slate-800">Order #{o.id}</p>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 capitalize">{o.status}</span>
+                        <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">Order #{o.id}</p>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[o.status] || 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50'}`}>
+                            {o.status}
+                        </span>
                     </div>
+
+                    {o.status !== 'completed' && o.status !== 'cancelled' && (
+                        <div className="mt-1 mb-2">
+                            <button
+                                onClick={() => handleConfirmReceived(o.id)}
+                                disabled={confirming === o.id}
+                                className="text-xs font-semibold px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60"
+                            >
+                                {confirming === o.id ? 'Confirming…' : '✅ Order Received'}
+                            </button>
+                        </div>
+                    )}
+
                     {o.items?.map((item) => (
-                        <p key={item.id} className="text-xs text-slate-500">{item.title} × {item.quantity}</p>
+                        <p key={item.id} className="text-xs text-slate-500 dark:text-gold-200/50">{item.title} × {item.quantity}</p>
                     ))}
-                    <p className="text-sm font-bold text-slate-900 mt-2">GHS {parseFloat(o.total_amount).toFixed(2)}</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-gold-50 mt-2">GHS {parseFloat(o.total_amount).toFixed(2)}</p>
                 </div>
             ))}
         </div>
@@ -463,10 +642,10 @@ function MyOrders({ period, isSeller }) {
 }
 
 const STATUS_STYLES = {
-    completed: 'bg-emerald-50 text-emerald-700',
-    pending: 'bg-amber-50 text-amber-700',
-    cancelled: 'bg-slate-100 text-slate-500',
-    refunded: 'bg-red-50 text-red-600',
+    completed: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+    pending: 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400',
+    cancelled: 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50',
+    refunded: 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400',
 };
 
 function MySales() {
@@ -481,40 +660,40 @@ function MySales() {
     if (sales.length === 0) return <EmptyState icon={TrendingUp} text="No sales yet." />;
 
     return (
-        <div className="space-y-2">
+        <div className="max-w-2xl mx-auto space-y-2">
             {sales.map((s) => {
                 const saleAmount = parseFloat(s.price_at_purchase) * s.quantity;
                 return (
-                    <div key={s.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+                    <div key={s.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="font-semibold text-slate-800 text-sm truncate">{s.title}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">
+                                <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate">{s.title}</p>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
                                     Buyer: {s.buyer_name} · Qty {s.quantity} · {new Date(s.created_at).toLocaleDateString()}
                                 </p>
                             </div>
-                            <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[s.status] || 'bg-slate-100 text-slate-500'}`}>
+                            <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[s.status] || 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50'}`}>
                                 {s.status}
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 text-xs">
+                        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-ink-600 text-xs">
                             <div>
-                                <p className="text-slate-400">Sale amount</p>
-                                <p className="font-semibold text-slate-800 mt-0.5">GHS {saleAmount.toFixed(2)}</p>
+                                <p className="text-slate-400 dark:text-gold-200/50">Sale amount</p>
+                                <p className="font-semibold text-slate-800 dark:text-gold-100 mt-0.5">GHS {saleAmount.toFixed(2)}</p>
                             </div>
                             <div>
-                                <p className="text-slate-400">Platform fee (5%)</p>
-                                <p className="font-semibold text-slate-800 mt-0.5">GHS {parseFloat(s.platform_fee).toFixed(2)}</p>
+                                <p className="text-slate-400 dark:text-gold-200/50">Platform fee (5%)</p>
+                                <p className="font-semibold text-slate-800 dark:text-gold-100 mt-0.5">GHS {parseFloat(s.platform_fee).toFixed(2)}</p>
                             </div>
                             <div>
-                                <p className="text-slate-400">Your earnings</p>
-                                <p className="font-semibold text-brand-700 mt-0.5">GHS {parseFloat(s.seller_earnings).toFixed(2)}</p>
+                                <p className="text-slate-400 dark:text-gold-200/50">Your earnings</p>
+                                <p className="font-semibold text-brand-700 dark:text-gold-400 mt-0.5">GHS {parseFloat(s.seller_earnings).toFixed(2)}</p>
                             </div>
                         </div>
 
                         {s.reward_contributed && (
-                            <p className="text-xs text-amber-600 font-semibold mt-2">🏆 Counted toward a reward milestone</p>
+                            <p className="text-xs text-amber-600 dark:text-gold-400 font-semibold mt-2">🏆 Counted toward a reward milestone</p>
                         )}
                     </div>
                 );
@@ -527,7 +706,7 @@ function SkeletonList() {
     return (
         <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-16 rounded-2xl bg-slate-100 animate-pulse" />
+                <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-ink-800 animate-pulse" />
             ))}
         </div>
     );
@@ -536,15 +715,92 @@ function SkeletonList() {
 function EmptyState({ icon: Icon, text, cta, ctaLink }) {
     return (
         <div className="text-center py-16">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-50 flex items-center justify-center mb-4">
-                <Icon className="text-brand-400" size={24} />
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center mb-4">
+                <Icon className="text-brand-400 dark:text-gold-400" size={24} />
             </div>
-            <p className="text-sm text-slate-400">{text}</p>
+            <p className="text-sm text-slate-400 dark:text-gold-200/50">{text}</p>
             {cta && (
-                <Link to={ctaLink} className="inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition">
+                <Link to={ctaLink} className="inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition">
                     {cta} →
                 </Link>
             )}
+        </div>
+    );
+}
+
+const REASON_LABELS = {
+    scam: 'Scam or fraud',
+    fake_listing: 'Fake or misleading listing',
+    inappropriate: 'Inappropriate content',
+    harassment: 'Harassment or unsafe behavior',
+    other: 'Something else',
+};
+
+const REPORT_STATUS_STYLES = {
+    pending: 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400',
+    reviewed: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400',
+    dismissed: 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50',
+    actioned: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+};
+
+const REPORT_STATUS_DESC = {
+    pending: 'Waiting for review',
+    reviewed: 'Reviewed by our team',
+    dismissed: 'No action needed',
+    actioned: 'Action was taken',
+};
+
+function MyReports() {
+    const [reports, setReports] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        api.get('/reports/mine').then((res) => setReports(res.data)).finally(() => setLoading(false));
+    }, []);
+
+    if (loading) return <SkeletonList />;
+    if (reports.length === 0) return <EmptyState icon={Flag} text="You haven't reported anything." />;
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-2">
+            {reports.map((r) => (
+                <div key={r.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">
+                                {REASON_LABELS[r.reason] || r.reason}
+                            </p>
+                            {r.product_title && (
+                                <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
+                                    Listing: {r.product_title}
+                                </p>
+                            )}
+                            {r.reported_user_name && (
+                                <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
+                                    User: {r.reported_user_name}
+                                </p>
+                            )}
+                            {r.details && (
+                                <p className="text-sm text-slate-600 dark:text-gold-100/80 mt-2 bg-slate-50 dark:bg-ink-700 rounded-lg p-2.5">
+                                    {r.details}
+                                </p>
+                            )}
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2">
+                                Filed {new Date(r.created_at).toLocaleDateString()}
+                            </p>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${REPORT_STATUS_STYLES[r.status] || REPORT_STATUS_STYLES.pending}`}>
+                                {r.status}
+                            </span>
+                            <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-1">
+                                {REPORT_STATUS_DESC[r.status]}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ))}
         </div>
     );
 }

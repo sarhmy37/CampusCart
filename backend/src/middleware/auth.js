@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../db/pool');
 
 // Attaches req.userId if a valid token is present. Rejects with 401 otherwise.
 function requireAuth(req, res, next) {
@@ -13,6 +14,10 @@ function requireAuth(req, res, next) {
         const payload = jwt.verify(token, process.env.JWT_SECRET);
         req.userId = payload.userId;
         req.userRole = payload.role;
+
+        // Fire-and-forget — don't hold up the response waiting on this.
+        pool.query('UPDATE users SET last_active = now() WHERE id = $1', [req.userId]).catch(() => {});
+
         next();
     } catch (err) {
         return res.status(401).json({ error: 'Invalid or expired token' });

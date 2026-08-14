@@ -28,6 +28,8 @@ function toPublicUser(row) {
         personal_email: row.personal_email,
         whatsapp: row.whatsapp,
         location: row.location,
+        referral_code: row.referral_code,
+        credit_balance: row.credit_balance,
     };
 }
 
@@ -35,12 +37,21 @@ function generateCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+const REFERRAL_CREDIT = 10;
+
+function generateReferralCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+}
+
 const ALLOWED_EMAIL_DOMAINS = [
-    'st.knust.edu.gh',   // KNUST
-    'stu.atu.edu.gh',    // Accra Technical University
-    'st.ug.edu.gh',      // University of Ghana, Legon
-    'st.umat.edu.gh',     // UMAT
-    'kstu.edu.gh'         // Kumasi Technical University
+    'st.knust.edu.gh',
+    'stu.atu.edu.gh',
+    'st.ug.edu.gh',
+    'st.umat.edu.gh',
+    'kstu.edu.gh'
 ];
 
 function isAllowedEmailDomain(email) {
@@ -48,10 +59,10 @@ function isAllowedEmailDomain(email) {
     return ALLOWED_EMAIL_DOMAINS.some((allowed) => domain === allowed);
 }
 
-
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-    const { name, university_email, password, school, account_type, whatsapp, location } = req.body;
+    const { name, university_email, password, school, account_type, whatsapp, location, referral_code,
+            bank_code, account_number, account_name, payout_method } = req.body;
 
     if (!name || !university_email || !password) {
         return res.status(400).json({ error: 'Name, university email, and password are required' });
@@ -62,16 +73,25 @@ router.post('/register', async (req, res) => {
     if (!whatsapp) {
         return res.status(400).json({ error: 'WhatsApp number is required' });
     }
-    if (!isAllowedEmailDomain(university_email)) {
-        return res.status(400).json({ error: 'Please use a valid university email address' });
-    }
-
-
 
     const resolvedAccountType = account_type === 'seller' ? 'seller' : 'buyer';
 
+    if (resolvedAccountType === 'seller' && !isAllowedEmailDomain(university_email)) {
+        return res.status(400).json({ error: 'Sellers must sign up with a valid university email address' });
+    }
+
     if (resolvedAccountType === 'buyer' && !location) {
         return res.status(400).json({ error: 'Delivery location is required for buyer accounts' });
+    }
+
+    // Seller payout account validation
+    if (resolvedAccountType === 'seller') {
+        if (!bank_code || !account_number || !account_name) {
+            return res.status(400).json({ error: 'Bank details are required for sellers' });
+        }
+        if (account_number.length < 9) {
+            return res.status(400).json({ error: 'Account number must be at least 9 digits' });
+        }
     }
 
     try {
@@ -80,14 +100,38 @@ router.post('/register', async (req, res) => {
             return res.status(409).json({ error: 'An account with this email already exists' });
         }
 
+        let referrerId = null;
+        if (referral_code) {
+            const referrerResult = await pool.query('SELECT id FROM users WHERE referral_code = $1', [referral_code.toUpperCase()]);
+            referrerId = referrerResult.rows[0]?.id || null;
+        }
+
+        let myReferralCode;
+        for (let attempt = 0; attempt < 5; attempt++) {
+            myReferralCode = generateReferralCode();
+            const clash = await pool.query('SELECT 1 FROM users WHERE referral_code = $1', [myReferralCode]);
+            if (clash.rows.length === 0) break;
+        }
+
         const passwordHash = await bcrypt.hash(password, 10);
         const result = await pool.query(
-            `INSERT INTO users (name, university_email, password_hash, school, account_type, whatsapp, location)
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [name, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null]
+            `INSERT INTO users (name, university_email, password_hash, school, account_type, whatsapp, location, referral_code, referred_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [name, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, myReferralCode, referrerId]
         );
 
         const user = result.rows[0];
+
+        // 👇 If seller, create a default payout account
+        if (resolvedAccountType === 'seller' && account_number && bank_code && account_name) {
+            await pool.query(
+                `INSERT INTO seller_payout_accounts 
+                 (seller_id, bank_code, account_number, account_name, method, is_default)
+                 VALUES ($1, $2, $3, $4, $5, true)`,
+                [user.id, bank_code, account_number, account_name, payout_method || 'bank']
+            );
+        }
+
         const token = signToken(user);
         res.status(201).json({ token, user: toPublicUser(user) });
     } catch (err) {
@@ -112,6 +156,14 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
+        // 👇 BAN CHECK
+        if (user.banned) {
+            return res.status(403).json({
+                error: 'Your account has been banned. Please request a review if you believe this is a mistake.',
+                banned: true,
+            });
+        }
+
         const match = await bcrypt.compare(password, user.password_hash);
         if (!match) {
             return res.status(401).json({ error: 'Invalid email or password' });
@@ -129,8 +181,23 @@ router.post('/login', async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.userId]);
-        const user = result.rows[0];
+        let user = result.rows[0];
         if (!user) return res.status(404).json({ error: 'User not found' });
+
+        if (!user.referral_code) {
+            let code;
+            for (let attempt = 0; attempt < 5; attempt++) {
+                code = generateReferralCode();
+                const clash = await pool.query('SELECT 1 FROM users WHERE referral_code = $1', [code]);
+                if (clash.rows.length === 0) break;
+            }
+            const updated = await pool.query(
+                'UPDATE users SET referral_code = $1 WHERE id = $2 RETURNING *',
+                [code, req.userId]
+            );
+            user = updated.rows[0];
+        }
+
         res.json(toPublicUser(user));
     } catch (err) {
         console.error('Get me error:', err);
@@ -142,7 +209,28 @@ router.get('/me', requireAuth, async (req, res) => {
 router.patch('/me', requireAuth, async (req, res) => {
     const { about, personal_email, whatsapp, location, name, school, verified } = req.body;
 
+    const PROFILE_EDIT_COOLDOWN_SECONDS = 60 * 60;
+
     try {
+        const isUserProfileEdit = about !== undefined || personal_email !== undefined ||
+            whatsapp !== undefined || location !== undefined || name !== undefined || school !== undefined;
+
+        if (isUserProfileEdit) {
+            const current = await pool.query('SELECT profile_updated_at FROM users WHERE id = $1', [req.userId]);
+            const lastUpdated = current.rows[0]?.profile_updated_at;
+
+            if (lastUpdated) {
+                const secondsSince = (Date.now() - new Date(lastUpdated).getTime()) / 1000;
+                if (secondsSince < PROFILE_EDIT_COOLDOWN_SECONDS) {
+                    const waitSeconds = Math.ceil(PROFILE_EDIT_COOLDOWN_SECONDS - secondsSince);
+                    return res.status(429).json({
+                        error: `You can update your profile again in ${Math.ceil(waitSeconds / 60)} minute(s)`,
+                        retry_after_seconds: waitSeconds,
+                    });
+                }
+            }
+        }
+
         const result = await pool.query(
             `UPDATE users SET
                 about = COALESCE($1, about),
@@ -151,10 +239,11 @@ router.patch('/me', requireAuth, async (req, res) => {
                 location = COALESCE($4, location),
                 name = COALESCE($5, name),
                 school = COALESCE($6, school),
-                verified = COALESCE($7, verified)
+                verified = COALESCE($7, verified),
+                profile_updated_at = CASE WHEN $9 THEN now() ELSE profile_updated_at END
              WHERE id = $8
              RETURNING *`,
-            [about, personal_email, whatsapp, location, name, school, verified, req.userId]
+            [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit]
         );
         res.json(toPublicUser(result.rows[0]));
     } catch (err) {
@@ -183,7 +272,7 @@ router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req
     }
 });
 
-/// POST /api/auth/me/password/request-code — step 1: verify current password, send code to email
+// POST /api/auth/me/password/request-code
 router.post('/me/password/request-code', requireAuth, async (req, res) => {
     const { current_password } = req.body;
     if (!current_password) return res.status(400).json({ error: 'Current password is required' });
@@ -228,7 +317,7 @@ router.post('/me/password/request-code', requireAuth, async (req, res) => {
     }
 });
 
-// PATCH /api/auth/me/password — step 2: confirm code + set new password
+// PATCH /api/auth/me/password
 router.patch('/me/password', requireAuth, async (req, res) => {
     const { code, new_password } = req.body;
 
@@ -281,6 +370,7 @@ router.patch('/me/password', requireAuth, async (req, res) => {
 });
 
 const RESEND_COOLDOWN_SECONDS = 60;
+const MAX_VERIFY_ATTEMPTS = 5;
 
 // POST /api/auth/me/send-verification
 router.post('/me/send-verification', requireAuth, async (req, res) => {
@@ -302,7 +392,7 @@ router.post('/me/send-verification', requireAuth, async (req, res) => {
         }
 
         const code = generateCode();
-        const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+        const expires = new Date(Date.now() + 10 * 60 * 1000);
 
         await pool.query(
             `UPDATE users SET
@@ -321,8 +411,6 @@ router.post('/me/send-verification', requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Something went wrong sending the verification code' });
     }
 });
-
-const MAX_VERIFY_ATTEMPTS = 5;
 
 // POST /api/auth/me/verify
 router.post('/me/verify', requireAuth, async (req, res) => {
@@ -354,20 +442,20 @@ router.post('/me/verify', requireAuth, async (req, res) => {
         }
 
         const updated = await pool.query(
-            `UPDATE users SET
-                verified = TRUE, verification_code = NULL, verification_code_expires = NULL, verification_attempts = 0
+            `UPDATE users SET verified = TRUE, verification_code = NULL, verification_code_expires = NULL, verification_attempts = 0
              WHERE id = $1 RETURNING *`,
             [req.userId]
         );
 
-        res.json(toPublicUser(updated.rows[0]));
+        const verifiedUser = updated.rows[0];
+        res.json(toPublicUser(verifiedUser));
     } catch (err) {
         console.error('Verify error:', err);
         res.status(500).json({ error: 'Something went wrong verifying your account' });
     }
 });
 
-// DELETE /api/auth/me — permanently delete your account
+// DELETE /api/auth/me
 router.delete('/me', requireAuth, async (req, res) => {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password is required to delete your account' });
@@ -385,6 +473,42 @@ router.delete('/me', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Delete account error:', err);
         res.status(500).json({ error: 'Something went wrong deleting your account' });
+    }
+});
+
+// POST /api/auth/logout
+router.post('/logout', requireAuth, async (req, res) => {
+    try {
+        await pool.query('UPDATE users SET last_active = NULL WHERE id = $1', [req.userId]);
+        res.json({ message: 'Logged out' });
+    } catch (err) {
+        console.error('Logout error:', err);
+        res.status(500).json({ error: 'Something went wrong logging out' });
+    }
+});
+
+// GET /api/auth/me/referrals
+router.get('/me/referrals', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                u.name, u.created_at,
+                EXISTS (
+                    SELECT 1 FROM orders o WHERE o.buyer_id = u.id AND o.status = 'completed'
+                ) AS has_completed_order
+             FROM users u
+             WHERE u.referred_by = $1
+             ORDER BY u.created_at DESC`,
+            [req.userId]
+        );
+        res.json(result.rows.map((r) => ({
+            name: r.name,
+            joined_at: r.created_at,
+            credit_earned: r.has_completed_order ? 10 : 0,
+        })));
+    } catch (err) {
+        console.error('Get referrals error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching your referrals' });
     }
 });
 

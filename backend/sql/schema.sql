@@ -163,3 +163,5 @@ CREATE TABLE IF NOT EXISTS wishlist_items (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, product_id)
 );
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(10,2) NOT NULL DEFAULT 0;

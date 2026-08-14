@@ -10,6 +10,14 @@ const router = express.Router();
 const BUYER_FEE_RATE = 0.02;
 const SELLER_FEE_RATE = 0.02;
 
+// Helper: insert a notification
+async function insertNotification(userId, type, message, relatedId = null) {
+    await pool.query(
+        `INSERT INTO notifications (user_id, type, message, related_id) VALUES ($1, $2, $3, $4)`,
+        [userId, type, message, relatedId]
+    );
+}
+
 // POST /api/orders — create pending order + get Paystack payment link
 router.post('/', requireAuth, async (req, res) => {
     const { items, delivery_method, buyer_lat, buyer_lng } = req.body;
@@ -24,7 +32,7 @@ router.post('/', requireAuth, async (req, res) => {
 
         let subtotal = 0;
         const lineItems = [];
-        const sellerSchools = {}; // seller_id -> school, collected as we go
+        const sellerSchools = {};
 
         for (const { product_id, quantity } of items) {
             const qty = Number(quantity) || 1;
@@ -57,24 +65,42 @@ router.post('/', requireAuth, async (req, res) => {
             });
         }
 
-        // Delivery fee: computed server-side per seller, based on real distance —
-        // never trust a client-supplied fee.
         let deliveryFee = 0;
+        const deliveryFeeBySeller = {};
         if (delivery_method === 'delivery') {
-            for (const school of Object.values(sellerSchools)) {
+            for (const [sellerId, school] of Object.entries(sellerSchools)) {
                 const { fee } = calcDeliveryFee(buyer_lat, buyer_lng, school);
                 deliveryFee += fee;
+                deliveryFeeBySeller[sellerId] = fee;
+            }
+        }
+
+        const creditedDeliveryFor = new Set();
+        for (const item of lineItems) {
+            const fee = deliveryFeeBySeller[item.seller_id];
+            if (fee && !creditedDeliveryFor.has(item.seller_id)) {
+                item.seller_earnings = Math.round((item.seller_earnings + fee) * 100) / 100;
+                creditedDeliveryFor.add(item.seller_id);
             }
         }
 
         const buyerFee = Math.round(subtotal * BUYER_FEE_RATE * 100) / 100;
-        const totalAmount = subtotal + deliveryFee + buyerFee;
+        const preCreditTotal = subtotal + deliveryFee + buyerFee;
+
+        const buyerCreditResult = await client.query('SELECT credit_balance FROM users WHERE id = $1', [req.userId]);
+        const availableCredit = parseFloat(buyerCreditResult.rows[0]?.credit_balance || 0);
+        const creditApplied = Math.min(availableCredit, preCreditTotal);
+        const totalAmount = Math.round((preCreditTotal - creditApplied) * 100) / 100;
+
+        if (creditApplied > 0) {
+            await client.query('UPDATE users SET credit_balance = credit_balance - $1 WHERE id = $2', [creditApplied, req.userId]);
+        }
 
         const orderResult = await client.query(
-            `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, total_amount)
-             VALUES ($1, 'pending', $2, $3, $4, $5)
+            `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, total_amount, credit_applied)
+             VALUES ($1, 'pending', $2, $3, $4, $5, $6)
              RETURNING id`,
-            [req.userId, delivery_method || 'pickup', subtotal, deliveryFee, totalAmount]
+            [req.userId, delivery_method || 'pickup', subtotal, deliveryFee, totalAmount, creditApplied]
         );
         const orderId = orderResult.rows[0].id;
 
@@ -92,6 +118,24 @@ router.post('/', requireAuth, async (req, res) => {
 
         const reference = `cc_${orderId}`;
         await client.query('UPDATE orders SET payment_reference = $1 WHERE id = $2', [reference, orderId]);
+
+        // Fully covered by credit — leave pending until buyer confirms.
+        if (totalAmount <= 0) {
+            for (const item of lineItems) {
+                await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);
+            }
+            await client.query('COMMIT');
+
+            return res.status(201).json({
+                id: orderId,
+                subtotal,
+                delivery_fee: deliveryFee,
+                buyer_fee: buyerFee,
+                total_amount: 0,
+                credit_applied: creditApplied,
+                fully_paid_by_credit: true,
+            });
+        }
 
         await client.query('COMMIT');
 
@@ -128,7 +172,7 @@ router.post('/webhook', async (req, res) => {
     }
 
     const event = req.body;
-    res.sendStatus(200); // acknowledge immediately, process after
+    res.sendStatus(200);
 
     if (event.event !== 'charge.success') return;
 
@@ -137,62 +181,100 @@ router.post('/webhook', async (req, res) => {
     try {
         const orderResult = await pool.query('SELECT * FROM orders WHERE payment_reference = $1', [reference]);
         const order = orderResult.rows[0];
-        if (!order || order.status === 'completed') return; // already processed or not found
+        if (!order || order.status === 'completed') return;
 
-        await pool.query(
-            `UPDATE orders SET status = 'completed', completed_at = now() WHERE id = $1`,
-            [order.id]
-        );
-        await pool.query(
-            `UPDATE order_items SET status = 'completed' WHERE order_id = $1`,
-            [order.id]
-        );
-
-        // Reduce stock now that payment is confirmed
-        const itemsResult = await pool.query('SELECT product_id, quantity, seller_id, seller_earnings, title FROM order_items WHERE order_id = $1', [order.id]);
+        const itemsResult = await pool.query('SELECT product_id, quantity FROM order_items WHERE order_id = $1', [order.id]);
         for (const item of itemsResult.rows) {
             await pool.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);
         }
-
-        // Group earnings by seller and pay out
-        const sellerTotals = {};
-        for (const item of itemsResult.rows) {
-            sellerTotals[item.seller_id] = (sellerTotals[item.seller_id] || 0) + parseFloat(item.seller_earnings);
-        }
-
-        for (const [sellerId, amount] of Object.entries(sellerTotals)) {
-            try {
-                await payoutSeller(sellerId, amount, order.id);
-            } catch (e) {
-                console.error(`Payout failed for seller ${sellerId}:`, e.message);
-            }
-        }
-
-        // Credit rewards
-        const { checkAndCreditRewards } = require('./sellers');
-        for (const sellerId of Object.keys(sellerTotals)) {
-            await checkAndCreditRewards(sellerId).catch((e) => console.error('Reward check error:', e));
-        }
-
-        // SMS the buyer
-        const buyerResult = await pool.query('SELECT whatsapp, name FROM users WHERE id = $1', [order.buyer_id]);
-        const buyer = buyerResult.rows[0];
-        if (buyer?.whatsapp) {
-            const msg = order.delivery_method === 'delivery'
-                ? `CampusCart: Order placed successfully! Your items will be delivered within 1-3 working days.`
-                : `CampusCart: Order placed successfully! Arrange pickup with the seller on campus.`;
-            sendOrderSMS(buyer.whatsapp, msg).catch((e) => console.error('SMS error:', e));
-        }
+        // Order stays pending until buyer confirms receipt.
     } catch (err) {
         console.error('Webhook processing error:', err);
     }
 });
 
+// Shared post-payment logic: pays sellers, credits rewards, referral credit, SMS.
+async function processCompletedOrder(orderId) {
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    const order = orderResult.rows[0];
+    if (!order) return;
+
+    const itemsResult = await pool.query(
+        'SELECT product_id, quantity, seller_id, seller_earnings, title FROM order_items WHERE order_id = $1',
+        [orderId]
+    );
+
+    const sellerTotals = {};
+    for (const item of itemsResult.rows) {
+        sellerTotals[item.seller_id] = (sellerTotals[item.seller_id] || 0) + parseFloat(item.seller_earnings);
+    }
+
+    for (const [sellerId, amount] of Object.entries(sellerTotals)) {
+        try {
+            await payoutSeller(sellerId, amount, orderId);
+        } catch (e) {
+            console.error(`Payout failed for seller ${sellerId}:`, e.message);
+        }
+    }
+
+    const { checkAndCreditRewards } = require('./sellers');
+    for (const sellerId of Object.keys(sellerTotals)) {
+        await checkAndCreditRewards(sellerId).catch((e) => console.error('Reward check error:', e));
+    }
+
+    try {
+        const completedCountResult = await pool.query(
+            `SELECT COUNT(*)::int AS count FROM orders WHERE buyer_id = $1 AND status = 'completed'`,
+            [order.buyer_id]
+        );
+        if (completedCountResult.rows[0].count === 1) {
+            const buyerResult = await pool.query('SELECT referred_by FROM users WHERE id = $1', [order.buyer_id]);
+            const referredBy = buyerResult.rows[0]?.referred_by;
+            if (referredBy) {
+                await pool.query('UPDATE users SET credit_balance = credit_balance + 10 WHERE id = $1', [referredBy]);
+            }
+        }
+    } catch (e) {
+        console.error('Referral credit error:', e);
+    }
+
+    // Notifications
+    await insertNotification(
+        order.buyer_id,
+        'order_completed_buyer',
+        `Your order #${orderId} has been completed. Thank you for shopping!`,
+        orderId
+    );
+
+    for (const sellerId of Object.keys(sellerTotals)) {
+        await insertNotification(
+            sellerId,
+            'order_completed_seller',
+            `You have a completed order #${orderId}! Funds have been transferred to your payout account.`,
+            orderId
+        );
+    }
+
+    const buyerResult = await pool.query('SELECT whatsapp FROM users WHERE id = $1', [order.buyer_id]);
+    const buyer = buyerResult.rows[0];
+    if (buyer?.whatsapp) {
+        const msg = order.delivery_method === 'delivery'
+            ? `CampusCart: Order placed successfully! Your items will be delivered within 1-3 working days.`
+            : `CampusCart: Order placed successfully! Arrange pickup with the seller on campus.`;
+        sendOrderSMS(buyer.whatsapp, msg).catch((e) => console.error('SMS error:', e));
+    }
+}
+
+// ✅ Updated payoutSeller – uses the seller's default payout account
 async function payoutSeller(sellerId, amountGHS, orderId) {
-    const accResult = await pool.query('SELECT * FROM seller_payout_accounts WHERE seller_id = $1', [sellerId]);
+    // Fetch the seller's default payout account
+    const accResult = await pool.query(
+        `SELECT * FROM seller_payout_accounts WHERE seller_id = $1 AND is_default = true`,
+        [sellerId]
+    );
     const account = accResult.rows[0];
     if (!account) {
-        console.error(`Seller ${sellerId} has no payout account set up — cannot transfer`);
+        console.error(`Seller ${sellerId} has no default payout account set — cannot transfer`);
         return;
     }
 
@@ -204,7 +286,10 @@ async function payoutSeller(sellerId, amountGHS, orderId) {
             bank_code: account.bank_code,
         });
         recipientCode = recipientRes.data.recipient_code;
-        await pool.query('UPDATE seller_payout_accounts SET paystack_recipient_code = $1 WHERE seller_id = $2', [recipientCode, sellerId]);
+        await pool.query(
+            'UPDATE seller_payout_accounts SET paystack_recipient_code = $1 WHERE id = $2',
+            [recipientCode, account.id]
+        );
     }
 
     await initiateTransfer({
@@ -215,30 +300,7 @@ async function payoutSeller(sellerId, amountGHS, orderId) {
     });
 }
 
-// GET /api/orders/:id — single order detail, for the post-payment confirmation page
-router.get('/:id', requireAuth, async (req, res) => {
-    try {
-        const orderResult = await pool.query(
-            'SELECT * FROM orders WHERE id = $1 AND buyer_id = $2',
-            [req.params.id, req.userId]
-        );
-        const order = orderResult.rows[0];
-        if (!order) return res.status(404).json({ error: 'Order not found' });
-
-        const itemsResult = await pool.query(
-            'SELECT id, title, quantity, price_at_purchase, seller_id FROM order_items WHERE order_id = $1',
-            [order.id]
-        );
-        order.items = itemsResult.rows;
-
-        res.json(order);
-    } catch (err) {
-        console.error('Get order error:', err);
-        res.status(500).json({ error: 'Something went wrong fetching this order' });
-    }
-});
-
-// GET /api/orders/mine?period=week|month|6months|year|all
+// GET /api/orders/mine
 router.get('/mine', requireAuth, async (req, res) => {
     try {
         const periodMap = {
@@ -311,6 +373,59 @@ router.get('/sales', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Get sales error:', err);
         res.status(500).json({ error: 'Something went wrong fetching your sales' });
+    }
+});
+
+// GET /api/orders/:id
+router.get('/:id', requireAuth, async (req, res) => {
+    try {
+        const orderResult = await pool.query(
+            'SELECT * FROM orders WHERE id = $1 AND buyer_id = $2',
+            [req.params.id, req.userId]
+        );
+        const order = orderResult.rows[0];
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        const itemsResult = await pool.query(
+            'SELECT id, title, quantity, price_at_purchase, seller_id FROM order_items WHERE order_id = $1',
+            [order.id]
+        );
+        order.items = itemsResult.rows;
+
+        res.json(order);
+    } catch (err) {
+        console.error('Get order error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching this order' });
+    }
+});
+
+// POST /api/orders/:id/confirm-received
+router.post('/:id/confirm-received', requireAuth, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+        const orderResult = await client.query(
+            `SELECT * FROM orders WHERE id = $1 AND buyer_id = $2`,
+            [id, req.userId]
+        );
+        const order = orderResult.rows[0];
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+        if (order.status === 'completed') return res.status(400).json({ error: 'Order already completed' });
+        if (order.status === 'cancelled') return res.status(400).json({ error: 'Order was cancelled' });
+
+        await client.query('BEGIN');
+        await client.query(`UPDATE orders SET status = 'completed', completed_at = now() WHERE id = $1`, [id]);
+        await client.query(`UPDATE order_items SET status = 'completed' WHERE order_id = $1`, [id]);
+        await client.query('COMMIT');
+
+        await processCompletedOrder(id);
+        res.json({ success: true, message: 'Order confirmed as received!' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Confirm received error:', err);
+        res.status(500).json({ error: 'Failed to confirm order' });
+    } finally {
+        client.release();
     }
 });
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu } from 'lucide-react';
+import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -11,11 +11,12 @@ export default function Navbar() {
     const { user } = useAuth();
     const { count } = useCart();
     const { items: wishlistItems, count: wishlistCount, removeItem: removeWishlistItem } = useWishlist();
-const [showWishlist, setShowWishlist] = useState(false);
-    const { notifications, unreadCount, markAllRead } = useNotifications();
+    const [showWishlist, setShowWishlist] = useState(false);
+    const { notifications, unreadCount, markAllRead, clearAllNotifications } = useNotifications();
     const navigate = useNavigate();
     const location = useLocation();
     const isHome = location.pathname === '/';
+    const isAdmin = user?.role === 'admin';
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
 
@@ -27,38 +28,56 @@ const [showWishlist, setShowWishlist] = useState(false);
         });
     };
 
-   return (
+    const handleSearch = (e) => {
+        e.preventDefault();
+        const q = e.target.q.value.trim();
+        if (!q) return;
+        if (isAdmin) {
+            navigate(`/admin?search=${encodeURIComponent(q)}`);
+        } else {
+            navigate(q ? `/browse?search=${encodeURIComponent(q)}` : '/browse');
+        }
+    };
+
+    return (
         <>
-        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
+        <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2 shrink-0">
                     {user && (
                         <button
                             onClick={() => setShowProfile(true)}
-                            className="p-2 rounded-lg hover:bg-slate-100 transition"
+                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
                             title="Profile"
                         >
-                            <Menu size={20} className="text-slate-700" />
+                            <Menu size={20} className="text-slate-700 dark:text-gold-200" />
                         </button>
                     )}
-                    <Link to="/" className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 flex items-center justify-center text-white font-extrabold text-lg">C</div>
-                        <span className="font-extrabold text-xl tracking-tight text-slate-900">Campus<span className="text-brand-600">Cart</span></span>
-                    </Link>
+                    {isAdmin ? (
+                        <span className="flex items-center gap-2 cursor-default">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-lg">C</div>
+                            <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
+                        </span>
+                    ) : (
+                        <Link to="/" className="flex items-center gap-2">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-lg">C</div>
+                            <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
+                        </Link>
+                    )}
                 </div>
 
                 <div className="hidden md:flex flex-1 max-w-xl">
-                    <SearchBar />
+                    <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
                 </div>
 
                 <nav className="flex items-center gap-1 sm:gap-2">
-                    {!isHome && (
-                        <Link to="/" className="p-2 rounded-lg hover:bg-slate-100 transition" title="Home">
-                            <Home size={20} className="text-slate-700" />
+                    {!isHome && !isAdmin && (
+                        <Link to="/" className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition" title="Home">
+                            <Home size={20} className="text-slate-700 dark:text-gold-200" />
                         </Link>
                     )}
-                    {user && user.account_type === 'seller' && (
-                        <Link to="/sell/new" className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-red-700 hover:bg-brand-50 transition">
+                    {user && user.account_type === 'seller' && !isAdmin && (
+                        <Link to="/sell/new" className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-red-700 dark:text-gold-400 hover:bg-brand-50 dark:hover:bg-ink-700 transition">
                             <PlusCircle size={18} /> Sell
                         </Link>
                     )}
@@ -66,12 +85,12 @@ const [showWishlist, setShowWishlist] = useState(false);
                     <div className="relative">
                         <button
                             onClick={toggleNotifications}
-                            className="relative p-2 rounded-lg hover:bg-slate-100 transition"
+                            className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
                             title="Notifications"
                         >
-                            <Bell size={20} className="text-slate-700" />
+                            <Bell size={20} className="text-slate-700 dark:text-gold-200" />
                             {unreadCount > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-accent-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                                <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                                     {unreadCount}
                                 </span>
                             )}
@@ -80,145 +99,163 @@ const [showWishlist, setShowWishlist] = useState(false);
                         {showNotifications && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                                <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 z-50">
-                                    <div className="px-4 py-3 border-b border-slate-100 font-semibold text-sm text-slate-900">
-                                        New listings
+                                <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
+                                        Notifications
                                     </div>
                                     {notifications.length === 0 ? (
-                                        <p className="px-4 py-8 text-center text-sm text-slate-400">
-                                            No new listings yet. We check every 5 minutes.
+                                        <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
+                                            Nothing yet. We check every minute.
                                         </p>
                                     ) : (
-                                        notifications.map((n) => (
-                                            <Link
-                                                key={n.id}
-                                                to={`/product/${n.id}`}
-                                                onClick={() => setShowNotifications(false)}
-                                                className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition"
-                                            >
-                                                {n.primary_image && (
-                                                    <img src={n.primary_image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                                                )}
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-semibold text-slate-900 truncate">{n.title}</p>
-                                                    <p className="text-xs text-slate-400 truncate">
-                                                        {n.seller_name ? `${n.seller_name} · ` : ''}{n.category}
-                                                    </p>
-                                                </div>
-                                            </Link>
-                                        ))
+                                        <>
+                                            {notifications.map((n) => (
+                                                <Link
+                                                    key={n.id}
+                                                    to={`/product/${n.productId || n.id}`}
+                                                    onClick={() => setShowNotifications(false)}
+                                                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
+                                                >
+                                                    {n.primary_image && (
+                                                        <img src={n.primary_image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">
+                                                            {n.type === 'price_drop' && '💰 '}
+                                                            {n.type === 'low_stock' && '⚡ '}
+                                                            {n.type === 'new_listing' && '🛍️ '}
+                                                            {n.type === 'out_of_stock' && '📦 '}
+                                                            {n.title}
+                                                        </p>
+                                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
+                                                            {n.type === 'new_listing'
+                                                                ? `${n.seller_name ? `${n.seller_name} · ` : ''}${n.category}`
+                                                                : n.message}
+                                                        </p>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                            <div className="px-4 py-2 border-t border-slate-100 dark:border-ink-600">
+                                                <button
+                                                    onClick={clearAllNotifications}
+                                                    className="text-xs text-slate-400 dark:text-gold-200/50 hover:text-red-500 dark:hover:text-red-400 transition font-semibold w-full text-center"
+                                                >
+                                                    Clear all
+                                                </button>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </>
                         )}
                     </div>
 
-                    <Link to="/cart" className="relative p-2 rounded-lg hover:bg-slate-100 transition">
-                        <ShoppingCart size={20} className="text-slate-700" />
+                    <Link to="/cart" className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+                        <ShoppingCart size={20} className="text-slate-700 dark:text-gold-200" />
                         {count > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-accent-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span>
+                            <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span>
                         )}
                     </Link>
                     {user ? (
                         <>
                             <div className="relative">
-    <button
-        onClick={() => setShowWishlist((s) => !s)}
-        className="relative p-2 rounded-lg hover:bg-slate-100 transition"
-        title="Wishlist"
-    >
-        <Heart size={20} className="text-slate-700" />
-        {wishlistCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-accent-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                {wishlistCount}
-            </span>
-        )}
-    </button>
+                                <button
+                                    onClick={() => setShowWishlist((s) => !s)}
+                                    className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                                    title="Wishlist"
+                                >
+                                    <Heart size={20} className="text-slate-700 dark:text-gold-200" />
+                                    {wishlistCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                                            {wishlistCount}
+                                        </span>
+                                    )}
+                                </button>
 
-    {showWishlist && (
-        <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowWishlist(false)} />
-            <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 z-50">
-                <div className="px-4 py-3 border-b border-slate-100 font-semibold text-sm text-slate-900">
-                    Wishlist
-                </div>
-                {wishlistItems.length === 0 ? (
-                    <p className="px-4 py-8 text-center text-sm text-slate-400">
-                        Nothing saved yet. Tap the heart on any listing to add it here.
-                    </p>
-                ) : (
-                    wishlistItems.map((p) => (
-                        <div
-                            key={p.id}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition"
-                        >
-                            <Link
-                                to={`/product/${p.id}`}
-                                onClick={() => setShowWishlist(false)}
-                                className="flex items-center gap-3 flex-1 min-w-0"
-                            >
-                                {p.primary_image && (
-                                    <img src={p.primary_image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                {showWishlist && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowWishlist(false)} />
+                                        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                            <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
+                                                Wishlist
+                                            </div>
+                                            {wishlistItems.length === 0 ? (
+                                                <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
+                                                    Nothing saved yet. Tap the heart on any listing to add it here.
+                                                </p>
+                                            ) : (
+                                                wishlistItems.map((p) => (
+                                                    <div
+                                                        key={p.id}
+                                                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
+                                                    >
+                                                        <Link
+                                                            to={`/product/${p.id}`}
+                                                            onClick={() => setShowWishlist(false)}
+                                                            className="flex items-center gap-3 flex-1 min-w-0"
+                                                        >
+                                                            {p.primary_image && (
+                                                                <img src={p.primary_image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">{p.title}</p>
+                                                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
+                                                                    GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
+                                                                </p>
+                                                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{p.seller_name}</p>
+                                                            </div>
+                                                        </Link>
+                                                        <button
+                                                            onClick={() => removeWishlistItem(p.id)}
+                                                            className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition shrink-0"
+                                                            title="Remove from wishlist"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </>
                                 )}
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-slate-900 truncate">{p.title}</p>
-                                    <p className="text-xs text-slate-400 truncate">
-                                        GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
-                                    </p>
-                                    <p className="text-xs text-slate-400 truncate">{p.seller_name}</p>
-                                </div>
-                            </Link>
-                            <button
-                                onClick={() => removeWishlistItem(p.id)}
-                                className="text-slate-300 hover:text-red-500 p-1.5 transition shrink-0"
-                                title="Remove from wishlist"
-                            >
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
-                    ))
-                )}
-            </div>
-        </>
-    )}
-</div>
+                            </div>
                             {user.role === 'admin' && (
-                                <Link to="/admin" className="p-2 rounded-lg hover:bg-slate-100 transition">
-                                    <LayoutDashboard size={20} className="text-slate-700" />
+                                <Link to="/admin" className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+                                    <LayoutDashboard size={20} className="text-slate-700 dark:text-gold-200" />
                                 </Link>
                             )}
                         </>
                     ) : (
                         <>
-                            <Link to="/login" className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-brand-700 transition">Log in</Link>
-                            <Link to="/register" className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition shadow-sm">Sign up</Link>
+                            <Link to="/login" className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition">Log in</Link>
+                            <Link to="/register" className="px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm">Sign up</Link>
                         </>
                     )}
                 </nav>
             </div>
            <div className="md:hidden px-4 pb-3">
-                <SearchBar />
+                <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
             </div>
+            <Link
+                to="/admin/login"
+                className="fixed top-0 right-0 h-16 w-1.5 z-50 opacity-0 hover:opacity-20 dark:hover:opacity-30 bg-slate-900 dark:bg-gold-500 transition-opacity"
+                aria-label="Admin"
+            />
         </header>
-<ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
+        <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
         </>
     );
-}        
+}
 
-function SearchBar() {
-    const navigate = useNavigate();
-    const onSubmit = (e) => {
-        e.preventDefault();
-        const q = e.target.q.value.trim();
-        navigate(q ? `/browse?search=${encodeURIComponent(q)}` : '/browse');
-    };
+function SearchBar({ isAdmin, onSubmit }) {
+    const placeholder = isAdmin ? 'Search users or listings...' : 'Search textbooks, electronics, furniture...';
     return (
         <form onSubmit={onSubmit} className="w-full">
             <input
                 name="q"
                 type="text"
-                placeholder="Search textbooks, electronics, furniture..."
-                className="w-full px-4 py-2.5 rounded-full bg-slate-100 border border-transparent focus:border-brand-400 focus:bg-white focus:outline-none text-sm transition"
+                placeholder={placeholder}
+                className="w-full px-4 py-2.5 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-sm transition"
             />
         </form>
     );

@@ -15,7 +15,17 @@ const sellerRoutes = require('./routes/sellers');
 
 const authRoutes = require('./routes/auth');
 
+const notificationRoutes = require('./routes/notifications');
+
+const adminRoutes = require('./routes/admin');
+
+const adminAuthRoutes = require('./routes/adminAuth');
+
 const payoutRoutes = require('./routes/payouts');
+
+const reportRoutes = require('./routes/reports');
+
+const reviewRoutes = require('./routes/reviews');
 
 const app = express();
 
@@ -40,13 +50,23 @@ app.use('/api/products', productRoutes);
 
 app.use('/api/categories', categoryRoutes);
 
+app.use('/api/admin/auth', adminAuthRoutes);
+
 app.use('/api/orders', orderRoutes);
+
+app.use('/api/reports', reportRoutes);
 
 app.use('/api/wishlist', wishlistRoutes);
 
 app.use('/api/sellers', sellerRoutes);
 
+app.use('/api/admin', adminRoutes);
+
+app.use('/api/notifications', notificationRoutes);
+
 app.use('/api/payouts', payoutRoutes);
+
+app.use('/api/reviews', reviewRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 

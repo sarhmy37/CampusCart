@@ -39,9 +39,10 @@ export default function Browse() {
     const [school, setSchool] = useState('');
     const [locating, setLocating] = useState(false);
     const [verifiedOnly, setVerifiedOnly] = useState(false);
-    const [priceRange, setPriceRange] = useState(null); // { min, max } | null
+    const [priceRange, setPriceRange] = useState(null);
     const [budgetInput, setBudgetInput] = useState('');
     const [loading, setLoading] = useState(true);
+    const [filterType, setFilterType] = useState('all'); // 'all' | 'new' | 'special' | 'soldout'
     const search = searchParams.get('search') || '';
 
     useEffect(() => {
@@ -115,27 +116,55 @@ export default function Browse() {
     const verifiedFiltered = verifiedOnly
         ? categoryFiltered.filter((p) => p.seller_verified)
         : categoryFiltered;
+    
+    let filteredByType = verifiedFiltered;
+    if (filterType === 'new') {
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+        filteredByType = verifiedFiltered.filter(p => {
+            if (!p.created_at) return false;
+            return new Date(p.created_at) >= threeDaysAgo;
+        });
+        if (isDemo) {
+            filteredByType = verifiedFiltered.slice(0, 4);
+        }
+    } else if (filterType === 'special') {
+        // Coming soon – for now, just show nothing (or you can keep a placeholder)
+        // We'll show a message later
+        filteredByType = [];
+    } else if (filterType === 'soldout') {
+        filteredByType = verifiedFiltered.filter(p => {
+            const stock = p.stock !== undefined ? p.stock : 1;
+            return stock <= 0;
+        });
+        if (isDemo) {
+            filteredByType = verifiedFiltered.filter((_, i) => i % 3 === 0);
+        }
+    }
+
     const visibleProducts = priceRange
-        ? verifiedFiltered.filter((p) => {
+        ? filteredByType.filter((p) => {
             const price = parseFloat(p.price);
             return price >= priceRange.min && price <= priceRange.max;
         })
-        : verifiedFiltered;
+        : filteredByType;
 
     return (
         <div>
             {/* HEADER STRIP */}
-                   <section className="sticky top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600">                <div className="absolute inset-0">
+            <section className="sticky top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+                <div className="absolute inset-0">
                     <HeroSlideshow images={[
                         '/IMG_8639 2.jpg', '/knust-hero.jpg', '/ATU.jpg', '/UHAS.jpg', '/UCC.jpg',
                         '/UDS.jpg', '/UOE.jpg', '/UPSA.jpg', '/PentUNI.jpg', '/KsTU.png', '/CU.jpg','/UMAT.jpg',
                     ]} />
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
                 </div>
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 rounded-full blur-3xl" />
+                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
-                       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">                    <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
                         <Link
                             to="/"
                             className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
@@ -216,24 +245,48 @@ export default function Browse() {
             </section>
 
             {/* LISTINGS */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <FilterPill label="All" active={!itemCategory} onClick={() => setItemCategory('')} />
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 bg-white dark:bg-ink-900">
+                {/* FILTER BAR - removed the duplicate "All" category pill, only filter type tabs remain */}
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                    {/* Filter type tabs (All, Newly Posted, Sold Out, Special Listings) */}
+                    <FilterPill 
+                        label="All" 
+                        active={filterType === 'all'} 
+                        onClick={() => setFilterType('all')} 
+                    />
+                    <FilterPill 
+                        label="Newly Posted" 
+                        active={filterType === 'new'} 
+                        onClick={() => setFilterType('new')} 
+                    />
+                    <FilterPill 
+                        label="Sold Out" 
+                        active={filterType === 'soldout'} 
+                        onClick={() => setFilterType('soldout')} 
+                    />
+                    {/* Special Listings – Coming soon, not clickable */}
+                    <span className="shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border border-slate-300 dark:border-ink-600 bg-slate-100 dark:bg-ink-700 text-slate-400 dark:text-gold-200/40 cursor-default">
+                        Special Listings <span className="text-[10px] font-light ml-1">(coming soon)</span>
+                    </span>
+
+                    {/* Category filter tag - only appears when a category is selected */}
                     {itemCategory && (
-                        <span className="inline-flex items-center gap-1.5 bg-brand-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold">
+                        <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-4 py-1.5 rounded-full text-sm font-semibold">
                             Category: {itemCategory}
                             <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
                                 <X size={13} />
                             </button>
                         </span>
                     )}
+
+                    {/* Other active filters (verified, price range) */}
                     {verifiedOnly && (
                         <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold">
                             <BadgeCheck size={14} /> Verified sellers only
                         </span>
                     )}
                     {priceRange && (
-                        <span className="inline-flex items-center gap-1.5 bg-slate-800 text-white px-4 py-1.5 rounded-full text-sm font-semibold">
+                        <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-4 py-1.5 rounded-full text-sm font-semibold">
                             {priceRange.label}
                             <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
                                 <X size={13} />
@@ -241,27 +294,36 @@ export default function Browse() {
                         </span>
                     )}
                 </div>
+
                 {verifiedOnly && (
-                    <p className="text-xs text-slate-400 mb-4">
+                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
                         Verified sellers are recommended — their university email has been confirmed.
                     </p>
+                )}
+
+                {/* Special message if filterType === 'special' */}
+                {filterType === 'special' && (
+                    <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
+                        <p className="text-lg font-semibold">🚀 Special Listings</p>
+                        <p className="text-sm mt-1">This feature is coming soon! Stay tuned for curated deals and top-rated items.</p>
+                    </div>
                 )}
 
                 {loading ? (
                     <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                         {Array.from({ length: 8 }).map((_, i) => (
-                            <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-100 animate-pulse" />
+                            <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
                         ))}
                     </div>
-                ) : visibleProducts.length === 0 ? (
-                    <div className="text-center py-20 text-slate-400">
+                ) : visibleProducts.length === 0 && filterType !== 'special' ? (
+                    <div className="text-center py-20 text-slate-400 dark:text-gold-200/40">
                         <SlidersHorizontal className="mx-auto mb-3" size={32} />
-                        <p>No listings found. Try a different category or price range.</p>
+                        <p>No listings found. Try a different category, price range, or filter.</p>
                     </div>
                 ) : (
                     <>
                         {isDemo && (
-                            <p className="text-sm text-slate-400 mb-4">No live listings yet — here's a preview of how they'll look:</p>
+                            <p className="text-sm text-slate-400 dark:text-gold-200/40 mb-4">No live listings yet — here's a preview of how they'll look:</p>
                         )}
                         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                             {visibleProducts.map((p) => <ProductCard key={p.id} product={p} />)}
@@ -278,7 +340,9 @@ function FilterPill({ label, active, onClick }) {
         <button
             onClick={onClick}
             className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border transition ${
-                active ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'
+                active
+                    ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
+                    : 'bg-white dark:bg-ink-800 text-slate-600 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:border-brand-300 dark:hover:border-gold-500'
             }`}
         >
             {label}

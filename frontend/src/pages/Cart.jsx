@@ -5,7 +5,7 @@ import api from '../api/client';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { openWhatsAppChats } from '../utils/whatsapp';
-import { calcDeliveryFee } from '../utils/distance';
+import { calcDeliveryFee, SCHOOL_COORDS, haversineKm } from '../utils/distance';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck, Loader2 } from 'lucide-react';
 
 const SERVICE_FEE_RATE = 0.02;
@@ -51,8 +51,10 @@ export default function Cart() {
     const [buyerCoords, setBuyerCoords] = useState(null);
     const [locating, setLocating] = useState(false);
     const [locationDenied, setLocationDenied] = useState(false);
+    const [onCampusChecked, setOnCampusChecked] = useState(false);
+    const [verifyingCampus, setVerifyingCampus] = useState(false);
+    const [confirmedOnCampus, setConfirmedOnCampus] = useState(null); // null = not checked, true/false = result
 
-    // Group items by seller (needed for both WhatsApp and per-seller delivery fees)
     const sellerGroups = items.reduce((groups, item) => {
         const key = item.seller_whatsapp || item.seller_name || 'unknown';
         if (!groups[key]) {
@@ -81,21 +83,60 @@ export default function Cart() {
         );
     }, [deliveryMethod, buyerCoords, locationDenied]);
 
+    // Which school(s) the items in this cart are being sold from — used to check
+    // "on campus" against the actual seller's school, not just any campus.
+    const sellerSchoolsInCart = [...new Set(items.map((i) => i.seller_school).filter(Boolean))];
+
+    const handleOnCampusToggle = (checked) => {
+        setOnCampusChecked(checked);
+        if (!checked) {
+            setConfirmedOnCampus(null);
+            return;
+        }
+        if (!navigator.geolocation) {
+            toast.error("Your browser doesn't support location access");
+            setOnCampusChecked(false);
+            return;
+        }
+        setVerifyingCampus(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                const isOnCampus = sellerSchoolsInCart.some((school) => {
+                    const coords = SCHOOL_COORDS[school];
+                    if (!coords) return false;
+                    return haversineKm(latitude, longitude, coords.lat, coords.lng) <= 2;
+                });
+                setBuyerCoords({ lat: latitude, lng: longitude });
+                setConfirmedOnCampus(isOnCampus);
+                setVerifyingCampus(false);
+                if (!isOnCampus) {
+                    toast.error("You don't appear to be on campus right now");
+                }
+            },
+            () => {
+                toast.error("Couldn't verify your location");
+                setOnCampusChecked(false);
+                setVerifyingCampus(false);
+            }
+        );
+    };
+
     if (items.length === 0) {
         return (
-            <div>
+            <div className="dark:bg-ink-900 min-h-screen">
                 <CartHeader count={0} />
                 <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-brand-50 flex items-center justify-center mb-5">
-                        <ShoppingBag className="text-brand-400" size={28} />
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center mb-5">
+                        <ShoppingBag className="text-brand-400 dark:text-gold-400" size={28} />
                     </div>
-                    <h2 className="text-lg font-bold text-slate-800">Your cart is empty</h2>
-                    <p className="text-sm text-slate-400 mt-1.5">
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-gold-50">Your cart is empty</h2>
+                    <p className="text-sm text-slate-400 dark:text-gold-200/50 mt-1.5">
                         Browse listings from students on your campus and add something you like.
                     </p>
                     <Link
                         to="/browse"
-                        className="inline-flex items-center gap-1.5 mt-6 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition shadow-sm"
+                        className="inline-flex items-center gap-1.5 mt-6 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition shadow-sm"
                     >
                         Browse listings →
                     </Link>
@@ -107,20 +148,18 @@ export default function Cart() {
     const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
     const subtotal = total;
 
-    // Compute delivery fee: sum per-seller fee based on distance, or fallback flat rate per seller if location unavailable
     let deliveryFee = 0;
-    let onCampusForAll = true;
     if (deliveryMethod === 'delivery') {
-        Object.values(sellerGroups).forEach((group) => {
-            if (buyerCoords && group.school) {
+        if (confirmedOnCampus === true) {
+            deliveryFee = 10 * Object.keys(sellerGroups).length; // GHS 10 per seller, matches backend
+        } else if (buyerCoords) {
+            Object.values(sellerGroups).forEach((group) => {
                 const { fee } = calcDeliveryFee(buyerCoords.lat, buyerCoords.lng, group.school);
                 deliveryFee += fee;
-                if (fee > 0) onCampusForAll = false;
-            } else {
-                deliveryFee += FALLBACK_DELIVERY_FEE;
-                onCampusForAll = false;
-            }
-        });
+            });
+        } else {
+            deliveryFee = FALLBACK_DELIVERY_FEE * Object.keys(sellerGroups).length;
+        }
     }
 
     const serviceFee = subtotal * SERVICE_FEE_RATE;
@@ -151,7 +190,7 @@ export default function Cart() {
     };
 
     return (
-        <div>
+        <div className="dark:bg-ink-900 min-h-screen">
             <CartHeader count={itemCount} />
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-3 gap-6">
@@ -160,33 +199,33 @@ export default function Cart() {
                     {items.map((item) => (
                         <div
                             key={item.product_id}
-                            className="flex items-center gap-4 bg-white border border-slate-200 rounded-2xl p-3 shadow-sm hover:shadow-md transition"
+                            className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 shadow-sm hover:shadow-md dark:hover:shadow-gold-900/20 transition"
                         >
-                            <div className="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden shrink-0">
+                            <div className="w-20 h-20 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
                                 {item.image && <img src={item.image} className="w-full h-full object-cover" alt={item.title} />}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-slate-800 text-sm truncate">{item.title}</p>
-                                <p className="text-brand-700 font-bold text-sm mt-1">GHS {parseFloat(item.price).toFixed(2)}</p>
+                                <p className="font-semibold text-slate-800 dark:text-gold-50 text-sm truncate">{item.title}</p>
+                                <p className="text-brand-700 dark:text-gold-400 font-bold text-sm mt-1">GHS {parseFloat(item.price).toFixed(2)}</p>
                             </div>
-                            <div className="flex items-center gap-3 bg-slate-50 rounded-full px-3 py-1.5">
+                            <div className="flex items-center gap-3 bg-slate-50 dark:bg-ink-700 rounded-full px-3 py-1.5">
                                 <button
                                     onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white text-slate-600 transition"
+                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
                                 >
                                     <Minus size={13} />
                                 </button>
-                                <span className="text-sm font-semibold w-4 text-center text-slate-800">{item.quantity}</span>
+                                <span className="text-sm font-semibold w-4 text-center text-slate-800 dark:text-gold-50">{item.quantity}</span>
                                 <button
                                     onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white text-slate-600 transition"
+                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
                                 >
                                     <Plus size={13} />
                                 </button>
                             </div>
                             <button
                                 onClick={() => removeItem(item.product_id)}
-                                className="text-slate-300 hover:text-red-500 transition p-1"
+                                className="text-slate-300 dark:text-gold-200/40 hover:text-red-500 transition p-1"
                                 title="Remove"
                             >
                                 <Trash2 size={18} />
@@ -196,138 +235,158 @@ export default function Cart() {
 
                     {/* WHATSAPP — grouped by seller (only shown for pickup) */}
                     {deliveryMethod === 'pickup' && (
-                        <div className="bg-white border border-slate-200 rounded-2xl p-4 mt-2">
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 mt-2">
+                            <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">
                                 Chat with sellers
                             </p>
                             <div className="space-y-2">
-                                {Object.values(sellerGroups).map((group) => {
-                                    const number = formatWhatsAppNumber(group.whatsapp);
-                                    const message = buildWhatsAppMessage(group.sellerName, group.items);
-                                    const href = number
-                                        ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
-                                        : null;
+    {Object.values(sellerGroups).map((group) => {
+        const number = formatWhatsAppNumber(group.whatsapp);
+        const message = buildWhatsAppMessage(group.sellerName, group.items);
+        const href = number
+            ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+            : null;
 
-                                    return (
-                                        <a
-                                            key={group.sellerName + (group.whatsapp || '')}
-                                            href={href || '#'}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => {
-                                                if (!href) {
-                                                    e.preventDefault();
-                                                    alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
-                                                }
-                                            }}
-                                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
-                                                href
-                                                    ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
-                                                    : 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            <span className="flex items-center gap-2.5">
-                                                <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600' : 'text-slate-300'}`} />
-                                                Chat with {group.sellerName} about {group.items.length} item{group.items.length > 1 ? 's' : ''}
-                                            </span>
-                                        </a>
-                                    );
-                                })}
-                            </div>
+        return (
+            <a
+                key={group.sellerName + (group.whatsapp || '')}
+                href={href || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                    // Check if user is logged in
+                    if (!user) {
+                        e.preventDefault();
+                        navigate('/login');
+                        return;
+                    }
+
+                    // Check if WhatsApp number exists
+                    if (!href) {
+                        e.preventDefault();
+                        alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
+                    }
+                }}
+                className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+                    href
+                        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'
+                        : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 text-slate-400 dark:text-gold-200/40 cursor-not-allowed'
+                }`}
+            >
+                <span className="flex items-center gap-2.5">
+                    <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
+                    Chat with {group.sellerName} about {group.items.length} item{group.items.length > 1 ? 's' : ''}
+                </span>
+            </a>
+        );
+    })}
+</div>
                         </div>
                     )}
                 </div>
 
                 {/* SUMMARY */}
                 <div className="lg:col-span-1">
-                    <div className="sticky top-24 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                        <h3 className="font-bold text-slate-900 mb-4">Order summary</h3>
+                    <div className="sticky top-24 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                        <h3 className="font-bold text-slate-900 dark:text-gold-50 mb-4">Order summary</h3>
 
                         <div className="space-y-2 mb-5">
                             <button
                                 onClick={() => setDeliveryMethod('pickup')}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
                                     deliveryMethod === 'pickup'
-                                        ? 'border-brand-500 bg-brand-50'
-                                        : 'border-slate-200 hover:border-slate-300'
+                                        ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
+                                        : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
                                 }`}
                             >
-                                <MapPin size={16} className={deliveryMethod === 'pickup' ? 'text-brand-600' : 'text-slate-400'} />
+                                <MapPin size={16} className={deliveryMethod === 'pickup' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
                                 <div>
-                                    <p className="text-sm font-semibold text-slate-800">Meet on campus</p>
-                                    <p className="text-xs text-slate-400">Free — arrange with the seller</p>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Meet on campus</p>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50">Free — arrange with the seller</p>
                                 </div>
                             </button>
                             <button
                                 onClick={() => setDeliveryMethod('delivery')}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
                                     deliveryMethod === 'delivery'
-                                        ? 'border-brand-500 bg-brand-50'
-                                        : 'border-slate-200 hover:border-slate-300'
+                                        ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
+                                        : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
                                 }`}
                             >
-                                <Truck size={16} className={deliveryMethod === 'delivery' ? 'text-brand-600' : 'text-slate-400'} />
+                                <Truck size={16} className={deliveryMethod === 'delivery' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
                                 <div>
-                                    <p className="text-sm font-semibold text-slate-800">Delivery</p>
-                                    <p className="text-xs text-slate-400">
-                                        {deliveryMethod === 'delivery' && locating
-                                            ? 'Calculating based on your location…'
-                                            : 'Fee based on distance — free if on campus'}
-                                    </p>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Delivery</p>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50">Fee based on distance</p>
                                 </div>
                             </button>
+
+                            {deliveryMethod === 'delivery' && (
+                                <div className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700">
+                                    <label className="flex items-center gap-2.5 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={onCampusChecked}
+                                            onChange={(e) => handleOnCampusToggle(e.target.checked)}
+                                            disabled={verifyingCampus}
+                                            className="w-4 h-4 rounded accent-brand-600 dark:accent-gold-500"
+                                        />
+                                        <span className="text-sm font-medium text-slate-700 dark:text-gold-100">
+                                            Are you on campus?
+                                        </span>
+                                    </label>
+
+                                    {verifyingCampus && (
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2 flex items-center gap-1.5">
+                                            <Loader2 size={12} className="animate-spin" /> Checking your location…
+                                        </p>
+                                    )}
+                                    {!verifyingCampus && confirmedOnCampus === true && (
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                                            ✓ You're on campus — delivery is GHS 10.
+                                        </p>
+                                    )}
+                                    {!verifyingCampus && confirmedOnCampus === false && (
+                                        <p className="text-xs text-red-500 mt-2">
+                                            You are not on campus. Standard delivery rates apply based on your distance.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        {deliveryMethod === 'delivery' && (
-                            <>
-                                {locating && (
-                                    <p className="text-xs text-slate-400 -mt-3 mb-4 flex items-center gap-1.5">
-                                        <Loader2 size={12} className="animate-spin" /> Getting your location…
-                                    </p>
-                                )}
-                                {locationDenied && (
-                                    <p className="text-xs text-amber-600 -mt-3 mb-4">
-                                        Couldn't access your location — using standard rate. Enable location for accurate pricing.
-                                    </p>
-                                )}
-                                {!locating && buyerCoords && !onCampusForAll && (
-                                    <p className="text-xs text-slate-400 -mt-3 mb-4">Delivered within 1–3 working days.</p>
-                                )}
-                                {!locating && buyerCoords && onCampusForAll && (
-                                    <p className="text-xs text-emerald-600 -mt-3 mb-4">You're on campus — delivery is free!</p>
-                                )}
-                            </>
+                        {deliveryMethod === 'delivery' && confirmedOnCampus !== true && (
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-3 mb-1">Delivered within 1–3 working days.</p>
                         )}
 
-                        <div className="border-t border-slate-100 pt-4 space-y-2.5">
-                            <div className="flex items-center justify-between text-sm text-slate-500">
+                        <div className="border-t border-slate-100 dark:border-ink-600 pt-4 space-y-2.5">
+                            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
                                 <span>Subtotal ({itemCount} item{itemCount > 1 ? 's' : ''})</span>
                                 <span>GHS {subtotal.toFixed(2)}</span>
                             </div>
-                            <div className="flex items-center justify-between text-sm text-slate-500">
+                            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
                                 <span>Delivery</span>
                                 <span>{deliveryFee > 0 ? `GHS ${deliveryFee.toFixed(2)}` : 'Free'}</span>
                             </div>
-                            <div className="flex items-center justify-between text-sm text-slate-500">
+                            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
                                 <span>Service fee</span>
                                 <span>GHS {serviceFee.toFixed(2)}</span>
                             </div>
                         </div>
 
-                        <div className="border-t border-slate-100 mt-4 pt-4 flex items-center justify-between mb-6">
-                            <span className="font-semibold text-slate-900">Total</span>
-                            <span className="text-2xl font-extrabold text-slate-900">GHS {grandTotal.toFixed(2)}</span>
+                        <div className="border-t border-slate-100 dark:border-ink-600 mt-4 pt-4 flex items-center justify-between mb-6">
+                            <span className="font-semibold text-slate-900 dark:text-gold-50">Total</span>
+                            <span className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">GHS {grandTotal.toFixed(2)}</span>
                         </div>
 
                         <button
                             onClick={handleAction}
                             disabled={paying || (deliveryMethod === 'delivery' && locating)}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 hover:opacity-90 text-white font-semibold text-sm transition shadow-sm disabled:opacity-60"
+                            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 hover:opacity-90 text-white dark:text-ink-900 font-semibold text-sm transition shadow-sm disabled:opacity-60"
                         >
                             {paying ? 'Redirecting to payment…' : (deliveryMethod === 'pickup' ? 'Chat with Seller(s)' : `Pay · GHS ${grandTotal.toFixed(2)}`)}
                         </button>
                         {!user && (
-                            <p className="text-xs text-slate-400 text-center mt-3">
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 text-center mt-3">
                                 You'll need to log in first
                             </p>
                         )}
@@ -340,9 +399,21 @@ export default function Cart() {
 
 function CartHeader({ count }) {
     return (
-        <section className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600">
+        <section className="relative overflow-hidden">
+            <video 
+                autoPlay 
+                loop 
+                muted 
+                playsInline 
+                preload="metadata"
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ objectPosition: '50% 40%' }}
+            >
+                <source src="/Cart.mp4" type="video/mp4" />
+            </video>
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-900/50 via-brand-800/35 to-accent-600/25 dark:from-ink-900/80 dark:via-ink-900/60 dark:to-gold-900/35" />
             <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-            <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 rounded-full blur-3xl" />
+            <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
             <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                 <Link
                     to="/browse"

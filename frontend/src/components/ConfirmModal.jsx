@@ -5,18 +5,18 @@ export default function ConfirmModal({ open, title, message, confirmLabel = 'Con
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onCancel} />
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-150">
-                <div className="w-11 h-11 rounded-xl bg-red-50 text-red-500 flex items-center justify-center mb-4">
+            <div className="absolute inset-0 bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm" onClick={onCancel} />
+            <div className="relative bg-white dark:bg-ink-800 border border-transparent dark:border-ink-600 rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-150">
+                <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 flex items-center justify-center mb-4">
                     <AlertTriangle size={20} />
                 </div>
-                <h3 className="font-bold text-slate-900 text-lg">{title}</h3>
-                <p className="text-sm text-slate-500 mt-1.5">{message}</p>
+                <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">{title}</h3>
+                <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-1.5">{message}</p>
 
                 <div className="flex gap-2 mt-6">
                     <button
                         onClick={onCancel}
-                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
+                        className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200/70 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
                     >
                         Cancel
                     </button>

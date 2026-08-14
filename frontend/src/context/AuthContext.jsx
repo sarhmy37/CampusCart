@@ -43,6 +43,7 @@ export function AuthProvider({ children }) {
     };
 
     const logout = () => {
+        api.post('/auth/logout').catch(() => {}); // best-effort — clear session regardless of outcome
         localStorage.removeItem('cc_token');
         localStorage.removeItem('cc_user');
         setUser(null);

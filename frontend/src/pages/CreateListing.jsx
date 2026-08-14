@@ -20,7 +20,6 @@ export default function CreateListing() {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
     }, []);
 
-    // Clean up object URLs when they're replaced/unmounted
     useEffect(() => {
         return () => previews.forEach((p) => URL.revokeObjectURL(p));
     }, [previews]);
@@ -32,7 +31,7 @@ export default function CreateListing() {
         const combined = [...imageFiles, ...files].slice(0, MAX_IMAGES);
         setImageFiles(combined);
         setPreviews(combined.map((f) => URL.createObjectURL(f)));
-        e.target.value = ''; // allow re-selecting the same file later
+        e.target.value = '';
     };
 
     const removeImage = (index) => {
@@ -81,7 +80,7 @@ export default function CreateListing() {
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src="/create-listing-bg.mp4" type="video/mp4" />
                 </video>
-                <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60" />
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                 <button
     onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
     className="absolute top-6 left-6 z-20 inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
@@ -89,7 +88,7 @@ export default function CreateListing() {
     <ArrowLeft size={16} /> Back
 </button>
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 rounded-full blur-3xl" />
+                <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/10 rounded-full blur-3xl" />
 
                 <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
                     <span className="inline-flex items-center gap-1.5 w-fit bg-white/15 backdrop-blur text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20">
@@ -105,40 +104,40 @@ export default function CreateListing() {
             </div>
                 
             {/* RIGHT — form */}
-            <div className="flex items-center justify-center px-4 py-16 bg-slate-50">
+            <div className="flex items-center justify-center px-4 py-16 bg-slate-50 dark:bg-ink-900">
                 <div className="w-full max-w-sm">
                     
-                    <h1 className="text-2xl font-extrabold text-slate-900">New Listing</h1>
-                    <p className="text-sm text-slate-500 mt-1">Add the details buyers will see.</p>
+                    <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">New Listing</h1>
+                    <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">Add the details buyers will see.</p>
 
                     <form onSubmit={onSubmit} className="mt-5 space-y-4">
                         <div>
-    <label className="text-sm font-semibold text-slate-700">Title</label>
+    <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Title</label>
     <input
         required
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
         placeholder="e.g. Casio scientific calculator"
-        className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition"
+        className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
     />
 </div>
 
 <div className="grid grid-cols-2 gap-3">
     <div>
-        <label className="text-sm font-semibold text-slate-700">Description</label>
+        <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Description</label>
         <textarea
             rows={5}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Condition, why you're selling, anything a buyer should know"
-            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition resize-none"
+            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition resize-none"
         />
     </div>
     <div>
-        <label className="text-sm font-semibold text-slate-700">Photos</label>
+        <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Photos</label>
         <div className="grid grid-cols-3 gap-1.5 mt-1">
             {previews.map((src, i) => (
-                <div key={src} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200">
+                <div key={src} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600">
                     <img src={src} alt="" className="w-full h-full object-cover" />
                     <button
                         type="button"
@@ -155,14 +154,14 @@ export default function CreateListing() {
                 </div>
             ))}
             {imageFiles.length < MAX_IMAGES && (
-                <label className="aspect-square rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center gap-1 text-slate-400 hover:border-brand-400 hover:text-brand-500 cursor-pointer transition">
+                <label className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition">
                     <ImagePlus size={20} />
                     <span className="text-[11px] font-semibold">Add</span>
                     <input type="file" accept="image/*" multiple onChange={handleFilesSelected} className="hidden" />
                 </label>
             )}
         </div>
-        <p className="text-xs text-slate-400 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
+        <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
     </div>
 
     
@@ -170,7 +169,7 @@ export default function CreateListing() {
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-sm font-semibold text-slate-700">Price (GHS)</label>
+                                <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Price (GHS)</label>
                                 <input
                                     required
                                     type="number"
@@ -178,39 +177,39 @@ export default function CreateListing() {
                                     step="0.01"
                                     value={form.price}
                                     onChange={(e) => setForm({ ...form, price: e.target.value })}
-                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition"
+                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
                                 />
                             </div>
                             <div>
-                                <label className="text-sm font-semibold text-slate-700">Stock</label>
+                                <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Stock</label>
                                 <input
                                     type="number"
                                     min="1"
                                     value={form.stock}
                                     onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition"
+                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
                                 />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-sm font-semibold text-slate-700">Category</label>
+                                <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Category</label>
                                 <select
                                     value={form.category_id}
                                     onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition appearance-none"
+                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
                                 >
                                     <option value="">Select</option>
                                     {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="text-sm font-semibold text-slate-700">Condition</label>
+                                <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Condition</label>
                                 <select
                                     value={form.condition}
                                     onChange={(e) => setForm({ ...form, condition: e.target.value })}
-                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm bg-white transition appearance-none"
+                                    className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
                                 >
                                     <option value="new">New</option>
                                     <option value="used">Used</option>
@@ -221,7 +220,7 @@ export default function CreateListing() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition disabled:opacity-60 shadow-sm"
+                            className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm"
                         >
                             {loading ? 'Publishing…' : 'Publish listing'}
                         </button>

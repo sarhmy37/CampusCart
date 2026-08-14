@@ -1,13 +1,15 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
-    MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag
+    MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
+
+const COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes
 
 export default function ProfileDrawer({ open, onClose }) {
     const { user, logout, updateProfile, uploadAvatar } = useAuth();
@@ -24,6 +26,15 @@ export default function ProfileDrawer({ open, onClose }) {
         whatsapp: user?.whatsapp || '',
         location: user?.location || '',
     });
+
+    const cooldownRemaining = useMemo(() => {
+        if (!user?.profile_updated_at) return 0;
+        const elapsed = Date.now() - new Date(user.profile_updated_at).getTime();
+        return Math.max(0, COOLDOWN_MS - elapsed);
+    }, [user?.profile_updated_at]);
+
+    const onCooldown = cooldownRemaining > 0;
+    const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
     if (!user) return null;
 
@@ -68,12 +79,12 @@ export default function ProfileDrawer({ open, onClose }) {
 
             {/* Drawer */}
             <div
-                className={`fixed top-0 left-0 h-full w-full max-w-sm bg-white z-50 shadow-2xl transition-transform duration-300 overflow-y-auto ${
+                className={`fixed top-0 left-0 h-full w-full max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 overflow-y-auto ${
                     open ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
                 {/* Header */}
-                <div className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-accent-500 px-6 pt-6 pb-16">
+                <div className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-accent-500 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 px-6 pt-6 pb-16">
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 p-2 rounded-lg bg-white/15 hover:bg-white/25 transition text-white"
@@ -88,12 +99,12 @@ export default function ProfileDrawer({ open, onClose }) {
                     <div className="relative w-24 h-24">
                         <button
                             onClick={handleAvatarClick}
-                            className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 shadow-md overflow-hidden flex items-center justify-center group relative"
+                            className="w-24 h-24 rounded-full border-4 border-white dark:border-ink-800 bg-slate-100 dark:bg-ink-700 shadow-md overflow-hidden flex items-center justify-center group relative"
                         >
                             {user.avatar_url ? (
                                 <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                             ) : (
-                                <span className="text-[11px] font-semibold text-slate-400 text-center px-2 leading-tight">
+                                <span className="text-[11px] font-semibold text-slate-400 dark:text-gold-300/50 text-center px-2 leading-tight">
                                     Upload photo
                                 </span>
                             )}
@@ -116,29 +127,29 @@ export default function ProfileDrawer({ open, onClose }) {
 
                     {/* Name + status */}
                     <div className="mt-3">
-                        <h2 className="text-lg font-extrabold text-slate-900">{user.name}</h2>
-                        <p className="text-sm text-slate-500">{user.university_email}</p>
+                        <h2 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">{user.name}</h2>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/60">{user.university_email}</p>
                         {user.school && (
-                            <p className="text-xs text-slate-400 mt-0.5">{user.school}</p>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-0.5">{user.school}</p>
                         )}
 
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                             {user.verified ? (
-                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full">
                                     <BadgeCheck size={13} /> Verified student
                                 </span>
                             ) : (
-                                <span className="inline-flex items-center gap-1 bg-amber-50 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 text-xs font-semibold px-2.5 py-1 rounded-full">
                                     <ShieldAlert size={13} /> Not yet verified
                                 </span>
                             )}
 
                             {user.account_type === 'seller' ? (
-                                <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                <span className="inline-flex items-center gap-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-semibold px-2.5 py-1 rounded-full">
                                     <Store size={13} /> Status: Seller
                                 </span>
                             ) : (
-                                <span className="inline-flex items-center gap-1 bg-blue-50 text-green-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-emerald-950/40 text-green-600 dark:text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full">
                                     <ShoppingBag size={13} /> Status: Buyer
                                 </span>
                             )}
@@ -147,7 +158,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         {!user.verified && (
                             <button
                                 onClick={() => setShowVerify(true)}
-                                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-600 hover:text-yellow-700 underline underline-offset-2"
+                                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-600 dark:text-gold-400 hover:text-yellow-700 dark:hover:text-gold-300 underline underline-offset-2"
                             >
                                 Verify your account →
                             </button>
@@ -160,22 +171,33 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* DASHBOARD — sits right before personal details */}
                     <button
                         onClick={() => { onClose(); navigate('/dashboard'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-sm font-semibold text-slate-800 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
 
                     <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-slate-900">Personal details</h3>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
                         {!editing && (
                             <button
-                                onClick={() => setEditing(true)}
-                                className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+                                onClick={() => !onCooldown && setEditing(true)}
+                                disabled={onCooldown}
+                                className={`text-xs font-semibold ${
+                                    onCooldown
+                                        ? 'text-slate-300 dark:text-gold-300/30 cursor-not-allowed'
+                                        : 'text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300'
+                                }`}
                             >
                                 Edit
                             </button>
                         )}
                     </div>
+
+                    {onCooldown && !editing && (
+                        <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-gold-400 -mt-3">
+                            <Clock size={12} /> You can edit again in {cooldownMinutes} minute{cooldownMinutes === 1 ? '' : 's'}
+                        </p>
+                    )}
 
                     {editing ? (
                         <div className="space-y-3">
@@ -213,13 +235,13 @@ export default function ProfileDrawer({ open, onClose }) {
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
-                                    className="flex-1 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition disabled:opacity-60"
+                                    className="flex-1 py-2 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
                                 >
                                     {saving ? 'Saving…' : 'Save changes'}
                                 </button>
                                 <button
                                     onClick={() => setEditing(false)}
-                                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
+                                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
                                 >
                                     Cancel
                                 </button>
@@ -234,16 +256,16 @@ export default function ProfileDrawer({ open, onClose }) {
                         </div>
                     )}
 
-                    <div className="border-t border-slate-100 pt-5 space-y-1">
+                    <div className="border-t border-slate-100 dark:border-ink-600 pt-5 space-y-1">
                         <button
                             onClick={() => { onClose(); navigate('/settings'); }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-sm font-semibold text-slate-700 transition"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
                         >
                             <Settings size={17} /> Settings
                         </button>
                         <button
                             onClick={() => setConfirmLogout(true)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 text-sm font-semibold text-red-600 transition"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold text-red-600 dark:text-red-400 transition"
                         >
                             <LogOut size={17} /> Log out
                         </button>
@@ -268,7 +290,7 @@ export default function ProfileDrawer({ open, onClose }) {
 function Field({ icon, label, value, onChange, placeholder, as = 'input' }) {
     return (
         <div>
-            <label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 mb-1">
+            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 flex items-center gap-1.5 mb-1">
                 {icon} {label}
             </label>
             {as === 'textarea' ? (
@@ -277,14 +299,14 @@ function Field({ icon, label, value, onChange, placeholder, as = 'input' }) {
                     onChange={(e) => onChange(e.target.value)}
                     placeholder={placeholder}
                     rows={3}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition resize-none"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition resize-none"
                 />
             ) : (
                 <input
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     placeholder={placeholder}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none text-sm transition"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                 />
             )}
         </div>
@@ -293,11 +315,11 @@ function Field({ icon, label, value, onChange, placeholder, as = 'input' }) {
 
 function InfoRow({ icon, label, value }) {
     return (
-        <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-slate-50">
-            <span className="text-slate-400 mt-0.5">{icon}</span>
+        <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700">
+            <span className="text-slate-400 dark:text-gold-300/50 mt-0.5">{icon}</span>
             <div>
-                <p className="text-xs text-slate-400">{label}</p>
-                <p className="text-sm font-medium text-slate-800">{value}</p>
+                <p className="text-xs text-slate-400 dark:text-gold-200/40">{label}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-gold-100">{value}</p>
             </div>
         </div>
     );

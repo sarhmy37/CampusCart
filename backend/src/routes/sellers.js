@@ -20,13 +20,30 @@ async function reconcilePayments(sellerId) {
          GROUP BY 1, 2`,
         [sellerId]
     );
+for (const row of monthsResult.rows) {
+        // Only apply available credit the first time this period's row is created —
+        // ON CONFLICT DO NOTHING means this whole block is a no-op on repeat runs,
+        // so credit only ever gets spent once per period.
+        const alreadyExists = await pool.query(
+            'SELECT 1 FROM seller_payments WHERE seller_id = $1 AND period_start = $2 AND period_end = $3',
+            [sellerId, row.period_start, row.period_end]
+        );
+        if (alreadyExists.rows.length > 0) continue;
 
-    for (const row of monthsResult.rows) {
+        const userResult = await pool.query('SELECT credit_balance FROM users WHERE id = $1', [sellerId]);
+        const availableCredit = parseFloat(userResult.rows[0]?.credit_balance || 0);
+        const rawDue = parseFloat(row.amount_due);
+        const creditApplied = Math.min(availableCredit, rawDue);
+        const netDue = Math.round((rawDue - creditApplied) * 100) / 100;
+
+        if (creditApplied > 0) {
+            await pool.query('UPDATE users SET credit_balance = credit_balance - $1 WHERE id = $2', [creditApplied, sellerId]);
+        }
+
         await pool.query(
-            `INSERT INTO seller_payments (seller_id, period_start, period_end, amount_due, status)
-             VALUES ($1, $2, $3, $4, 'pending')
-             ON CONFLICT (seller_id, period_start, period_end) DO NOTHING`,
-            [sellerId, row.period_start, row.period_end, row.amount_due]
+            `INSERT INTO seller_payments (seller_id, period_start, period_end, amount_due, status, amount_paid)
+             VALUES ($1, $2, $3, $4, 'pending', $5)`,
+            [sellerId, row.period_start, row.period_end, rawDue, creditApplied]
         );
     }
 

@@ -22,17 +22,15 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 function feeForDistance(km) {
-    if (km <= 0.5) return 0;
-    if (km <= 2) return 15;
+    if (km <= 2) return 10;       // on campus (generous radius) — flat fee, goes to the seller
     if (km <= 5) return 25;
     return 35;
 }
 
-// Returns { fee, distanceKm } for a single seller's school vs buyer coords
 function calcDeliveryFee(buyerLat, buyerLng, sellerSchool) {
     const coords = SCHOOL_COORDS[sellerSchool];
     if (!coords || buyerLat == null || buyerLng == null) {
-        return { fee: 15, distanceKm: null }; // unknown school or no buyer location — flat fallback
+        return { fee: 15, distanceKm: null };
     }
     const km = haversineKm(buyerLat, buyerLng, coords.lat, coords.lng);
     return { fee: feeForDistance(km), distanceKm: km };

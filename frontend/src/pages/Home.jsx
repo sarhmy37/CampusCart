@@ -28,28 +28,6 @@ const HERO_IMAGES = [
     '/CU.jpg',
 ];
 
-/*
-=========================================================
-CAMPUS LIFE GALLERY IMAGES
-=========================================================
-
-THIS IS WHERE YOU ADD YOUR IMAGES.
-
-Each category can have as many images as you want.
-
-Example:
-
-images: [
-    '/Shoe.jpg',
-    '/Shoe2.jpg',
-    '/Shoe3.jpg',
-    '/Shoe4.jpg',
-]
-
-The images will automatically fade from one to another.
-=========================================================
-*/
-
 const GALLERY = [
     {
         label: 'Sneakers in all sizes',
@@ -89,13 +67,6 @@ const GALLERY = [
         ],
     },
 ];
-
-/*
-=========================================================
-GALLERY IMAGE COMPONENT
-=========================================================
-Each card has its own image slideshow.
-*/
 
 function GalleryImage({ images, label }) {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -182,14 +153,14 @@ export default function Home() {
                 <div className="absolute inset-0">
                     <HeroSlideshow images={HERO_IMAGES} />
 
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-900/65 via-brand-800/40 to-accent-600/45" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-900/65 via-brand-800/40 to-accent-600/45 dark:from-ink-900/80 dark:via-ink-900/55 dark:to-gold-900/40" />
                 </div>
 
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl animate-pulse-slow" />
 
-                <div className="absolute right-32 bottom-0 w-48 h-48 bg-accent-500/30 rounded-full blur-2xl" />
+                <div className="absolute right-32 bottom-0 w-48 h-48 bg-accent-500/30 dark:bg-gold-500/20 rounded-full blur-2xl" />
 
-                <div className="absolute left-1/3 -bottom-24 w-64 h-64 bg-brand-300/20 rounded-full blur-3xl" />
+                <div className="absolute left-1/3 -bottom-24 w-64 h-64 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
                 <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
 
@@ -219,7 +190,7 @@ export default function Home() {
                             <Link
                                 to={user ? '/sell/new' : '/register'}
                                 onClick={handleStartSelling}
-                                className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-6 py-3 rounded-full hover:bg-brand-50 transition shadow-lg shadow-black/10"
+                                className="inline-flex items-center gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-6 py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10"
                             >
                                 Start selling
                                 <ArrowRight size={18} />
@@ -239,7 +210,7 @@ export default function Home() {
 
 
             {/* VALUE STRIP */}
-            <section className="bg-white border-b border-slate-100">
+            <section className="bg-white dark:bg-ink-800 border-b border-slate-100 dark:border-ink-600">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
 
                     {VALUES.map((v, i) => (
@@ -248,16 +219,16 @@ export default function Home() {
                             delay={i * 100}
                             className="flex items-center gap-3"
                         >
-                            <div className="shrink-0 w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">
+                            <div className="shrink-0 w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
                                 <v.icon size={20} />
                             </div>
 
                             <div>
-                                <p className="font-bold text-slate-900 text-sm">
+                                <p className="font-bold text-slate-900 dark:text-gold-50 text-sm">
                                     {v.label}
                                 </p>
 
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-slate-500 dark:text-gold-200/50">
                                     {v.desc}
                                 </p>
                             </div>
@@ -272,11 +243,11 @@ export default function Home() {
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 
                 <Reveal>
-                    <p className="text-accent-600 font-bold text-sm tracking-wide uppercase">
+                    <p className="text-accent-600 dark:text-gold-400 font-bold text-sm tracking-wide uppercase">
                         How it works
                     </p>
 
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-gold-50 mt-1">
                         From listing to handshake, in three steps
                     </h2>
                 </Reveal>
@@ -289,17 +260,17 @@ export default function Home() {
                             key={step.title}
                             delay={i * 120}
                         >
-                            <div className="h-full bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:border-brand-200 hover:shadow-md transition">
+                            <div className="h-full bg-slate-50 dark:bg-ink-800 rounded-2xl p-6 border border-slate-100 dark:border-ink-600 hover:border-brand-200 dark:hover:border-gold-700 hover:shadow-md transition">
 
-                                <div className="w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center mb-4">
+                                <div className="w-11 h-11 rounded-xl bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 flex items-center justify-center mb-4">
                                     <step.icon size={20} />
                                 </div>
 
-                                <h3 className="font-bold text-slate-900">
+                                <h3 className="font-bold text-slate-900 dark:text-gold-50">
                                     {step.title}
                                 </h3>
 
-                                <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                                <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-2 leading-relaxed">
                                     {step.desc}
                                 </p>
 
@@ -312,16 +283,16 @@ export default function Home() {
 
 
             {/* CAMPUS LIFE GALLERY */}
-            <section className="bg-slate-50 py-16 overflow-hidden">
+            <section className="bg-slate-50 dark:bg-ink-900 py-16 overflow-hidden">
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     <Reveal>
-                        <p className="text-accent-600 font-bold text-sm tracking-wide uppercase">
+                        <p className="text-accent-600 dark:text-gold-400 font-bold text-sm tracking-wide uppercase">
                             Campus life
                         </p>
 
-                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-gold-50 mt-1">
                             Made for how students actually trade
                         </h2>
                     </Reveal>
@@ -338,16 +309,13 @@ export default function Home() {
 
                                 <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-auto sm:h-64">
 
-                                    {/* MULTI-IMAGE SLIDESHOW */}
                                     <GalleryImage
                                         images={g.images}
                                         label={g.label}
                                     />
 
-                                    {/* DARK GRADIENT */}
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent pointer-events-none" />
 
-                                    {/* LABEL */}
                                     <p className="absolute bottom-3 left-4 text-white font-semibold text-sm z-10">
                                         {g.label}
                                     </p>
@@ -367,17 +335,17 @@ export default function Home() {
 
                 <Reveal>
 
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-gold-50">
                         Ready to see what's on campus?
                     </h2>
 
-                    <p className="text-slate-500 mt-2">
+                    <p className="text-slate-500 dark:text-gold-200/50 mt-2">
                         Browse live listings from verified students near you.
                     </p>
 
                     <Link
                         to="/browse"
-                        className="inline-flex items-center gap-2 mt-6 bg-brand-600 text-white font-bold px-6 py-3 rounded-full hover:bg-brand-700 transition"
+                        className="inline-flex items-center gap-2 mt-6 bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 font-bold px-6 py-3 rounded-full hover:bg-brand-700 dark:hover:bg-gold-400 transition"
                     >
                         Browse listings
                         <ArrowRight size={18} />
