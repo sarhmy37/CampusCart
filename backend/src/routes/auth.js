@@ -476,6 +476,7 @@ router.delete('/me', requireAuth, async (req, res) => {
     }
 });
 
+
 // POST /api/auth/logout
 router.post('/logout', requireAuth, async (req, res) => {
     try {
@@ -510,6 +511,10 @@ router.get('/me/referrals', requireAuth, async (req, res) => {
         console.error('Get referrals error:', err);
         res.status(500).json({ error: 'Something went wrong fetching your referrals' });
     }
+});
+
+router.get('/ip', (req, res) => {
+    res.json({ ip: req.ip || req.connection.remoteAddress });
 });
 
 module.exports = router;

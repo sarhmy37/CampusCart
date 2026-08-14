@@ -1,0 +1,12 @@
+[33m6ca5cf6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{0}: reset: moving to 6ca5cf6
+[33m8e699e6[m[33m ([m[1;31morigin/main[m[33m)[m HEAD@{1}: commit: Did
+[33m1ef498b[m HEAD@{2}: commit: New commit message
+[33m4a06754[m HEAD@{3}: reset: moving to HEAD~5
+[33m9a1efd7[m HEAD@{4}: commit: Hey
+[33m3339b17[m HEAD@{5}: commit: Hey
+[33m98b2196[m HEAD@{6}: commit: Hey
+[33mdd35023[m HEAD@{7}: commit: 85%done
+[33m4ee9312[m HEAD@{8}: commit: Done
+[33m4a06754[m HEAD@{9}: commit: Describe your changes
+[33m6ca5cf6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{10}: Branch: renamed refs/heads/master to refs/heads/main
+[33m6ca5cf6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{12}: commit (initial): first commit
