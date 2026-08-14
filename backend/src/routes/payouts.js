@@ -5,17 +5,39 @@ const { createTransferRecipient, initiateTransfer } = require('../utils/paystack
 
 const router = express.Router();
 
-// GET /api/payouts/banks — list available banks from Paystack (already exists)
+// GET /api/payouts/banks — list available banks (from DB, with a full fallback list)
 router.get('/banks', async (req, res) => {
     try {
         const banks = await pool.query('SELECT code, name, type FROM banks');
+        if (banks.rows.length === 0) throw new Error('banks table empty');
         res.json(banks.rows);
     } catch {
-        // Fallback: return a default list if the table doesn't exist
+        // Fallback: full default list, used if the table doesn't exist or is empty
         res.json([
-            { code: '058', name: 'GT Bank', type: 'bank' },
-            { code: '065', name: 'MTN Mobile Money', type: 'mobile_money' },
-            // ... add more as needed
+            { code: '001', name: 'GCB', type: 'bank' },
+            { code: '002', name: 'Stanbic', type: 'bank' },
+            { code: '003', name: 'Ecobank', type: 'bank' },
+            { code: '004', name: 'ABSA', type: 'bank' },
+            { code: '005', name: 'Access Bank', type: 'bank' },
+            { code: '006', name: 'UBA', type: 'bank' },
+            { code: '007', name: 'Fidelity', type: 'bank' },
+            { code: '008', name: 'First National', type: 'bank' },
+            { code: '009', name: 'Republic Bank', type: 'bank' },
+            { code: '010', name: 'CalBank', type: 'bank' },
+            { code: '011', name: 'Prudential Bank', type: 'bank' },
+            { code: '012', name: 'GT Bank', type: 'bank' },
+            { code: '013', name: 'Bank of Africa', type: 'bank' },
+            { code: '014', name: 'First Atlantic', type: 'bank' },
+            { code: '015', name: 'Zenith Bank', type: 'bank' },
+            { code: '016', name: 'FBN Bank', type: 'bank' },
+            { code: '017', name: 'Societe Generale', type: 'bank' },
+            { code: '018', name: 'UMB', type: 'bank' },
+            { code: '019', name: 'NIB', type: 'bank' },
+            { code: '020', name: 'ADB', type: 'bank' },
+            { code: '021', name: 'OmniBSIC', type: 'bank' },
+            { code: 'MTN', name: 'MTN Mobile Money', type: 'mobile_money' },
+            { code: 'VOD', name: 'Vodafone Cash', type: 'mobile_money' },
+            { code: 'AT', name: 'AirtelTigo Money', type: 'mobile_money' },
         ]);
     }
 });
