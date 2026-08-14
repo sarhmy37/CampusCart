@@ -122,7 +122,11 @@ const [referrals, setReferrals] = useState([]);
 
     return (
         <div>
-            <section className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            <section className="relative overflow-hidden">
+                <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                    <source src="/Settings.mp4" type="video/mp4" />
+                </video>
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-500/10 rounded-full blur-3xl" />
                 <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10">
@@ -400,18 +404,30 @@ const [referrals, setReferrals] = useState([]);
                         <h2 className="font-bold text-slate-900 dark:text-gold-50">Notifications</h2>
                     </div>
 
-                    <ToggleRow
-                        label="New listings"
-                        desc="Get notified when new items match your interests"
-                        checked={notifyListings}
-                        onChange={(v) => toggleNotify('cc_notify_listings', v, setNotifyListings)}
-                    />
-                    <ToggleRow
-                        label="Messages"
-                        desc="Get notified when a buyer or seller messages you"
-                        checked={notifyMessages}
-                        onChange={(v) => toggleNotify('cc_notify_messages', v, setNotifyMessages)}
-                    />
+                    <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-ink-600 first:border-0 first:pt-0">
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">New listings</p>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">Get notified when new items match your interests</p>
+                        </div>
+                        <button
+                            onClick={() => toggleNotify('cc_notify_listings', !notifyListings, setNotifyListings)}
+                            className={`w-11 h-6 rounded-full relative transition ${notifyListings ? 'bg-gold-500' : 'bg-slate-200'}`}
+                        >
+                            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform flex items-center justify-center ${notifyListings ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </button>
+                    </div>
+                    <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-ink-600 first:border-0 first:pt-0">
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">Messages</p>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">Get notified when a buyer or seller messages you</p>
+                        </div>
+                        <button
+                            onClick={() => toggleNotify('cc_notify_messages', !notifyMessages, setNotifyMessages)}
+                            className={`w-11 h-6 rounded-full relative transition ${notifyMessages ? 'bg-gold-500' : 'bg-slate-200'}`}
+                        >
+                            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform flex items-center justify-center ${notifyMessages ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* DANGER ZONE */}
@@ -555,23 +571,6 @@ const [referrals, setReferrals] = useState([]);
                     </div>
                 </div>
             )}
-        </div>
-    );
-}
-
-function ToggleRow({ label, desc, checked, onChange }) {
-    return (
-        <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-ink-600 first:border-0 first:pt-0">
-            <div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">{label}</p>
-                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">{desc}</p>
-            </div>
-            <button
-                onClick={() => onChange(!checked)}
-                className={`w-11 h-6 rounded-full relative transition ${checked ? 'bg-brand-600 dark:bg-gold-500' : 'bg-slate-200 dark:bg-ink-600'}`}
-            >
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
-            </button>
         </div>
     );
 }
