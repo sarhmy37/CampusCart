@@ -84,15 +84,33 @@ const [referrals, setReferrals] = useState([]);
         toast.success(`Default set to ${value === 'pickup' ? 'campus meet-up' : 'delivery'}`);
     };
 
-    const requestPasswordCode = async (e) => {
+        const requestPasswordCode = async (e) => {
         e.preventDefault();
         setSaving(true);
+        
+        // Create an AbortController for a 10-second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         try {
-            await api.post('/auth/me/password/request-code', { current_password: current });
+            // Add the 'signal' option to your api.post call
+            const response = await api.post('/auth/me/password/request-code', 
+                { current_password: current },
+                { signal: controller.signal } 
+            );
+
+            clearTimeout(timeoutId); // Cancel the timeout if it succeeds
             toast.success('Code sent to your university email');
             setPwStep(2);
         } catch (err) {
-            toast.error(err.response?.data?.error || 'Failed to send code');
+            clearTimeout(timeoutId); // Cancel the timeout on error
+
+            // Handle the timeout error specifically
+            if (err.code === 'ECONNABORTED' || err.message === 'canceled') {
+                toast.error('Request timed out. Please try again.');
+            } else {
+                toast.error(err.response?.data?.error || 'Failed to send code');
+            }
         } finally {
             setSaving(false);
         }

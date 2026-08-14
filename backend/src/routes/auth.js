@@ -309,7 +309,9 @@ router.post('/me/password/request-code', requireAuth, async (req, res) => {
             [code, expires, req.userId]
         );
 
-        await sendPasswordResetEmail(user.university_email, code);
+        // CHANGE MADE HERE: Removed 'await' so it doesn't freeze
+        sendPasswordResetEmail(user.university_email, code);
+        
         res.json({ message: 'Verification code sent to your email' });
     } catch (err) {
         console.error('Request password reset code error:', err);
