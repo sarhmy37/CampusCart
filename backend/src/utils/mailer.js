@@ -1,18 +1,40 @@
-const nodemailer = require('nodemailer');
+// Parses "CampusCart <samavih45@gmail.com>" into { name, email }
+// Falls back gracefully if EMAIL_FROM is just a plain address.
+function parseFromAddress(raw) {
+    const match = raw && raw.match(/^(.*)<(.+)>$/);
+    if (match) {
+        return { name: match[1].trim().replace(/^"|"$/g, ''), email: match[2].trim() };
+    }
+    return { name: 'CampusCart', email: raw };
+}
 
-const transporter = nodemailer.createTransport({
-    host: process.env.BREVO_SMTP_HOST,
-    port: Number(process.env.BREVO_SMTP_PORT),
-    secure: false,
-    auth: {
-        user: process.env.BREVO_SMTP_USER,
-        pass: process.env.BREVO_SMTP_KEY,
-    },
-});
+async function sendBrevoEmail({ to, subject, html }) {
+    const sender = parseFromAddress(process.env.EMAIL_FROM);
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+            'api-key': process.env.BREVO_API_KEY,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+            sender,
+            to: [{ email: to }],
+            subject,
+            htmlContent: html,
+        }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('Brevo email API error:', err);
+        throw new Error(err.message || 'Failed to send email');
+    }
+}
 
 async function sendVerificationEmail(toEmail, code) {
-    await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
+    await sendBrevoEmail({
         to: toEmail,
         subject: 'Your CampusCart verification code',
         html: `
@@ -27,8 +49,7 @@ async function sendVerificationEmail(toEmail, code) {
 }
 
 async function sendPasswordResetEmail(toEmail, code) {
-    await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
+    await sendBrevoEmail({
         to: toEmail,
         subject: 'Your CampusCart password reset code',
         html: `

@@ -8,6 +8,9 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mail
 
 const router = express.Router();
 
+const RESEND_COOLDOWN_SECONDS = 60;
+const MAX_VERIFY_ATTEMPTS = 5;
+
 function signToken(user) {
     return jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, {
         expiresIn: '30d',
@@ -273,7 +276,6 @@ router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req
 });
 
 // POST /api/auth/me/password/request-code
-// POST /api/auth/me/password/request-code
 router.post('/me/password/request-code', requireAuth, async (req, res) => {
     const { current_password } = req.body;
     if (!current_password) return res.status(400).json({ error: 'Current password is required' });
@@ -300,7 +302,7 @@ router.post('/me/password/request-code', requireAuth, async (req, res) => {
         const code = generateCode();
         const expires = new Date(Date.now() + 10 * 60 * 1000);
 
-        // 1. Save the code to the database (This runs instantly)
+        // 1. Save the code to the database (this runs instantly)
         await pool.query(
             `UPDATE users SET
                 password_reset_code = $1,
@@ -311,19 +313,13 @@ router.post('/me/password/request-code', requireAuth, async (req, res) => {
             [code, expires, req.userId]
         );
 
-        // 2. Send the email in the background
-        // We wrap this in a separate function without 'await' so it doesn't block
-        // But we don't call sendPasswordResetEmail directly because Render shuts it down.
-        // Instead, we rely on a separate background job.
-        // For now, we will just send it without awaiting, but it's risky on Render.
-        // The best practice is to create a 'pending_emails' table.
-        
-        // TEMPORARY FIX: We will try sending it without await, 
-        // but if Render kills it, we need a backup.
+        // 2. Fire off the email in the background — do NOT await this.
+        // Awaiting a slow/hanging SMTP call here would leave the request
+        // (and the frontend's "sending..." state) stuck indefinitely.
         sendPasswordResetEmail(user.university_email, code)
             .catch(err => console.error('Background email failed:', err));
 
-        // 3. IMMEDIATELY reply to the user
+        // 3. Respond immediately regardless of whether the email has finished sending
         res.json({ message: 'Verification code sent to your email' });
     } catch (err) {
         console.error('Request password reset code error:', err);
@@ -383,9 +379,6 @@ router.patch('/me/password', requireAuth, async (req, res) => {
     }
 });
 
-const RESEND_COOLDOWN_SECONDS = 60;
-const MAX_VERIFY_ATTEMPTS = 5;
-
 // POST /api/auth/me/send-verification
 router.post('/me/send-verification', requireAuth, async (req, res) => {
     try {
@@ -408,6 +401,7 @@ router.post('/me/send-verification', requireAuth, async (req, res) => {
         const code = generateCode();
         const expires = new Date(Date.now() + 10 * 60 * 1000);
 
+        // 1. Save the code to the database (this runs instantly)
         await pool.query(
             `UPDATE users SET
                 verification_code = $1,
@@ -418,7 +412,16 @@ router.post('/me/send-verification', requireAuth, async (req, res) => {
             [code, expires, req.userId]
         );
 
-        await sendVerificationEmail(user.university_email, code);
+        // 2. Fire off the email in the background — do NOT await this.
+        // This was previously `await sendVerificationEmail(...)`, which meant
+        // the request (and the "Sending…" button on the Verify modal) would hang
+        // until the SMTP call finished — and if that call was ever slow or timed
+        // out silently, the request never resolved at all. Matching the same
+        // fire-and-forget pattern used for password reset codes fixes that.
+        sendVerificationEmail(user.university_email, code)
+            .catch(err => console.error('Background verification email failed:', err));
+
+        // 3. Respond immediately regardless of whether the email has finished sending
         res.json({ message: 'Verification code sent' });
     } catch (err) {
         console.error('Send verification error:', err);
