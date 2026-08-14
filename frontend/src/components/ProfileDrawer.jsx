@@ -133,24 +133,32 @@ export default function ProfileDrawer({ open, onClose }) {
                             <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-0.5">{user.school}</p>
                         )}
 
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <div className="flex items-center gap-1 sm:gap-2 mt-2 flex-wrap">
                             {user.verified ? (
-                                <span className="inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full">
-                                    <BadgeCheck size={13} /> Verified student
+                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+                                    <BadgeCheck className="w-[11px] h-[11px] sm:hidden" />
+                                    <BadgeCheck className="hidden sm:inline w-[13px] h-[13px]" />
+                                    Verified student
                                 </span>
                             ) : (
-                                <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 text-xs font-semibold px-2.5 py-1 rounded-full">
-                                    <ShieldAlert size={13} /> Not yet verified
+                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-amber-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+                                    <ShieldAlert className="w-[11px] h-[11px] sm:hidden" />
+                                    <ShieldAlert className="hidden sm:inline w-[13px] h-[13px]" />
+                                    Not yet verified
                                 </span>
                             )}
 
                             {user.account_type === 'seller' ? (
-                                <span className="inline-flex items-center gap-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-semibold px-2.5 py-1 rounded-full">
-                                    <Store size={13} /> Status: Seller
+                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+                                    <Store className="w-[11px] h-[11px] sm:hidden" />
+                                    <Store className="hidden sm:inline w-[13px] h-[13px]" />
+                                    Status: Seller
                                 </span>
                             ) : (
-                                <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-emerald-950/40 text-green-600 dark:text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-full">
-                                    <ShoppingBag size={13} /> Status: Buyer
+                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-blue-50 dark:bg-emerald-950/40 text-green-600 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+                                    <ShoppingBag className="w-[11px] h-[11px] sm:hidden" />
+                                    <ShoppingBag className="hidden sm:inline w-[13px] h-[13px]" />
+                                    Status: Buyer
                                 </span>
                             )}
                         </div>
@@ -158,7 +166,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         {!user.verified && (
                             <button
                                 onClick={() => setShowVerify(true)}
-                                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-600 dark:text-gold-400 hover:text-yellow-700 dark:hover:text-gold-300 underline underline-offset-2"
+                                className="mt-3 inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-yellow-600 dark:text-gold-400 hover:text-yellow-700 dark:hover:text-gold-300 underline underline-offset-2"
                             >
                                 Verify your account →
                             </button>

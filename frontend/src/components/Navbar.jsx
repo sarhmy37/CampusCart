@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search } from 'lucide-react';
+import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -19,6 +19,7 @@ export default function Navbar() {
     const isAdmin = user?.role === 'admin';
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [mobileExpanded, setMobileExpanded] = useState(false);
 
     const toggleNotifications = () => {
         setShowNotifications((s) => {
@@ -71,6 +72,21 @@ export default function Navbar() {
                 </div>
 
                 <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
+                    {/* Mobile-only collapse toggle for notifications + wishlist */}
+                    {user && (
+                        <button
+                            onClick={() => setMobileExpanded((e) => !e)}
+                            className="sm:hidden p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                            title={mobileExpanded ? 'Hide' : 'More'}
+                        >
+                            {mobileExpanded ? (
+                                <ChevronLeft className="w-4 h-4 text-slate-700 dark:text-gold-200" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4 text-slate-700 dark:text-gold-200" />
+                            )}
+                        </button>
+                    )}
+
                     {!isHome && !isAdmin && (
                         <Link to="/" className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition" title="Home">
                             <Home className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
@@ -82,7 +98,7 @@ export default function Navbar() {
                         </Link>
                     )}
 
-                    <div className="relative">
+                    <div className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
                         <button
                             onClick={toggleNotifications}
                             className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
@@ -158,7 +174,7 @@ export default function Navbar() {
                     </Link>
                     {user ? (
                         <>
-                            <div className="relative">
+                            <div className={`relative ${mobileExpanded ? 'block' : 'hidden'} sm:block`}>
                                 <button
                                     onClick={() => setShowWishlist((s) => !s)}
                                     className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
