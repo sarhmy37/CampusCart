@@ -211,26 +211,26 @@ export default function Home() {
                     </Reveal>
 
                     <Reveal delay={300}>
-                        <div className="mt-8 flex flex-wrap gap-3">
+    <div className="mt-8 flex flex-nowrap gap-2 sm:gap-3">
 
-                            <Link
-                                to={user ? '/sell/new' : '/register'}
-                                onClick={handleStartSelling}
-                                className="inline-flex items-center gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-6 py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10"
-                            >
-                                Start selling
-                                <ArrowRight size={18} />
-                            </Link>
+        <Link
+            to={user ? '/sell/new' : '/register'}
+            onClick={handleStartSelling}
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
+        >
+            Start selling
+            <ArrowRight className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" />
+        </Link>
 
-                            <Link
-                                to="/browse"
-                                className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-6 py-3 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur"
-                            >
-                                Browse listings
-                            </Link>
+        <Link
+            to="/browse"
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-white/10 text-white font-semibold px-4 py-2 sm:px-6 sm:py-3 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-base whitespace-nowrap"
+        >
+            Browse listings
+        </Link>
 
-                        </div>
-                    </Reveal>
+    </div>
+</Reveal>
                 </div>
             </section>
 

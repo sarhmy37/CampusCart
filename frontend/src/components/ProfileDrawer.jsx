@@ -79,7 +79,7 @@ export default function ProfileDrawer({ open, onClose }) {
 
             {/* Drawer */}
             <div
-                className={`fixed top-0 left-0 h-full w-full max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 overflow-y-auto ${
+                className={`fixed top-0 left-0 h-full w-3/4 max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 overflow-y-auto ${
                     open ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >

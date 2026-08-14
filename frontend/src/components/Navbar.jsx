@@ -42,38 +42,38 @@ export default function Navbar() {
     return (
         <>
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2 shrink-0">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {user && (
                         <button
                             onClick={() => setShowProfile(true)}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                            className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
                             title="Profile"
                         >
-                            <Menu size={20} className="text-slate-700 dark:text-gold-200" />
+                            <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                         </button>
                     )}
                     {isAdmin ? (
-                        <span className="flex items-center gap-2 cursor-default">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-lg">C</div>
-                            <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
+                        <span className="flex items-center gap-1.5 sm:gap-2 cursor-default">
+                            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-sm sm:text-lg">C</div>
+                            <span className="hidden sm:inline font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
                         </span>
                     ) : (
-                        <Link to="/" className="flex items-center gap-2">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-lg">C</div>
-                            <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
+                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
+                            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-sm sm:text-lg">C</div>
+                            <span className="hidden sm:inline font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
                         </Link>
                     )}
                 </div>
 
-                <div className="hidden md:flex flex-1 max-w-xl">
+                <div className="flex flex-1 min-w-0 max-w-xl">
                     <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
                 </div>
 
-                <nav className="flex items-center gap-1 sm:gap-2">
+                <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
                     {!isHome && !isAdmin && (
-                        <Link to="/" className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition" title="Home">
-                            <Home size={20} className="text-slate-700 dark:text-gold-200" />
+                        <Link to="/" className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition" title="Home">
+                            <Home className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                         </Link>
                     )}
                     {user && user.account_type === 'seller' && !isAdmin && (
@@ -85,10 +85,10 @@ export default function Navbar() {
                     <div className="relative">
                         <button
                             onClick={toggleNotifications}
-                            className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                            className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
                             title="Notifications"
                         >
-                            <Bell size={20} className="text-slate-700 dark:text-gold-200" />
+                            <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                             {unreadCount > 0 && (
                                 <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                                     {unreadCount}
@@ -99,7 +99,7 @@ export default function Navbar() {
                         {showNotifications && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                                <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
                                     <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
                                         Notifications
                                     </div>
@@ -150,8 +150,8 @@ export default function Navbar() {
                         )}
                     </div>
 
-                    <Link to="/cart" className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
-                        <ShoppingCart size={20} className="text-slate-700 dark:text-gold-200" />
+                    <Link to="/cart" className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                         {count > 0 && (
                             <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span>
                         )}
@@ -161,10 +161,10 @@ export default function Navbar() {
                             <div className="relative">
                                 <button
                                     onClick={() => setShowWishlist((s) => !s)}
-                                    className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                                    className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
                                     title="Wishlist"
                                 >
-                                    <Heart size={20} className="text-slate-700 dark:text-gold-200" />
+                                    <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                                     {wishlistCount > 0 && (
                                         <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                                             {wishlistCount}
@@ -175,7 +175,7 @@ export default function Navbar() {
                                 {showWishlist && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setShowWishlist(false)} />
-                                        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                        <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
                                             <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
                                                 Wishlist
                                             </div>
@@ -220,21 +220,18 @@ export default function Navbar() {
                                 )}
                             </div>
                             {user.role === 'admin' && (
-                                <Link to="/admin" className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
-                                    <LayoutDashboard size={20} className="text-slate-700 dark:text-gold-200" />
+                                <Link to="/admin" className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+                                    <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                                 </Link>
                             )}
                         </>
                     ) : (
                         <>
-                            <Link to="/login" className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition">Log in</Link>
-                            <Link to="/register" className="px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm">Sign up</Link>
+                            <Link to="/login" className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition whitespace-nowrap">Log in</Link>
+                            <Link to="/register" className="px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Sign up</Link>
                         </>
                     )}
                 </nav>
-            </div>
-           <div className="md:hidden px-4 pb-3">
-                <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
             </div>
             <Link
                 to="/admin/login"
@@ -255,7 +252,7 @@ function SearchBar({ isAdmin, onSubmit }) {
                 name="q"
                 type="text"
                 placeholder={placeholder}
-                className="w-full px-4 py-2.5 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-sm transition"
+                className="w-full px-3 py-2 sm:px-4 sm:py-2.5 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-xs sm:text-sm transition"
             />
         </form>
     );
