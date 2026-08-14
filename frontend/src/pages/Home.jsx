@@ -36,6 +36,9 @@ const GALLERY = [
             '/Shoe2.jpg',
             '/Shoe3.jpg',
             '/Shoe4.jpg',
+            '/Sneakers.mp4',
+            '/Sneakers2.jpg',
+            '/Sneakers4.jpg',
         ],
     },
 
@@ -45,6 +48,8 @@ const GALLERY = [
             '/MeetOnCampus.jpg',
             '/MeetOnCampus2.jpg',
             '/MeetOnCampus3.jpg',
+            '/Meeting.mp4',
+            '/meetme.jpg',
         ],
     },
 
@@ -55,6 +60,7 @@ const GALLERY = [
             '/Gadget2.jpg',
             '/Gadget3.jpg',
             '/Gadget4.jpg',
+            '/Gadjet.mp4',
         ],
     },
 
@@ -64,6 +70,8 @@ const GALLERY = [
             '/Waakye.jpg',
             '/Waakye2.jpg',
             '/Waakye3.jpg',
+            '/Foodie.mp4',
+            '/foood.jpg',
         ],
     },
 ];
@@ -83,17 +91,35 @@ function GalleryImage({ images, label }) {
 
     return (
         <div className="absolute inset-0">
-            {images.map((image, index) => (
-                <img
-                    key={`${image}-${index}`}
-                    src={image}
-                    alt={label}
-                    className={`absolute inset-0 w-full h-full object-cover
-                        transition-opacity duration-1000
-                        ${index === currentIndex ? 'opacity-100' : 'opacity-0'}
-                    `}
-                />
-            ))}
+            {images.map((src, index) => {
+                const isVideo = src.toLowerCase().endsWith('.mp4');
+                const isActive = index === currentIndex;
+
+                return isVideo ? (
+                    <video
+                        key={`${src}-${index}`}
+                        src={src}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className={`absolute inset-0 w-full h-full object-cover
+                            transition-opacity duration-1000
+                            ${isActive ? 'opacity-100' : 'opacity-0'}
+                        `}
+                    />
+                ) : (
+                    <img
+                        key={`${src}-${index}`}
+                        src={src}
+                        alt={label}
+                        className={`absolute inset-0 w-full h-full object-cover
+                            transition-opacity duration-1000
+                            ${isActive ? 'opacity-100' : 'opacity-0'}
+                        `}
+                    />
+                );
+            })}
         </div>
     );
 }
@@ -307,7 +333,7 @@ export default function Home() {
                                 className={i % 2 === 1 ? 'mt-8' : ''}
                             >
 
-                                <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-auto sm:h-64">
+                                <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-auto sm:h-64 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
 
                                     <GalleryImage
                                         images={g.images}
