@@ -25,9 +25,10 @@ async function checkAndSendDeliveryReminders(userId) {
 
         for (const row of dueResult.rows) {
             const message = `Reminder: ${row.seller_name} marked your order as delivered to ${row.buyer_location || 'your location'}. Please go to your Orders tab to confirm receipt.`;
+            // UPDATED: Added the link column here
             await pool.query(
-                `INSERT INTO notifications (user_id, type, message, related_id) VALUES ($1, $2, $3, $4)`,
-                [userId, 'delivery_reminder', message, row.id]
+                `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
+                [userId, 'delivery_reminder', message, row.id, '/dashboard?tab=orders']
             );
             await pool.query(`UPDATE orders SET last_delivery_reminder_at = now() WHERE id = $1`, [row.id]);
         }
@@ -41,8 +42,9 @@ router.get('/', requireAuth, async (req, res) => {
     try {
         await checkAndSendDeliveryReminders(req.userId);
 
+        // UPDATED: Added the 'link' column to the SELECT query
         const result = await pool.query(
-            `SELECT id, type, message, related_id, read, created_at
+            `SELECT id, type, message, related_id, link, read, created_at
              FROM notifications
              WHERE user_id = $1
              ORDER BY created_at DESC`,

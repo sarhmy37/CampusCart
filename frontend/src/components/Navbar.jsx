@@ -125,32 +125,41 @@ export default function Navbar() {
                                         </p>
                                     ) : (
                                         <>
-                                            {notifications.map((n) => (
-                                                <Link
-                                                    key={n.id}
-                                                    to={`/product/${n.productId || n.id}`}
-                                                    onClick={() => setShowNotifications(false)}
-                                                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
-                                                >
-                                                    {n.primary_image && (
-                                                        <img src={n.primary_image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                                                    )}
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">
-                                                            {n.type === 'price_drop' && '💰 '}
-                                                            {n.type === 'low_stock' && '⚡ '}
-                                                            {n.type === 'new_listing' && '🛍️ '}
-                                                            {n.type === 'out_of_stock' && '📦 '}
-                                                            {n.title}
-                                                        </p>
-                                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
-                                                            {n.type === 'new_listing'
-                                                                ? `${n.seller_name ? `${n.seller_name} · ` : ''}${n.category}`
-                                                                : n.message}
-                                                        </p>
-                                                    </div>
-                                                </Link>
-                                            ))}
+                                            {notifications.map((n) => {
+                                                // Determine the navigation link: use backend 'link' if available, otherwise fallback to product page
+                                                const targetLink = n.link || `/product/${n.productId || n.id}`;
+                                                
+                                                // Helper to pick an icon based on type
+                                                let iconEmoji = '';
+                                                if (n.type === 'price_drop') iconEmoji = '💰 ';
+                                                else if (n.type === 'low_stock') iconEmoji = '⚡ ';
+                                                else if (n.type === 'new_listing') iconEmoji = '🛍️ ';
+                                                else if (n.type === 'out_of_stock') iconEmoji = '📦 ';
+                                                else if (n.type === 'delivery_reminder') iconEmoji = '🚚 ';
+                                                else if (n.type === 'new_order') iconEmoji = '📦 ';
+                                                else if (n.type === 'delivery_marked') iconEmoji = '✅ ';
+
+                                                return (
+                                                    <Link
+                                                        key={n.id}
+                                                        to={targetLink}
+                                                        onClick={() => setShowNotifications(false)}
+                                                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
+                                                    >
+                                                        {n.primary_image && (
+                                                            <img src={n.primary_image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">
+                                                                {iconEmoji}{n.title}
+                                                            </p>
+                                                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
+                                                                {n.message}
+                                                            </p>
+                                                        </div>
+                                                    </Link>
+                                                );
+                                            })}
                                             <div className="px-4 py-2 border-t border-slate-100 dark:border-ink-600">
                                                 <button
                                                     onClick={clearAllNotifications}

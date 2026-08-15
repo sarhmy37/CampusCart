@@ -182,6 +182,7 @@ export function NotificationProvider({ children }) {
         if (!user) return;
         try {
             const res = await api.get('/notifications');
+            // We pass the 'link' field from the backend directly to the state
             setBackendNotifs(res.data);
         } catch { /* ignore */ }
     };

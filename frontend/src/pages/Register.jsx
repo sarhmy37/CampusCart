@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { REGISTER_IMAGE } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, User, School, GraduationCap, ShoppingBag, Store, Phone, MapPin, ChevronDown, Landmark, Loader2, CheckCircle, XCircle } from 'lucide-react';
+// 👇 ADDED IMPORT HERE
+import AutoLocationInput from '../components/AutoLocationInput'; 
 
 const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU'];
 
@@ -433,18 +435,15 @@ export default function Register() {
                             {accountType === 'buyer' && (
                                 <div>
                                     <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Delivery Location</label>
-                                    <div className="relative mt-1">
-                                        <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
-                                        <input
-                                            type="text"
-                                            required
-                                            value={form.location}
-                                            onChange={(e) => setForm({ ...form, location: e.target.value })}
-                                            placeholder="Hostel, hall, or area"
-                                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-800 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition"
+                                    <div className="mt-1">
+                                        {/* 👇 REPLACED OLD INPUT WITH THIS */}
+                                        <AutoLocationInput 
+                                            value={form.location} 
+                                            onChange={(newLocation) => setForm({ ...form, location: newLocation })} 
+                                            placeholder="Tap here to auto-detect your location..."
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Used for delivery orders. You can update this later.</p>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Tap the bar above to automatically detect your Region, City, and Landmark.</p>
                                 </div>
                             )}
 
