@@ -620,7 +620,7 @@ function MyOrders({ period, isSeller }) {
                         </span>
                     </div>
 
-                    {o.status !== 'completed' && o.status !== 'cancelled' && (
+                  {o.status === 'paid' && (
                         <div className="mt-1 mb-2">
                             <button
                                 onClick={() => handleConfirmReceived(o.id)}
@@ -644,6 +644,7 @@ function MyOrders({ period, isSeller }) {
 
 const STATUS_STYLES = {
     completed: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+    paid: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400',
     pending: 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400',
     cancelled: 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50',
     refunded: 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400',

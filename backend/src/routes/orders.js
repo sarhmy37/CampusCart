@@ -165,6 +165,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/orders/webhook — Paystack calls this after payment
+// POST /api/orders/webhook — Paystack calls this after payment
 router.post('/webhook', async (req, res) => {
     const signature = req.headers['x-paystack-signature'];
     if (!verifyWebhookSignature(req.rawBody, signature)) {
@@ -181,13 +182,57 @@ router.post('/webhook', async (req, res) => {
     try {
         const orderResult = await pool.query('SELECT * FROM orders WHERE payment_reference = $1', [reference]);
         const order = orderResult.rows[0];
-        if (!order || order.status === 'completed') return;
+        // Guard against Paystack's duplicate webhook retries — only process a 'pending' order once.
+        if (!order || order.status !== 'pending') return;
 
-        const itemsResult = await pool.query('SELECT product_id, quantity FROM order_items WHERE order_id = $1', [order.id]);
+        const itemsResult = await pool.query(
+            'SELECT product_id, quantity, seller_id, title FROM order_items WHERE order_id = $1',
+            [order.id]
+        );
+
         for (const item of itemsResult.rows) {
             await pool.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);
         }
-        // Order stays pending until buyer confirms receipt.
+
+        // Mark paid — order still isn't 'completed' until the buyer confirms receipt.
+        await pool.query(`UPDATE orders SET status = 'paid' WHERE id = $1`, [order.id]);
+
+        const buyerResult = await pool.query('SELECT name FROM users WHERE id = $1', [order.buyer_id]);
+        const buyerName = buyerResult.rows[0]?.name || 'A buyer';
+
+        const deliveryNote = order.delivery_method === 'delivery'
+            ? 'Delivery within 1-3 working days.'
+            : 'Buyer will arrange pickup with you on campus.';
+
+        const sellerIds = [...new Set(itemsResult.rows.map((i) => i.seller_id))];
+
+        for (const sellerId of sellerIds) {
+            const itemNames = itemsResult.rows
+                .filter((i) => i.seller_id === sellerId)
+                .map((i) => i.title)
+                .join(', ');
+
+            const message = `CampusCart: ${buyerName} just paid for "${itemNames}". Delivery method: ${order.delivery_method}. ${deliveryNote} Funds will settle to your account once the buyer confirms receipt.`;
+
+            await insertNotification(sellerId, 'payment_received_seller', message, order.id);
+
+            const accResult = await pool.query(
+                `SELECT method, account_number FROM seller_payout_accounts WHERE seller_id = $1 AND is_default = true`,
+                [sellerId]
+            );
+            const account = accResult.rows[0];
+
+            const userResult = await pool.query('SELECT whatsapp FROM users WHERE id = $1', [sellerId]);
+            const sellerWhatsapp = userResult.rows[0]?.whatsapp;
+
+            const smsNumber = account?.method === 'mobile_money' ? account.account_number : sellerWhatsapp;
+
+            if (smsNumber) {
+                sendOrderSMS(smsNumber, message).catch((e) => console.error('Seller SMS error:', e));
+            } else {
+                console.error(`No SMS destination found for seller ${sellerId}`);
+            }
+        }
     } catch (err) {
         console.error('Webhook processing error:', err);
     }
@@ -281,10 +326,11 @@ async function payoutSeller(sellerId, amountGHS, orderId) {
     let recipientCode = account.paystack_recipient_code;
     if (!recipientCode) {
         const recipientRes = await createTransferRecipient({
-            name: account.account_name,
-            account_number: account.account_number,
-            bank_code: account.bank_code,
-        });
+    type: account.method,
+    name: account.account_name,
+    account_number: account.account_number,
+    bank_code: account.bank_code,
+});
         recipientCode = recipientRes.data.recipient_code;
         await pool.query(
             'UPDATE seller_payout_accounts SET paystack_recipient_code = $1 WHERE id = $2',

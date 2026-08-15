@@ -38,11 +38,11 @@ function verifyWebhookSignature(rawBody, signatureHeader) {
     return hash === signatureHeader;
 }
 
-function createTransferRecipient({ name, account_number, bank_code }) {
+function createTransferRecipient({ type, name, account_number, bank_code }) {
     return paystackRequest('/transferrecipient', {
         method: 'POST',
         body: JSON.stringify({
-            type: 'ghipss',
+            type: type === 'mobile_money' ? 'mobile_money' : 'ghipss',
             name,
             account_number,
             bank_code,
