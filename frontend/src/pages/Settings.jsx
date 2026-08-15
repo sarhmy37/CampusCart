@@ -8,6 +8,7 @@ import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck, Info,
     FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift
 } from 'lucide-react';
+import { SETTINGS_VIDEO } from '../data/media';
 
 const APP_VERSION = '1.0.0';
 const PLATFORM_FEE_RATE = 2; // %
@@ -142,7 +143,7 @@ const [referrals, setReferrals] = useState([]);
         <div>
             <section className="relative overflow-hidden">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
-                    <source src="/Settings.mp4" type="video/mp4" />
+                   <source src={SETTINGS_VIDEO} type="video/mp4" />
                 </video>
                 <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />

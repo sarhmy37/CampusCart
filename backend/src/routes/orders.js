@@ -8,7 +8,7 @@ const { calcDeliveryFee } = require('../utils/distance');
 const router = express.Router();
 
 const BUYER_FEE_RATE = 0.02;
-const SELLER_FEE_RATE = 0.02;
+const SELLER_FEE_RATE = 0.015;
 
 // Helper: insert a notification
 async function insertNotification(userId, type, message, relatedId = null) {
@@ -421,6 +421,37 @@ router.get('/sales', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/orders/deliveries — seller's pending deliveries: paid orders containing at least
+// one of this seller's items, not yet marked completed by the buyer.
+// NOTE: this must stay ABOVE the GET '/:id' route below, or Express will try to
+// match "deliveries" as an :id param instead.
+router.get('/deliveries', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                o.id AS order_id, o.status, o.delivery_method, o.created_at,
+                o.delivered_at, o.delivered_by_seller_id,
+                u.name AS buyer_name, u.location AS buyer_location, u.whatsapp AS buyer_whatsapp,
+                COALESCE(
+                    json_agg(json_build_object('title', oi.title, 'quantity', oi.quantity))
+                    FILTER (WHERE oi.id IS NOT NULL),
+                    '[]'
+                ) AS items
+             FROM orders o
+             JOIN order_items oi ON oi.order_id = o.id AND oi.seller_id = $1
+             JOIN users u ON u.id = o.buyer_id
+             WHERE o.status = 'paid'
+             GROUP BY o.id, u.name, u.location, u.whatsapp
+             ORDER BY o.created_at DESC`,
+            [req.userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get deliveries error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching your deliveries' });
+    }
+});
+
 // GET /api/orders/:id
 router.get('/:id', requireAuth, async (req, res) => {
     try {
@@ -471,6 +502,52 @@ router.post('/:id/confirm-received', requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Failed to confirm order' });
     } finally {
         client.release();
+    }
+});
+
+// POST /api/orders/:id/mark-delivered — seller confirms they've delivered the order.
+// Notifies the buyer to go confirm receipt. Buyer gets a repeat reminder every 10
+// minutes (handled in routes/notifications.js) until they confirm.
+router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const orderResult = await pool.query(`SELECT * FROM orders WHERE id = $1`, [id]);
+        const order = orderResult.rows[0];
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        const ownershipCheck = await pool.query(
+            `SELECT 1 FROM order_items WHERE order_id = $1 AND seller_id = $2 LIMIT 1`,
+            [id, req.userId]
+        );
+        if (ownershipCheck.rows.length === 0) {
+            return res.status(403).json({ error: "You don't have any items in this order" });
+        }
+
+        if (order.status !== 'paid') {
+            return res.status(400).json({ error: 'This order is not currently awaiting delivery' });
+        }
+        if (order.delivered_at) {
+            return res.status(400).json({ error: 'This order has already been marked as delivered' });
+        }
+
+        const sellerResult = await pool.query('SELECT name FROM users WHERE id = $1', [req.userId]);
+        const sellerName = sellerResult.rows[0]?.name || 'The seller';
+
+        const buyerResult = await pool.query('SELECT location FROM users WHERE id = $1', [order.buyer_id]);
+        const buyerLocation = buyerResult.rows[0]?.location || 'your specified location';
+
+        await pool.query(
+            `UPDATE orders SET delivered_at = now(), delivered_by_seller_id = $1, last_delivery_reminder_at = now() WHERE id = $2`,
+            [req.userId, id]
+        );
+
+        const message = `${sellerName} has marked your order as delivered to ${buyerLocation}. Please go to your Orders tab to confirm you've received it.`;
+        await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id);
+
+        res.json({ success: true, message: 'Marked as delivered. The buyer has been notified.' });
+    } catch (err) {
+        console.error('Mark delivered error:', err);
+        res.status(500).json({ error: 'Something went wrong marking this order as delivered' });
     }
 });
 

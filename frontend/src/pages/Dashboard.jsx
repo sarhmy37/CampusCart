@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { DASHBOARD_VIDEO } from '../data/media';
+import ConfirmModal from '../components/ConfirmModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
-    Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag
+    Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
+    Truck, MapPin, MessageCircle
 } from 'lucide-react';
 import EditListingModal from '../components/EditListingModal';
 
@@ -48,7 +50,7 @@ export default function Dashboard() {
     }, [isSeller]);
 
     const tabs = isSeller
-        ? ['overview', 'listings', 'orders', 'sales', 'payouts', 'reports']
+        ? ['overview', 'listings', 'orders', 'deliveries', 'sales', 'payouts', 'reports']
         : ['orders', 'reports'];
 
     return (
@@ -132,6 +134,7 @@ export default function Dashboard() {
                 {tab === 'overview' && <SellerOverview period={period} />}
                 {tab === 'listings' && <MyListings />}
                 {tab === 'orders' && <MyOrders period={period} isSeller={isSeller} />}
+                {tab === 'deliveries' && <Deliveries />}
                 {tab === 'sales' && <MySales />}
                 {tab === 'payouts' && <PayoutSettings />}
                 {tab === 'reports' && <MyReports />}
@@ -146,6 +149,115 @@ function StatCard({ icon: Icon, label, value }) {
             <Icon size={18} className="text-white/80 mb-2" />
             <p className="text-2xl font-extrabold text-white">{value}</p>
             <p className="text-xs text-white/70">{label}</p>
+        </div>
+    );
+}
+
+function Deliveries() {
+    const [deliveries, setDeliveries] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [marking, setMarking] = useState(null);
+    const [confirmTarget, setConfirmTarget] = useState(null);
+
+    const load = () => {
+        setLoading(true);
+        api.get('/orders/deliveries')
+            .then((res) => setDeliveries(res.data))
+            .catch(() => setDeliveries([]))
+            .finally(() => setLoading(false));
+    };
+
+    useEffect(load, []);
+
+    const handleMarkDelivered = async () => {
+        if (!confirmTarget) return;
+        setMarking(confirmTarget);
+        try {
+            await api.post(`/orders/${confirmTarget}/mark-delivered`);
+            toast.success("Marked as delivered — buyer's been notified to confirm.");
+            setConfirmTarget(null);
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to mark as delivered');
+        } finally {
+            setMarking(null);
+        }
+    };
+
+    if (loading) return <SkeletonList />;
+    if (deliveries.length === 0) return <EmptyState icon={Truck} text="No deliveries pending right now." />;
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-3">
+            {deliveries.map((d) => {
+                const deadline = new Date(d.created_at);
+                deadline.setDate(deadline.getDate() + 3);
+                const msLeft = deadline - new Date();
+                const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
+
+                return (
+                    <div key={d.order_id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                        <div className="flex justify-between items-start mb-2 gap-3">
+                            <div className="min-w-0">
+                                <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">Order #{d.order_id}</p>
+                                <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">Buyer: {d.buyer_name}</p>
+                            </div>
+                            {d.delivered_at ? (
+                                <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                                    Awaiting buyer confirmation
+                                </span>
+                            ) : (
+                                <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400">
+                                    {d.delivery_method === 'delivery'
+                                        ? (daysLeft > 0 ? `${daysLeft} working day${daysLeft === 1 ? '' : 's'} left` : 'Due today')
+                                        : 'Awaiting pickup'}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-start gap-2 text-xs text-slate-500 dark:text-gold-200/60 mt-1">
+                            <MapPin size={13} className="shrink-0 mt-0.5" />
+                            <span>{d.buyer_location || 'No location provided'}</span>
+                        </div>
+
+                        {d.buyer_whatsapp && (
+                            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-gold-200/60 mt-1">
+                                <MessageCircle size={13} className="shrink-0" />
+                                <span>{d.buyer_whatsapp}</span>
+                            </div>
+                        )}
+
+                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-ink-600 space-y-1">
+                            {d.items.map((item, i) => (
+                                <p key={i} className="text-xs text-slate-600 dark:text-gold-100/80">{item.title} × {item.quantity}</p>
+                            ))}
+                        </div>
+
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2 capitalize">
+                            Method: {d.delivery_method === 'delivery' ? 'Delivery' : 'Campus pickup'}
+                        </p>
+
+                        {!d.delivered_at && (
+                            <button
+                                onClick={() => setConfirmTarget(d.order_id)}
+                                disabled={marking === d.order_id}
+                                className="mt-3 text-xs font-semibold px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60"
+                            >
+                                {marking === d.order_id ? 'Marking…' : '✅ Mark as Delivered'}
+                            </button>
+                        )}
+                    </div>
+                );
+            })}
+
+            <ConfirmModal
+                open={!!confirmTarget}
+                title="Confirm delivery"
+                message="Only mark this as delivered if the buyer has genuinely received the item. Falsely marking an order as delivered can result in an account ban and loss of your funds. Are you sure you've delivered this order?"
+                confirmLabel="Yes, I've delivered it"
+                onConfirm={handleMarkDelivered}
+                onCancel={() => setConfirmTarget(null)}
+            />
         </div>
     );
 }
@@ -685,7 +797,7 @@ function MySales() {
                                 <p className="font-semibold text-slate-800 dark:text-gold-100 mt-0.5">GHS {saleAmount.toFixed(2)}</p>
                             </div>
                             <div>
-                                <p className="text-slate-400 dark:text-gold-200/50">Platform fee (5%)</p>
+                                <p className="text-slate-400 dark:text-gold-200/50">Platform fee (1.5%)</p>
                                 <p className="font-semibold text-slate-800 dark:text-gold-100 mt-0.5">GHS {parseFloat(s.platform_fee).toFixed(2)}</p>
                             </div>
                             <div>
