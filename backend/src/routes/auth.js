@@ -261,7 +261,9 @@ router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req
         return res.status(400).json({ error: 'No image file received' });
     }
 
-    const avatarUrl = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
+    // Store the image directly in the database as a Base64 data URI —
+    // no disk file, so nothing gets wiped on server restart/redeploy.
+    const avatarUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
 
     try {
         const result = await pool.query(

@@ -6,8 +6,9 @@ const { isSellerRestricted } = require('./sellers');
 
 const router = express.Router();
 
-function fileUrl(req, filename) {
-    return `${req.protocol}://${req.get('host')}/uploads/products/${filename}`;
+// Converts an in-memory uploaded file into a Base64 data URI for DB storage
+function fileDataUri(file) {
+    return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 }
 
 // GET /api/products/mine — the logged-in seller's own listings
@@ -15,7 +16,7 @@ router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.created_at,
-                    p.rating, p.review_count,  -- 👈 added
+                    p.rating, p.review_count,
                     c.name AS category
              FROM products p
              LEFT JOIN categories c ON c.id = p.category_id
@@ -53,9 +54,10 @@ router.get('/', async (req, res) => {
         const result = await pool.query(
             `SELECT
                 p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.created_at,
-                p.rating, p.review_count,  -- 👈 added
+                p.rating, p.review_count,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified,
+                u.avatar_url AS seller_avatar,
                 c.name AS category
              FROM products p
              JOIN users u ON u.id = p.seller_id
@@ -77,9 +79,10 @@ router.get('/:id', async (req, res) => {
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.condition, p.stock, p.created_at,
-                p.rating, p.review_count,  -- 👈 added
+                p.rating, p.review_count,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified, u.last_active AS seller_last_active,
+                u.avatar_url AS seller_avatar,
                 c.name AS category
              FROM products p
              JOIN users u ON u.id = p.seller_id
@@ -135,7 +138,7 @@ router.post('/', requireAuth, uploadProductImages.array('images', 6), async (req
         }
 
         const imageFiles = req.files || [];
-        const primaryImage = imageFiles.length ? fileUrl(req, imageFiles[0].filename) : null;
+        const primaryImage = imageFiles.length ? fileDataUri(imageFiles[0]) : null;
 
         const productResult = await client.query(
             `INSERT INTO products (seller_id, title, description, price, condition, category_id, stock, primary_image)
@@ -149,7 +152,7 @@ router.post('/', requireAuth, uploadProductImages.array('images', 6), async (req
         for (let i = 0; i < imageFiles.length; i++) {
             await client.query(
                 'INSERT INTO product_images (product_id, image_url, sort_order) VALUES ($1, $2, $3)',
-                [productId, fileUrl(req, imageFiles[i].filename), i]
+                [productId, fileDataUri(imageFiles[i]), i]
             );
         }
 

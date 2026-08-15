@@ -365,13 +365,21 @@ export default function ProductDetail() {
                         <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">Sold by</p>
                         <div className="flex items-center gap-3">
                             <div className="relative shrink-0">
-                                <div className="w-11 h-11 rounded-full bg-brand-100 dark:bg-gold-900 text-brand-700 dark:text-gold-400 flex items-center justify-center font-bold text-sm">
-                                    {sellerInitial}
-                                </div>
-                                {isRecentlyActive(product.seller_last_active) && (
-                                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-ink-800" />
-                                )}
-                            </div>
+    {product.seller_avatar ? (
+        <img
+            src={product.seller_avatar}
+            alt={sellerName}
+            className="w-11 h-11 rounded-full object-cover"
+        />
+    ) : (
+        <div className="w-11 h-11 rounded-full bg-brand-100 dark:bg-gold-900 text-brand-700 dark:text-gold-400 flex items-center justify-center font-bold text-sm">
+            {sellerInitial}
+        </div>
+    )}
+    {isRecentlyActive(product.seller_last_active) && (
+        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-ink-800" />
+    )}
+</div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                     <p className="font-bold text-slate-900 dark:text-gold-50 truncate">{sellerName}</p>
