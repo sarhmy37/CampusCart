@@ -28,18 +28,14 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// ===== NEW: GET /api/admin/net-earnings =====
+// GET /api/admin/net-earnings
 router.get('/net-earnings', async (req, res) => {
     try {
-        // Calculates:
-        // 1. 2% Buyer Fee (from subtotal)
-        // 2. 1.5% Seller Fee (from platform_fee column)
-        // 3. 1.95% Paystack Fee (deducted from total revenue)
-        // 4. Net Admin Profit
         const result = await pool.query(`
             SELECT 
                 COALESCE(SUM(o.subtotal * 0.02), 0) as total_buyer_fees,
                 COALESCE(SUM(oi.platform_fee), 0) as total_seller_fees,
+                COALESCE(SUM(o.delivery_fee * 0.20), 0) as total_admin_delivery_fees,
                 COALESCE(SUM(o.subtotal + o.delivery_fee), 0) as total_revenue_processed,
                 COALESCE(SUM(oi.admin_net_profit), 0) as total_admin_net_profit
             FROM orders o
@@ -49,13 +45,14 @@ router.get('/net-earnings', async (req, res) => {
 
         const data = result.rows[0];
         
-        const grossAdminProfit = parseFloat(data.total_buyer_fees) + parseFloat(data.total_seller_fees);
-        const paystackFee = parseFloat(data.total_revenue_processed) * 0.0195; // 1.95% of total revenue
+        const grossAdminProfit = parseFloat(data.total_buyer_fees) + parseFloat(data.total_seller_fees) + parseFloat(data.total_admin_delivery_fees);
+        const paystackFee = parseFloat(data.total_revenue_processed) * 0.0195;
         const netAdminProfit = parseFloat(data.total_admin_net_profit);
 
         res.json({
             totalBuyerFees: parseFloat(data.total_buyer_fees).toFixed(2),
             totalSellerFees: parseFloat(data.total_seller_fees).toFixed(2),
+            totalAdminDeliveryFees: parseFloat(data.total_admin_delivery_fees).toFixed(2),
             grossProfit: grossAdminProfit.toFixed(2),
             paystackDeduction: paystackFee.toFixed(2),
             netProfit: netAdminProfit.toFixed(2),

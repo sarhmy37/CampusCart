@@ -9,6 +9,8 @@ const router = express.Router();
 
 const BUYER_FEE_RATE = 0.02;
 const SELLER_FEE_RATE = 0.015;
+const ADMIN_DELIVERY_SHARE = 0.20; // 20% of delivery fee goes to Admin
+const SELLER_DELIVERY_SHARE = 0.80; // 80% of delivery fee goes to Seller
 
 // Helper: insert a notification
 async function insertNotification(userId, type, message, relatedId = null, link = null) {
@@ -75,14 +77,19 @@ router.post('/', requireAuth, async (req, res) => {
             }
         }
 
+        // ============ 80/20 DELIVERY SPLIT LOGIC ============
         const creditedDeliveryFor = new Set();
         for (const item of lineItems) {
-            const fee = deliveryFeeBySeller[item.seller_id];
-            if (fee && !creditedDeliveryFor.has(item.seller_id)) {
-                item.seller_earnings = Math.round((item.seller_earnings + fee) * 100) / 100;
+            const totalDeliveryFee = deliveryFeeBySeller[item.seller_id];
+            if (totalDeliveryFee && !creditedDeliveryFor.has(item.seller_id)) {
+                // Seller gets 80%
+                const sellerDeliveryShare = Math.round(totalDeliveryFee * SELLER_DELIVERY_SHARE * 100) / 100;
+                item.seller_earnings = Math.round((item.seller_earnings + sellerDeliveryShare) * 100) / 100;
+                
                 creditedDeliveryFor.add(item.seller_id);
             }
         }
+        // ====================================================
 
         const buyerFee = Math.round(subtotal * BUYER_FEE_RATE * 100) / 100;
         const preCreditTotal = subtotal + deliveryFee + buyerFee;
@@ -215,8 +222,6 @@ router.post('/webhook', async (req, res) => {
 
             // Send notification to seller with link to their Delivery tab
             await insertNotification(sellerId, 'payment_received_seller', message, order.id, '/dashboard?tab=deliveries');
-
-            // Optional SMS notifications can be re-enabled here but are currently set to skip to avoid crashes
         }
     } catch (err) {
         console.error('Webhook processing error:', err);
@@ -392,7 +397,6 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
         );
 
         const message = `${sellerName} has marked your order as delivered to ${buyerLocation}. Please go to your Orders tab to confirm you've received it.`;
-        // Link buyer directly to their dashboard orders tab
         await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id, '/dashboard?tab=orders');
 
         res.json({ success: true, message: 'Marked as delivered. The buyer has been notified.' });
@@ -407,7 +411,6 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
     const { itemId } = req.params;
 
     try {
-        // 1. Get the item and verify the buyer
         const itemResult = await pool.query(
             `SELECT oi.*, o.buyer_id 
              FROM order_items oi
@@ -420,49 +423,73 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         
         const item = itemResult.rows[0];
         
-        // Check if the logged-in user is the buyer
         if (item.buyer_id !== req.userId) {
             return res.status(403).json({ error: 'You are not the buyer of this item' });
         }
 
-        // 2. Mark this specific item as confirmed by the buyer
         await pool.query(
             `UPDATE order_items SET buyer_confirmed_at = now() WHERE id = $1`,
             [itemId]
         );
 
-        // 3. Calculate exact splits:
-        //    Buyer Fee = 2% of product price (Paid by buyer on top)
-        //    Seller Fee = 1.5% of product price (Deducted from seller's earnings)
+        // ============ ADMIN NET PROFIT CALCULATION ============
+        // 1. Base product price
         const basePrice = parseFloat(item.price_at_purchase);
-        const buyerFee = basePrice * 0.02;
-        const sellerFee = basePrice * 0.015;
-        const totalRevenue = basePrice + buyerFee; // Amount Paystack actually received
         
-        // 4. Calculate Admin Net Profit:
-        //    (Buyer Fee + Seller Fee) - (1.95% Paystack cut of total revenue)
-        const grossAdminProfit = buyerFee + sellerFee;
+        // 2. Buyer 2% fee
+        const buyerFee = basePrice * 0.02;
+        
+        // 3. Seller 1.5% fee
+        const sellerFee = basePrice * 0.015;
+        
+        // 4. Admin's 20% share of the delivery fee
+        // Note: We stored the total delivery fee paid by the buyer in the 'orders' table.
+        // We need to calculate 20% of that specific seller's delivery fee.
+        // We will dynamically calculate this using a subquery.
+        const deliveryShareResult = await pool.query(
+            `SELECT o.delivery_fee, oi.seller_id
+             FROM orders o
+             JOIN order_items oi ON o.id = oi.order_id
+             WHERE oi.id = $1`,
+            [itemId]
+        );
+        const orderDeliveryFee = parseFloat(deliveryShareResult.rows[0]?.delivery_fee || 0);
+        const adminDeliveryShare = Math.round(orderDeliveryFee * ADMIN_DELIVERY_SHARE * 100) / 100;
+
+        // 5. Total Revenue processed by Paystack (Product Price + Buyer Fee + Delivery Fee)
+        const totalRevenue = basePrice + buyerFee + orderDeliveryFee;
+        
+        // 6. Paystack's 1.95% cut
         const paystackCut = totalRevenue * 0.0195;
+        
+        // 7. Gross Admin Profit = Buyer Fee + Seller Fee + Admin Delivery Share
+        const grossAdminProfit = buyerFee + sellerFee + adminDeliveryShare;
+        
+        // 8. Net Admin Profit (After Paystack)
         const adminNetProfit = Math.round((grossAdminProfit - paystackCut) * 100) / 100;
 
-        // 5. Save the admin profit to the database
+        // 9. Save to database
         await pool.query(
             `UPDATE order_items SET admin_net_profit = $1 WHERE id = $2`,
             [adminNetProfit, itemId]
         );
 
-        // 6. Calculate seller's available earnings (98.5% of base price)
-        const sellerEarnings = Math.round((basePrice - sellerFee) * 100) / 100;
+        // 10. Seller earnings (98.5% of base price + 80% of delivery fee)
+        const sellerEarningsProduct = Math.round((basePrice - sellerFee) * 100) / 100;
+        const sellerDeliveryShare = Math.round(orderDeliveryFee * SELLER_DELIVERY_SHARE * 100) / 100;
+        const sellerEarnings = Math.round((sellerEarningsProduct + sellerDeliveryShare) * 100) / 100;
 
         console.log(`[BUYER CONFIRMED] Item ${itemId}:`);
-        console.log(`  - Base Price: GHS ${basePrice.toFixed(2)}`);
+        console.log(`  - Product Price: GHS ${basePrice.toFixed(2)}`);
+        console.log(`  - Delivery Fee: GHS ${orderDeliveryFee.toFixed(2)}`);
         console.log(`  - Buyer Fee (2%): GHS ${buyerFee.toFixed(2)}`);
         console.log(`  - Seller Fee (1.5%): GHS ${sellerFee.toFixed(2)}`);
+        console.log(`  - Admin Delivery Share (20%): GHS ${adminDeliveryShare.toFixed(2)}`);
         console.log(`  - Paystack Cut (1.95%): GHS ${paystackCut.toFixed(2)}`);
         console.log(`  - Admin Net Profit: GHS ${adminNetProfit.toFixed(2)}`);
         console.log(`  - Seller Available: GHS ${sellerEarnings.toFixed(2)}`);
+        // ======================================================
 
-        // 7. Notify seller their funds are available for withdrawal
         await insertNotification(
             item.seller_id,
             'funds_available',
