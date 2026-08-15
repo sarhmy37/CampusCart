@@ -551,4 +551,51 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
     }
 });
 
+// POST /api/order-items/:itemId/confirm
+router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
+    const { itemId } = req.params;
+
+    try {
+        // 1. Get the item and verify the buyer
+        const itemResult = await pool.query(
+            `SELECT oi.*, o.buyer_id 
+             FROM order_items oi
+             JOIN orders o ON oi.order_id = o.id
+             WHERE oi.id = $1`,
+            [itemId]
+        );
+        
+        if (itemResult.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
+        
+        const item = itemResult.rows[0];
+        
+        // Check if the logged-in user is the buyer
+        if (item.buyer_id !== req.userId) {
+            return res.status(403).json({ error: 'You are not the buyer of this item' });
+        }
+
+        // 2. Mark this specific item as confirmed by the buyer
+        await pool.query(
+            `UPDATE order_items SET buyer_confirmed_at = now() WHERE id = $1`,
+            [itemId]
+        );
+
+        // 3. Calculate seller's cut (98%)
+        const sellerEarnings = parseFloat(item.price_at_purchase) * 0.98;
+
+        // 4. TEMPORARILY: Just log the payout instead of sending it (to avoid Paystack crash)
+        console.log(`[PAYOUT READY] Item ${itemId}: GHS ${sellerEarnings.toFixed(2)} to Seller ${item.seller_id}`);
+        console.log(`(Waiting for Paystack business verification to send real money)`);
+
+        res.json({ 
+            success: true, 
+            message: 'Item confirmed! Payment will be processed shortly.' 
+        });
+
+    } catch (err) {
+        console.error('Item confirm error:', err);
+        res.status(500).json({ error: 'Failed to confirm item receipt' });
+    }
+});
+
 module.exports = router;

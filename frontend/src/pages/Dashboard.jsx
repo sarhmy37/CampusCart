@@ -688,7 +688,7 @@ function MyListings() {
 function MyOrders({ period, isSeller }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [confirming, setConfirming] = useState(null);
+    const [confirmingItem, setConfirmingItem] = useState(null); // Track item ID instead of order ID
 
     const loadOrders = () => {
         setLoading(true);
@@ -701,20 +701,22 @@ function MyOrders({ period, isSeller }) {
         loadOrders();
     }, [period]);
 
-    const handleConfirmReceived = async (orderId) => {
-        if (!window.confirm('⚠️ Are you sure you have received this order? This action cannot be undone.')) {
+    // UPDATED: Handle confirmation for a specific ORDER ITEM
+    const handleConfirmReceived = async (orderId, itemId) => {
+        if (!window.confirm('⚠️ Are you sure you have received this item? This action cannot be undone.')) {
             return;
         }
 
-        setConfirming(orderId);
+        setConfirmingItem(itemId);
         try {
-            await api.post(`/orders/${orderId}/confirm-received`);
-            toast.success('Order confirmed as received! ✅');
+            // Call the new route we built for individual items
+            await api.post(`/order-items/${itemId}/confirm`);
+            toast.success('Item confirmed as received! ✅');
             loadOrders();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to confirm');
         } finally {
-            setConfirming(null);
+            setConfirmingItem(null);
         }
     };
 
@@ -732,22 +734,40 @@ function MyOrders({ period, isSeller }) {
                         </span>
                     </div>
 
-                  {o.status === 'paid' && (
-                        <div className="mt-1 mb-2">
-                            <button
-                                onClick={() => handleConfirmReceived(o.id)}
-                                disabled={confirming === o.id}
-                                className="text-xs font-semibold px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60"
-                            >
-                                {confirming === o.id ? 'Confirming…' : '✅ Order Received'}
-                            </button>
-                        </div>
-                    )}
+                    {/* UPDATED SECTION: List items and individual confirm buttons */}
+                    <div className="mt-2 space-y-2">
+                        {o.items?.map((item) => (
+                            <div key={item.id} className="flex justify-between items-center border-t border-slate-100 dark:border-ink-600 pt-2 first:border-0 first:pt-0">
+                                <div className="flex-1">
+                                    <p className="text-sm text-slate-700 dark:text-gold-100">{item.title}</p>
+                                    <div className="flex items-center gap-3 mt-0.5">
+                                        <p className="text-xs text-slate-500 dark:text-gold-200/50">Qty: {item.quantity}</p>
+                                        <p className="text-xs font-semibold text-slate-600 dark:text-gold-200">GHS {parseFloat(item.price_at_purchase).toFixed(2)}</p>
+                                    </div>
+                                </div>
+                                
+                                {/* Individual Confirm Button per Item */}
+                                {o.status === 'paid' && !item.buyer_confirmed_at && (
+                                    <button
+                                        onClick={() => handleConfirmReceived(o.id, item.id)}
+                                        disabled={confirmingItem === item.id}
+                                        className="shrink-0 ml-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60"
+                                    >
+                                        {confirmingItem === item.id ? '...' : '✅ Confirm Received'}
+                                    </button>
+                                )}
+                                {o.status === 'paid' && item.buyer_confirmed_at && (
+                                    <span className="shrink-0 ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                        ✓ Confirmed
+                                    </span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
 
-                    {o.items?.map((item) => (
-                        <p key={item.id} className="text-xs text-slate-500 dark:text-gold-200/50">{item.title} × {item.quantity}</p>
-                    ))}
-                    <p className="text-sm font-bold text-slate-900 dark:text-gold-50 mt-2">GHS {parseFloat(o.total_amount).toFixed(2)}</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-gold-50 mt-3 border-t border-slate-100 dark:border-ink-600 pt-3">
+                        Total: GHS {parseFloat(o.total_amount).toFixed(2)}
+                    </p>
                 </div>
             ))}
         </div>

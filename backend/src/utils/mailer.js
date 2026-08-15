@@ -64,27 +64,33 @@ async function sendPasswordResetEmail(toEmail, code) {
 }
 
 async function sendOrderSMS(phoneNumber, message) {
-    const digits = String(phoneNumber).replace(/\D/g, '');
-    const normalized = digits.startsWith('0') ? '233' + digits.slice(1) : digits;
+    try {
+        const digits = String(phoneNumber).replace(/\D/g, '');
+        const normalized = digits.startsWith('0') ? '233' + digits.slice(1) : digits;
 
-    const res = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
-        method: 'POST',
-        headers: {
-            'api-key': process.env.BREVO_API_KEY,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            sender: 'CampusCart',
-            recipient: normalized,
-            content: message,
-            type: 'transactional',
-        }),
-    });
+        const res = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
+            method: 'POST',
+            headers: {
+                'api-key': process.env.BREVO_API_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sender: 'CampusCart',
+                recipient: normalized,
+                content: message,
+                type: 'transactional',
+            }),
+        });
 
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error('Brevo SMS error:', err);
-        throw new Error('Failed to send SMS');
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            // Log the error but DO NOT throw it. This stops the crash.
+            console.warn('Brevo SMS skipped (Addon required):', err.message || 'Unknown SMS error');
+            return; 
+        }
+    } catch (err) {
+        // Catch any network errors and just log them instead of crashing the server
+        console.warn('Failed to send SMS (network error):', err.message);
     }
 }
 
