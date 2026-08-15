@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
     Users, Package, ShoppingBag, DollarSign, ShieldCheck, ShieldAlert,
-    Ban, CheckCircle, Trash2, Crown, Flag, XCircle
+    Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp
 } from 'lucide-react';
 
 export default function Admin() {
@@ -12,14 +12,21 @@ export default function Admin() {
     const searchQuery = searchParams.get('search') || '';
     const [tab, setTab] = useState('users');
     const [stats, setStats] = useState(null);
+    const [earnings, setEarnings] = useState(null);
     const [allUsers, setAllUsers] = useState([]);
     const [allListings, setAllListings] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [loadingListings, setLoadingListings] = useState(false);
 
-    // Fetch stats
+    // Fetch stats and earnings
     useEffect(() => {
-        api.get('/admin/stats').then((res) => setStats(res.data)).catch(() => {});
+        Promise.all([
+            api.get('/admin/stats'),
+            api.get('/admin/net-earnings')
+        ]).then(([statsRes, earningsRes]) => {
+            setStats(statsRes.data);
+            setEarnings(earningsRes.data);
+        }).catch(() => {});
     }, []);
 
     // Fetch users and listings when search query exists
@@ -82,11 +89,29 @@ export default function Admin() {
                     <p className="text-white/70 text-sm mt-1">Manage users, listings, and orders</p>
 
                     {stats && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-8">
                             <StatCard icon={Users} label="Users" value={stats.total_users} />
                             <StatCard icon={Package} label="Listings" value={stats.total_products} />
                             <StatCard icon={ShoppingBag} label="Orders" value={stats.total_orders} />
                             <StatCard icon={DollarSign} label="Revenue" value={`GHS ${stats.total_revenue.toFixed(2)}`} />
+                            {earnings && (
+                                <StatCard 
+                                    icon={TrendingUp} 
+                                    label="Net Earnings" 
+                                    value={`GHS ${earnings.netProfit}`} 
+                                    highlight 
+                                />
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Details breakdown for Admin */}
+                    {earnings && (
+                        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-white/70 text-[10px] sm:text-xs">
+                            <div>2% Buyer Fees: <span className="text-white font-semibold">GHS {earnings.totalBuyerFees}</span></div>
+                            <div>1.5% Seller Fees: <span className="text-white font-semibold">GHS {earnings.totalSellerFees}</span></div>
+                            <div>Paystack Deduction: <span className="text-white font-semibold">-GHS {earnings.paystackDeduction}</span></div>
+                            <div>Gross Profit: <span className="text-white font-semibold">GHS {earnings.grossProfit}</span></div>
                         </div>
                     )}
                 </div>
@@ -118,12 +143,12 @@ export default function Admin() {
     );
 }
 
-function StatCard({ icon: Icon, label, value }) {
+function StatCard({ icon: Icon, label, value, highlight }) {
     return (
-        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
-            <Icon size={18} className="text-white/80 mb-2" />
-            <p className="text-2xl font-extrabold text-white">{value}</p>
-            <p className="text-xs text-white/70">{label}</p>
+        <div className={`backdrop-blur border rounded-2xl p-4 ${highlight ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>
+            <Icon size={18} className={`mb-2 ${highlight ? 'text-white' : 'text-white/80'}`} />
+            <p className={`text-2xl font-extrabold ${highlight ? 'text-white' : 'text-white'}`}>{value}</p>
+            <p className={`text-xs ${highlight ? 'text-white/90' : 'text-white/70'}`}>{label}</p>
         </div>
     );
 }

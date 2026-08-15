@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { initializeTransaction, verifyWebhookSignature, createTransferRecipient, initiateTransfer } = require('../utils/paystack');
+const { initializeTransaction, verifyWebhookSignature } = require('../utils/paystack');
 const { sendOrderSMS } = require('../utils/mailer');
 const { calcDeliveryFee } = require('../utils/distance');
 
@@ -11,10 +11,10 @@ const BUYER_FEE_RATE = 0.02;
 const SELLER_FEE_RATE = 0.015;
 
 // Helper: insert a notification
-async function insertNotification(userId, type, message, relatedId = null) {
+async function insertNotification(userId, type, message, relatedId = null, link = null) {
     await pool.query(
-        `INSERT INTO notifications (user_id, type, message, related_id) VALUES ($1, $2, $3, $4)`,
-        [userId, type, message, relatedId]
+        `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
+        [userId, type, message, relatedId, link]
     );
 }
 
@@ -211,139 +211,17 @@ router.post('/webhook', async (req, res) => {
                 .map((i) => i.title)
                 .join(', ');
 
-            const message = `CampusCart: ${buyerName} just paid for "${itemNames}". Delivery method: ${order.delivery_method}. ${deliveryNote} Funds will settle to your account once the buyer confirms receipt.`;
+            const message = `CampusCart: ${buyerName} just paid for "${itemNames}". Delivery method: ${order.delivery_method}. ${deliveryNote}`;
 
-            await insertNotification(sellerId, 'payment_received_seller', message, order.id);
+            // Send notification to seller with link to their Delivery tab
+            await insertNotification(sellerId, 'payment_received_seller', message, order.id, '/dashboard?tab=deliveries');
 
-            const accResult = await pool.query(
-                `SELECT method, account_number FROM seller_payout_accounts WHERE seller_id = $1 AND is_default = true`,
-                [sellerId]
-            );
-            const account = accResult.rows[0];
-
-            const userResult = await pool.query('SELECT whatsapp FROM users WHERE id = $1', [sellerId]);
-            const sellerWhatsapp = userResult.rows[0]?.whatsapp;
-
-            const smsNumber = account?.method === 'mobile_money' ? account.account_number : sellerWhatsapp;
-
-            if (smsNumber) {
-                sendOrderSMS(smsNumber, message).catch((e) => console.error('Seller SMS error:', e));
-            } else {
-                console.error(`No SMS destination found for seller ${sellerId}`);
-            }
+            // Optional SMS notifications can be re-enabled here but are currently set to skip to avoid crashes
         }
     } catch (err) {
         console.error('Webhook processing error:', err);
     }
 });
-
-// Shared post-payment logic: pays sellers, credits rewards, referral credit, SMS.
-async function processCompletedOrder(orderId) {
-    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
-    const order = orderResult.rows[0];
-    if (!order) return;
-
-    const itemsResult = await pool.query(
-        'SELECT product_id, quantity, seller_id, seller_earnings, title FROM order_items WHERE order_id = $1',
-        [orderId]
-    );
-
-    const sellerTotals = {};
-    for (const item of itemsResult.rows) {
-        sellerTotals[item.seller_id] = (sellerTotals[item.seller_id] || 0) + parseFloat(item.seller_earnings);
-    }
-
-    for (const [sellerId, amount] of Object.entries(sellerTotals)) {
-        try {
-            await payoutSeller(sellerId, amount, orderId);
-        } catch (e) {
-            console.error(`Payout failed for seller ${sellerId}:`, e.message);
-        }
-    }
-
-    const { checkAndCreditRewards } = require('./sellers');
-    for (const sellerId of Object.keys(sellerTotals)) {
-        await checkAndCreditRewards(sellerId).catch((e) => console.error('Reward check error:', e));
-    }
-
-    try {
-        const completedCountResult = await pool.query(
-            `SELECT COUNT(*)::int AS count FROM orders WHERE buyer_id = $1 AND status = 'completed'`,
-            [order.buyer_id]
-        );
-        if (completedCountResult.rows[0].count === 1) {
-            const buyerResult = await pool.query('SELECT referred_by FROM users WHERE id = $1', [order.buyer_id]);
-            const referredBy = buyerResult.rows[0]?.referred_by;
-            if (referredBy) {
-                await pool.query('UPDATE users SET credit_balance = credit_balance + 10 WHERE id = $1', [referredBy]);
-            }
-        }
-    } catch (e) {
-        console.error('Referral credit error:', e);
-    }
-
-    // Notifications
-    await insertNotification(
-        order.buyer_id,
-        'order_completed_buyer',
-        `Your order #${orderId} has been completed. Thank you for shopping!`,
-        orderId
-    );
-
-    for (const sellerId of Object.keys(sellerTotals)) {
-        await insertNotification(
-            sellerId,
-            'order_completed_seller',
-            `You have a completed order #${orderId}! Funds have been transferred to your payout account.`,
-            orderId
-        );
-    }
-
-    const buyerResult = await pool.query('SELECT whatsapp FROM users WHERE id = $1', [order.buyer_id]);
-    const buyer = buyerResult.rows[0];
-    if (buyer?.whatsapp) {
-        const msg = order.delivery_method === 'delivery'
-            ? `CampusCart: Order placed successfully! Your items will be delivered within 1-3 working days.`
-            : `CampusCart: Order placed successfully! Arrange pickup with the seller on campus.`;
-        sendOrderSMS(buyer.whatsapp, msg).catch((e) => console.error('SMS error:', e));
-    }
-}
-
-// Updated payoutSeller – uses the seller's default payout account
-async function payoutSeller(sellerId, amountGHS, orderId) {
-    // Fetch the seller's default payout account
-    const accResult = await pool.query(
-        `SELECT * FROM seller_payout_accounts WHERE seller_id = $1 AND is_default = true`,
-        [sellerId]
-    );
-    const account = accResult.rows[0];
-    if (!account) {
-        console.error(`Seller ${sellerId} has no default payout account set — cannot transfer`);
-        return;
-    }
-
-    let recipientCode = account.paystack_recipient_code;
-    if (!recipientCode) {
-        const recipientRes = await createTransferRecipient({
-            type: account.method,
-            name: account.account_name,
-            account_number: account.account_number,
-            bank_code: account.bank_code,
-        });
-        recipientCode = recipientRes.data.recipient_code;
-        await pool.query(
-            'UPDATE seller_payout_accounts SET paystack_recipient_code = $1 WHERE id = $2',
-            [recipientCode, account.id]
-        );
-    }
-
-    await initiateTransfer({
-        recipient_code: recipientCode,
-        amountGHS,
-        reason: `CampusCart order ${orderId}`,
-        reference: `payout_${orderId}_${sellerId}`,
-    });
-}
 
 // GET /api/orders/mine
 router.get('/mine', requireAuth, async (req, res) => {
@@ -364,7 +242,7 @@ router.get('/mine', requireAuth, async (req, res) => {
 
         for (const order of orders) {
             const itemsResult = await pool.query(
-                'SELECT id, title, quantity, price_at_purchase FROM order_items WHERE order_id = $1',
+                'SELECT id, title, quantity, price_at_purchase, seller_id, buyer_confirmed_at FROM order_items WHERE order_id = $1',
                 [order.id]
             );
             order.items = itemsResult.rows;
@@ -423,8 +301,6 @@ router.get('/sales', requireAuth, async (req, res) => {
 
 // GET /api/orders/deliveries — seller's pending deliveries: paid orders containing at least
 // one of this seller's items, not yet marked completed by the buyer.
-// NOTE: this must stay ABOVE the GET '/:id' route below, or Express will try to
-// match "deliveries" as an :id param instead.
 router.get('/deliveries', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
@@ -476,38 +352,12 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/orders/:id/confirm-received
+// DEPRECATED: Replaced by individual item confirm. Keeping for safe fallback.
 router.post('/:id/confirm-received', requireAuth, async (req, res) => {
-    const client = await pool.connect();
-    try {
-        const { id } = req.params;
-        const orderResult = await client.query(
-            `SELECT * FROM orders WHERE id = $1 AND buyer_id = $2`,
-            [id, req.userId]
-        );
-        const order = orderResult.rows[0];
-        if (!order) return res.status(404).json({ error: 'Order not found' });
-        if (order.status === 'completed') return res.status(400).json({ error: 'Order already completed' });
-        if (order.status === 'cancelled') return res.status(400).json({ error: 'Order was cancelled' });
-
-        await client.query('BEGIN');
-        await client.query(`UPDATE orders SET status = 'completed', completed_at = now() WHERE id = $1`, [id]);
-        await client.query(`UPDATE order_items SET status = 'completed' WHERE order_id = $1`, [id]);
-        await client.query('COMMIT');
-
-        await processCompletedOrder(id);
-        res.json({ success: true, message: 'Order confirmed as received!' });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Confirm received error:', err);
-        res.status(500).json({ error: 'Failed to confirm order' });
-    } finally {
-        client.release();
-    }
+    return res.status(400).json({ error: 'Please confirm each item individually.' });
 });
 
 // POST /api/orders/:id/mark-delivered — seller confirms they've delivered the order.
-// Notifies the buyer to go confirm receipt. Buyer gets a repeat reminder every 10
-// minutes (handled in routes/notifications.js) until they confirm.
 router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
@@ -542,7 +392,8 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
         );
 
         const message = `${sellerName} has marked your order as delivered to ${buyerLocation}. Please go to your Orders tab to confirm you've received it.`;
-        await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id);
+        // Link buyer directly to their dashboard orders tab
+        await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id, '/dashboard?tab=orders');
 
         res.json({ success: true, message: 'Marked as delivered. The buyer has been notified.' });
     } catch (err) {
@@ -580,16 +431,49 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             [itemId]
         );
 
-        // 3. Calculate seller's cut (98%)
-        const sellerEarnings = parseFloat(item.price_at_purchase) * 0.98;
+        // 3. Calculate exact splits:
+        //    Buyer Fee = 2% of product price (Paid by buyer on top)
+        //    Seller Fee = 1.5% of product price (Deducted from seller's earnings)
+        const basePrice = parseFloat(item.price_at_purchase);
+        const buyerFee = basePrice * 0.02;
+        const sellerFee = basePrice * 0.015;
+        const totalRevenue = basePrice + buyerFee; // Amount Paystack actually received
+        
+        // 4. Calculate Admin Net Profit:
+        //    (Buyer Fee + Seller Fee) - (1.95% Paystack cut of total revenue)
+        const grossAdminProfit = buyerFee + sellerFee;
+        const paystackCut = totalRevenue * 0.0195;
+        const adminNetProfit = Math.round((grossAdminProfit - paystackCut) * 100) / 100;
 
-        // 4. TEMPORARILY: Just log the payout instead of sending it (to avoid Paystack crash)
-        console.log(`[PAYOUT READY] Item ${itemId}: GHS ${sellerEarnings.toFixed(2)} to Seller ${item.seller_id}`);
-        console.log(`(Waiting for Paystack business verification to send real money)`);
+        // 5. Save the admin profit to the database
+        await pool.query(
+            `UPDATE order_items SET admin_net_profit = $1 WHERE id = $2`,
+            [adminNetProfit, itemId]
+        );
+
+        // 6. Calculate seller's available earnings (98.5% of base price)
+        const sellerEarnings = Math.round((basePrice - sellerFee) * 100) / 100;
+
+        console.log(`[BUYER CONFIRMED] Item ${itemId}:`);
+        console.log(`  - Base Price: GHS ${basePrice.toFixed(2)}`);
+        console.log(`  - Buyer Fee (2%): GHS ${buyerFee.toFixed(2)}`);
+        console.log(`  - Seller Fee (1.5%): GHS ${sellerFee.toFixed(2)}`);
+        console.log(`  - Paystack Cut (1.95%): GHS ${paystackCut.toFixed(2)}`);
+        console.log(`  - Admin Net Profit: GHS ${adminNetProfit.toFixed(2)}`);
+        console.log(`  - Seller Available: GHS ${sellerEarnings.toFixed(2)}`);
+
+        // 7. Notify seller their funds are available for withdrawal
+        await insertNotification(
+            item.seller_id,
+            'funds_available',
+            `A buyer confirmed receipt for "${item.title}". GHS ${sellerEarnings.toFixed(2)} is now available in your Payouts tab to withdraw.`,
+            item.order_id,
+            '/dashboard?tab=payouts'
+        );
 
         res.json({ 
             success: true, 
-            message: 'Item confirmed! Payment will be processed shortly.' 
+            message: 'Item confirmed! Funds are now available for the seller to withdraw.' 
         });
 
     } catch (err) {

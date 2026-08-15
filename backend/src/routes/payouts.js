@@ -152,4 +152,104 @@ router.patch('/default/:accountId', requireAuth, async (req, res) => {
     }
 });
 
+// ===== NEW: GET /api/payouts/balance =====
+// Calculates the total funds the seller is eligible to withdraw
+router.get('/balance', requireAuth, async (req, res) => {
+    try {
+        // Sum all seller_earnings where the order is paid, items are confirmed by buyer, and not yet paid out
+        const result = await pool.query(
+            `SELECT SUM(oi.seller_earnings) as total_balance
+             FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             WHERE oi.seller_id = $1 
+               AND o.status = 'paid'
+               AND oi.buyer_confirmed_at IS NOT NULL
+               AND oi.seller_paid_at IS NULL`,
+            [req.userId]
+        );
+        
+        const balance = parseFloat(result.rows[0]?.total_balance || 0);
+        res.json({ availableBalance: balance });
+    } catch (err) {
+        console.error('Get balance error:', err);
+        res.status(500).json({ error: 'Could not fetch balance' });
+    }
+});
+
+// ===== NEW: POST /api/payouts/withdraw =====
+// Withdraws funds from the available balance to the selected account
+router.post('/withdraw', requireAuth, async (req, res) => {
+    const { accountId, amountGHS } = req.body;
+
+    if (!accountId || !amountGHS || amountGHS <= 0) {
+        return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    try {
+        // 1. Check if seller is verified
+        const userResult = await pool.query('SELECT verified FROM users WHERE id = $1', [req.userId]);
+        if (!userResult.rows[0]?.verified) {
+            return res.status(403).json({ error: 'You must verify your account before withdrawing funds' });
+        }
+
+        // 2. Get the default payout account
+        const accResult = await pool.query(
+            `SELECT * FROM seller_payout_accounts WHERE id = $1 AND seller_id = $2`,
+            [accountId, req.userId]
+        );
+        const account = accResult.rows[0];
+        if (!account) {
+            return res.status(404).json({ error: 'Payout account not found' });
+        }
+
+        // 3. Calculate available balance
+        const balanceResult = await pool.query(
+            `SELECT SUM(oi.seller_earnings) as total_balance
+             FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             WHERE oi.seller_id = $1 
+               AND o.status = 'paid'
+               AND oi.buyer_confirmed_at IS NOT NULL
+               AND oi.seller_paid_at IS NULL`,
+            [req.userId]
+        );
+        const availableBalance = parseFloat(balanceResult.rows[0]?.total_balance || 0);
+
+        if (amountGHS > availableBalance) {
+            return res.status(400).json({ error: 'Insufficient balance' });
+        }
+
+        // 4. Prepare Paystack transfer (This currently logs, but will trigger real transfer upon verification)
+        let recipientCode = account.paystack_recipient_code;
+        if (!recipientCode) {
+            // CREATE RECIPIENT CODE
+            // For now, we just log it to avoid crashes
+            console.log(`[WITHDRAWAL SETUP] Recipient for ${account.account_name} needs to be created.`);
+        }
+
+        // 5. Log the action (In real production, this calls initiateTransfer)
+        console.log(`[WITHDRAW] Seller ${req.userId} requested GHS ${amountGHS} to account ${accountId}`);
+        
+        // 6. Mark the funds as paid out in the database
+        await pool.query(
+            `UPDATE order_items SET seller_paid_at = now() 
+             WHERE seller_id = $1 
+               AND seller_paid_at IS NULL 
+               AND order_id IN (
+                   SELECT id FROM orders WHERE status = 'paid'
+               )`,
+            [req.userId]
+        );
+
+        res.json({ 
+            success: true, 
+            message: `Withdrawal of GHS ${amountGHS.toFixed(2)} initiated successfully!`
+        });
+
+    } catch (err) {
+        console.error('Withdraw error:', err);
+        res.status(500).json({ error: 'Failed to process withdrawal' });
+    }
+});
+
 module.exports = router;

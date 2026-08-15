@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
-    Truck, MapPin, MessageCircle
+    Truck, MapPin, MessageCircle, X, Loader2
 } from 'lucide-react';
 import EditListingModal from '../components/EditListingModal';
 
@@ -262,6 +262,7 @@ function Deliveries() {
     );
 }
 
+// --- UPDATED PAYOUT SETTINGS COMPONENT ---
 function PayoutSettings() {
     const { user } = useAuth();
     const [accounts, setAccounts] = useState([]);
@@ -269,6 +270,10 @@ function PayoutSettings() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [saving, setSaving] = useState(false);
     const [settingDefault, setSettingDefault] = useState(null);
+    const [withdrawing, setWithdrawing] = useState(false);
+    const [balance, setBalance] = useState(0);
+    const [withdrawAmount, setWithdrawAmount] = useState('');
+    const [selectedAccountId, setSelectedAccountId] = useState('');
 
     // Form state for adding new account
     const [method, setMethod] = useState('bank');
@@ -276,26 +281,32 @@ function PayoutSettings() {
     const [form, setForm] = useState({ bank_code: '', account_number: '', account_name: '' });
     const [resolving, setResolving] = useState(false);
 
-    // Fetch accounts
-    const loadAccounts = () => {
+    // Fetch accounts and balance
+    const loadData = () => {
         setLoading(true);
-        api.get('/payouts/accounts') // new endpoint
-            .then((res) => {
-                setAccounts(res.data);
+        Promise.all([
+            api.get('/payouts/accounts'),
+            api.get('/payouts/balance')
+        ])
+            .then(([accRes, balRes]) => {
+                setAccounts(accRes.data);
+                setBalance(balRes.data.availableBalance);
+                // Auto-select the default account
+                const defaultAcc = accRes.data.find(a => a.is_default);
+                if (defaultAcc) setSelectedAccountId(defaultAcc.id);
             })
             .catch(() => setAccounts([]))
             .finally(() => setLoading(false));
     };
 
     useEffect(() => {
-        loadAccounts();
-        // Also fetch banks for the add modal
+        loadData();
         api.get('/payouts/banks')
             .then((res) => setBanks(res.data))
             .catch(() => {});
     }, []);
 
-    // Resolve account name when bank_code and account_number change
+    // Resolve account name
     useEffect(() => {
         if (!form.bank_code || form.account_number.length < 9) return;
         setResolving(true);
@@ -308,13 +319,13 @@ function PayoutSettings() {
         return () => clearTimeout(t);
     }, [form.bank_code, form.account_number]);
 
-    // Switch default account
+    // Set default account
     const setDefault = async (accountId) => {
         setSettingDefault(accountId);
         try {
             await api.patch(`/payouts/default/${accountId}`);
             toast.success('Default payout account updated');
-            loadAccounts();
+            loadData();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to update default');
         } finally {
@@ -334,7 +345,7 @@ function PayoutSettings() {
             toast.success('Account added successfully');
             setShowAddModal(false);
             setForm({ bank_code: '', account_number: '', account_name: '' });
-            loadAccounts();
+            loadData();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to add account');
         } finally {
@@ -342,33 +353,114 @@ function PayoutSettings() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="max-w-xl mx-auto">
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
-                    <div className="animate-pulse space-y-4">
-                        <div className="h-6 bg-slate-200 dark:bg-ink-600 rounded w-1/3"></div>
-                        <div className="h-12 bg-slate-200 dark:bg-ink-600 rounded"></div>
-                        <div className="h-12 bg-slate-200 dark:bg-ink-600 rounded"></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Withdraw funds
+    const handleWithdraw = async () => {
+        if (!selectedAccountId) {
+            toast.error('Please select a payout account');
+            return;
+        }
+        const amount = parseFloat(withdrawAmount);
+        if (!amount || amount <= 0) {
+            toast.error('Please enter a valid amount');
+            return;
+        }
+        if (amount > balance) {
+            toast.error('Amount exceeds available balance');
+            return;
+        }
 
-    const defaultAccount = accounts.find(a => a.is_default);
+        setWithdrawing(true);
+        try {
+            await api.post('/payouts/withdraw', {
+                accountId: selectedAccountId,
+                amountGHS: amount
+            });
+            toast.success(`Successfully requested withdrawal of GHS ${amount.toFixed(2)}!`);
+            setWithdrawAmount('');
+            loadData();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Withdrawal failed');
+        } finally {
+            setWithdrawing(false);
+        }
+    };
+
+    if (loading) return <SkeletonList />;
 
     return (
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl mx-auto space-y-4">
+            {/* BALANCE CARD */}
+            <div className="bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 rounded-2xl p-6 text-white dark:text-ink-900 shadow-md">
+                <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">Available Balance</p>
+                <p className="text-3xl font-extrabold mt-1">GHS {balance.toFixed(2)}</p>
+                <p className="text-xs opacity-80 mt-0.5">98% of your completed sales</p>
+            </div>
+
+            {/* WITHDRAW SECTION */}
+            <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
+                <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                        <Wallet size={16} />
+                    </div>
+                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Withdraw Funds</h2>
+                </div>
+
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">Select Payout Account</label>
+                        <select
+                            value={selectedAccountId}
+                            onChange={(e) => setSelectedAccountId(e.target.value)}
+                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm"
+                        >
+                            <option value="">Select an account</option>
+                            {accounts.map((acc) => (
+                                <option key={acc.id} value={acc.id}>
+                                    {acc.account_name} ({acc.bank_name || acc.method}) {acc.is_default ? '⭐ Default' : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">Amount (GHS)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            max={balance}
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm"
+                        />
+                    </div>
+
+                    <button
+                        onClick={handleWithdraw}
+                        disabled={withdrawing || balance <= 0 || !selectedAccountId}
+                        className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm"
+                    >
+                        {withdrawing ? 'Processing...' : `Withdraw Funds`}
+                    </button>
+                    {!user?.verified && (
+                        <p className="text-xs text-red-500 dark:text-red-400 text-center mt-1">
+                            ⚠️ Verify your account to enable withdrawals.
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {/* ACCOUNT LIST */}
             <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
                 <div className="flex items-center gap-2.5 mb-1">
                     <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
                         <Landmark size={16} />
                     </div>
-                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Payout Account</h2>
+                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Saved Payout Accounts</h2>
                 </div>
                 <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-5">
-                    This is where your earnings (95% of each sale) will be sent automatically.
+                    These are the accounts you can withdraw your earnings to.
                 </p>
 
                 {accounts.length === 0 ? (
@@ -395,7 +487,7 @@ function PayoutSettings() {
                                 <div>
                                     <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">{acc.account_name}</p>
                                     <p className="text-xs text-slate-400 dark:text-gold-200/50">
-                                        {acc.bank_name} · •••• {acc.account_number.slice(-4)}
+                                        {acc.bank_name || acc.method} · •••• {acc.account_number.slice(-4)}
                                     </p>
                                     {acc.is_default && (
                                         <span className="text-[10px] font-bold text-brand-600 dark:text-gold-400">Default</span>
@@ -688,7 +780,7 @@ function MyListings() {
 function MyOrders({ period, isSeller }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [confirmingItem, setConfirmingItem] = useState(null); // Track item ID instead of order ID
+    const [confirmingItem, setConfirmingItem] = useState(null);
 
     const loadOrders = () => {
         setLoading(true);
@@ -701,7 +793,6 @@ function MyOrders({ period, isSeller }) {
         loadOrders();
     }, [period]);
 
-    // UPDATED: Handle confirmation for a specific ORDER ITEM
     const handleConfirmReceived = async (orderId, itemId) => {
         if (!window.confirm('⚠️ Are you sure you have received this item? This action cannot be undone.')) {
             return;
@@ -709,7 +800,6 @@ function MyOrders({ period, isSeller }) {
 
         setConfirmingItem(itemId);
         try {
-            // Call the new route we built for individual items
             await api.post(`/order-items/${itemId}/confirm`);
             toast.success('Item confirmed as received! ✅');
             loadOrders();
@@ -734,7 +824,6 @@ function MyOrders({ period, isSeller }) {
                         </span>
                     </div>
 
-                    {/* UPDATED SECTION: List items and individual confirm buttons */}
                     <div className="mt-2 space-y-2">
                         {o.items?.map((item) => (
                             <div key={item.id} className="flex justify-between items-center border-t border-slate-100 dark:border-ink-600 pt-2 first:border-0 first:pt-0">
@@ -746,7 +835,6 @@ function MyOrders({ period, isSeller }) {
                                     </div>
                                 </div>
                                 
-                                {/* Individual Confirm Button per Item */}
                                 {o.status === 'paid' && !item.buyer_confirmed_at && (
                                     <button
                                         onClick={() => handleConfirmReceived(o.id, item.id)}
