@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS orders (
     subtotal        NUMERIC(10,2) NOT NULL,
     delivery_fee    NUMERIC(10,2) NOT NULL DEFAULT 0,
     total_amount    NUMERIC(10,2) NOT NULL,
+    payment_reference VARCHAR(255), -- <--- ADDED THIS LINE
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at    TIMESTAMPTZ
 );
@@ -165,3 +166,4 @@ CREATE TABLE IF NOT EXISTS wishlist_items (
 );
 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS credit_applied NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(255); 

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Clock } from 'lucide-react';
 
-const AWAY_TIMEOUT_MS = 120 * 1000; // 120 seconds
+const AWAY_TIMEOUT_MS = 300 * 1000; // 300 seconds
 
 export default function AwayTimeoutModal() {
     const { user, logout } = useAuth();
