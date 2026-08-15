@@ -393,7 +393,7 @@ function PayoutSettings() {
             <div className="bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 rounded-2xl p-6 text-white dark:text-ink-900 shadow-md">
                 <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">Available Balance</p>
                 <p className="text-3xl font-extrabold mt-1">GHS {balance.toFixed(2)}</p>
-                <p className="text-xs opacity-80 mt-0.5">98% of your completed sales</p>
+                <p className="text-xs opacity-80 mt-0.5">98.5% of your completed sales</p>
             </div>
 
             {/* WITHDRAW SECTION */}

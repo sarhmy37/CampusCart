@@ -274,7 +274,7 @@ export default function Home() {
                                 <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-auto sm:h-64 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
 
                                     <GalleryImage
-                                        images={g.images}
+                                        images={g.video ? [...g.images, g.video] : g.images}
                                         label={g.label}
                                     />
 

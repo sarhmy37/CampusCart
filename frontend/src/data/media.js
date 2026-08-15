@@ -39,10 +39,26 @@ export const BROWSE_HEADER_IMAGES = [
 ].map(mediaUrl);
 
 export const GALLERY = [
-    { label: 'Sneakers in all sizes', images: ['Shoe.jpg', 'Shoe2.jpg', 'Shoe3.jpg', 'Shoe4.jpg'].map(mediaUrl) },
-    { label: 'Meet up on campus', images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg'].map(mediaUrl) },
-    { label: 'Gadgets, gently used', images: ['Gadget.jpg', 'Gadget2.jpg', 'Gadget3.jpg', 'Gadget4.jpg'].map(mediaUrl) },
-    { label: 'Food', images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg'].map(mediaUrl) },
+    {
+        label: 'Sneakers in all sizes',
+        images: ['Shoe.jpg', 'Shoe2.jpg', 'Shoe3.jpg', 'Shoe4.jpg'].map(mediaUrl),
+        video: mediaUrl('Sneakers.mp4'),
+    },
+    {
+        label: 'Meet up on campus',
+        images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg'].map(mediaUrl),
+        video: mediaUrl('Meeting.mp4'),
+    },
+    {
+        label: 'Gadgets, gently used',
+        images: ['Gadget.jpg', 'Gadget2.jpg', 'Gadget3.jpg', 'Gadget4.jpg'].map(mediaUrl),
+        video: mediaUrl('Gadjet.mp4'),
+    },
+    {
+        label: 'Food',
+        images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg'].map(mediaUrl),
+        video: mediaUrl('Foodie.mp4'),
+    },
 ];
 
 export const LOGIN_IMAGE = mediaUrl('login.jpg');
