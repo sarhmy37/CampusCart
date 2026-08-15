@@ -203,7 +203,7 @@ export default function Home() {
             </section>
 
 
-            {/* HOW IT WORKS */}
+            {/* HOW IT WORKS - CLEAN, NO BOXES */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 
                 <Reveal>
@@ -217,24 +217,31 @@ export default function Home() {
                 </Reveal>
 
 
-                <div className="mt-10 grid sm:grid-cols-3 gap-6">
+                <div className="mt-10 grid sm:grid-cols-3 gap-8 sm:gap-12 relative">
+                    
+                    {/* Subtle vertical dividing lines on desktop */}
+                    <div className="hidden sm:block absolute top-10 left-1/3 w-px h-32 bg-slate-200 dark:bg-ink-700 -translate-x-1/2" />
+                    <div className="hidden sm:block absolute top-10 left-2/3 w-px h-32 bg-slate-200 dark:bg-ink-700 -translate-x-1/2" />
 
                     {STEPS.map((step, i) => (
                         <Reveal
                             key={step.title}
                             delay={i * 120}
                         >
-                            <div className="h-full bg-slate-50 dark:bg-ink-800 rounded-2xl p-6 border border-slate-100 dark:border-ink-600 hover:border-brand-200 dark:hover:border-gold-700 hover:shadow-md transition">
+                            <div className="relative flex flex-col items-start sm:items-center text-left sm:text-center">
+                                
+                                {/* Step Number */}
+                                <span className="text-5xl sm:text-6xl font-black text-brand-200 dark:text-ink-700 select-none leading-none mb-2">
+                                    {i + 1}
+                                </span>
 
-                                <div className="w-11 h-11 rounded-xl bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 flex items-center justify-center mb-4">
-                                    <step.icon size={20} />
-                                </div>
-
-                                <h3 className="font-bold text-slate-900 dark:text-gold-50">
+                                {/* Title */}
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-gold-50 mt-1">
                                     {step.title}
                                 </h3>
 
-                                <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-2 leading-relaxed">
+                                {/* Description */}
+                                <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-2 leading-relaxed max-w-xs">
                                     {step.desc}
                                 </p>
 
@@ -263,38 +270,64 @@ export default function Home() {
 
 
                     <div className="mt-10 grid grid-cols-2 gap-4 sm:gap-5">
+                        {GALLERY.map((g, i) => {
+                            const mixedMedia = [
+                                { type: 'image', src: g.images[0] },
+                                { type: 'image', src: g.images[1] },
+                                { type: 'image', src: g.images[2] },
+                                { type: 'image', src: g.images[3] },
+                                { type: 'video', src: g.video },
+                            ];
 
-                        {GALLERY.map((g, i) => (
-                            <Reveal
-                                key={g.label}
-                                delay={i * 100}
-                                className={i % 2 === 1 ? 'mt-8' : ''}
-                            >
+                            const shuffled = mixedMedia.sort(() => Math.random() - 0.5);
 
-                                <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-auto sm:h-64 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
+                            return (
+                                <Reveal
+                                    key={g.label}
+                                    delay={i * 100}
+                                    className={i % 2 === 1 ? 'mt-8' : ''}
+                                >
+                                    <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-auto sm:h-64 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
+                                        
+                                        <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+                                            {shuffled.slice(0, 4).map((item, idx) => (
+                                                <div key={idx} className="w-full h-full relative overflow-hidden border border-white/5">
+                                                    {item.type === 'image' ? (
+                                                        <img 
+                                                            src={item.src} 
+                                                            alt="" 
+                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                        />
+                                                    ) : (
+                                                        <video 
+                                                            autoPlay 
+                                                            loop 
+                                                            muted 
+                                                            playsInline 
+                                                            className="w-full h-full object-cover"
+                                                        >
+                                                            <source src={item.src} type="video/mp4" />
+                                                        </video>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
 
-                                    <GalleryImage
-                                        images={g.video ? [...g.images, g.video] : g.images}
-                                        label={g.label}
-                                    />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent pointer-events-none" />
+                                        <p className="absolute bottom-3 left-4 text-white font-semibold text-sm z-10">
+                                            {g.label}
+                                        </p>
 
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent pointer-events-none" />
-
-                                    <p className="absolute bottom-3 left-4 text-white font-semibold text-sm z-10">
-                                        {g.label}
-                                    </p>
-
-                                </div>
-
-                            </Reveal>
-                        ))}
-
+                                    </div>
+                                </Reveal>
+                            );
+                        })}
                     </div>
                 </div>
             </section>
 
 
-            {/* FINAL CTA */}
+            {/* FINAL CTA - ORIGINAL STYLE RESTORED */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
 
                 <Reveal>

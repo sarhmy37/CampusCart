@@ -46,7 +46,7 @@ export const GALLERY = [
     },
     {
         label: 'Meet up on campus',
-        images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg'].map(mediaUrl),
+        images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg', 'Memen.jpg'].map(mediaUrl),
         video: mediaUrl('Meeting.mp4'),
     },
     {
@@ -56,7 +56,7 @@ export const GALLERY = [
     },
     {
         label: 'Food',
-        images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg'].map(mediaUrl),
+        images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg', 'Fufu.jpg'].map(mediaUrl),
         video: mediaUrl('Foodie.mp4'),
     },
 ];
