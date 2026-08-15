@@ -386,7 +386,7 @@ router.get('/sales', requireAuth, async (req, res) => {
                        CASE WHEN oi.status = 'completed'
                             THEN ROW_NUMBER() OVER (
                                 PARTITION BY oi.seller_id, oi.status
-                                ORDER BY order_created_at ASC
+                               ORDER BY o.created_at ASC
                             )
                        END AS completed_rank
                 FROM order_items oi
