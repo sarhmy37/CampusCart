@@ -39,10 +39,13 @@ export default function Settings() {
     const [deleting, setDeleting] = useState(false);
     const { logout } = useAuth();
 
-    const handleDeleteAccount = async () => {
+        const handleDeleteAccount = async () => {
         setDeleting(true);
         try {
-            await api.delete('/auth/me', { data: { password: deletePassword } });
+            await api.delete('/auth/me', { 
+                data: { password: deletePassword },
+                headers: { Authorization: `Bearer ${localStorage.getItem('cc_token')}` } // <--- ADDED THIS LINE
+            });
             toast.success('Account deleted');
             logout();
             navigate('/');
