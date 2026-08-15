@@ -6,12 +6,12 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck, Info,
-    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift
+    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift, Phone, MessageCircle
 } from 'lucide-react';
 import { SETTINGS_VIDEO } from '../data/media';
 
 const APP_VERSION = '1.0.0';
-const PLATFORM_FEE_RATE = 2; // %
+const PLATFORM_FEE_RATE = 1.5; // % (Changed from 2% to 1.5%)
 
 export default function Settings() {
     const navigate = useNavigate();
@@ -24,27 +24,27 @@ export default function Settings() {
     const { theme, toggleTheme } = useTheme();
     const isSeller = user?.account_type === 'seller';
 
-   const [pwStep, setPwStep] = useState(1);
+    const [pwStep, setPwStep] = useState(1);
     const [current, setCurrent] = useState('');
     const [code, setCode] = useState('');
     const [next, setNext] = useState('');
     const [confirm, setConfirm] = useState('');
     const [show, setShow] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [termsOpen, setTermsOpen] = useState(isSeller);
-    const [fullTermsOpen, setFullTermsOpen] = useState(false);
+    const [termsOpen, setTermsOpen] = useState(false);
+    const [supportOpen, setSupportOpen] = useState(false);
 
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deletePassword, setDeletePassword] = useState('');
     const [deleting, setDeleting] = useState(false);
     const { logout } = useAuth();
 
-        const handleDeleteAccount = async () => {
+    const handleDeleteAccount = async () => {
         setDeleting(true);
         try {
             await api.delete('/auth/me', { 
                 data: { password: deletePassword },
-                headers: { Authorization: `Bearer ${localStorage.getItem('cc_token')}` } // <--- ADDED THIS LINE
+                headers: { Authorization: `Bearer ${localStorage.getItem('cc_token')}` }
             });
             toast.success('Account deleted');
             logout();
@@ -66,7 +66,7 @@ export default function Settings() {
         localStorage.getItem('cc_default_delivery') || 'pickup'
     );
     
-const [referrals, setReferrals] = useState([]);
+    const [referrals, setReferrals] = useState([]);
 
     useEffect(() => {
         api.get('/auth/me').then((res) => {
@@ -88,28 +88,24 @@ const [referrals, setReferrals] = useState([]);
         toast.success(`Default set to ${value === 'pickup' ? 'campus meet-up' : 'delivery'}`);
     };
 
-        const requestPasswordCode = async (e) => {
+    const requestPasswordCode = async (e) => {
         e.preventDefault();
         setSaving(true);
         
-        // Create an AbortController for a 10-second timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            // Add the 'signal' option to your api.post call
             const response = await api.post('/auth/me/password/request-code', 
                 { current_password: current },
                 { signal: controller.signal } 
             );
 
-            clearTimeout(timeoutId); // Cancel the timeout if it succeeds
+            clearTimeout(timeoutId);
             toast.success('Code sent to your university email');
             setPwStep(2);
         } catch (err) {
-            clearTimeout(timeoutId); // Cancel the timeout on error
-
-            // Handle the timeout error specifically
+            clearTimeout(timeoutId);
             if (err.code === 'ECONNABORTED' || err.message === 'canceled') {
                 toast.error('Request timed out. Please try again.');
             } else {
@@ -188,103 +184,116 @@ const [referrals, setReferrals] = useState([]);
                     </div>
                 </div>
 
-                {/* PLATFORM FEES & TERMS */}
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
-                    <button
-                        onClick={() => setTermsOpen((o) => !o)}
-                        className="w-full flex items-center justify-between p-6"
-                    >
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 text-white flex items-center justify-center">
-                                <Percent size={16} />
-                            </div>
-                            <div className="text-left">
-                                <h2 className="font-bold text-slate-900 dark:text-gold-50">Fees & Terms</h2>
-                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">Platform commission for sellers</p>
-                            </div>
-                        </div>
-                        <ChevronDown size={18} className={`text-slate-400 dark:text-gold-300/60 transition-transform ${termsOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {termsOpen && (
-                        <div className="px-6 pb-6 -mt-1">
-                            <div className="bg-brand-50 dark:bg-ink-700 border border-brand-100 dark:border-gold-800 rounded-xl p-4">
-    <p className="text-sm text-brand-900 dark:text-gold-200 leading-relaxed">
-                                    <span className="font-bold">{PLATFORM_FEE_RATE}% platform fee</span> is
-                                    charged on every product you sell as a seller. This fee is calculated on
-                                    the item's sale price at the moment a purchase is completed.
-                                </p>
-                            </div>
-
-                            <ul className="mt-4 space-y-2.5 text-sm text-slate-600 dark:text-gold-200/70">
-                                <li className="flex gap-2">
-                                    <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                    Fees from all your sales are totaled up over the calendar month.
-                                </li>
-                                <li className="flex gap-2">
-                                    <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                    At the end of each month, the total amount owed must be paid to
-                                    continue creating new listings and selling on CampusCart.
-                                </li>
-                                <li className="flex gap-2">
-                                    <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                    Buyers are never charged this fee — it only applies to seller payouts.
-                                </li>
-                                <li className="flex gap-2">
-                                    <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                    You can track fees owed and payment history from your Dashboard.
-                                </li>
-                            </ul>
-
-                           <button
-                                onClick={() => setFullTermsOpen((o) => !o)}
-                                className="inline-flex items-center gap-1 mt-4 text-sm font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300"
-                            >
-                                {fullTermsOpen ? 'Hide' : 'Read'} full Terms of Service
-                                <ChevronDown size={14} className={`transition-transform ${fullTermsOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {fullTermsOpen && (
-                                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-ink-600 space-y-4 text-sm text-slate-600 dark:text-gold-200/70 leading-relaxed">
-                                    <TermsBlock title="1. Seller Fee">
-                                        A {PLATFORM_FEE_RATE}% platform fee applies to the sale price of every
-                                        item sold. This is deducted from your earnings, not added on top for buyers.
-                                    </TermsBlock>
-                                    <TermsBlock title="2. Monthly Seller Payment">
-                                        Platform fees accrued across a calendar month must be settled by the
-                                        end of that month. Selling privileges are paused for sellers with an
-                                        overdue balance until payment is made.
-                                    </TermsBlock>
-                                    <TermsBlock title="3. Seller Responsibilities">
-                                        Sellers must accurately describe item condition, honor listed prices,
-                                        and respond to buyer messages in good faith. Misrepresenting an item
-                                        or repeated no-shows to agreed meetups may result in account restrictions.
-                                    </TermsBlock>
-                                    <TermsBlock title="4. What Counts as a Successful Purchase">
-                                        A purchase is successful once the buyer has received the item and the
-                                        order is marked complete. Only successful purchases count toward seller
-                                        fees, earnings, and reward milestones.
-                                    </TermsBlock>
-                                    <TermsBlock title="5. Refunds & Cancellations">
-                                        Orders can be cancelled before meetup by mutual agreement between
-                                        buyer and seller. Refunded or cancelled orders do not incur a platform
-                                        fee and are excluded from seller earnings and reward counts.
-                                    </TermsBlock>
-                                    <TermsBlock title="6. Seller Rewards">
-                                        Sellers earn a reward bonus for every 30 successful purchases completed.
-                                        Only successful, non-refunded, non-cancelled purchases count toward
-                                        this milestone.
-                                    </TermsBlock>
-                                    <TermsBlock title="7. Platform Rules">
-                                        Buying and selling is restricted to verified university students.
-                                        Prohibited, unsafe, or illegal items may not be listed. CampusCart may
-                                        remove listings or suspend accounts that violate these terms.
-                                    </TermsBlock>
+                {/* SELLER FEES & TERMS (SHOWS ONLY FOR SELLERS) */}
+                {isSeller && (
+                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
+                        <button
+                            onClick={() => setTermsOpen((o) => !o)}
+                            className="w-full flex items-center justify-between p-6"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 text-white flex items-center justify-center">
+                                    <Percent size={16} />
                                 </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                                <div className="text-left">
+                                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Fees & Terms</h2>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">Platform commission for sellers</p>
+                                </div>
+                            </div>
+                            <ChevronDown size={18} className={`text-slate-400 dark:text-gold-300/60 transition-transform ${termsOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {termsOpen && (
+                            <div className="px-6 pb-6 -mt-1">
+                                <div className="bg-brand-50 dark:bg-ink-700 border border-brand-100 dark:border-gold-800 rounded-xl p-4">
+                                    <p className="text-sm text-brand-900 dark:text-gold-200 leading-relaxed">
+                                        <span className="font-bold">{PLATFORM_FEE_RATE}% platform fee</span> is
+                                        charged on every product you sell as a seller. This fee is calculated on
+                                        the item's sale price at the moment a purchase is completed.
+                                    </p>
+                                </div>
+
+                                <ul className="mt-4 space-y-2.5 text-sm text-slate-600 dark:text-gold-200/70">
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        Fees from all your sales are totaled up over the calendar month.
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        At the end of each month, the total amount owed must be paid to
+                                        continue creating new listings and selling on CampusCart.
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        Buyers are never charged this fee — it only applies to seller payouts.
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        You can track fees owed and payment history from your Dashboard.
+                                    </li>
+                                </ul>
+
+                                <button
+                                    onClick={() => setFullTermsOpen((o) => !o)}
+                                    className="inline-flex items-center gap-1 mt-4 text-sm font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300"
+                                >
+                                    {fullTermsOpen ? 'Hide' : 'Read'} full Seller Terms of Service
+                                    <ChevronDown size={14} className={`transition-transform ${fullTermsOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* BUYER TERMS OF SERVICE (SHOWS ONLY FOR BUYERS) */}
+                {!isSeller && (
+                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
+                        <button
+                            onClick={() => setTermsOpen((o) => !o)}
+                            className="w-full flex items-center justify-between p-6"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                                    <Shield size={16} />
+                                </div>
+                                <div className="text-left">
+                                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Buyer Terms of Service</h2>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">Your shopping rights and protections</p>
+                                </div>
+                            </div>
+                            <ChevronDown size={18} className={`text-slate-400 dark:text-gold-300/60 transition-transform ${termsOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {termsOpen && (
+                            <div className="px-6 pb-6 -mt-1">
+                                <ul className="space-y-2.5 text-sm text-slate-600 dark:text-gold-200/70">
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        You are protected by our Buyer Guarantee — if an item doesn't match the listing, contact support for a full refund.
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        Only confirm "Order Received" once you have physically received the item in the agreed condition.
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        Sellers are responsible for delivering items as described. You will never be charged a platform fee as a buyer.
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        Always communicate with sellers through our built-in messaging system for safety and dispute resolution.
+                                    </li>
+                                    {/* === NEW: SERVICE FEE REASON ADDED === */}
+                                    <li className="flex gap-2">
+                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
+                                        A small service fee (2%) is applied to your checkout to cover payment processing charges by our payment provider (Paystack). This fee ensures your payment is secure and the platform remains safe for everyone.
+                                    </li>
+                                    {/* ===================================== */}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* CHANGE PASSWORD */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
@@ -534,18 +543,46 @@ const [referrals, setReferrals] = useState([]);
                     )}
                 </div>
 
-                {/* ABOUT */}
+                {/* SUPPORT & ABOUT */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-2">
                         <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
                             <Info size={16} />
                         </div>
-                        <h2 className="font-bold text-slate-900 dark:text-gold-50">About</h2>
+                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Support & About</h2>
                     </div>
+
+                    {/* CONTACT SUPPORT DROPDOWN */}
+                    <button
+                        onClick={() => setSupportOpen((o) => !o)}
+                        className="flex items-center justify-between w-full py-3 border-t border-slate-100 dark:border-ink-600 first:border-0 first:pt-0 group"
+                    >
+                        <div className="flex items-center gap-2.5">
+                            <Mail size={16} className="text-slate-400 dark:text-gold-300/50" />
+                            <span className="text-sm font-semibold text-slate-700 dark:text-gold-100">Contact support</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-slate-300 dark:text-gold-300/40 transition-transform ${supportOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {supportOpen && (
+                        <div className="pb-3 border-b border-slate-100 dark:border-ink-600 space-y-2.5 text-sm text-slate-600 dark:text-gold-200/70">
+                            <div className="flex items-center gap-2.5 pt-2">
+                                <Phone size={15} className="text-brand-600 dark:text-gold-400" />
+                                <span>Call line: <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                                <MessageCircle size={15} className="text-brand-600 dark:text-gold-400" />
+                                <span>WhatsApp: <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                                <MessageCircle size={15} className="text-brand-600 dark:text-gold-400" />
+                                <span>For quicker service, send an SMS to <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>
+                            </div>
+                        </div>
+                    )}
 
                     <AboutRow icon={FileText} label="Terms of Service" to="/terms" />
                     <AboutRow icon={Shield} label="Privacy Policy" to="/privacy" />
-                    <AboutRow icon={Mail} label="Contact support" href="mailto:support@campuscart.app" />
 
                     <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-ink-600 mt-1">
                         <span className="text-sm text-slate-400 dark:text-gold-200/50">App version</span>
