@@ -165,7 +165,6 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // POST /api/orders/webhook — Paystack calls this after payment
-// POST /api/orders/webhook — Paystack calls this after payment
 router.post('/webhook', async (req, res) => {
     const signature = req.headers['x-paystack-signature'];
     if (!verifyWebhookSignature(req.rawBody, signature)) {
@@ -310,7 +309,7 @@ async function processCompletedOrder(orderId) {
     }
 }
 
-// ✅ Updated payoutSeller – uses the seller's default payout account
+// Updated payoutSeller – uses the seller's default payout account
 async function payoutSeller(sellerId, amountGHS, orderId) {
     // Fetch the seller's default payout account
     const accResult = await pool.query(
@@ -326,11 +325,11 @@ async function payoutSeller(sellerId, amountGHS, orderId) {
     let recipientCode = account.paystack_recipient_code;
     if (!recipientCode) {
         const recipientRes = await createTransferRecipient({
-    type: account.method,
-    name: account.account_name,
-    account_number: account.account_number,
-    bank_code: account.bank_code,
-});
+            type: account.method,
+            name: account.account_name,
+            account_number: account.account_number,
+            bank_code: account.bank_code,
+        });
         recipientCode = recipientRes.data.recipient_code;
         await pool.query(
             'UPDATE seller_payout_accounts SET paystack_recipient_code = $1 WHERE id = $2',
@@ -383,11 +382,11 @@ router.get('/sales', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `WITH numbered AS (
-                SELECT oi.*, o.created_at, o.status AS order_status, u.name AS buyer_name,
+                SELECT oi.*, o.created_at AS order_created_at, o.status AS order_status, u.name AS buyer_name,
                        CASE WHEN oi.status = 'completed'
                             THEN ROW_NUMBER() OVER (
                                 PARTITION BY oi.seller_id, oi.status
-                                ORDER BY o.created_at ASC
+                                ORDER BY order_created_at ASC
                             )
                        END AS completed_rank
                 FROM order_items oi
@@ -398,7 +397,7 @@ router.get('/sales', requireAuth, async (req, res) => {
              SELECT numbered.*,
                     CEIL(completed_rank::numeric / 30) AS milestone_batch
              FROM numbered
-             ORDER BY created_at DESC`,
+             ORDER BY order_created_at DESC`,
             [req.userId]
         );
 
