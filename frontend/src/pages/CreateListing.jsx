@@ -229,10 +229,13 @@ export default function CreateListing() {
                             />
                         </div>
 
+                        {/* ====== NEW LAYOUT FOR PHOTOS & VIDEO ====== */}
                         <div className="grid grid-cols-2 gap-3">
+                            
+                            {/* PHOTOS - Full width of its half */}
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Photos</label>
-                                <div className="grid grid-cols-3 gap-1.5 mt-1">
+                                <div className="grid grid-cols-3 gap-1.5 mt-1 w-full">
                                     {previews.map((src, i) => (
                                         <div key={src} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600">
                                             <img src={src} alt="" className="w-full h-full object-cover" />
@@ -266,11 +269,10 @@ export default function CreateListing() {
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
                             </div>
 
-                            {/* ====== FIXED VIDEO SECTION STARTS HERE ====== */}
+                            {/* VIDEO - Full width of its half, exact same height as Photos */}
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Video</label>
-                                {/* Removed the outer wrapper 'grid grid-cols-1' and gave it the exact width of one image box */}
-                                <div className="w-[calc(33.333%-0.375rem)] mt-1">
+                                <div className="w-full mt-1">
                                     {uploading && !videoUrl && videoPreview ? (
                                         <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-black flex items-center justify-center">
                                             <Loader2 className="w-8 h-8 text-brand-600 dark:text-gold-400 animate-spin" />
@@ -296,8 +298,9 @@ export default function CreateListing() {
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Optional. Up to 20MB.</p>
                             </div>
-                            {/* ====== FIXED VIDEO SECTION ENDS HERE ====== */}
+
                         </div>
+                        {/* ====== END NEW LAYOUT ====== */}
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
