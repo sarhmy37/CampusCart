@@ -96,11 +96,13 @@ export default function Browse() {
         if (search) params.search = search;
         if (activeCategory) params.category = activeCategory;
         if (itemCategory) params.itemCategory = itemCategory;
+        if (school) params.school = school; // <--- ADDED THIS LINE
+        
         api.get('/products', { params })
             .then((res) => setProducts(res.data))
             .catch(() => setProducts([]))
             .finally(() => setLoading(false));
-    }, [search, activeCategory]);
+    }, [search, activeCategory, itemCategory, school]); // <--- ADDED school TO DEPENDENCIES
 
     const applyBudget = (e) => {
         if (e.key !== 'Enter') return;

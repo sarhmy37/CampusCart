@@ -114,7 +114,7 @@ export default function Dashboard() {
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
                 {tabs.length > 1 && (
-                    <div className="flex gap-1 mb-6 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto overflow-x-auto">
+                    <div className="flex gap-1 mb-6 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-full sm:w-fit mx-auto overflow-x-auto">
                         {tabs.map((t) => (
                             <button
                                 key={t}
@@ -533,22 +533,22 @@ function PayoutSettings() {
                                 <button
                                     type="button"
                                     onClick={() => setMethod('bank')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${(
                                         method === 'bank'
                                             ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50'
-                                    }`}
+                                    )}`}
                                 >
                                     Bank
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setMethod('mobile_money')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${(
                                         method === 'mobile_money'
                                             ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50'
-                                    }`}
+                                    )}`}
                                 >
                                     Mobile Money
                                 </button>
