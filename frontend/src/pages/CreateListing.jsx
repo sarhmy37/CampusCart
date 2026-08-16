@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
-import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2 } from 'lucide-react';
+import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2, Info } from 'lucide-react';
 
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB
@@ -39,13 +39,13 @@ export default function CreateListing() {
         title: '', description: '', price: '', category_id: '', condition: 'used', stock: 1,
     });
     const [imageUrls, setImageUrls] = useState([]);
-    const [originalImageUrls, setOriginalImageUrls] = useState([]); // <--- Backup for Revert
+    const [originalImageUrls, setOriginalImageUrls] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [videoUrl, setVideoUrl] = useState(null);
     const [videoPreview, setVideoPreview] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [enhancingAll, setEnhancingAll] = useState(false);
-    const [isEnhanced, setIsEnhanced] = useState(false); // <--- Track state for button text
+    const [isEnhanced, setIsEnhanced] = useState(false);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -82,8 +82,8 @@ export default function CreateListing() {
                 uploadedUrls.push(url);
             }
             setImageUrls((prev) => [...prev, ...uploadedUrls]);
-            setOriginalImageUrls((prev) => [...prev, ...uploadedUrls]); // <--- Save original backup
-            setIsEnhanced(false); // Reset state when new images are added
+            setOriginalImageUrls((prev) => [...prev, ...uploadedUrls]);
+            setIsEnhanced(false);
             toast.success(`Uploaded ${uploadedUrls.length} image(s)`);
         } catch (err) {
             toast.error('Failed to upload images to Cloudinary');
@@ -96,7 +96,7 @@ export default function CreateListing() {
 
     const removeImage = (index) => {
         setImageUrls((prev) => prev.filter((_, i) => i !== index));
-        setOriginalImageUrls((prev) => prev.filter((_, i) => i !== index)); // <--- Remove from backup
+        setOriginalImageUrls((prev) => prev.filter((_, i) => i !== index));
         setPreviews((prev) => prev.filter((_, i) => i !== index));
     };
 
@@ -134,9 +134,8 @@ export default function CreateListing() {
         setVideoPreview(null);
     };
 
-    // ====== ENHANCE ALL / REVERT LOGIC ======
+    // Enhance / Revert logic
     const handleEnhanceAllImages = async () => {
-        // If the current state is enhanced, we REVERT
         if (isEnhanced) {
             setImageUrls(originalImageUrls);
             setPreviews(originalImageUrls);
@@ -145,7 +144,6 @@ export default function CreateListing() {
             return;
         }
 
-        // Otherwise, we ENHANCE
         if (imageUrls.length === 0) {
             toast.error('No images to enhance.');
             return;
@@ -178,7 +176,6 @@ export default function CreateListing() {
             setEnhancingAll(false);
         }
     };
-    // ==============================================
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -306,37 +303,51 @@ export default function CreateListing() {
                                         <label className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition">
                                             <ImagePlus size={20} />
                                             <span className="text-[11px] font-semibold">Add</span>
-                                            <input type="file" accept="image/*" multiple onChange={handleFilesSelected} className="hidden" />
+                                            {/* capture="environment" triggers camera on mobile */}
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                capture="environment" 
+                                                multiple 
+                                                onChange={handleFilesSelected} 
+                                                className="hidden" 
+                                            />
                                         </label>
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
                                 
-                                {/* BUTTON APPEARS ONLY IF THERE IS AT LEAST 1 IMAGE */}
                                 {imageUrls.length > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={handleEnhanceAllImages}
-                                        disabled={enhancingAll}
-                                        className="w-[calc(100%)] mt-2 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-accent-500 dark:from-gold-500 dark:to-gold-400 text-white dark:text-ink-900 text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-60"
-                                    >
-                                        {enhancingAll ? (
-                                            <>
-                                                <Loader2 size={14} className="animate-spin" />
-                                                Enhancing...
-                                            </>
-                                        ) : isEnhanced ? (
-                                            <>
-                                                <Undo2 size={14} />
-                                                Revert
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles size={14} />
-                                                ✨ Enhance All Photos
-                                            </>
-                                        )}
-                                    </button>
+                                    <div>
+                                        <button
+                                            type="button"
+                                            onClick={handleEnhanceAllImages}
+                                            disabled={enhancingAll}
+                                            className="w-[calc(100%)] mt-2 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-accent-500 dark:from-gold-500 dark:to-gold-400 text-white dark:text-ink-900 text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-60"
+                                        >
+                                            {enhancingAll ? (
+                                                <>
+                                                    <Loader2 size={14} className="animate-spin" />
+                                                    Enhancing...
+                                                </>
+                                            ) : isEnhanced ? (
+                                                <>
+                                                    <Undo2 size={14} />
+                                                    Revert
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Sparkles size={14} />
+                                                    ✨ Enhance All Photos
+                                                </>
+                                            )}
+                                        </button>
+                                        {/* INFO TEXT FOR THE ENHANCE FEATURE */}
+                                        <p className="flex items-start gap-1 text-[10px] text-slate-400 dark:text-gold-300/50 mt-1.5 leading-tight">
+                                            <Info size={12} className="shrink-0 mt-0.5" />
+                                            Removes messy backgrounds. Best for items with cluttered surroundings.
+                                        </p>
+                                    </div>
                                 )}
                             </div>
 
@@ -363,7 +374,14 @@ export default function CreateListing() {
                                         <label className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition">
                                             <VideoIcon size={20} />
                                             <span className="text-[11px] font-semibold">Add video</span>
-                                            <input type="file" accept="video/*" onChange={handleVideoSelected} className="hidden" />
+                                            {/* capture="environment" triggers camera on mobile for video */}
+                                            <input 
+                                                type="file" 
+                                                accept="video/*" 
+                                                capture="environment" 
+                                                onChange={handleVideoSelected} 
+                                                className="hidden" 
+                                            />
                                         </label>
                                     )}
                                 </div>
