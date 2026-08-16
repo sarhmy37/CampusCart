@@ -96,13 +96,13 @@ export default function Browse() {
         if (search) params.search = search;
         if (activeCategory) params.category = activeCategory;
         if (itemCategory) params.itemCategory = itemCategory;
-        if (school) params.school = school; // <--- ADDED THIS LINE
+        if (school) params.school = school;
         
         api.get('/products', { params })
             .then((res) => setProducts(res.data))
             .catch(() => setProducts([]))
             .finally(() => setLoading(false));
-    }, [search, activeCategory, itemCategory, school]); // <--- ADDED school TO DEPENDENCIES
+    }, [search, activeCategory, itemCategory, school]);
 
     const applyBudget = (e) => {
         if (e.key !== 'Enter') return;
@@ -167,8 +167,8 @@ export default function Browse() {
 
     return (
         <div>
-            {/* HEADER STRIP */}
-            <section className="sticky top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            {/* HEADER STRIP - GAP FIX APPLIED HERE */}
+            <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
@@ -212,7 +212,7 @@ export default function Browse() {
                                     <option value="nearby" className="text-slate-900">{locating ? 'Locating…' : '📍 Near me'}</option>
                                     {SCHOOLS.map((s) => (
                                         <option key={s.name} value={s.name} className="text-slate-900">{s.name}</option>
-                                    ))}
+                                    ))} 
                                 </select>
                                 <ChevronDown className="pointer-events-none absolute right-1.5 sm:right-2 w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/70" />
                             </div>
