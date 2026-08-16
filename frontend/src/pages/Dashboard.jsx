@@ -11,6 +11,7 @@ import {
     Truck, MapPin, MessageCircle, X, Loader2, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import EditListingModal from '../components/EditListingModal';
+import ProfileDrawer from '../components/ProfileDrawer';
 
 const PERIODS = [
     { value: 'week', label: 'This week' },
@@ -58,7 +59,7 @@ export default function Dashboard() {
         <div>
             {/* HEADER — with video background */}
             <section className="relative overflow-hidden">
-                               {/* VIDEO BACKGROUND */}
+                {/* VIDEO BACKGROUND */}
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
@@ -157,6 +158,8 @@ export default function Dashboard() {
                 {tab === 'reports' && <MyReports />}
                 
             </div>
+
+            {/* PROFILE DRAWER RENDERED AT THE BOTTOM INSIDE THE MAIN DIV */}
             <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
         </div>
     );
