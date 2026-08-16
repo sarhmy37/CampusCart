@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
-import { GraduationCap, ImagePlus, X, ArrowLeft } from 'lucide-react';
+import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft } from 'lucide-react';
 
 const MAX_IMAGES = 6;
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB
 
 export default function CreateListing() {
     const navigate = useNavigate();
@@ -15,6 +16,8 @@ export default function CreateListing() {
     });
     const [imageFiles, setImageFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
+    const [videoFile, setVideoFile] = useState(null);
+    const [videoPreview, setVideoPreview] = useState(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -24,6 +27,10 @@ export default function CreateListing() {
     useEffect(() => {
         return () => previews.forEach((p) => URL.revokeObjectURL(p));
     }, [previews]);
+
+    useEffect(() => {
+        return () => { if (videoPreview) URL.revokeObjectURL(videoPreview); };
+    }, [videoPreview]);
 
     const handleFilesSelected = (e) => {
         const files = Array.from(e.target.files || []);
@@ -39,6 +46,29 @@ export default function CreateListing() {
         const nextFiles = imageFiles.filter((_, i) => i !== index);
         setImageFiles(nextFiles);
         setPreviews(nextFiles.map((f) => URL.createObjectURL(f)));
+    };
+
+    const handleVideoSelected = (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+
+        if (!file.type.startsWith('video/')) {
+            toast.error('Please select a video file');
+            return;
+        }
+        if (file.size > MAX_VIDEO_BYTES) {
+            toast.error('Video must be under 20MB');
+            return;
+        }
+
+        setVideoFile(file);
+        setVideoPreview(URL.createObjectURL(file));
+    };
+
+    const removeVideo = () => {
+        setVideoFile(null);
+        setVideoPreview(null);
     };
 
     const onSubmit = async (e) => {
@@ -61,6 +91,7 @@ export default function CreateListing() {
             payload.append('stock', form.stock);
             if (category) payload.append('category', category.name);
             imageFiles.forEach((file) => payload.append('images', file));
+            if (videoFile) payload.append('video', videoFile);
 
             await api.post('/products', payload, {
                 headers: { 'Content-Type': 'multipart/form-data' },
@@ -123,17 +154,18 @@ export default function CreateListing() {
                             />
                         </div>
 
+                        <div>
+                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Description</label>
+                            <textarea
+                                rows={3}
+                                value={form.description}
+                                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                placeholder="Condition, why you're selling, anything a buyer should know"
+                                className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition resize-none"
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Description</label>
-                                <textarea
-                                    rows={5}
-                                    value={form.description}
-                                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                    placeholder="Condition, why you're selling, anything a buyer should know"
-                                    className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition resize-none"
-                                />
-                            </div>
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Photos</label>
                                 <div className="grid grid-cols-3 gap-1.5 mt-1">
@@ -163,6 +195,31 @@ export default function CreateListing() {
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Video</label>
+                                <div className="mt-1">
+                                    {videoPreview ? (
+                                        <div className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600 bg-black">
+                                            <video src={videoPreview} controls className="w-full h-full object-cover" />
+                                            <button
+                                                type="button"
+                                                onClick={removeVideo}
+                                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white flex items-center justify-center z-10"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <label className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition">
+                                            <VideoIcon size={20} />
+                                            <span className="text-[11px] font-semibold">Add video</span>
+                                            <input type="file" accept="video/*" onChange={handleVideoSelected} className="hidden" />
+                                        </label>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Optional. Up to 20MB.</p>
                             </div>
                         </div>
 

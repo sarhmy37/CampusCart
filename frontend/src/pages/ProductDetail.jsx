@@ -23,6 +23,7 @@ import {
     Clock,
     Truck,
     Tag,
+    PlayCircle,
 } from 'lucide-react';
 
 function isRecentlyActive(lastActive) {
@@ -95,19 +96,25 @@ export default function ProductDetail() {
             .catch(() => {});
     }, [product]);
 
-    const images = product
+    // Slides = photos, then the video (if any) appended as the last slide.
+    const slides = product
         ? (isDemo
             ? [{ image_url: product.primary_image }]
-            : (product.images?.length ? product.images : [{ image_url: null }]))
+            : [
+                ...(product.images?.length ? product.images : [{ image_url: null }]),
+                ...(product.video_url ? [{ video_url: product.video_url }] : []),
+              ])
         : [];
 
     useEffect(() => {
-        if (images.length <= 1) return;
+        // Only auto-rotate photos — never auto-advance away from a playing video.
+        const currentIsVideo = slides[activeImg]?.video_url;
+        if (slides.length <= 1 || currentIsVideo) return;
         const timer = setInterval(() => {
-            setActiveImg((i) => (i + 1) % images.length);
+            setActiveImg((i) => (i + 1) % slides.length);
         }, 4000);
         return () => clearInterval(timer);
-    }, [images.length]);
+    }, [slides.length, activeImg]);
 
     if (!product) {
         return <div className="max-w-5xl mx-auto px-4 py-24 text-center text-slate-400 dark:text-gold-200/50 dark:bg-ink-900 min-h-screen">Loading…</div>;
@@ -131,7 +138,7 @@ export default function ProductDetail() {
                 id: product.id,
                 title: product.title,
                 price: product.price,
-                primary_image: images[0]?.image_url,
+                primary_image: product.images?.[0]?.image_url || product.primary_image,
                 seller_id: product.seller_id,
                 seller_name: product.seller_name,
                 seller_whatsapp: product.seller_whatsapp || product.whatsapp,
@@ -181,44 +188,58 @@ export default function ProductDetail() {
             </Link>
 
             <div className="grid lg:grid-cols-5 gap-8">
-                {/* IMAGES */}
+                {/* IMAGES / VIDEO */}
                 <div className="lg:col-span-3">
                     <div className="relative aspect-square bg-slate-100 dark:bg-ink-700 rounded-2xl overflow-hidden group">
-                        {images.every((img) => !img.image_url) ? (
+                        {slides.every((s) => !s.image_url && !s.video_url) ? (
                             <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-ink-500">
                                 <Tag size={48} />
                             </div>
                         ) : (
-                            images.map((img, i) => (
-                                img.image_url && (
+                            slides.map((slide, i) => {
+                                const isActive = i === activeImg;
+                                if (slide.video_url) {
+                                    return (
+                                        <video
+                                            key={slide.video_url + i}
+                                            src={slide.video_url}
+                                            controls
+                                            playsInline
+                                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out ${
+                                                isActive ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                                            }`}
+                                        />
+                                    );
+                                }
+                                return slide.image_url && (
                                     <img
-                                        key={img.image_url + i}
-                                        src={img.image_url}
+                                        key={slide.image_url + i}
+                                        src={slide.image_url}
                                         alt={product.title}
                                         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out ${
-                                            i === activeImg ? 'opacity-100' : 'opacity-0'
+                                            isActive ? 'opacity-100' : 'opacity-0'
                                         }`}
                                     />
-                                )
-                            ))
+                                );
+                            })
                         )}
 
-                        {images.length > 1 && (
+                        {slides.length > 1 && (
                             <>
                                 <button
-                                    onClick={() => setActiveImg((i) => (i === 0 ? images.length - 1 : i - 1))}
+                                    onClick={() => setActiveImg((i) => (i === 0 ? slides.length - 1 : i - 1))}
                                     className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
                                 >
                                     <ChevronLeft size={20} />
                                 </button>
                                 <button
-                                    onClick={() => setActiveImg((i) => (i === images.length - 1 ? 0 : i + 1))}
+                                    onClick={() => setActiveImg((i) => (i === slides.length - 1 ? 0 : i + 1))}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
                                 >
                                     <ChevronRight size={20} />
                                 </button>
                                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                                    {images.map((_, i) => (
+                                    {slides.map((_, i) => (
                                         <button
                                             key={i}
                                             onClick={() => setActiveImg(i)}
@@ -229,11 +250,24 @@ export default function ProductDetail() {
                             </>
                         )}
                     </div>
-                    {images.length > 1 && (
+                    {slides.length > 1 && (
                         <div className="flex gap-2 mt-3">
-                            {images.map((img, i) => (
-                                <button key={i} onClick={() => setActiveImg(i)} className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${activeImg === i ? 'border-brand-500 dark:border-gold-500' : 'border-transparent'}`}>
-                                    <img src={img.image_url} className="w-full h-full object-cover" />
+                            {slides.map((slide, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setActiveImg(i)}
+                                    className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 ${activeImg === i ? 'border-brand-500 dark:border-gold-500' : 'border-transparent'}`}
+                                >
+                                    {slide.video_url ? (
+                                        <>
+                                            <video src={slide.video_url} className="w-full h-full object-cover" muted />
+                                            <span className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                                <PlayCircle size={18} className="text-white" />
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <img src={slide.image_url} className="w-full h-full object-cover" />
+                                    )}
                                 </button>
                             ))}
                         </div>
@@ -360,26 +394,26 @@ export default function ProductDetail() {
                         </div>
                     </div>
 
-                   {/* SELLER CARD */}
+                    {/* SELLER CARD */}
                     <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
                         <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">Sold by</p>
                         <div className="flex items-center gap-3">
                             <div className="relative shrink-0">
-    {product.seller_avatar ? (
-        <img
-            src={product.seller_avatar}
-            alt={sellerName}
-            className="w-11 h-11 rounded-full object-cover"
-        />
-    ) : (
-        <div className="w-11 h-11 rounded-full bg-brand-100 dark:bg-gold-900 text-brand-700 dark:text-gold-400 flex items-center justify-center font-bold text-sm">
-            {sellerInitial}
-        </div>
-    )}
-    {isRecentlyActive(product.seller_last_active) && (
-        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-ink-800" />
-    )}
-</div>
+                                {product.seller_avatar ? (
+                                    <img
+                                        src={product.seller_avatar}
+                                        alt={sellerName}
+                                        className="w-11 h-11 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-11 h-11 rounded-full bg-brand-100 dark:bg-gold-900 text-brand-700 dark:text-gold-400 flex items-center justify-center font-bold text-sm">
+                                        {sellerInitial}
+                                    </div>
+                                )}
+                                {isRecentlyActive(product.seller_last_active) && (
+                                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-ink-800" />
+                                )}
+                            </div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                     <p className="font-bold text-slate-900 dark:text-gold-50 truncate">{sellerName}</p>

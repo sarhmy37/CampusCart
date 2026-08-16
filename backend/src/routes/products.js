@@ -1,10 +1,13 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { uploadProductImages } = require('../middleware/upload');
+const { uploadProductMedia } = require('../middleware/upload');
 const { isSellerRestricted } = require('./sellers');
 
 const router = express.Router();
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB per image, enforced manually below
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB, matches multer's ceiling
 
 // Converts an in-memory uploaded file into a Base64 data URI for DB storage
 function fileDataUri(file) {
@@ -15,7 +18,7 @@ function fileDataUri(file) {
 router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.created_at,
+            `SELECT p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
                     p.rating, p.review_count,
                     c.name AS category
              FROM products p
@@ -53,7 +56,7 @@ router.get('/', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT
-                p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.created_at,
+                p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
                 p.rating, p.review_count,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified,
@@ -78,7 +81,7 @@ router.get('/:id', async (req, res) => {
     try {
         const productResult = await pool.query(
             `SELECT
-                p.id, p.title, p.description, p.price, p.condition, p.stock, p.created_at,
+                p.id, p.title, p.description, p.price, p.condition, p.stock, p.video_url, p.created_at,
                 p.rating, p.review_count,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified, u.last_active AS seller_last_active,
@@ -107,12 +110,23 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// POST /api/products — create a listing
-router.post('/', requireAuth, uploadProductImages.array('images', 6), async (req, res) => {
+// POST /api/products — create a listing (images + optional video)
+router.post('/', requireAuth, uploadProductMedia, async (req, res) => {
     const { title, description, price, condition, category, stock } = req.body;
 
     if (!title || !price) {
         return res.status(400).json({ error: 'Title and price are required' });
+    }
+
+    const imageFiles = req.files?.images || [];
+    const videoFile = req.files?.video?.[0] || null;
+
+    const oversizedImage = imageFiles.find((f) => f.size > MAX_IMAGE_BYTES);
+    if (oversizedImage) {
+        return res.status(400).json({ error: `"${oversizedImage.originalname}" is over the 5MB image limit` });
+    }
+    if (videoFile && videoFile.size > MAX_VIDEO_BYTES) {
+        return res.status(400).json({ error: 'Video must be under 20MB' });
     }
 
     try {
@@ -137,14 +151,14 @@ router.post('/', requireAuth, uploadProductImages.array('images', 6), async (req
             categoryId = catResult.rows[0]?.id || null;
         }
 
-        const imageFiles = req.files || [];
         const primaryImage = imageFiles.length ? fileDataUri(imageFiles[0]) : null;
+        const videoUrl = videoFile ? fileDataUri(videoFile) : null;
 
         const productResult = await client.query(
-            `INSERT INTO products (seller_id, title, description, price, condition, category_id, stock, primary_image)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO products (seller_id, title, description, price, condition, category_id, stock, primary_image, video_url)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING id`,
-            [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage]
+            [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl]
         );
 
         const productId = productResult.rows[0].id;

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Tag, Star, Heart, BadgeCheck, AlertTriangle } from 'lucide-react';
+import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 
 export default function ProductCard({ product }) {
@@ -62,6 +62,24 @@ export default function ProductCard({ product }) {
                     <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-ink-500 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-ink-800 dark:to-ink-700">
                         <Tag size={28} />
                     </div>
+                )}
+
+                {product.video_url && (
+                    <>
+                        <video
+                            src={product.video_url}
+                            muted
+                            loop
+                            playsInline
+                            preload="none"
+                            className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                            onMouseEnter={(e) => e.currentTarget.play()}
+                            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                        />
+                        <span className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 backdrop-blur flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
+                            <PlayCircle size={13} className="text-white" />
+                        </span>
+                    </>
                 )}
 
                 <span className="absolute top-1.5 left-1.5 bg-white/90 dark:bg-ink-900/80 backdrop-blur px-1.5 py-0.5 rounded-full text-[9px] font-semibold text-slate-700 dark:text-gold-100 capitalize shadow-sm">
