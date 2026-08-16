@@ -3,7 +3,19 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-    const [theme, setTheme] = useState(() => localStorage.getItem('cc_theme') || 'light');
+    // UPDATED LOGIC:
+    // 1. Check if user manually saved a preference (localStorage).
+    // 2. If not, check their phone/computer's system preference (window.matchMedia).
+    const [theme, setTheme] = useState(() => {
+        const saved = localStorage.getItem('cc_theme');
+        if (saved) return saved; // Use manual override if they set it in Settings
+
+        // Default to system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        return 'light';
+    });
 
     useEffect(() => {
         const root = document.documentElement;
