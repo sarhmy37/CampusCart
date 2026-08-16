@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
-    Truck, MapPin, MessageCircle, X, Loader2
+    Truck, MapPin, MessageCircle, X, Loader2, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import EditListingModal from '../components/EditListingModal';
 
@@ -25,6 +25,7 @@ export default function Dashboard() {
     const isSeller = user?.account_type === 'seller';
     const [tab, setTab] = useState(isSeller ? 'overview' : 'orders');
     const [period, setPeriod] = useState('month');
+    const [showProfile, setShowProfile] = useState(false);
     const [stats, setStats] = useState({ listings: 0, orders: 0, sales: 0, completed: 0, pending: 0 });
 
     useEffect(() => {
@@ -57,7 +58,7 @@ export default function Dashboard() {
         <div>
             {/* HEADER — with video background */}
             <section className="relative overflow-hidden">
-                {/* VIDEO BACKGROUND */}
+                               {/* VIDEO BACKGROUND */}
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
@@ -69,10 +70,26 @@ export default function Dashboard() {
                 {/* CONTENT */}
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                     <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div>
-                            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Hi, {user.name.split(' ')[0]} 👋</h1>
-                            <p className="text-white/70 text-sm mt-1">{user.university_email}</p>
+                        
+                        {/* LEFT SIDE: BUTTON + NAME & EMAIL */}
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            {/* Profile Back Button (Same style as product detail) */}
+                            <button
+                                onClick={() => setShowProfile(true)}
+                                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 border border-white/30 backdrop-blur text-white hover:bg-white/25 transition flex items-center justify-center"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+
+                            <div>
+                                <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+                                    Hi, {user.name.split(' ')[0]} 👋
+                                </h1>
+                                <p className="text-white/70 text-sm mt-1">{user.university_email}</p>
+                            </div>
                         </div>
+
+                        {/* RIGHT SIDE: PERIOD SELECTOR & NEW LISTING BUTTON */}
                         <div className="flex items-center gap-2">
                             <select
                                 value={period}
@@ -138,7 +155,9 @@ export default function Dashboard() {
                 {tab === 'sales' && <MySales />}
                 {tab === 'payouts' && <PayoutSettings />}
                 {tab === 'reports' && <MyReports />}
+                
             </div>
+            <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
         </div>
     );
 }
