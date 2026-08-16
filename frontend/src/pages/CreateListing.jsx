@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
-import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2 } from 'lucide-react';
+import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2 } from 'lucide-react';
 
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB
@@ -29,7 +29,7 @@ const uploadToCloudinary = async (file, resourceType) => {
     }
 
     const data = await res.json();
-    return data.secure_url; // Returns the fast CDN URL
+    return data.secure_url;
 };
 
 export default function CreateListing() {
@@ -38,18 +38,20 @@ export default function CreateListing() {
     const [form, setForm] = useState({
         title: '', description: '', price: '', category_id: '', condition: 'used', stock: 1,
     });
-    const [imageUrls, setImageUrls] = useState([]); // Stores Cloudinary URLs
-    const [previews, setPreviews] = useState([]);   // Stores local preview URLs
-    const [videoUrl, setVideoUrl] = useState(null); // Stores Cloudinary Video URL
-    const [videoPreview, setVideoPreview] = useState(null); // Stores local video preview
+    const [imageUrls, setImageUrls] = useState([]);
+    const [originalImageUrls, setOriginalImageUrls] = useState([]); // <--- Backup for Revert
+    const [previews, setPreviews] = useState([]);
+    const [videoUrl, setVideoUrl] = useState(null);
+    const [videoPreview, setVideoPreview] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const [enhancingAll, setEnhancingAll] = useState(false);
+    const [isEnhanced, setIsEnhanced] = useState(false); // <--- Track state for button text
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
     }, []);
 
-    // Cleanup local object URLs to prevent memory leaks
     useEffect(() => {
         return () => previews.forEach((p) => URL.revokeObjectURL(p));
     }, [previews]);
@@ -69,23 +71,22 @@ export default function CreateListing() {
             return;
         }
 
-        // Show local previews immediately
         const newPreviews = files.map((f) => URL.createObjectURL(f));
         setPreviews((prev) => [...prev, ...newPreviews]);
 
         setUploading(true);
         try {
-            // Upload new files to Cloudinary
             const uploadedUrls = [];
             for (const file of files) {
                 const url = await uploadToCloudinary(file, 'image');
                 uploadedUrls.push(url);
             }
             setImageUrls((prev) => [...prev, ...uploadedUrls]);
+            setOriginalImageUrls((prev) => [...prev, ...uploadedUrls]); // <--- Save original backup
+            setIsEnhanced(false); // Reset state when new images are added
             toast.success(`Uploaded ${uploadedUrls.length} image(s)`);
         } catch (err) {
             toast.error('Failed to upload images to Cloudinary');
-            // Rollback previews if upload fails
             setPreviews((prev) => prev.slice(0, -newPreviews.length));
         } finally {
             setUploading(false);
@@ -95,6 +96,7 @@ export default function CreateListing() {
 
     const removeImage = (index) => {
         setImageUrls((prev) => prev.filter((_, i) => i !== index));
+        setOriginalImageUrls((prev) => prev.filter((_, i) => i !== index)); // <--- Remove from backup
         setPreviews((prev) => prev.filter((_, i) => i !== index));
     };
 
@@ -112,7 +114,6 @@ export default function CreateListing() {
             return;
         }
 
-        // Show local preview immediately
         setVideoPreview(URL.createObjectURL(file));
 
         setUploading(true);
@@ -133,6 +134,52 @@ export default function CreateListing() {
         setVideoPreview(null);
     };
 
+    // ====== ENHANCE ALL / REVERT LOGIC ======
+    const handleEnhanceAllImages = async () => {
+        // If the current state is enhanced, we REVERT
+        if (isEnhanced) {
+            setImageUrls(originalImageUrls);
+            setPreviews(originalImageUrls);
+            setIsEnhanced(false);
+            toast.success('Reverted to original images.');
+            return;
+        }
+
+        // Otherwise, we ENHANCE
+        if (imageUrls.length === 0) {
+            toast.error('No images to enhance.');
+            return;
+        }
+
+        setEnhancingAll(true);
+        toast.loading(`AI is enhancing ${imageUrls.length} image(s)...`, { id: 'enhance_all' });
+
+        try {
+            const updatedUrls = [];
+            const updatedPreviews = [];
+
+            for (const url of imageUrls) {
+                const enhancedUrl = url.replace(
+                    '/upload/',
+                    '/upload/e_background_removal/f_auto,q_auto/'
+                );
+                updatedUrls.push(enhancedUrl);
+                updatedPreviews.push(enhancedUrl);
+            }
+
+            setImageUrls(updatedUrls);
+            setPreviews(updatedPreviews);
+            setIsEnhanced(true);
+
+            toast.success(`✨ Enhanced ${updatedUrls.length} image(s)!`, { id: 'enhance_all' });
+        } catch (err) {
+            toast.error('Failed to enhance all images.', { id: 'enhance_all' });
+        } finally {
+            setEnhancingAll(false);
+        }
+    };
+    // ==============================================
+
     const onSubmit = async (e) => {
         e.preventDefault();
 
@@ -145,7 +192,6 @@ export default function CreateListing() {
         try {
             const category = categories.find((c) => String(c.id) === String(form.category_id));
 
-            // Payload now contains strings (URLs), not raw files
             const payload = {
                 title: form.title,
                 description: form.description,
@@ -153,11 +199,10 @@ export default function CreateListing() {
                 condition: form.condition,
                 stock: form.stock,
                 category: category ? category.name : '',
-                images: imageUrls,      // Array of Cloudinary URLs
-                video: videoUrl || '',  // Cloudinary URL or empty string
+                images: imageUrls,
+                video: videoUrl || '',
             };
 
-            // No more 'multipart/form-data' needed
             await api.post('/products', payload);
 
             toast.success('Listing created!');
@@ -229,10 +274,9 @@ export default function CreateListing() {
                             />
                         </div>
 
-                        {/* PERFECT BALANCE LAYOUT */}
                         <div className="grid grid-cols-2 gap-3">
                             
-                            {/* PHOTOS - Full width of its half (3 columns) */}
+                            {/* PHOTOS + ENHANCE/REVERT BUTTON */}
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Photos</label>
                                 <div className="grid grid-cols-3 gap-1.5 mt-1 w-full">
@@ -267,12 +311,38 @@ export default function CreateListing() {
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
+                                
+                                {/* BUTTON APPEARS ONLY IF THERE IS AT LEAST 1 IMAGE */}
+                                {imageUrls.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleEnhanceAllImages}
+                                        disabled={enhancingAll}
+                                        className="w-[calc(100%)] mt-2 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-accent-500 dark:from-gold-500 dark:to-gold-400 text-white dark:text-ink-900 text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-60"
+                                    >
+                                        {enhancingAll ? (
+                                            <>
+                                                <Loader2 size={14} className="animate-spin" />
+                                                Enhancing...
+                                            </>
+                                        ) : isEnhanced ? (
+                                            <>
+                                                <Undo2 size={14} />
+                                                Revert
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles size={14} />
+                                                ✨ Enhance All Photos
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
 
-                            {/* VIDEO - Small (exactly the same size as one photo preview) */}
+                            {/* VIDEO - SMALL */}
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Video</label>
-                                {/* Calculated width to match exactly one column of the 3-column grid (33.333% minus the gap) */}
                                 <div className="w-[calc(33.333%-0.375rem)] mt-1">
                                     {uploading && !videoUrl && videoPreview ? (
                                         <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-black flex items-center justify-center">
@@ -301,7 +371,6 @@ export default function CreateListing() {
                             </div>
 
                         </div>
-                        {/* END PERFECT BALANCE LAYOUT */}
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
