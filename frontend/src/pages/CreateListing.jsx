@@ -229,10 +229,10 @@ export default function CreateListing() {
                             />
                         </div>
 
-                        {/* ====== NEW LAYOUT FOR PHOTOS & VIDEO ====== */}
+                        {/* PERFECT BALANCE LAYOUT */}
                         <div className="grid grid-cols-2 gap-3">
                             
-                            {/* PHOTOS - Full width of its half */}
+                            {/* PHOTOS - Full width of its half (3 columns) */}
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Photos</label>
                                 <div className="grid grid-cols-3 gap-1.5 mt-1 w-full">
@@ -269,10 +269,11 @@ export default function CreateListing() {
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
                             </div>
 
-                            {/* VIDEO - Full width of its half, exact same height as Photos */}
+                            {/* VIDEO - Small (exactly the same size as one photo preview) */}
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Video</label>
-                                <div className="w-full mt-1">
+                                {/* Calculated width to match exactly one column of the 3-column grid (33.333% minus the gap) */}
+                                <div className="w-[calc(33.333%-0.375rem)] mt-1">
                                     {uploading && !videoUrl && videoPreview ? (
                                         <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-black flex items-center justify-center">
                                             <Loader2 className="w-8 h-8 text-brand-600 dark:text-gold-400 animate-spin" />
@@ -300,7 +301,7 @@ export default function CreateListing() {
                             </div>
 
                         </div>
-                        {/* ====== END NEW LAYOUT ====== */}
+                        {/* END PERFECT BALANCE LAYOUT */}
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
