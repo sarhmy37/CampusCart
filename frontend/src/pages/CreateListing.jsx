@@ -3,10 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
-import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft } from 'lucide-react';
+import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2 } from 'lucide-react';
 
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB
+const CLOUD_NAME = 'b7fch4rp';
+const UPLOAD_PRESET = 'campuscart_preset';
+
+// Helper function to upload a file to Cloudinary
+const uploadToCloudinary = async (file, resourceType) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`;
+
+    const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error?.message || 'Upload failed');
+    }
+
+    const data = await res.json();
+    return data.secure_url; // Returns the fast CDN URL
+};
 
 export default function CreateListing() {
     const navigate = useNavigate();
@@ -14,16 +38,18 @@ export default function CreateListing() {
     const [form, setForm] = useState({
         title: '', description: '', price: '', category_id: '', condition: 'used', stock: 1,
     });
-    const [imageFiles, setImageFiles] = useState([]);
-    const [previews, setPreviews] = useState([]);
-    const [videoFile, setVideoFile] = useState(null);
-    const [videoPreview, setVideoPreview] = useState(null);
+    const [imageUrls, setImageUrls] = useState([]); // Stores Cloudinary URLs
+    const [previews, setPreviews] = useState([]);   // Stores local preview URLs
+    const [videoUrl, setVideoUrl] = useState(null); // Stores Cloudinary Video URL
+    const [videoPreview, setVideoPreview] = useState(null); // Stores local video preview
+    const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
     }, []);
 
+    // Cleanup local object URLs to prevent memory leaks
     useEffect(() => {
         return () => previews.forEach((p) => URL.revokeObjectURL(p));
     }, [previews]);
@@ -32,23 +58,47 @@ export default function CreateListing() {
         return () => { if (videoPreview) URL.revokeObjectURL(videoPreview); };
     }, [videoPreview]);
 
-    const handleFilesSelected = (e) => {
+    const handleFilesSelected = async (e) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
 
-        const combined = [...imageFiles, ...files].slice(0, MAX_IMAGES);
-        setImageFiles(combined);
-        setPreviews(combined.map((f) => URL.createObjectURL(f)));
-        e.target.value = '';
+        const totalImages = imageUrls.length + files.length;
+        if (totalImages > MAX_IMAGES) {
+            toast.error(`You can only upload up to ${MAX_IMAGES} images.`);
+            e.target.value = '';
+            return;
+        }
+
+        // Show local previews immediately
+        const newPreviews = files.map((f) => URL.createObjectURL(f));
+        setPreviews((prev) => [...prev, ...newPreviews]);
+
+        setUploading(true);
+        try {
+            // Upload new files to Cloudinary
+            const uploadedUrls = [];
+            for (const file of files) {
+                const url = await uploadToCloudinary(file, 'image');
+                uploadedUrls.push(url);
+            }
+            setImageUrls((prev) => [...prev, ...uploadedUrls]);
+            toast.success(`Uploaded ${uploadedUrls.length} image(s)`);
+        } catch (err) {
+            toast.error('Failed to upload images to Cloudinary');
+            // Rollback previews if upload fails
+            setPreviews((prev) => prev.slice(0, -newPreviews.length));
+        } finally {
+            setUploading(false);
+            e.target.value = '';
+        }
     };
 
     const removeImage = (index) => {
-        const nextFiles = imageFiles.filter((_, i) => i !== index);
-        setImageFiles(nextFiles);
-        setPreviews(nextFiles.map((f) => URL.createObjectURL(f)));
+        setImageUrls((prev) => prev.filter((_, i) => i !== index));
+        setPreviews((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const handleVideoSelected = (e) => {
+    const handleVideoSelected = async (e) => {
         const file = e.target.files?.[0];
         e.target.value = '';
         if (!file) return;
@@ -62,19 +112,31 @@ export default function CreateListing() {
             return;
         }
 
-        setVideoFile(file);
+        // Show local preview immediately
         setVideoPreview(URL.createObjectURL(file));
+
+        setUploading(true);
+        try {
+            const url = await uploadToCloudinary(file, 'video');
+            setVideoUrl(url);
+            toast.success('Video uploaded successfully');
+        } catch (err) {
+            toast.error('Failed to upload video to Cloudinary');
+            setVideoPreview(null);
+        } finally {
+            setUploading(false);
+        }
     };
 
     const removeVideo = () => {
-        setVideoFile(null);
+        setVideoUrl(null);
         setVideoPreview(null);
     };
 
     const onSubmit = async (e) => {
         e.preventDefault();
 
-        if (imageFiles.length === 0) {
+        if (imageUrls.length === 0) {
             toast.error('Add at least one photo of the item');
             return;
         }
@@ -83,19 +145,21 @@ export default function CreateListing() {
         try {
             const category = categories.find((c) => String(c.id) === String(form.category_id));
 
-            const payload = new FormData();
-            payload.append('title', form.title);
-            payload.append('description', form.description);
-            payload.append('price', form.price);
-            payload.append('condition', form.condition);
-            payload.append('stock', form.stock);
-            if (category) payload.append('category', category.name);
-            imageFiles.forEach((file) => payload.append('images', file));
-            if (videoFile) payload.append('video', videoFile);
+            // Payload now contains strings (URLs), not raw files
+            const payload = {
+                title: form.title,
+                description: form.description,
+                price: form.price,
+                condition: form.condition,
+                stock: form.stock,
+                category: category ? category.name : '',
+                images: imageUrls,      // Array of Cloudinary URLs
+                video: videoUrl || '',  // Cloudinary URL or empty string
+            };
 
-            await api.post('/products', payload, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            // No more 'multipart/form-data' needed
+            await api.post('/products', payload);
+
             toast.success('Listing created!');
             navigate('/dashboard');
         } catch (err) {
@@ -186,7 +250,12 @@ export default function CreateListing() {
                                             )}
                                         </div>
                                     ))}
-                                    {imageFiles.length < MAX_IMAGES && (
+                                    {uploading && previews.length > 0 && imageUrls.length < MAX_IMAGES && (
+                                        <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 flex items-center justify-center">
+                                            <Loader2 className="w-6 h-6 text-brand-600 dark:text-gold-400 animate-spin" />
+                                        </div>
+                                    )}
+                                    {imageUrls.length < MAX_IMAGES && !uploading && (
                                         <label className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition">
                                             <ImagePlus size={20} />
                                             <span className="text-[11px] font-semibold">Add</span>
@@ -199,8 +268,12 @@ export default function CreateListing() {
 
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Video</label>
-                                <div className="mt-1">
-                                    {videoPreview ? (
+                                <div className="grid grid-cols-1 gap-1.5 mt-1">
+                                    {uploading && !videoUrl && videoPreview ? (
+                                        <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-black flex items-center justify-center">
+                                            <Loader2 className="w-8 h-8 text-brand-600 dark:text-gold-400 animate-spin" />
+                                        </div>
+                                    ) : videoPreview ? (
                                         <div className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600 bg-black">
                                             <video src={videoPreview} controls className="w-full h-full object-cover" />
                                             <button
@@ -275,7 +348,7 @@ export default function CreateListing() {
 
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || uploading}
                             className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm"
                         >
                             {loading ? 'Publishing…' : 'Publish listing'}

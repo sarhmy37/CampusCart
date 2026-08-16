@@ -1,18 +1,9 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { uploadProductMedia } = require('../middleware/upload');
 const { isSellerRestricted } = require('./sellers');
 
 const router = express.Router();
-
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB per image, enforced manually below
-const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB, matches multer's ceiling
-
-// Converts an in-memory uploaded file into a Base64 data URI for DB storage
-function fileDataUri(file) {
-    return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-}
 
 // GET /api/products/mine — the logged-in seller's own listings
 router.get('/mine', requireAuth, async (req, res) => {
@@ -36,7 +27,7 @@ router.get('/mine', requireAuth, async (req, res) => {
 
 // GET /api/products?search=&category=
 router.get('/', async (req, res) => {
-    const { search, category, itemCategory } = req.query;
+    const { search, category, itemCategory, school } = req.query;
     const categoryFilter = category || itemCategory;
 
     const conditions = [`p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')`];
@@ -49,6 +40,10 @@ router.get('/', async (req, res) => {
     if (categoryFilter) {
         values.push(categoryFilter);
         conditions.push(`c.name = $${values.length}`);
+    }
+    if (school) {
+        values.push(school);
+        conditions.push(`u.school = $${values.length}`);
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
@@ -110,23 +105,12 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// POST /api/products — create a listing (images + optional video)
-router.post('/', requireAuth, uploadProductMedia, async (req, res) => {
-    const { title, description, price, condition, category, stock } = req.body;
+// POST /api/products — create a listing (receives Cloudinary URLs)
+router.post('/', requireAuth, async (req, res) => {
+    const { title, description, price, condition, category, stock, images, video } = req.body;
 
-    if (!title || !price) {
-        return res.status(400).json({ error: 'Title and price are required' });
-    }
-
-    const imageFiles = req.files?.images || [];
-    const videoFile = req.files?.video?.[0] || null;
-
-    const oversizedImage = imageFiles.find((f) => f.size > MAX_IMAGE_BYTES);
-    if (oversizedImage) {
-        return res.status(400).json({ error: `"${oversizedImage.originalname}" is over the 5MB image limit` });
-    }
-    if (videoFile && videoFile.size > MAX_VIDEO_BYTES) {
-        return res.status(400).json({ error: 'Video must be under 20MB' });
+    if (!title || !price || !images || images.length === 0) {
+        return res.status(400).json({ error: 'Title, price, and at least one image are required' });
     }
 
     try {
@@ -151,8 +135,9 @@ router.post('/', requireAuth, uploadProductMedia, async (req, res) => {
             categoryId = catResult.rows[0]?.id || null;
         }
 
-        const primaryImage = imageFiles.length ? fileDataUri(imageFiles[0]) : null;
-        const videoUrl = videoFile ? fileDataUri(videoFile) : null;
+        // Use the first image as the primary image
+        const primaryImage = images[0];
+        const videoUrl = video || null;
 
         const productResult = await client.query(
             `INSERT INTO products (seller_id, title, description, price, condition, category_id, stock, primary_image, video_url)
@@ -163,10 +148,11 @@ router.post('/', requireAuth, uploadProductMedia, async (req, res) => {
 
         const productId = productResult.rows[0].id;
 
-        for (let i = 0; i < imageFiles.length; i++) {
+        // Insert additional images into product_images table
+        for (let i = 0; i < images.length; i++) {
             await client.query(
                 'INSERT INTO product_images (product_id, image_url, sort_order) VALUES ($1, $2, $3)',
-                [productId, fileDataUri(imageFiles[i]), i]
+                [productId, images[i], i]
             );
         }
 

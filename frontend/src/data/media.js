@@ -1,10 +1,15 @@
-// Central place for all static site imagery/video, served from the backend's
-// /media folder (which maps to backend/public/ in server.js).
-// Change MEDIA_BASE_URL if your backend URL differs (e.g. in production).
-export const MEDIA_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+// Central place for all static site imagery/video, now served from Cloudinary.
+// Change CLOUD_NAME if you use a different Cloudinary account.
+const CLOUD_NAME = 'b7fch4rp';
 
-export function mediaUrl(filename) {
-    return `${MEDIA_BASE_URL}/media/${filename}`;
+// Helper to generate Cloudinary Image URLs
+function cloudinaryImage(filename) {
+    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v1/${filename}`;
+}
+
+// Helper to generate Cloudinary Video URLs
+function cloudinaryVideo(filename) {
+    return `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/v1/${filename}`;
 }
 
 // ----- IMAGES -----
@@ -21,7 +26,7 @@ export const HERO_IMAGES = [
     'PentUNI.jpg',
     'KsTU.png',
     'CU.jpg',
-].map(mediaUrl);
+].map(cloudinaryImage);
 
 export const BROWSE_HEADER_IMAGES = [
     'IMG_8639 2.jpg',
@@ -36,51 +41,51 @@ export const BROWSE_HEADER_IMAGES = [
     'KsTU.png',
     'CU.jpg',
     'UMAT.jpg',
-].map(mediaUrl);
+].map(cloudinaryImage);
 
 export const GALLERY = [
     {
         label: 'Sneakers in all sizes',
-        images: ['Shoe.jpg', 'Shoe2.jpg', 'Shoe3.jpg', 'Shoe4.jpg'].map(mediaUrl),
-        video: mediaUrl('Sneakers.mp4'),
+        images: ['Shoe.jpg', 'Shoe2.jpg', 'Shoe3.jpg', 'Shoe4.jpg'].map(cloudinaryImage),
+        video: cloudinaryVideo('Sneakers.mp4'),
     },
     {
         label: 'Meet up on campus',
-        images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg', 'Memen.jpg'].map(mediaUrl),
-        video: mediaUrl('Meeting.mp4'),
+        images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg', 'Memen.jpg'].map(cloudinaryImage),
+        video: cloudinaryVideo('Meeting.mp4'),
     },
     {
         label: 'Gadgets, gently used',
-        images: ['Gadget.jpg', 'Gadget2.jpg', 'Gadget3.jpg', 'Gadget4.jpg'].map(mediaUrl),
-        video: mediaUrl('Gadjet.mp4'),
+        images: ['Gadget.jpg', 'Gadget2.jpg', 'Gadget3.jpg', 'Gadget4.jpg'].map(cloudinaryImage),
+        video: cloudinaryVideo('Gadjet.mp4'),
     },
     {
         label: 'Food',
-        images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg', 'Fufu.jpg'].map(mediaUrl),
-        video: mediaUrl('Foodie.mp4'),
+        images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg', 'Fufu.jpg'].map(cloudinaryImage),
+        video: cloudinaryVideo('Foodie.mp4'),
     },
 ];
 
-export const LOGIN_IMAGE = mediaUrl('login.jpg');
-export const REGISTER_IMAGE = mediaUrl('register.jpg');
+export const LOGIN_IMAGE = cloudinaryImage('login.jpg');
+export const REGISTER_IMAGE = cloudinaryImage('register.jpg');
 
 // Additional images used elsewhere
-export const SNEAKERS_2 = mediaUrl('Sneakers2.jpg');
-export const SNEAKERS_4 = mediaUrl('Sneakers4.jpg');
-export const MEET_ME = mediaUrl('meetme.jpg');
-export const FO00D = mediaUrl('foood.jpg');
-export const FAVICON = mediaUrl('favicon.svg');
-export const ICONS = mediaUrl('icons.svg');
+export const SNEAKERS_2 = cloudinaryImage('Sneakers2.jpg');
+export const SNEAKERS_4 = cloudinaryImage('Sneakers4.jpg');
+export const MEET_ME = cloudinaryImage('meetme.jpg');
+export const FO00D = cloudinaryImage('foood.jpg');
+export const FAVICON = cloudinaryImage('favicon.svg');
+export const ICONS = cloudinaryImage('icons.svg');
 
 // ----- VIDEOS -----
-export const CART_VIDEO = mediaUrl('Cart.mp4');
-export const DASHBOARD_VIDEO = mediaUrl('Dashboard.mp4');
-export const CREATE_LISTING_VIDEO = mediaUrl('create-listing-bg.mp4');
-export const FOODIE_VIDEO = mediaUrl('Foodie.mp4');
-export const GADJET_VIDEO = mediaUrl('Gadjet.mp4');
-export const MEETING_VIDEO = mediaUrl('Meeting.mp4');
-export const SETTINGS_VIDEO = mediaUrl('Settings.mp4');
-export const SNEAKERS_VIDEO = mediaUrl('Sneakers.mp4');
+export const CART_VIDEO = cloudinaryVideo('Cart.mp4');
+export const DASHBOARD_VIDEO = cloudinaryVideo('Dashboard.mp4');
+export const CREATE_LISTING_VIDEO = cloudinaryVideo('create-listing-bg.mp4');
+export const FOODIE_VIDEO = cloudinaryVideo('Foodie.mp4');
+export const GADJET_VIDEO = cloudinaryVideo('Gadjet.mp4');
+export const MEETING_VIDEO = cloudinaryVideo('Meeting.mp4');
+export const SETTINGS_VIDEO = cloudinaryVideo('Settings.mp4');
+export const SNEAKERS_VIDEO = cloudinaryVideo('Sneakers.mp4');
 
 // All assets for preloading
 export const PRELOAD_ASSETS = [
