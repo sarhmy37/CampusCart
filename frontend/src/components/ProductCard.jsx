@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react'; // <--- IMPORTED useRef AND useState
 import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -8,6 +9,43 @@ export default function ProductCard({ product }) {
     const rating = product.rating || 0;
     const reviewCount = product.review_count || 0;
     const stock = product.stock !== undefined ? product.stock : null;
+
+    // ====== NEW: VIDEO VIEWPORT LOGIC STARTS HERE ======
+    const [isVisible, setIsVisible] = useState(false);
+    const cardRef = useRef(null);
+
+    useEffect(() => {
+        if (!product.video_url) {
+            setIsVisible(true); // If no video, just show the image normally
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                } else {
+                    setIsVisible(false); // Pause video when it leaves the screen
+                }
+            },
+            {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.3, // Play when 30% of the card is visible
+            }
+        );
+
+        if (cardRef.current) {
+            observer.observe(cardRef.current);
+        }
+
+        return () => {
+            if (cardRef.current) {
+                observer.unobserve(cardRef.current);
+            }
+        };
+    }, [product.video_url]);
+    // ====== NEW: VIDEO VIEWPORT LOGIC ENDS HERE ======
 
     const handleWishlistClick = (e) => {
         e.preventDefault();
@@ -50,8 +88,13 @@ export default function ProductCard({ product }) {
     };
 
     const CardInner = (
-        <div className="group relative bg-white dark:bg-ink-800 rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden hover:shadow-lg dark:hover:shadow-gold-900/20 hover:-translate-y-0.5 transition-all duration-300">
+        <div 
+            ref={cardRef} // <--- ATTACHED THE REF HERE
+            className="group relative bg-white dark:bg-ink-800 rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden hover:shadow-lg dark:hover:shadow-gold-900/20 hover:-translate-y-0.5 transition-all duration-300"
+        >
             <div className="aspect-square bg-slate-100 dark:bg-ink-700 overflow-hidden relative">
+                
+                {/* 1. STATIC IMAGE (Always underneath) */}
                 {product.primary_image ? (
                     <img
                         src={product.primary_image}
@@ -64,6 +107,7 @@ export default function ProductCard({ product }) {
                     </div>
                 )}
 
+                {/* 2. VIDEO (Only plays when isVisible is true) */}
                 {product.video_url && (
                     <>
                         <video
@@ -71,12 +115,15 @@ export default function ProductCard({ product }) {
                             muted
                             loop
                             playsInline
-                            preload="none"
-                            className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                            onMouseEnter={(e) => e.currentTarget.play()}
-                            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                            preload="metadata"
+                            // autoPlay is now controlled by the isVisible state
+                            autoPlay={isVisible}
+                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+                                isVisible ? 'opacity-100' : 'opacity-0'
+                            }`}
                         />
-                        <span className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 backdrop-blur flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
+                        {/* Small Play icon badge */}
+                        <span className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 backdrop-blur flex items-center justify-center pointer-events-none">
                             <PlayCircle size={13} className="text-white" />
                         </span>
                     </>

@@ -168,7 +168,7 @@ export default function Browse() {
     return (
         <div>
             {/* HEADER STRIP */}
-            <section className="sticky top-16 z-30  overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            <section className="sticky top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
