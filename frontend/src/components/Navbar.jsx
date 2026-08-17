@@ -46,7 +46,9 @@ export default function Navbar() {
     return (
         <>
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center gap-2 sm:gap-4">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center">
+                
+                {/* LEFT SIDE: LOGO & MENU */}
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {user && (
                         <button
@@ -58,7 +60,7 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                    {/* ====== LOGO (IMAGE + TEXT COMBINED) ====== */}
+                    {/* LOGO (IMAGE + TEXT COMBINED) */}
                     {isAdmin ? (
                         <span className="flex items-center gap-1.5 sm:gap-2 cursor-default">
                             <img 
@@ -67,13 +69,13 @@ export default function Navbar() {
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
                             <div className="flex items-center font-serif font-black italic tracking-wider">
-                                <span className="text-base sm:text-xl text-slate-900 dark:text-white">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
-                                <span className="text-base sm:text-xl text-slate-900 dark:text-white mx-0.5">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
                                     -
                                 </span>
-                                <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">
+                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400 leading-none">
                                     X
                                 </span>
                             </div>
@@ -86,7 +88,7 @@ export default function Navbar() {
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
                             <div className="flex items-center font-serif font-black italic tracking-wider">
-                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white font-bold">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
                                 <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
@@ -98,14 +100,15 @@ export default function Navbar() {
                             </div>
                         </Link>
                     )}
-                    {/* ============================== */}
                 </div>
 
-                <div className="flex flex-1 min-w-0 max-w-xl">
+                {/* MIDDLE: SEARCH BAR (EXTENDED & FLEXIBLE) */}
+                <div className="flex flex-1 min-w-0 max-w-2xl mx-2 sm:mx-4">
                     <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
                 </div>
 
-                <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
+                {/* RIGHT SIDE: NAV ITEMS (PUSHED TO FAR RIGHT) */}
+                <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0 ml-auto">
                     {/* Mobile-only collapse toggle for notifications + wishlist */}
                     {user && (
                         <button
@@ -160,10 +163,7 @@ export default function Navbar() {
                                     ) : (
                                         <>
                                             {notifications.map((n) => {
-                                                // Determine the navigation link: use backend 'link' if available, otherwise fallback to product page
                                                 const targetLink = n.link || `/product/${n.productId || n.id}`;
-                                                
-                                                // Helper to pick an icon based on type
                                                 let iconEmoji = '';
                                                 if (n.type === 'price_drop') iconEmoji = '💰 ';
                                                 else if (n.type === 'low_stock') iconEmoji = '⚡ ';
