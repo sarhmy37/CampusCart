@@ -102,11 +102,9 @@ export default function Navbar() {
                     )}
                 </div>
 
-                {/* MIDDLE: SEARCH BAR (PERFECTLY CENTERED) */}
+                {/* MIDDLE: SEARCH BAR (PERFECTLY CENTERED & WIDE) */}
                 <div className="flex-1 flex justify-center min-w-0 mx-2 sm:mx-4">
-                    <div className="w-full max-w-xl">
-                        <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
-                    </div>
+                    <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
                 </div>
 
                 {/* RIGHT SIDE: NAV ITEMS */}
