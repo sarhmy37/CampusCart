@@ -105,4 +105,11 @@ export const PRELOAD_ASSETS = [
     MEETING_VIDEO,
     SETTINGS_VIDEO,
     SNEAKERS_VIDEO,
+    LOGO_LIGHT,
+    LOGO_DARK   
 ];
+
+// LOGOS
+export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
+export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
+

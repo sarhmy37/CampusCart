@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +23,7 @@ const PERIODS = [
 
 export default function Dashboard() {
     const { user } = useAuth();
+    const navigate = useNavigate(); // <--- ADDED THIS
     const isSeller = user?.account_type === 'seller';
     const [tab, setTab] = useState(isSeller ? 'overview' : 'orders');
     const [period, setPeriod] = useState('month');
@@ -73,13 +74,18 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         
                         {/* LEFT SIDE: BUTTON + NAME & EMAIL */}
-                        <div className="flex items-center gap-3 sm:gap-4">
-                            {/* Profile Back Button (Same style as product detail) */}
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            
+                            {/* ✅ 1. GO BACK TO HOME & OPEN PROFILE DRAWER */}
                             <button
-                                onClick={() => setShowProfile(true)}
-                                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 border border-white/30 backdrop-blur text-white hover:bg-white/25 transition flex items-center justify-center"
+                                onClick={() => {
+                                    navigate('/'); // Navigate to Home
+                                    setTimeout(() => setShowProfile(true), 100); // Open drawer after navigation
+                                }}
+                                className="text-white/80 hover:text-white transition p-1"
+                                title="Go home"
                             >
-                                <ChevronLeft size={20} />
+                                <ChevronLeft size={24} />
                             </button>
 
                             <div>
@@ -555,22 +561,22 @@ function PayoutSettings() {
                                 <button
                                     type="button"
                                     onClick={() => setMethod('bank')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${(
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${((
                                         method === 'bank'
                                             ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50'
-                                    )}`}
+                                    ))}`}
                                 >
                                     Bank
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setMethod('mobile_money')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${(
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${((
                                         method === 'mobile_money'
                                             ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50'
-                                    )}`}
+                                    ))}`}
                                 >
                                     Mobile Money
                                 </button>

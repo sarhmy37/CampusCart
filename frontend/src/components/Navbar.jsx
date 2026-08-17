@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext'; // <--- ADDED THIS
 import ProfileDrawer from './ProfileDrawer';
 
 export default function Navbar() {
@@ -20,6 +21,7 @@ export default function Navbar() {
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [mobileExpanded, setMobileExpanded] = useState(false);
+    const { theme } = useTheme(); // <--- ADDED THIS
 
     const toggleNotifications = () => {
         setShowNotifications((s) => {
@@ -54,17 +56,32 @@ export default function Navbar() {
                             <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                         </button>
                     )}
+                    
+                    {/* ====== NEW LOGO: TreX ====== */}
                     {isAdmin ? (
                         <span className="flex items-center gap-1.5 sm:gap-2 cursor-default">
-                            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-sm sm:text-lg">C</div>
-                            <span className="hidden sm:inline font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
+                            <div className="flex items-baseline font-extrabold tracking-tight">
+                                <span className="text-xl sm:text-3xl text-slate-900 dark:text-white">
+                                    Tre
+                                </span>
+                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400">
+                                    X
+                                </span>
+                            </div>
                         </span>
                     ) : (
                         <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
-                            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center text-white dark:text-ink-900 font-extrabold text-sm sm:text-lg">C</div>
-                            <span className="hidden sm:inline font-extrabold text-xl tracking-tight text-slate-900 dark:text-gold-50">Campus<span className="text-brand-600 dark:text-gold-400">Cart</span></span>
+                            <div className="flex items-baseline font-extrabold tracking-tight">
+                                <span className="text-xl sm:text-3xl text-slate-900 dark:text-white">
+                                    Tre
+                                </span>
+                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400">
+                                    X
+                                </span>
+                            </div>
                         </Link>
                     )}
+                    {/* ============================== */}
                 </div>
 
                 <div className="flex flex-1 min-w-0 max-w-xl">
