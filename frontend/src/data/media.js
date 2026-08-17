@@ -15,7 +15,7 @@ function cloudinaryVideo(filename) {
 // ----- IMAGES -----
 export const HERO_IMAGES = [
     'knust-hero.jpg',
-    'IMG_8639 2.jpg',
+    'Legon.jpg',
     'ATU.jpg',
     'UHAS.jpg',
     'UCC.jpg',
