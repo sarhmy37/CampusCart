@@ -48,8 +48,8 @@ export default function Navbar() {
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
             <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
-                {/* LEFT SIDE: LOGO & MENU */}
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                {/* LEFT SIDE: LOGO & MENU — sized to its own content, never grows/shrinks */}
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {user && (
                         <button
                             onClick={() => setShowProfile(true)}
@@ -68,7 +68,7 @@ export default function Navbar() {
                                 alt="TreX" 
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
-                            <div className="flex items-center font-serif font-black italic tracking-wider whitespace-nowrap">
+                           <div className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap">
                                 <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
@@ -102,13 +102,15 @@ export default function Navbar() {
                     )}
                 </div>
 
-                {/* MIDDLE: SEARCH BAR (PERFECTLY CENTERED & WIDE) */}
-                <div className="flex-1 flex justify-center min-w-0 mx-2 sm:mx-4">
+                {/* MIDDLE: SEARCH BAR — the only flexible section. Fills exactly the gap
+                    between the logo and the right-side icons, and shrinks smoothly as
+                    the screen narrows instead of fighting the other sections for space. */}
+                <div className="flex-1 min-w-0 mx-2 sm:mx-4">
                     <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
                 </div>
 
-                {/* RIGHT SIDE: NAV ITEMS */}
-                <nav className="flex items-center gap-0.5 sm:gap-2 flex-1 justify-end shrink-0 ml-0">
+                {/* RIGHT SIDE: NAV ITEMS — sized to its own content, never grows/shrinks */}
+                <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
                     {/* Mobile-only collapse toggle for notifications + wishlist */}
                     {user && (
                         <button
