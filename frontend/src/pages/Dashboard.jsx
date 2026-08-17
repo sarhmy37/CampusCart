@@ -79,7 +79,8 @@ export default function Dashboard() {
                             <button
                                 onClick={() => {
                                     navigate('/');
-                                    setTimeout(() => setShowProfile(true), 50);
+                                    // ✅ INCREASED DELAY TO 150ms SO THE HOME PAGE LOADS FIRST
+                                    setTimeout(() => setShowProfile(true), 150); 
                                 }}
                                 className="w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
                             >

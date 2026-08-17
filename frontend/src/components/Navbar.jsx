@@ -7,6 +7,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
 import ProfileDrawer from './ProfileDrawer';
+import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
 
 export default function Navbar() {
     const { user } = useAuth();
@@ -57,9 +58,14 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                    {/* ====== NEW STYLISH LOGO: Tre - X (WITH FANCY FONT) ====== */}
+                    {/* ====== LOGO (IMAGE + TEXT COMBINED) ====== */}
                     {isAdmin ? (
-                        <span className="flex items-center gap-1 sm:gap-1.5 cursor-default">
+                        <span className="flex items-center gap-1.5 sm:gap-2 cursor-default">
+                            <img 
+                                src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
+                                alt="TreX" 
+                                className="h-7 sm:h-9 w-auto object-contain"
+                            />
                             <div className="flex items-center font-serif font-black italic tracking-wider">
                                 <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
@@ -73,7 +79,12 @@ export default function Navbar() {
                             </div>
                         </span>
                     ) : (
-                        <Link to="/" className="flex items-center gap-1 sm:gap-1.5">
+                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
+                            <img 
+                                src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
+                                alt="TreX" 
+                                className="h-7 sm:h-9 w-auto object-contain"
+                            />
                             <div className="flex items-center font-serif font-black italic tracking-wider">
                                 <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
