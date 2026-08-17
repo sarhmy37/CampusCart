@@ -2,9 +2,9 @@
 // Change CLOUD_NAME if you use a different Cloudinary account.
 const CLOUD_NAME = 'b7fch4rp';
 
-// Helper to generate Cloudinary Image URLs
 function cloudinaryImage(filename) {
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v1/${filename}`;
+    // Adding ?t=${Date.now()} forces the browser to ignore the cache and fetch the new image
+    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v1/${filename}?t=${Date.now()}`;
 }
 
 // Helper to generate Cloudinary Video URLs
