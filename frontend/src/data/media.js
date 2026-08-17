@@ -29,7 +29,7 @@ export const HERO_IMAGES = [
 ].map(cloudinaryImage);
 
 export const BROWSE_HEADER_IMAGES = [
-    'IMG_8639 2.jpg',
+    'Legon.jpg',
     'knust-hero.jpg',
     'ATU.jpg',
     'UHAS.jpg',
