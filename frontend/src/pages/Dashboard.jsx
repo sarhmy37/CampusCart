@@ -23,7 +23,7 @@ const PERIODS = [
 
 export default function Dashboard() {
     const { user } = useAuth();
-    const navigate = useNavigate(); // <--- ADDED THIS
+    const navigate = useNavigate();
     const isSeller = user?.account_type === 'seller';
     const [tab, setTab] = useState(isSeller ? 'overview' : 'orders');
     const [period, setPeriod] = useState('month');
@@ -73,19 +73,17 @@ export default function Dashboard() {
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         
-                        {/* LEFT SIDE: BUTTON + NAME & EMAIL */}
-                        <div className="flex items-center gap-2 sm:gap-3">
-                            
-                            {/* ✅ 1. GO BACK TO HOME & OPEN PROFILE DRAWER */}
+                        {/* LEFT SIDE: PRODUCT-DETAIL STYLE BUTTON + NAME */}
+                        <div className="flex items-center gap-4 sm:gap-5">
+                            {/* ✅ EXACT COPY OF PRODUCT DETAIL CHEVRON STYLE */}
                             <button
                                 onClick={() => {
-                                    navigate('/'); // Navigate to Home
-                                    setTimeout(() => setShowProfile(true), 100); // Open drawer after navigation
+                                    navigate('/');
+                                    setTimeout(() => setShowProfile(true), 50);
                                 }}
-                                className="text-white/80 hover:text-white transition p-1"
-                                title="Go home"
+                                className="w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
                             >
-                                <ChevronLeft size={24} />
+                                <ChevronLeft size={20} />
                             </button>
 
                             <div>
