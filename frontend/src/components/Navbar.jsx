@@ -46,10 +46,10 @@ export default function Navbar() {
     return (
         <>
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
                 {/* LEFT SIDE: LOGO & MENU */}
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                     {user && (
                         <button
                             onClick={() => setShowProfile(true)}
@@ -62,13 +62,13 @@ export default function Navbar() {
                     
                     {/* LOGO (IMAGE + TEXT COMBINED) */}
                     {isAdmin ? (
-                        <span className="flex items-center gap-1.5 sm:gap-2 cursor-default">
+                        <span className="flex items-center gap-1.5 sm:gap-2 cursor-default shrink-0">
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
-                            <div className="flex items-center font-serif font-black italic tracking-wider">
+                            <div className="flex items-center font-serif font-black italic tracking-wider whitespace-nowrap">
                                 <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
@@ -81,13 +81,13 @@ export default function Navbar() {
                             </div>
                         </span>
                     ) : (
-                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
+                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0">
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
-                            <div className="flex items-center font-serif font-black italic tracking-wider">
+                            <div className="flex items-center font-serif font-black italic tracking-wider whitespace-nowrap">
                                 <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
@@ -102,13 +102,15 @@ export default function Navbar() {
                     )}
                 </div>
 
-                {/* MIDDLE: SEARCH BAR (EXTENDED & FLEXIBLE) */}
-                <div className="flex flex-1 min-w-0 max-w-2xl mx-2 sm:mx-4">
-                    <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
+                {/* MIDDLE: SEARCH BAR (PERFECTLY CENTERED) */}
+                <div className="flex-1 flex justify-center min-w-0 mx-2 sm:mx-4">
+                    <div className="w-full max-w-xl">
+                        <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
+                    </div>
                 </div>
 
-                {/* RIGHT SIDE: NAV ITEMS (PUSHED TO FAR RIGHT) */}
-                <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0 ml-auto">
+                {/* RIGHT SIDE: NAV ITEMS */}
+                <nav className="flex items-center gap-0.5 sm:gap-2 flex-1 justify-end shrink-0 ml-0">
                     {/* Mobile-only collapse toggle for notifications + wishlist */}
                     {user && (
                         <button
