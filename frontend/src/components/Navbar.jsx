@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useNotifications } from '../context/NotificationContext';
-import { useTheme } from '../context/ThemeContext'; // <--- ADDED THIS
+import { useTheme } from '../context/ThemeContext';
 import ProfileDrawer from './ProfileDrawer';
 
 export default function Navbar() {
@@ -21,7 +21,7 @@ export default function Navbar() {
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [mobileExpanded, setMobileExpanded] = useState(false);
-    const { theme } = useTheme(); // <--- ADDED THIS
+    const { theme } = useTheme();
 
     const toggleNotifications = () => {
         setShowNotifications((s) => {
@@ -57,25 +57,31 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                    {/* ====== NEW LOGO: TreX ====== */}
+                    {/* ====== NEW STYLISH LOGO: Tre - X (WITH FANCY FONT) ====== */}
                     {isAdmin ? (
-                        <span className="flex items-center gap-1.5 sm:gap-2 cursor-default">
-                            <div className="flex items-baseline font-extrabold tracking-tight">
-                                <span className="text-xl sm:text-3xl text-slate-900 dark:text-white">
+                        <span className="flex items-center gap-1 sm:gap-1.5 cursor-default">
+                            <div className="flex items-center font-serif font-black italic tracking-wider">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
-                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
+                                    -
+                                </span>
+                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400 leading-none">
                                     X
                                 </span>
                             </div>
                         </span>
                     ) : (
-                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2">
-                            <div className="flex items-baseline font-extrabold tracking-tight">
-                                <span className="text-xl sm:text-3xl text-slate-900 dark:text-white">
+                        <Link to="/" className="flex items-center gap-1 sm:gap-1.5">
+                            <div className="flex items-center font-serif font-black italic tracking-wider">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
-                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
+                                    -
+                                </span>
+                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400 leading-none">
                                     X
                                 </span>
                             </div>
