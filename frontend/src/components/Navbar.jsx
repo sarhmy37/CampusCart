@@ -86,7 +86,7 @@ export default function Navbar() {
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
                             <div className="flex items-center font-serif font-black italic tracking-wider">
-                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white font-bold">
                                     Tre
                                 </span>
                                 <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
