@@ -73,7 +73,7 @@ export default function Navbar() {
                                 <span className="text-base sm:text-xl text-slate-900 dark:text-white mx-0.5">
                                     -
                                 </span>
-                                <span className="text-2xl sm:text-4xl text-brand-600 dark:text-gold-400 leading-none">
+                                <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">
                                     X
                                 </span>
                             </div>
