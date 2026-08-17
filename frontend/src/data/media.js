@@ -2,9 +2,15 @@
 // Change CLOUD_NAME if you use a different Cloudinary account.
 const CLOUD_NAME = 'b7fch4rp';
 
+// LOGOS (Moved to the TOP so they are defined before PRELOAD_ASSETS)
+export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
+export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
+
+// Helper to generate Cloudinary Image URLs (UPDATED TO V2)
 function cloudinaryImage(filename) {
-    // Adding ?t=${Date.now()} forces the browser to ignore the cache and fetch the new image
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v1/${filename}?t=${Date.now()}`;
+    // Using v2 forces Cloudinary to fetch the freshly uploaded file instead of the cached v1
+    // Adding ?t=${Date.now()} also forces the browser to ignore its own cache
+    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v2/${filename}?t=${Date.now()}`;
 }
 
 // Helper to generate Cloudinary Video URLs
@@ -108,8 +114,3 @@ export const PRELOAD_ASSETS = [
     LOGO_LIGHT,
     LOGO_DARK   
 ];
-
-// LOGOS
-export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
-export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
-
