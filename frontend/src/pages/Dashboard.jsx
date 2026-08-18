@@ -827,7 +827,7 @@ function MyOrders({ period, isSeller }) {
 
         setConfirmingItem(itemId);
         try {
-            await api.post(`/order-items/${itemId}/confirm`);
+           await api.post(`/orders/order-items/${itemId}/confirm`);
             toast.success('Item confirmed as received! ✅');
             loadOrders();
         } catch (err) {
