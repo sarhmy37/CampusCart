@@ -11,6 +11,7 @@ const ITEM_TYPES = ['Clothes', 'Phone accessories', 'Stationery', 'Laptops', 'Pe
 
 const SCHOOLS = [
     { name: 'KNUST', lat: 6.6732, lng: -1.5654 },
+    { name: 'UG', lat: 5.6505, lng: -0.1895 },
     { name: 'ATU', lat: 5.5504, lng: -0.2174 },
     { name: 'UHAS', lat: 6.6008, lng: 0.4713 },
     { name: 'UCC', lat: 5.1153, lng: -1.2903 },
