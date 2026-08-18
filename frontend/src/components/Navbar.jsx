@@ -66,16 +66,16 @@ export default function Navbar() {
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
-                                className="h-7 sm:h-9 w-auto object-contain"
+                                className="h-6 sm:h-9 w-auto object-contain"
                             />
                            <div className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap">
-                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-white">
                                     Tre
                                 </span>
-                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-white mx-0.5">
                                     -
                                 </span>
-                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400 leading-none">
+                                <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">
                                     X
                                 </span>
                             </div>
