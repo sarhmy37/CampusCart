@@ -9,6 +9,28 @@ import { useTheme } from '../context/ThemeContext';
 import ProfileDrawer from './ProfileDrawer';
 import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
 
+const NOTIF_META = {
+    price_drop: { emoji: '💰', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' },
+    low_stock: { emoji: '⚡', color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' },
+    new_listing: { emoji: '🛍️', color: 'bg-brand-50 text-brand-600 dark:bg-gold-900/40 dark:text-gold-400' },
+    out_of_stock: { emoji: '📦', color: 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-gold-300' },
+    delivery_reminder: { emoji: '🚚', color: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400' },
+    new_order: { emoji: '📦', color: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400' },
+    delivery_marked: { emoji: '✅', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' },
+    default: { emoji: '🔔', color: 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-gold-300' },
+};
+
+function formatRelativeTime(dateString) {
+    const diffMs = Date.now() - new Date(dateString).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+}
+
 export default function Navbar() {
     const { user } = useAuth();
     const { count } = useCart();
@@ -66,16 +88,16 @@ export default function Navbar() {
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
-                                className="h-6 sm:h-9 w-auto object-contain"
+                                className="h-7 sm:h-9 w-auto object-contain"
                             />
                            <div className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap">
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-white">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
                                     Tre
                                 </span>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-white mx-0.5">
+                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
                                     -
                                 </span>
-                                <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">
+                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400 leading-none">
                                     X
                                 </span>
                             </div>
@@ -87,14 +109,14 @@ export default function Navbar() {
                                 alt="TreX" 
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
-                            <div className="flex items-center font-serif font-black italic tracking-wider whitespace-nowrap">
-                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white">
+                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-white">
                                     Tre
                                 </span>
-                                <span className="text-base sm:text-2xl text-slate-900 dark:text-white mx-0.5">
-                                    -
+                                <span className="text-base  sm:text-lg text-slate-900 dark:text-white mx-0.5">
+                                    ~
                                 </span>
-                                <span className="text-2xl sm:text-5xl text-brand-600 dark:text-gold-400 leading-none">
+                                <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
                                     X
                                 </span>
                             </div>
@@ -166,32 +188,36 @@ export default function Navbar() {
                                         <>
                                             {notifications.map((n) => {
                                                 const targetLink = n.link || `/product/${n.productId || n.id}`;
-                                                let iconEmoji = '';
-                                                if (n.type === 'price_drop') iconEmoji = '💰 ';
-                                                else if (n.type === 'low_stock') iconEmoji = '⚡ ';
-                                                else if (n.type === 'new_listing') iconEmoji = '🛍️ ';
-                                                else if (n.type === 'out_of_stock') iconEmoji = '📦 ';
-                                                else if (n.type === 'delivery_reminder') iconEmoji = '🚚 ';
-                                                else if (n.type === 'new_order') iconEmoji = '📦 ';
-                                                else if (n.type === 'delivery_marked') iconEmoji = '✅ ';
+                                                const meta = NOTIF_META[n.type] || NOTIF_META.default;
 
                                                 return (
                                                     <Link
                                                         key={n.id}
                                                         to={targetLink}
                                                         onClick={() => setShowNotifications(false)}
-                                                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
+                                                        className="flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
                                                     >
-                                                        {n.primary_image && (
-                                                            <img src={n.primary_image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                                        {n.primary_image ? (
+                                                            <img src={n.primary_image} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                                                        ) : (
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base shrink-0 ${meta.color}`}>
+                                                                {meta.emoji}
+                                                            </div>
                                                         )}
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">
-                                                                {iconEmoji}{n.title}
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 leading-snug">
+                                                                {n.title}
                                                             </p>
-                                                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
-                                                                {n.message}
-                                                            </p>
+                                                            {n.message && (
+                                                                <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5 leading-relaxed">
+                                                                    {n.message}
+                                                                </p>
+                                                            )}
+                                                            {n.created_at && (
+                                                                <p className="text-[11px] text-slate-400 dark:text-gold-300/40 mt-1">
+                                                                    {formatRelativeTime(n.created_at)}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </Link>
                                                 );
