@@ -152,23 +152,35 @@ router.patch('/default/:accountId', requireAuth, async (req, res) => {
     }
 });
 
-// ===== NEW: GET /api/payouts/balance =====
-// Calculates the total funds the seller is eligible to withdraw
+// Shared helper: available balance = confirmed earnings minus everything already withdrawn.
+// This replaces the old "mark every unpaid item as paid" approach, which couldn't
+// support partial withdrawals and was wiping the whole balance on any withdraw.
+async function getAvailableBalance(sellerId) {
+    const earnedResult = await pool.query(
+        `SELECT COALESCE(SUM(oi.seller_earnings), 0) AS total_earned
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         WHERE oi.seller_id = $1
+           AND o.status = 'paid'
+           AND oi.buyer_confirmed_at IS NOT NULL`,
+        [sellerId]
+    );
+    const withdrawnResult = await pool.query(
+        `SELECT COALESCE(SUM(amount), 0) AS total_withdrawn
+         FROM payout_withdrawals
+         WHERE seller_id = $1`,
+        [sellerId]
+    );
+
+    const totalEarned = parseFloat(earnedResult.rows[0].total_earned);
+    const totalWithdrawn = parseFloat(withdrawnResult.rows[0].total_withdrawn);
+    return Math.round((totalEarned - totalWithdrawn) * 100) / 100;
+}
+
+// GET /api/payouts/balance
 router.get('/balance', requireAuth, async (req, res) => {
     try {
-        // Sum all seller_earnings where the order is paid, items are confirmed by buyer, and not yet paid out
-        const result = await pool.query(
-            `SELECT SUM(oi.seller_earnings) as total_balance
-             FROM order_items oi
-             JOIN orders o ON o.id = oi.order_id
-             WHERE oi.seller_id = $1 
-               AND o.status = 'paid'
-               AND oi.buyer_confirmed_at IS NOT NULL
-               AND oi.seller_paid_at IS NULL`,
-            [req.userId]
-        );
-        
-        const balance = parseFloat(result.rows[0]?.total_balance || 0);
+        const balance = await getAvailableBalance(req.userId);
         res.json({ availableBalance: balance });
     } catch (err) {
         console.error('Get balance error:', err);
@@ -176,8 +188,9 @@ router.get('/balance', requireAuth, async (req, res) => {
     }
 });
 
-// ===== NEW: POST /api/payouts/withdraw =====
-// Withdraws funds from the available balance to the selected account
+// POST /api/payouts/withdraw — withdraws a specific amount, logged as a ledger entry
+// rather than flagging order items as paid. This is what actually fixes the bug
+// where withdrawing part of your balance wiped out the whole thing.
 router.post('/withdraw', requireAuth, async (req, res) => {
     const { accountId, amountGHS } = req.body;
 
@@ -186,13 +199,11 @@ router.post('/withdraw', requireAuth, async (req, res) => {
     }
 
     try {
-        // 1. Check if seller is verified
         const userResult = await pool.query('SELECT verified FROM users WHERE id = $1', [req.userId]);
         if (!userResult.rows[0]?.verified) {
             return res.status(403).json({ error: 'You must verify your account before withdrawing funds' });
         }
 
-        // 2. Get the default payout account
         const accResult = await pool.query(
             `SELECT * FROM seller_payout_accounts WHERE id = $1 AND seller_id = $2`,
             [accountId, req.userId]
@@ -202,47 +213,28 @@ router.post('/withdraw', requireAuth, async (req, res) => {
             return res.status(404).json({ error: 'Payout account not found' });
         }
 
-        // 3. Calculate available balance
-        const balanceResult = await pool.query(
-            `SELECT SUM(oi.seller_earnings) as total_balance
-             FROM order_items oi
-             JOIN orders o ON o.id = oi.order_id
-             WHERE oi.seller_id = $1 
-               AND o.status = 'paid'
-               AND oi.buyer_confirmed_at IS NOT NULL
-               AND oi.seller_paid_at IS NULL`,
-            [req.userId]
-        );
-        const availableBalance = parseFloat(balanceResult.rows[0]?.total_balance || 0);
-
+        const availableBalance = await getAvailableBalance(req.userId);
         if (amountGHS > availableBalance) {
             return res.status(400).json({ error: 'Insufficient balance' });
         }
 
-        // 4. Prepare Paystack transfer (This currently logs, but will trigger real transfer upon verification)
         let recipientCode = account.paystack_recipient_code;
         if (!recipientCode) {
-            // CREATE RECIPIENT CODE
-            // For now, we just log it to avoid crashes
             console.log(`[WITHDRAWAL SETUP] Recipient for ${account.account_name} needs to be created.`);
         }
 
-        // 5. Log the action (In real production, this calls initiateTransfer)
         console.log(`[WITHDRAW] Seller ${req.userId} requested GHS ${amountGHS} to account ${accountId}`);
-        
-        // 6. Mark the funds as paid out in the database
+
+        // Log this withdrawal as its own ledger entry — balance is recalculated
+        // from earnings-minus-withdrawals, so this is the only write needed.
         await pool.query(
-            `UPDATE order_items SET seller_paid_at = now() 
-             WHERE seller_id = $1 
-               AND seller_paid_at IS NULL 
-               AND order_id IN (
-                   SELECT id FROM orders WHERE status = 'paid'
-               )`,
-            [req.userId]
+            `INSERT INTO payout_withdrawals (seller_id, account_id, amount, status)
+             VALUES ($1, $2, $3, 'processing')`,
+            [req.userId, accountId, amountGHS]
         );
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: `Withdrawal of GHS ${amountGHS.toFixed(2)} initiated successfully!`
         });
 
