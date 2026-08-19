@@ -9,6 +9,7 @@ import AdminLogin from './pages/AdminLogin';
 import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
 import ProtectedRoute from './components/ProtectedRoute';
+import InstallButton from './components/InstallButton'; // 👈 Add this
 
 import Home from './pages/Home';
 import Browse from './pages/Browse';
@@ -49,6 +50,7 @@ export default function App() {
                     <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
                     <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
                   </Routes>
+                  <InstallButton /> {/* 👈 Add this */}
                 </div>
               </BrowserRouter>
             </NotificationProvider>
