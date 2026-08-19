@@ -98,4 +98,41 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/chat/conversations — inbox list for the logged-in user (as buyer or seller)
+router.get('/conversations', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                c.id,
+                CASE WHEN c.buyer_id = $1 THEN c.seller_id ELSE c.buyer_id END AS other_user_id,
+                CASE WHEN c.buyer_id = $1 THEN su.name ELSE bu.name END AS other_user_name,
+                p.title AS product_title,
+                lm.content AS last_message,
+                lm.created_at AS last_message_at,
+                COALESCE(uc.unread_count, 0) AS unread_count
+             FROM conversations c
+             JOIN users bu ON bu.id = c.buyer_id
+             JOIN users su ON su.id = c.seller_id
+             LEFT JOIN products p ON p.id = c.product_id
+             LEFT JOIN LATERAL (
+                 SELECT content, created_at FROM messages m
+                 WHERE m.conversation_id = c.id
+                 ORDER BY m.created_at DESC
+                 LIMIT 1
+             ) lm ON true
+             LEFT JOIN LATERAL (
+                 SELECT COUNT(*) AS unread_count FROM messages m
+                 WHERE m.conversation_id = c.id AND m.sender_id != $1 AND m.read = FALSE
+             ) uc ON true
+             WHERE c.buyer_id = $1 OR c.seller_id = $1
+             ORDER BY lm.created_at DESC NULLS LAST`,
+            [req.userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get conversations error:', err);
+        res.status(500).json({ error: 'Failed to fetch conversations' });
+    }
+});
+
 module.exports = router;

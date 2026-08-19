@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft } from 'lucide-react';
+import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useChat } from '../context/ChatContext';
 import { useTheme } from '../context/ThemeContext';
 import ProfileDrawer from './ProfileDrawer';
 import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
@@ -37,6 +38,14 @@ export default function Navbar() {
     const { items: wishlistItems, count: wishlistCount, removeItem: removeWishlistItem } = useWishlist();
     const [showWishlist, setShowWishlist] = useState(false);
     const { notifications, unreadCount, markAllRead, clearAllNotifications, removeNotification } = useNotifications();
+    const {
+        conversations,
+        visibleCount,
+        showMoreConversations,
+        unreadCount: chatUnreadCount,
+        openConversation,
+    } = useChat();
+    const [showMessages, setShowMessages] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const isHome = location.pathname === '/';
@@ -48,8 +57,9 @@ export default function Navbar() {
 
     const notificationsRef = useRef(null);
     const wishlistRef = useRef(null);
+    const messagesRef = useRef(null);
 
-    // Closes either dropdown when the user clicks/taps ANYWHERE outside it —
+    // Closes any dropdown when the user clicks/taps ANYWHERE outside it —
     // uses a document-level listener + ref check rather than a `fixed inset-0`
     // backdrop, since backdrop-blur on the header creates a new containing
     // block that traps `fixed` overlays inside it.
@@ -61,9 +71,12 @@ export default function Navbar() {
             if (wishlistRef.current && !wishlistRef.current.contains(e.target)) {
                 setShowWishlist(false);
             }
+            if (messagesRef.current && !messagesRef.current.contains(e.target)) {
+                setShowMessages(false);
+            }
         };
 
-        if (showNotifications || showWishlist) {
+        if (showNotifications || showWishlist || showMessages) {
             document.addEventListener('mousedown', handleOutsideClick);
             document.addEventListener('touchstart', handleOutsideClick);
         }
@@ -72,7 +85,7 @@ export default function Navbar() {
             document.removeEventListener('mousedown', handleOutsideClick);
             document.removeEventListener('touchstart', handleOutsideClick);
         };
-    }, [showNotifications, showWishlist]);
+    }, [showNotifications, showWishlist, showMessages]);
 
     const toggleNotifications = () => {
         setShowNotifications((s) => {
@@ -161,7 +174,7 @@ export default function Navbar() {
 
                 {/* RIGHT SIDE: NAV ITEMS — sized to its own content, never grows/shrinks */}
                 <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
-                    {/* Mobile-only collapse toggle for notifications + wishlist */}
+                    {/* Mobile-only collapse toggle for notifications + wishlist + messages */}
                     {user && (
                         <button
                             onClick={() => setMobileExpanded((e) => !e)}
@@ -185,6 +198,83 @@ export default function Navbar() {
                         <Link to="/sell/new" className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-red-700 dark:text-gold-400 hover:bg-brand-50 dark:hover:bg-ink-700 transition">
                             <PlusCircle size={18} /> Sell
                         </Link>
+                    )}
+
+                    {user && (
+                        <div ref={messagesRef} className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
+                            <button
+                                onClick={() => setShowMessages((s) => !s)}
+                                className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                                title="Messages"
+                            >
+                                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
+                                {chatUnreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                                        {chatUnreadCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {showMessages && (
+                                <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
+                                        Messages
+                                    </div>
+                                    {conversations.length === 0 ? (
+                                        <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
+                                            No conversations yet.
+                                        </p>
+                                    ) : (
+                                        <>
+                                            {conversations.slice(0, visibleCount).map((c) => (
+                                                <button
+                                                    key={c.id}
+                                                    onClick={() => {
+                                                        openConversation(c);
+                                                        setShowMessages(false);
+                                                    }}
+                                                    className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition text-left"
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center text-sm font-bold shrink-0">
+                                                        {c.other_user_name?.[0]?.toUpperCase() || '?'}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">
+                                                                {c.other_user_name}
+                                                            </p>
+                                                            {c.unread_count > 0 && (
+                                                                <span className="bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shrink-0">
+                                                                    {c.unread_count}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-gold-200/60 truncate mt-0.5">
+                                                            {c.last_message || 'No messages yet'}
+                                                        </p>
+                                                        {c.last_message_at && (
+                                                            <p className="text-[11px] text-slate-400 dark:text-gold-300/40 mt-0.5">
+                                                                {formatRelativeTime(c.last_message_at)}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                            {conversations.length > visibleCount && (
+                                                <div className="px-4 py-2 border-t border-slate-100 dark:border-ink-600">
+                                                    <button
+                                                        onClick={showMoreConversations}
+                                                        className="text-xs text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300 transition font-semibold w-full text-center"
+                                                    >
+                                                        Show more
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     <div ref={notificationsRef} className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
@@ -360,7 +450,6 @@ function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
     const handleTouchMove = (e) => {
         if (!dragging.current) return;
         const diff = e.touches[0].clientX - startX.current;
-        // Only allow dragging left (negative), clamp so it can't be pulled past a max reveal
         if (diff < 0) {
             setDragX(Math.max(diff, -120));
         }
@@ -372,16 +461,15 @@ function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
 
         if (dragX <= -SWIPE_DELETE_THRESHOLD) {
             setIsDeleting(true);
-            setDragX(-400); // slide fully off-screen
-            setTimeout(onDelete, 200); // let the slide-out animation finish first
+            setDragX(-400);
+            setTimeout(onDelete, 200);
         } else {
-            setDragX(0); // snap back
+            setDragX(0);
         }
     };
 
     return (
         <div className="relative overflow-hidden border-b border-slate-50 dark:border-ink-700 last:border-0">
-            {/* Red delete backdrop, revealed as the card slides left */}
             <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-5">
                 <Trash2 size={18} className="text-white" />
             </div>
@@ -389,7 +477,6 @@ function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
             <Link
                 to={targetLink}
                 onClick={(e) => {
-                    // Don't navigate if the user was mid-swipe/just deleted
                     if (isDeleting || Math.abs(dragX) > 5) {
                         e.preventDefault();
                         return;

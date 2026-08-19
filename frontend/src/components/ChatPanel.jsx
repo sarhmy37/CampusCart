@@ -121,7 +121,7 @@ export default function ChatPanel() {
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-ink-600 shrink-0">
                     <div>
                         <p className="font-bold text-slate-900 dark:text-gold-50 text-sm">
-                            {conversation?.sellerName || 'Chat'}
+                             {conversation?.otherUserName || 'Chat'}
                         </p>
                         <p className="text-xs text-slate-400 dark:text-gold-200/50">
                             {loading ? 'Connecting…' : 'Usually replies within a few hours'}

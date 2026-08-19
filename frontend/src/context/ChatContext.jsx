@@ -1,31 +1,52 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
+import { useAuth } from './AuthContext';
 
 const ChatContext = createContext(null);
-const POLL_MS = 4000;
+const MESSAGE_POLL_MS = 4000;
+const INBOX_POLL_MS = 15000;
+const INBOX_PAGE_SIZE = 10;
 
 export function ChatProvider({ children }) {
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
-    const [conversation, setConversation] = useState(null); // { id, sellerId, sellerName }
+    const [conversation, setConversation] = useState(null); // { id, otherUserId, otherUserName }
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
-    const pollRef = useRef(null);
+
+    const [conversations, setConversations] = useState([]);
+    const [visibleCount, setVisibleCount] = useState(INBOX_PAGE_SIZE);
+
+    const messagePollRef = useRef(null);
+    const inboxPollRef = useRef(null);
+
+    const fetchConversations = useCallback(async () => {
+        if (!user) return;
+        try {
+            const res = await api.get('/chat/conversations');
+            setConversations(res.data);
+        } catch { /* ignore */ }
+    }, [user]);
 
     const fetchMessages = useCallback(async (conversationId) => {
         try {
             const res = await api.get(`/chat/${conversationId}/messages`);
             setMessages(res.data);
+            // Opening/polling a thread marks its messages read server-side —
+            // refresh the inbox so the unread badge reflects that immediately.
+            fetchConversations();
         } catch { /* ignore, keep last known messages */ }
-    }, []);
+    }, [fetchConversations]);
 
+    // Used from Cart.jsx — finds or creates a conversation with a seller about a product
     const openChat = useCallback(async ({ sellerId, sellerName, productId }) => {
         setIsOpen(true);
         setLoading(true);
         setMessages([]);
         try {
             const res = await api.post('/chat/start', { sellerId, productId });
-            const convo = { id: res.data.id, sellerId, sellerName: res.data.seller_name || sellerName };
+            const convo = { id: res.data.id, otherUserId: sellerId, otherUserName: res.data.seller_name || sellerName };
             setConversation(convo);
             await fetchMessages(convo.id);
         } catch {
@@ -34,6 +55,16 @@ export function ChatProvider({ children }) {
         } finally {
             setLoading(false);
         }
+    }, [fetchMessages]);
+
+    // Used from the Navbar inbox — opens an existing conversation directly
+    const openConversation = useCallback(async (convo) => {
+        setIsOpen(true);
+        setLoading(true);
+        setMessages([]);
+        setConversation({ id: convo.id, otherUserId: convo.other_user_id, otherUserName: convo.other_user_name });
+        await fetchMessages(convo.id);
+        setLoading(false);
     }, [fetchMessages]);
 
     const closeChat = useCallback(() => {
@@ -50,16 +81,54 @@ export function ChatProvider({ children }) {
         }
     }, [conversation, fetchMessages]);
 
+    const showMoreConversations = useCallback(() => {
+        setVisibleCount((c) => c + INBOX_PAGE_SIZE);
+    }, []);
+
     // Poll for new messages while the panel is open
     useEffect(() => {
         if (isOpen && conversation) {
-            pollRef.current = setInterval(() => fetchMessages(conversation.id), POLL_MS);
+            messagePollRef.current = setInterval(() => fetchMessages(conversation.id), MESSAGE_POLL_MS);
         }
-        return () => clearInterval(pollRef.current);
+        return () => clearInterval(messagePollRef.current);
     }, [isOpen, conversation, fetchMessages]);
 
+    // Poll the inbox in the background (so the navbar badge stays current
+    // even when the chat panel itself isn't open)
+    useEffect(() => {
+        if (!user) {
+            setConversations([]);
+            return;
+        }
+        fetchConversations();
+        inboxPollRef.current = setInterval(fetchConversations, INBOX_POLL_MS);
+        return () => clearInterval(inboxPollRef.current);
+    }, [user, fetchConversations]);
+
+    // Collapse back to the first page of conversations each time the panel closes
+    useEffect(() => {
+        if (!isOpen) setVisibleCount(INBOX_PAGE_SIZE);
+    }, [isOpen]);
+
+    const unreadCount = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+
     return (
-        <ChatContext.Provider value={{ isOpen, conversation, messages, loading, openChat, closeChat, sendMessage }}>
+        <ChatContext.Provider
+            value={{
+                isOpen,
+                conversation,
+                messages,
+                loading,
+                openChat,
+                openConversation,
+                closeChat,
+                sendMessage,
+                conversations,
+                visibleCount,
+                showMoreConversations,
+                unreadCount,
+            }}
+        >
             {children}
         </ChatContext.Provider>
     );

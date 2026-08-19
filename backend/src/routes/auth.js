@@ -56,6 +56,7 @@ const ALLOWED_EMAIL_DOMAINS = [
     'st.umat.edu.gh',
     'kstu.edu.gh',
     'uhas.edu.gh',
+    
 ];
 
 function isAllowedEmailDomain(email) {
