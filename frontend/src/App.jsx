@@ -9,7 +9,8 @@ import AdminLogin from './pages/AdminLogin';
 import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
 import ProtectedRoute from './components/ProtectedRoute';
-import InstallButton from './components/InstallButton'; // 👈 Add this
+import InstallButton from './components/InstallButton';
+import PullToRefresh from './components/PullToRefresh';
 
 import Home from './pages/Home';
 import Browse from './pages/Browse';
@@ -22,7 +23,6 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import OrderConfirmation from './pages/OrderConfirmation';
-import PullToRefresh from './components/PullToRefresh';
 
 
 export default function App() {
@@ -34,26 +34,28 @@ export default function App() {
             <NotificationProvider>
               <BrowserRouter>
                 <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
-                  <Navbar />
-                <Toaster position="top-center" />
-                <AwayTimeoutModal />
-                <PullToRefresh>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/browse" element={<Browse />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/product/:id" element={<ProductDetail />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/sell/new" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
-                    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                    <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                    <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
-                    <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
-                  </Routes>
+                  <Navbar />  {/* 👈 Navbar stays fixed */}
+                  <Toaster position="top-center" />
+                  <AwayTimeoutModal />
+                  <PullToRefresh>
+                    <div className="pt-16">  {/* 👈 Add padding to push content below navbar */}
+                      <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/browse" element={<Browse />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/admin/login" element={<AdminLogin />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/product/:id" element={<ProductDetail />} />
+                        <Route path="/cart" element={<Cart />} />
+                        <Route path="/sell/new" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
+                        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                        <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+                        <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+                      </Routes>
+                    </div>
                   </PullToRefresh>
-                  <InstallButton /> {/* 👈 Add this */}
+                  <InstallButton />
                 </div>
               </BrowserRouter>
             </NotificationProvider>
