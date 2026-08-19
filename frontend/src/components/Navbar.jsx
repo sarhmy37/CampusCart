@@ -125,12 +125,12 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                    {isAdmin ? (
+                                        {isAdmin ? (
                         <span className="flex items-center gap-1.5 sm:gap-2 cursor-default shrink-0">
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
-                                className="h-7 sm:h-9 w-auto object-contain"
+                                className={`h-7 sm:h-9 w-auto object-contain ${mobileExpanded ? 'hidden sm:block' : 'block'}`}
                             />
                            <div className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap">
                                 <span className="text-base sm:text-lg text-slate-900 dark:text-white">
@@ -145,11 +145,11 @@ export default function Navbar() {
                             </div>
                         </span>
                     ) : (
-                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0">
+                                                <Link to="/" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0">
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
-                                className="h-7 sm:h-9 w-auto object-contain"
+                                className={`h-7 sm:h-9 w-auto object-contain ${mobileExpanded ? 'hidden sm:block' : 'block'}`}
                             />
                             <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
                                 <span className="text-base sm:text-lg text-slate-900 dark:text-white">
