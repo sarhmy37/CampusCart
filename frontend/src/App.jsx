@@ -11,6 +11,7 @@ import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import InstallButton from './components/InstallButton';
+import ChatPanel from './components/ChatPanel';
 import PullToRefresh from './components/PullToRefresh';
 
 import Home from './pages/Home';
@@ -34,30 +35,31 @@ export default function App() {
           <CartProvider>
             <NotificationProvider>
               <ChatProvider>
-              <BrowserRouter>
-                <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
-                  <Navbar />
-                  <Toaster position="top-center" />
-                  <AwayTimeoutModal />
-                  <PullToRefresh logoSrc="/logo.png">
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/browse" element={<Browse />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/product/:id" element={<ProductDetail />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/sell/new" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
-                    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                    <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                    <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
-                    <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
-                  </Routes>
-                  </PullToRefresh>
-                  <InstallButton />
-                </div>
-              </BrowserRouter>
+                <BrowserRouter>
+                  <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
+                    <Navbar />
+                    <Toaster position="top-center" />
+                    <AwayTimeoutModal />
+                    <PullToRefresh>
+                      <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/browse" element={<Browse />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/admin/login" element={<AdminLogin />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/product/:id" element={<ProductDetail />} />
+                        <Route path="/cart" element={<Cart />} />
+                        <Route path="/sell/new" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
+                        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                        <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+                        <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+                      </Routes>
+                    </PullToRefresh>
+                    <InstallButton />
+                    <ChatPanel />
+                  </div>
+                </BrowserRouter>
               </ChatProvider>
             </NotificationProvider>
           </CartProvider>
