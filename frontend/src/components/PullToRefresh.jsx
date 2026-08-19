@@ -49,7 +49,7 @@ export default function PullToRefresh({ children }) {
         };
 
         window.addEventListener('touchstart', onTouchStart, { passive: true });
-        window.addEventListener('touchmove', onTouchMove, { passive: false }); // must be non-passive to preventDefault
+        window.addEventListener('touchmove', onTouchMove, { passive: false }); // non-passive so preventDefault works
         window.addEventListener('touchend', onTouchEnd, { passive: true });
 
         return () => {
@@ -72,8 +72,8 @@ export default function PullToRefresh({ children }) {
             >
                 <img
                     src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK}
-                    alt=""
-                    className={`w-8 h-8 object-contain ${refreshing ? 'animate-pulse' : ''}`}
+                    alt="TreX"
+                    className={`h-7 sm:h-9 w-auto object-contain ${refreshing ? 'animate-pulse' : ''}`}
                     style={{
                         opacity: progress,
                         transform: `scale(${0.6 + progress * 0.4})`,
