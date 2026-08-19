@@ -48,6 +48,17 @@ export default function ChatPanel() {
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
+        useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
@@ -202,7 +213,7 @@ export default function ChatPanel() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
                     {loading ? (
                         <div className="flex items-center justify-center h-full text-slate-300 dark:text-gold-200/30">
                             <Loader2 size={20} className="animate-spin" />
