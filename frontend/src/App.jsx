@@ -10,6 +10,7 @@ import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import InstallButton from './components/InstallButton';
+import PullToRefresh from './components/PullToRefresh';
 
 import Home from './pages/Home';
 import Browse from './pages/Browse';
@@ -36,6 +37,7 @@ export default function App() {
                   <Navbar />
                   <Toaster position="top-center" />
                   <AwayTimeoutModal />
+                  <PullToRefresh logoSrc="/logo.png">
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/browse" element={<Browse />} />
@@ -50,6 +52,7 @@ export default function App() {
                     <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
                     <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
                   </Routes>
+                  </PullToRefresh>
                   <InstallButton />
                 </div>
               </BrowserRouter>
