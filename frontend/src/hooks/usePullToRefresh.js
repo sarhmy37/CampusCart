@@ -13,8 +13,8 @@ export default function usePullToRefresh({ onRefresh, threshold = 120 } = {}) {
         let startYPos = 0;
 
         const handleTouchStart = (e) => {
-            // Only enable pull-to-refresh at the top of the page
-            if (window.scrollY > 0) return;
+            // Only enable at the very top of the page
+            if (window.scrollY > 5) return;
             
             startYPos = e.touches[0].clientY;
             isDragging = true;
@@ -28,21 +28,18 @@ export default function usePullToRefresh({ onRefresh, threshold = 120 } = {}) {
             const currentYPos = e.touches[0].clientY;
             const diff = currentYPos - startY.current;
             
-            // Only allow downward pull
             if (diff < 0) {
                 setIsPulling(false);
                 setPullProgress(0);
                 return;
             }
 
-            // Check if user is at the top
-            if (window.scrollY > 0) {
+            if (window.scrollY > 5) {
                 setIsPulling(false);
                 setPullProgress(0);
                 return;
             }
 
-            // Prevent page scroll while pulling
             if (diff > 20) {
                 e.preventDefault();
             }
@@ -50,7 +47,7 @@ export default function usePullToRefresh({ onRefresh, threshold = 120 } = {}) {
             const progress = Math.min(diff / threshold, 1);
             setPullProgress(progress);
             
-            if (diff > 20) {
+            if (diff > 15) {
                 setIsPulling(true);
                 isPullingRef.current = true;
             }
@@ -58,13 +55,12 @@ export default function usePullToRefresh({ onRefresh, threshold = 120 } = {}) {
             currentY.current = currentYPos;
         };
 
-        const handleTouchEnd = (e) => {
+        const handleTouchEnd = () => {
             if (!isDragging) return;
             
             const diff = currentY.current - startY.current;
             
             if (diff > threshold && isPullingRef.current) {
-                // Trigger refresh
                 setIsRefreshing(true);
                 setIsPulling(false);
                 setPullProgress(0);
@@ -75,7 +71,6 @@ export default function usePullToRefresh({ onRefresh, threshold = 120 } = {}) {
                         isPullingRef.current = false;
                     });
                 } else {
-                    // Default: reload the page
                     window.location.reload();
                 }
             } else {

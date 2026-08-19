@@ -33,12 +33,18 @@ export default function App() {
           <CartProvider>
             <NotificationProvider>
               <BrowserRouter>
-                <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
-                  <Navbar />  {/* 👈 Navbar stays fixed */}
+                <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors relative">
+                  {/* Navbar – fixed at top, never moves */}
+                  <div className="sticky top-0 z-50">
+                    <Navbar />
+                  </div>
+                  
                   <Toaster position="top-center" />
                   <AwayTimeoutModal />
+                  
+                  {/* Content – only this part scrolls and pulls down */}
                   <PullToRefresh>
-                    <div className="pt-16">  {/* 👈 Add padding to push content below navbar */}
+                    <div className="relative">
                       <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/browse" element={<Browse />} />
@@ -55,6 +61,7 @@ export default function App() {
                       </Routes>
                     </div>
                   </PullToRefresh>
+                  
                   <InstallButton />
                 </div>
               </BrowserRouter>
