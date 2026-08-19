@@ -45,8 +45,28 @@ export default {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        heartbeat: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '14%':      { transform: 'scale(1.3)' },
+          '28%':      { transform: 'scale(1)' },
+          '42%':      { transform: 'scale(1.15)' },
+          '70%':      { transform: 'scale(1)' },
+        },
+        glowPulse: {
+          '0%, 100%': { transform: 'scale(0.85)', opacity: '0.5' },
+          '50%':      { transform: 'scale(1.5)', opacity: '0' },
+        },
+        shimmerSweep: {
+          '0%':   { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
       animation: {
         'pulse-slow': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        heartbeat: 'heartbeat 1.1s ease-in-out infinite',
+        glowPulse: 'glowPulse 1.1s ease-out infinite',
+        shimmerSweep: 'shimmerSweep 1.6s ease-in-out infinite',
       },
     },
   },

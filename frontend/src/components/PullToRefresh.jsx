@@ -28,7 +28,7 @@ export default function PullToRefresh({ children }) {
             const diff = e.touches[0].clientY - startY.current;
 
             if (diff > 0 && window.scrollY === 0) {
-                e.preventDefault(); // stop native bounce from doubling up with our gap
+                e.preventDefault();
                 setPullDistance(Math.min(diff * 0.5, MAX_PULL));
             }
         };
@@ -49,7 +49,7 @@ export default function PullToRefresh({ children }) {
         };
 
         window.addEventListener('touchstart', onTouchStart, { passive: true });
-        window.addEventListener('touchmove', onTouchMove, { passive: false }); // non-passive so preventDefault works
+        window.addEventListener('touchmove', onTouchMove, { passive: false });
         window.addEventListener('touchend', onTouchEnd, { passive: true });
 
         return () => {
@@ -64,21 +64,65 @@ export default function PullToRefresh({ children }) {
     return (
         <>
             <div
-                className="overflow-hidden flex items-center justify-center bg-white dark:bg-ink-900"
+                className="relative overflow-hidden flex flex-col items-center justify-center bg-gradient-to-b from-brand-50 via-white to-white dark:from-ink-800 dark:via-ink-900 dark:to-ink-900"
                 style={{
                     height: `${pullDistance}px`,
                     transition: isDragging ? 'none' : 'height 0.3s ease-out',
                 }}
             >
-                <img
-                    src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK}
-                    alt="TreX"
-                    className={`h-7 sm:h-9 w-auto object-contain ${refreshing ? 'animate-pulse' : ''}`}
+                {/* Diagonal shimmer sweep, only while actively refreshing */}
+                {refreshing && (
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <div className="absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/60 dark:via-gold-300/10 to-transparent animate-shimmerSweep" />
+                    </div>
+                )}
+
+                <div className="relative flex items-center justify-center w-12 h-12">
+                    {/* Expanding glow rings */}
+                    {refreshing && (
+                        <>
+                            <span className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-brand-400/40 dark:bg-gold-500/30 animate-glowPulse" />
+                            <span
+                                className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-brand-400/30 dark:bg-gold-500/20 animate-glowPulse"
+                                style={{ animationDelay: '0.3s' }}
+                            />
+                        </>
+                    )}
+
+                    <img
+                        src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK}
+                        alt="TreX"
+                        className={`relative h-7 sm:h-9 w-auto object-contain drop-shadow-sm ${refreshing ? 'animate-heartbeat' : ''}`}
+                        style={
+                            refreshing
+                                ? undefined
+                                : {
+                                      opacity: progress,
+                                      transform: `scale(${0.6 + progress * 0.4})`,
+                                  }
+                        }
+                    />
+                </div>
+
+                {/* Wordmark, styled like the navbar, fades/scales in as you pull */}
+                <div
+                    className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap mt-1.5"
                     style={{
-                        opacity: progress,
-                        transform: `scale(${0.6 + progress * 0.4})`,
+                        opacity: refreshing ? 1 : progress * 0.85,
+                        transform: `translateY(${refreshing ? 0 : (1 - progress) * 4}px)`,
                     }}
-                />
+                >
+                    <span className="text-xs text-slate-900 dark:text-white">Tre</span>
+                    <span className="text-xs text-slate-900 dark:text-white mx-0.5">-</span>
+                    <span className="text-sm text-brand-600 dark:text-gold-400 leading-none">X</span>
+                </div>
+
+                {/* Subtle status label, only while refreshing */}
+                {refreshing && (
+                    <span className="mt-1 text-[10px] font-medium tracking-wide text-slate-400 dark:text-gold-300/50 uppercase">
+                        Refreshing
+                    </span>
+                )}
             </div>
             {children}
         </>
