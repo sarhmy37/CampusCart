@@ -22,6 +22,7 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import OrderConfirmation from './pages/OrderConfirmation';
+import PullToRefresh from './components/PullToRefresh';
 
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
                   <Navbar />
                 <Toaster position="top-center" />
                 <AwayTimeoutModal />
+                <PullToRefresh>
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/browse" element={<Browse />} />
@@ -50,6 +52,7 @@ export default function App() {
                     <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
                     <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
                   </Routes>
+                  </PullToRefresh>
                   <InstallButton /> {/* 👈 Add this */}
                 </div>
               </BrowserRouter>
