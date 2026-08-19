@@ -10,7 +10,6 @@ import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import InstallButton from './components/InstallButton';
-import PullToRefresh from './components/PullToRefresh';
 
 import Home from './pages/Home';
 import Browse from './pages/Browse';
@@ -33,35 +32,24 @@ export default function App() {
           <CartProvider>
             <NotificationProvider>
               <BrowserRouter>
-                <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors relative">
-                  {/* Navbar – fixed at top, never moves */}
-                  <div className="sticky top-0 z-50">
-                    <Navbar />
-                  </div>
-                  
+                <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
+                  <Navbar />
                   <Toaster position="top-center" />
                   <AwayTimeoutModal />
-                  
-                  {/* Content – only this part scrolls and pulls down */}
-                  <PullToRefresh>
-                    <div className="relative">
-                      <Routes>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/browse" element={<Browse />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/admin/login" element={<AdminLogin />} />
-                        <Route path="/register" element={<Register />} />
-                        <Route path="/product/:id" element={<ProductDetail />} />
-                        <Route path="/cart" element={<Cart />} />
-                        <Route path="/sell/new" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
-                        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                        <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
-                        <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
-                      </Routes>
-                    </div>
-                  </PullToRefresh>
-                  
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/browse" element={<Browse />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/product/:id" element={<ProductDetail />} />
+                    <Route path="/cart" element={<Cart />} />
+                    <Route path="/sell/new" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
+                    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                    <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+                    <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+                  </Routes>
                   <InstallButton />
                 </div>
               </BrowserRouter>
