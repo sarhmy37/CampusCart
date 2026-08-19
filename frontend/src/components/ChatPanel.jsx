@@ -1,21 +1,46 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, ChevronDown, Loader2 } from 'lucide-react';
+import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
 
 const MOBILE_BREAKPOINT = 640;
-const SWIPE_DISMISS_THRESHOLD = 80; // px dragged up before it counts as a dismiss
+const SWIPE_DISMISS_THRESHOLD = 80;
+
+function formatPresence(lastActiveAt) {
+    if (!lastActiveAt) return '';
+    const diffMs = Date.now() - new Date(lastActiveAt).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 2) return 'Active now';
+    if (diffMin < 60) return `Last active ${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `Last active ${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `Last active ${diffDay}d ago`;
+}
+
+function formatDuration(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
 
 export default function ChatPanel() {
-    const { isOpen, conversation, messages, loading, closeChat, sendMessage } = useChat();
+    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia } = useChat();
     const { user } = useAuth();
     const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
     const [dragY, setDragY] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingSeconds, setRecordingSeconds] = useState(0);
+
     const startY = useRef(null);
     const dragging = useRef(false);
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const recordingTimerRef = useRef(null);
 
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -27,7 +52,6 @@ export default function ChatPanel() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Reset drag offset every time the panel opens
     useEffect(() => {
         if (isOpen) setDragY(0);
     }, [isOpen]);
@@ -39,7 +63,45 @@ export default function ChatPanel() {
         setDraft('');
     };
 
-    // Swipe-up-to-dismiss, mobile only, via the drag handle at the top of the panel
+    const handleAttachClick = () => fileInputRef.current?.click();
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        sendMedia(file, 'image');
+        e.target.value = ''; // allow re-selecting the same file later
+    };
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            audioChunksRef.current = [];
+
+            recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
+            recorder.onstop = () => {
+                stream.getTracks().forEach((t) => t.stop());
+                const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const file = new File([blob], 'voice-note.webm', { type: 'audio/webm' });
+                sendMedia(file, 'audio');
+            };
+
+            recorder.start();
+            mediaRecorderRef.current = recorder;
+            setIsRecording(true);
+            setRecordingSeconds(0);
+            recordingTimerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+        } catch {
+            alert('Microphone access is needed to record a voice note.');
+        }
+    };
+
+    const stopRecording = () => {
+        mediaRecorderRef.current?.stop();
+        setIsRecording(false);
+        clearInterval(recordingTimerRef.current);
+    };
+
     const handleTouchStart = (e) => {
         if (!isMobile) return;
         startY.current = e.touches[0].clientY;
@@ -50,7 +112,7 @@ export default function ChatPanel() {
     const handleTouchMove = (e) => {
         if (!isMobile || !dragging.current) return;
         const diff = e.touches[0].clientY - startY.current;
-        if (diff < 0) setDragY(diff); // only allow dragging upward
+        if (diff < 0) setDragY(diff);
     };
 
     const handleTouchEnd = () => {
@@ -61,15 +123,12 @@ export default function ChatPanel() {
         if (dragY <= -SWIPE_DISMISS_THRESHOLD) {
             closeChat();
         } else {
-            setDragY(0); // snap back
+            setDragY(0);
         }
     };
 
     if (!isOpen) return null;
 
-    // Desktop: fixed to the right, half width, full height, slides in horizontally.
-    // Mobile: fixed to the top, full width, ~87.5% height, slides in vertically,
-    // leaving a strip of blurred backdrop at the bottom that's tappable to dismiss.
     const panelStyle = isMobile
         ? {
               top: 0,
@@ -92,19 +151,13 @@ export default function ChatPanel() {
 
     return (
         <div className="fixed inset-0 z-[100]">
-            {/* Blurred backdrop — tapping it dismisses the chat */}
-            <div
-                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-                onClick={closeChat}
-            />
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeChat} />
 
-            {/* Sliding panel */}
             <div
                 className="fixed bg-white dark:bg-ink-800 shadow-2xl flex flex-col"
                 style={panelStyle}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Mobile drag handle — swipe up on this to dismiss */}
                 {isMobile && (
                     <div
                         className="flex flex-col items-center pt-2.5 pb-1 cursor-grab active:cursor-grabbing"
@@ -119,13 +172,26 @@ export default function ChatPanel() {
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-ink-600 shrink-0">
-                    <div>
-                        <p className="font-bold text-slate-900 dark:text-gold-50 text-sm">
-                             {conversation?.otherUserName || 'Chat'}
-                        </p>
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50">
-                            {loading ? 'Connecting…' : 'Usually replies within a few hours'}
-                        </p>
+                    <div className="flex items-center gap-3">
+                        {conversation?.otherUserAvatar ? (
+                            <img
+                                src={conversation.otherUserAvatar}
+                                alt={conversation.otherUserName}
+                                className="w-10 h-10 rounded-full object-cover shrink-0"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center text-sm font-bold shrink-0">
+                                {conversation?.otherUserName?.[0]?.toUpperCase() || '?'}
+                            </div>
+                        )}
+                        <div>
+                            <p className="font-bold text-slate-900 dark:text-gold-50 text-sm">
+                                {conversation?.otherUserName || 'Chat'}
+                            </p>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50">
+                                {loading ? 'Connecting…' : formatPresence(otherUserLastActive)}
+                            </p>
+                        </div>
                     </div>
                     <button
                         onClick={closeChat}
@@ -151,13 +217,21 @@ export default function ChatPanel() {
                             return (
                                 <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                                     <div
-                                        className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                                        className={`max-w-[75%] rounded-2xl text-sm leading-relaxed overflow-hidden ${
+                                            m.media_type === 'image' ? '' : 'px-3.5 py-2.5'
+                                        } ${
                                             isMine
                                                 ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
                                                 : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
                                         }`}
                                     >
-                                        {m.content}
+                                        {m.media_type === 'image' && (
+                                            <img src={m.media_url} alt="" className="max-w-full rounded-2xl" />
+                                        )}
+                                        {m.media_type === 'audio' && (
+                                            <audio controls src={m.media_url} className="max-w-full" />
+                                        )}
+                                        {m.content && <p className={m.media_type ? 'px-3.5 py-2.5' : ''}>{m.content}</p>}
                                     </div>
                                 </div>
                             );
@@ -167,22 +241,64 @@ export default function ChatPanel() {
                 </div>
 
                 {/* Composer */}
-                <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 dark:border-ink-600 shrink-0">
-                    <input
-                        type="text"
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        placeholder="Type a message…"
-                        className="flex-1 px-3.5 py-2.5 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-sm transition"
-                    />
-                    <button
-                        type="submit"
-                        disabled={!draft.trim()}
-                        className="p-2.5 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 disabled:opacity-40 transition shrink-0"
-                    >
-                        <Send size={16} />
-                    </button>
-                </form>
+                <div className="border-t border-slate-100 dark:border-ink-600 shrink-0">
+                    {isRecording ? (
+                        <div className="flex items-center gap-3 px-4 py-3">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                            <span className="text-sm font-medium text-slate-600 dark:text-gold-200 flex-1">
+                                Recording… {formatDuration(recordingSeconds)}
+                            </span>
+                            <button
+                                onClick={stopRecording}
+                                className="p-2.5 rounded-full bg-red-500 text-white transition shrink-0"
+                                title="Stop and send"
+                            >
+                                <Square size={16} />
+                            </button>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-3">
+                            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                            <button
+                                type="button"
+                                onClick={handleAttachClick}
+                                disabled={uploading}
+                                className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-200/50 transition shrink-0 disabled:opacity-40"
+                                title="Attach a photo"
+                            >
+                                <Paperclip size={18} />
+                            </button>
+
+                            <input
+                                type="text"
+                                value={draft}
+                                onChange={(e) => setDraft(e.target.value)}
+                                placeholder={uploading ? 'Uploading…' : 'Type a message…'}
+                                disabled={uploading}
+                                className="flex-1 px-3.5 py-2.5 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-sm transition disabled:opacity-60"
+                            />
+
+                            {draft.trim() ? (
+                                <button
+                                    type="submit"
+                                    className="p-2.5 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 transition shrink-0"
+                                >
+                                    <Send size={16} />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={startRecording}
+                                    disabled={uploading}
+                                    className="p-2.5 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 transition shrink-0 disabled:opacity-40"
+                                    title="Record a voice note"
+                                >
+                                    <Mic size={16} />
+                                </button>
+                            )}
+                        </form>
+                    )}
+                </div>
             </div>
         </div>
     );

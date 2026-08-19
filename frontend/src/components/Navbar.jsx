@@ -21,6 +21,11 @@ const NOTIF_META = {
     default: { emoji: '🔔', color: 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-gold-300' },
 };
 
+// Caps any badge count at "9+" so it never overflows the pill's padding
+function formatBadgeCount(n) {
+    return n > 9 ? '9+' : n;
+}
+
 function formatRelativeTime(dateString) {
     const diffMs = Date.now() - new Date(dateString).getTime();
     const diffMin = Math.floor(diffMs / 60000);
@@ -31,6 +36,8 @@ function formatRelativeTime(dateString) {
     const diffDay = Math.floor(diffHr / 24);
     return `${diffDay}d ago`;
 }
+
+const badgeClass = "absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center";
 
 export default function Navbar() {
     const { user } = useAuth();
@@ -59,10 +66,6 @@ export default function Navbar() {
     const wishlistRef = useRef(null);
     const messagesRef = useRef(null);
 
-    // Closes any dropdown when the user clicks/taps ANYWHERE outside it —
-    // uses a document-level listener + ref check rather than a `fixed inset-0`
-    // backdrop, since backdrop-blur on the header creates a new containing
-    // block that traps `fixed` overlays inside it.
     useEffect(() => {
         const handleOutsideClick = (e) => {
             if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
@@ -111,7 +114,6 @@ export default function Navbar() {
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
             <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
-                {/* LEFT SIDE: LOGO & MENU — sized to its own content, never grows/shrinks */}
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {user && (
                         <button
@@ -123,7 +125,6 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                    {/* LOGO (IMAGE + TEXT COMBINED) */}
                     {isAdmin ? (
                         <span className="flex items-center gap-1.5 sm:gap-2 cursor-default shrink-0">
                             <img 
@@ -165,16 +166,11 @@ export default function Navbar() {
                     )}
                 </div>
 
-                {/* MIDDLE: SEARCH BAR — the only flexible section. Fills exactly the gap
-                    between the logo and the right-side icons, and shrinks smoothly as
-                    the screen narrows instead of fighting the other sections for space. */}
                 <div className="flex-1 min-w-0 mx-2 sm:mx-4">
                     <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
                 </div>
 
-                {/* RIGHT SIDE: NAV ITEMS — sized to its own content, never grows/shrinks */}
                 <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
-                    {/* Mobile-only collapse toggle for notifications + wishlist + messages */}
                     {user && (
                         <button
                             onClick={() => setMobileExpanded((e) => !e)}
@@ -209,9 +205,7 @@ export default function Navbar() {
                             >
                                 <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                                 {chatUnreadCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                                        {chatUnreadCount}
-                                    </span>
+                                    <span className={badgeClass}>{formatBadgeCount(chatUnreadCount)}</span>
                                 )}
                             </button>
 
@@ -235,17 +229,25 @@ export default function Navbar() {
                                                     }}
                                                     className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition text-left"
                                                 >
-                                                    <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center text-sm font-bold shrink-0">
-                                                        {c.other_user_name?.[0]?.toUpperCase() || '?'}
-                                                    </div>
+                                                    {c.other_user_avatar ? (
+                                                        <img
+                                                            src={c.other_user_avatar}
+                                                            alt={c.other_user_name}
+                                                            className="w-10 h-10 rounded-full object-cover shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center text-sm font-bold shrink-0">
+                                                            {c.other_user_name?.[0]?.toUpperCase() || '?'}
+                                                        </div>
+                                                    )}
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex items-center justify-between gap-2">
                                                             <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">
                                                                 {c.other_user_name}
                                                             </p>
                                                             {c.unread_count > 0 && (
-                                                                <span className="bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shrink-0">
-                                                                    {c.unread_count}
+                                                                <span className="bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center shrink-0">
+                                                                    {formatBadgeCount(c.unread_count)}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -285,9 +287,7 @@ export default function Navbar() {
                         >
                             <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                             {unreadCount > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                                    {unreadCount}
-                                </span>
+                                <span className={badgeClass}>{formatBadgeCount(unreadCount)}</span>
                             )}
                         </button>
 
@@ -327,7 +327,7 @@ export default function Navbar() {
                     <Link to="/cart" className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
                         <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                         {count > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{count}</span>
+                            <span className={badgeClass}>{formatBadgeCount(count)}</span>
                         )}
                     </Link>
                     {user ? (
@@ -340,9 +340,7 @@ export default function Navbar() {
                                 >
                                     <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                                     {wishlistCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                                            {wishlistCount}
-                                        </span>
+                                        <span className={badgeClass}>{formatBadgeCount(wishlistCount)}</span>
                                     )}
                                 </button>
 
@@ -429,7 +427,7 @@ function SearchBar({ isAdmin, onSubmit }) {
     );
 }
 
-const SWIPE_DELETE_THRESHOLD = 80; // px the user must swipe left before it counts as a delete
+const SWIPE_DELETE_THRESHOLD = 80;
 
 function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
     const [dragX, setDragX] = useState(0);

@@ -2,24 +2,29 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect } f
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from './AuthContext';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 const ChatContext = createContext(null);
 const MESSAGE_POLL_MS = 4000;
 const INBOX_POLL_MS = 15000;
+const PRESENCE_POLL_MS = 15000;
 const INBOX_PAGE_SIZE = 10;
 
 export function ChatProvider({ children }) {
     const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
-    const [conversation, setConversation] = useState(null); // { id, otherUserId, otherUserName }
+    const [conversation, setConversation] = useState(null); // { id, otherUserId, otherUserName, otherUserAvatar }
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [otherUserLastActive, setOtherUserLastActive] = useState(null);
 
     const [conversations, setConversations] = useState([]);
     const [visibleCount, setVisibleCount] = useState(INBOX_PAGE_SIZE);
 
     const messagePollRef = useRef(null);
     const inboxPollRef = useRef(null);
+    const presencePollRef = useRef(null);
 
     const fetchConversations = useCallback(async () => {
         if (!user) return;
@@ -33,11 +38,16 @@ export function ChatProvider({ children }) {
         try {
             const res = await api.get(`/chat/${conversationId}/messages`);
             setMessages(res.data);
-            // Opening/polling a thread marks its messages read server-side —
-            // refresh the inbox so the unread badge reflects that immediately.
             fetchConversations();
         } catch { /* ignore, keep last known messages */ }
     }, [fetchConversations]);
+
+    const fetchPresence = useCallback(async (otherUserId) => {
+        try {
+            const res = await api.get(`/chat/presence/${otherUserId}`);
+            setOtherUserLastActive(res.data.last_active_at);
+        } catch { /* ignore */ }
+    }, []);
 
     // Used from Cart.jsx — finds or creates a conversation with a seller about a product
     const openChat = useCallback(async ({ sellerId, sellerName, productId }) => {
@@ -46,7 +56,12 @@ export function ChatProvider({ children }) {
         setMessages([]);
         try {
             const res = await api.post('/chat/start', { sellerId, productId });
-            const convo = { id: res.data.id, otherUserId: sellerId, otherUserName: res.data.seller_name || sellerName };
+            const convo = {
+                id: res.data.id,
+                otherUserId: sellerId,
+                otherUserName: res.data.seller_name || sellerName,
+                otherUserAvatar: res.data.seller_avatar || null,
+            };
             setConversation(convo);
             await fetchMessages(convo.id);
         } catch {
@@ -62,7 +77,12 @@ export function ChatProvider({ children }) {
         setIsOpen(true);
         setLoading(true);
         setMessages([]);
-        setConversation({ id: convo.id, otherUserId: convo.other_user_id, otherUserName: convo.other_user_name });
+        setConversation({
+            id: convo.id,
+            otherUserId: convo.other_user_id,
+            otherUserName: convo.other_user_name,
+            otherUserAvatar: convo.other_user_avatar || null,
+        });
         await fetchMessages(convo.id);
         setLoading(false);
     }, [fetchMessages]);
@@ -81,6 +101,25 @@ export function ChatProvider({ children }) {
         }
     }, [conversation, fetchMessages]);
 
+    // file: a File or Blob. mediaType: 'image' | 'audio'
+    const sendMedia = useCallback(async (file, mediaType) => {
+        if (!conversation) return;
+        setUploading(true);
+        try {
+            const resourceType = mediaType === 'audio' ? 'video' : 'image'; // Cloudinary files audio under "video"
+            const result = await uploadToCloudinary(file, resourceType);
+            await api.post(`/chat/${conversation.id}/messages`, {
+                media_url: result.secure_url,
+                media_type: mediaType,
+            });
+            await fetchMessages(conversation.id);
+        } catch {
+            toast.error('Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    }, [conversation, fetchMessages]);
+
     const showMoreConversations = useCallback(() => {
         setVisibleCount((c) => c + INBOX_PAGE_SIZE);
     }, []);
@@ -92,6 +131,17 @@ export function ChatProvider({ children }) {
         }
         return () => clearInterval(messagePollRef.current);
     }, [isOpen, conversation, fetchMessages]);
+
+    // Poll the other person's presence while the panel is open
+    useEffect(() => {
+        if (isOpen && conversation) {
+            fetchPresence(conversation.otherUserId);
+            presencePollRef.current = setInterval(() => fetchPresence(conversation.otherUserId), PRESENCE_POLL_MS);
+        } else {
+            setOtherUserLastActive(null);
+        }
+        return () => clearInterval(presencePollRef.current);
+    }, [isOpen, conversation, fetchPresence]);
 
     // Poll the inbox in the background (so the navbar badge stays current
     // even when the chat panel itself isn't open)
@@ -119,10 +169,13 @@ export function ChatProvider({ children }) {
                 conversation,
                 messages,
                 loading,
+                uploading,
+                otherUserLastActive,
                 openChat,
                 openConversation,
                 closeChat,
                 sendMessage,
+                sendMedia,
                 conversations,
                 visibleCount,
                 showMoreConversations,
