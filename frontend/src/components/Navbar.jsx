@@ -130,9 +130,9 @@ export default function Navbar() {
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
-                                className={`h-7 sm:h-9 w-auto object-contain ${mobileExpanded ? 'hidden sm:block' : 'block'}`}
+                                className="h-7 sm:h-9 w-auto object-contain"
                             />
-                           <div className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap">
+                           <div className={`items-center font-serif font-black italic tracking-tight whitespace-nowrap ${mobileExpanded ? 'hidden sm:flex' : 'flex'}`}>
                                 <span className="text-base sm:text-lg text-slate-900 dark:text-white">
                                     Tre
                                 </span>
@@ -149,9 +149,9 @@ export default function Navbar() {
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
-                                className={`h-7 sm:h-9 w-auto object-contain ${mobileExpanded ? 'hidden sm:block' : 'block'}`}
+                                className="h-7 sm:h-9 w-auto object-contain"
                             />
-                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                            <div className={`items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0 ${mobileExpanded ? 'hidden sm:flex' : 'flex'}`}>
                                 <span className="text-base sm:text-lg text-slate-900 dark:text-white">
                                     Tre
                                 </span>
