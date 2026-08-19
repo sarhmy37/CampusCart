@@ -27,6 +27,8 @@ const reportRoutes = require('./routes/reports');
 
 const reviewRoutes = require('./routes/reviews');
 
+const chatRoutes = require('./routes/chat');
+
 const app = express();
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -70,6 +72,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/payouts', payoutRoutes);
 
 app.use('/api/reviews', reviewRoutes);
+
+app.use('/api/chat', chatRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 

@@ -5,6 +5,7 @@ import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ChatProvider } from './context/ChatContext';
 import AdminLogin from './pages/AdminLogin';
 import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
@@ -32,6 +33,7 @@ export default function App() {
         <WishlistProvider>
           <CartProvider>
             <NotificationProvider>
+              <ChatProvider>
               <BrowserRouter>
                 <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
                   <Navbar />
@@ -56,6 +58,7 @@ export default function App() {
                   <InstallButton />
                 </div>
               </BrowserRouter>
+              </ChatProvider>
             </NotificationProvider>
           </CartProvider>
         </WishlistProvider>

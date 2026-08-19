@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
+import { useChat } from '../context/ChatContext';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { openWhatsAppChats } from '../utils/whatsapp';
@@ -46,6 +47,7 @@ function WhatsAppIcon(props) {
 export default function Cart() {
     const { items, removeItem, updateQuantity, total, clearCart } = useCart();
     const { user } = useAuth();
+    const { openChat } = useChat();
     const navigate = useNavigate();
     const [deliveryMethod, setDeliveryMethod] = useState('pickup');
     const [paying, setPaying] = useState(false);
@@ -232,7 +234,7 @@ export default function Cart() {
                         </div>
                     ))}
 
-                    {/* WHATSAPP — grouped by seller (only shown for pickup) */}
+                    {/* SELLER CONTACT — grouped by seller (only shown for pickup) */}
                     {deliveryMethod === 'pickup' && (
                         <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 mt-2">
                             <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">
@@ -245,35 +247,50 @@ export default function Cart() {
                                     const href = number
                                         ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
                                         : null;
+                                    const sellerId = group.items[0]?.seller_id;
 
                                     return (
-                                        <a
-                                            key={group.sellerName + (group.whatsapp || '')}
-                                            href={href || '#'}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => {
-                                                if (!user) {
-                                                    e.preventDefault();
-                                                    navigate('/login');
-                                                    return;
-                                                }
-                                                if (!href) {
-                                                    e.preventDefault();
-                                                    alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
-                                                }
-                                            }}
-                                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
-                                                href
-                                                    ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'
-                                                    : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 text-slate-400 dark:text-gold-200/40 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            <span className="flex items-center gap-2.5">
+                                        <div key={group.sellerName + (group.whatsapp || '')} className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    if (!user) return navigate('/login');
+                                                    if (!sellerId) return toast.error('Could not identify this seller');
+                                                    openChat({
+                                                        sellerId,
+                                                        sellerName: group.sellerName,
+                                                        productId: group.items[0]?.product_id,
+                                                    });
+                                                }}
+                                                className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-brand-200 dark:border-gold-800 bg-brand-50 dark:bg-gold-900/30 hover:bg-brand-100 dark:hover:bg-gold-900/50 text-brand-800 dark:text-gold-300 text-sm font-semibold transition"
+                                            >
+                                                <span>Message {group.sellerName} in-app</span>
+                                            </button>
+
+                                            <a
+                                                href={href || '#'}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => {
+                                                    if (!user) {
+                                                        e.preventDefault();
+                                                        navigate('/login');
+                                                        return;
+                                                    }
+                                                    if (!href) {
+                                                        e.preventDefault();
+                                                        alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
+                                                    }
+                                                }}
+                                                className={`flex items-center justify-center px-4 py-3 rounded-xl border transition shrink-0 ${
+                                                    href
+                                                        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                                                        : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 cursor-not-allowed'
+                                                }`}
+                                                title="Chat on WhatsApp"
+                                            >
                                                 <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
-                                                Chat with {group.sellerName} about {group.items.length} item{group.items.length > 1 ? 's' : ''}
-                                            </span>
-                                        </a>
+                                            </a>
+                                        </div>
                                     );
                                 })}
                             </div>
