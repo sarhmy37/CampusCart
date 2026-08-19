@@ -90,4 +90,22 @@ router.delete('/', requireAuth, async (req, res) => {
     }
 });
 
+// DELETE /api/notifications/:id
+router.delete('/:id', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(
+            `DELETE FROM notifications WHERE id = $1 AND user_id = $2`,
+            [id, req.userId]
+        );
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Notification not found' });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete notification error:', err);
+        res.status(500).json({ error: 'Failed to delete notification' });
+    }
+});
+
 module.exports = router;

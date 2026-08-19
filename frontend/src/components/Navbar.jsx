@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -36,7 +36,7 @@ export default function Navbar() {
     const { count } = useCart();
     const { items: wishlistItems, count: wishlistCount, removeItem: removeWishlistItem } = useWishlist();
     const [showWishlist, setShowWishlist] = useState(false);
-    const { notifications, unreadCount, markAllRead, clearAllNotifications } = useNotifications();
+    const { notifications, unreadCount, markAllRead, clearAllNotifications, removeNotification } = useNotifications();
     const navigate = useNavigate();
     const location = useLocation();
     const isHome = location.pathname === '/';
@@ -45,6 +45,34 @@ export default function Navbar() {
     const [showNotifications, setShowNotifications] = useState(false);
     const [mobileExpanded, setMobileExpanded] = useState(false);
     const { theme } = useTheme();
+
+    const notificationsRef = useRef(null);
+    const wishlistRef = useRef(null);
+
+    // Closes either dropdown when the user clicks/taps ANYWHERE outside it —
+    // uses a document-level listener + ref check rather than a `fixed inset-0`
+    // backdrop, since backdrop-blur on the header creates a new containing
+    // block that traps `fixed` overlays inside it.
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+                setShowNotifications(false);
+            }
+            if (wishlistRef.current && !wishlistRef.current.contains(e.target)) {
+                setShowWishlist(false);
+            }
+        };
+
+        if (showNotifications || showWishlist) {
+            document.addEventListener('mousedown', handleOutsideClick);
+            document.addEventListener('touchstart', handleOutsideClick);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('touchstart', handleOutsideClick);
+        };
+    }, [showNotifications, showWishlist]);
 
     const toggleNotifications = () => {
         setShowNotifications((s) => {
@@ -159,7 +187,7 @@ export default function Navbar() {
                         </Link>
                     )}
 
-                    <div className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
+                    <div ref={notificationsRef} className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
                         <button
                             onClick={toggleNotifications}
                             className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
@@ -174,66 +202,35 @@ export default function Navbar() {
                         </button>
 
                         {showNotifications && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                                <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
-                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
-                                        Notifications
-                                    </div>
-                                    {notifications.length === 0 ? (
-                                        <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
-                                            Nothing yet. We check every minute.
-                                        </p>
-                                    ) : (
-                                        <>
-                                            {notifications.map((n) => {
-                                                const targetLink = n.link || `/product/${n.productId || n.id}`;
-                                                const meta = NOTIF_META[n.type] || NOTIF_META.default;
-
-                                                return (
-                                                    <Link
-                                                        key={n.id}
-                                                        to={targetLink}
-                                                        onClick={() => setShowNotifications(false)}
-                                                        className="flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
-                                                    >
-                                                        {n.primary_image ? (
-                                                            <img src={n.primary_image} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
-                                                        ) : (
-                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base shrink-0 ${meta.color}`}>
-                                                                {meta.emoji}
-                                                            </div>
-                                                        )}
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 leading-snug">
-                                                                {n.title}
-                                                            </p>
-                                                            {n.message && (
-                                                                <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5 leading-relaxed">
-                                                                    {n.message}
-                                                                </p>
-                                                            )}
-                                                            {n.created_at && (
-                                                                <p className="text-[11px] text-slate-400 dark:text-gold-300/40 mt-1">
-                                                                    {formatRelativeTime(n.created_at)}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </Link>
-                                                );
-                                            })}
-                                            <div className="px-4 py-2 border-t border-slate-100 dark:border-ink-600">
-                                                <button
-                                                    onClick={clearAllNotifications}
-                                                    className="text-xs text-slate-400 dark:text-gold-200/50 hover:text-red-500 dark:hover:text-red-400 transition font-semibold w-full text-center"
-                                                >
-                                                    Clear all
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
+                            <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
+                                    Notifications
                                 </div>
-                            </>
+                                {notifications.length === 0 ? (
+                                    <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
+                                        Nothing yet. We check every minute.
+                                    </p>
+                                ) : (
+                                    <>
+                                        {notifications.map((n) => (
+                                            <SwipeableNotification
+                                                key={n.id}
+                                                notification={n}
+                                                onDelete={() => removeNotification(n.id)}
+                                                onNavigate={() => setShowNotifications(false)}
+                                            />
+                                        ))}
+                                        <div className="px-4 py-2 border-t border-slate-100 dark:border-ink-600">
+                                            <button
+                                                onClick={clearAllNotifications}
+                                                className="text-xs text-slate-400 dark:text-gold-200/50 hover:text-red-500 dark:hover:text-red-400 transition font-semibold w-full text-center"
+                                            >
+                                                Clear all
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         )}
                     </div>
 
@@ -245,7 +242,7 @@ export default function Navbar() {
                     </Link>
                     {user ? (
                         <>
-                            <div className={`relative ${mobileExpanded ? 'block' : 'hidden'} sm:block`}>
+                            <div ref={wishlistRef} className={`relative ${mobileExpanded ? 'block' : 'hidden'} sm:block`}>
                                 <button
                                     onClick={() => setShowWishlist((s) => !s)}
                                     className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
@@ -260,50 +257,47 @@ export default function Navbar() {
                                 </button>
 
                                 {showWishlist && (
-                                    <>
-                                        <div className="fixed inset-0 z-40" onClick={() => setShowWishlist(false)} />
-                                        <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
-                                            <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
-                                                Wishlist
-                                            </div>
-                                            {wishlistItems.length === 0 ? (
-                                                <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
-                                                    Nothing saved yet. Tap the heart on any listing to add it here.
-                                                </p>
-                                            ) : (
-                                                wishlistItems.map((p) => (
-                                                    <div
-                                                        key={p.id}
-                                                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
-                                                    >
-                                                        <Link
-                                                            to={`/product/${p.id}`}
-                                                            onClick={() => setShowWishlist(false)}
-                                                            className="flex items-center gap-3 flex-1 min-w-0"
-                                                        >
-                                                            {p.primary_image && (
-                                                                <img src={p.primary_image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                                                            )}
-                                                            <div className="min-w-0">
-                                                                <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">{p.title}</p>
-                                                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
-                                                                    GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
-                                                                </p>
-                                                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{p.seller_name}</p>
-                                                            </div>
-                                                        </Link>
-                                                        <button
-                                                            onClick={() => removeWishlistItem(p.id)}
-                                                            className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition shrink-0"
-                                                            title="Remove from wishlist"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                ))
-                                            )}
+                                    <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                        <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
+                                            Wishlist
                                         </div>
-                                    </>
+                                        {wishlistItems.length === 0 ? (
+                                            <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
+                                                Nothing saved yet. Tap the heart on any listing to add it here.
+                                            </p>
+                                        ) : (
+                                            wishlistItems.map((p) => (
+                                                <div
+                                                    key={p.id}
+                                                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
+                                                >
+                                                    <Link
+                                                        to={`/product/${p.id}`}
+                                                        onClick={() => setShowWishlist(false)}
+                                                        className="flex items-center gap-3 flex-1 min-w-0"
+                                                    >
+                                                        {p.primary_image && (
+                                                            <img src={p.primary_image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">{p.title}</p>
+                                                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
+                                                                GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
+                                                            </p>
+                                                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{p.seller_name}</p>
+                                                        </div>
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => removeWishlistItem(p.id)}
+                                                        className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition shrink-0"
+                                                        title="Remove from wishlist"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
                                 )}
                             </div>
                             {user.role === 'admin' && (
@@ -342,5 +336,98 @@ function SearchBar({ isAdmin, onSubmit }) {
                 className="w-full px-3 py-2 sm:px-4 sm:py-2.5 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-xs sm:text-sm transition"
             />
         </form>
+    );
+}
+
+const SWIPE_DELETE_THRESHOLD = 80; // px the user must swipe left before it counts as a delete
+
+function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
+    const [dragX, setDragX] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const startX = useRef(null);
+    const dragging = useRef(false);
+
+    const targetLink = n.link || `/product/${n.productId || n.id}`;
+    const meta = NOTIF_META[n.type] || NOTIF_META.default;
+
+    const handleTouchStart = (e) => {
+        startX.current = e.touches[0].clientX;
+        dragging.current = true;
+        setIsDragging(true);
+    };
+
+    const handleTouchMove = (e) => {
+        if (!dragging.current) return;
+        const diff = e.touches[0].clientX - startX.current;
+        // Only allow dragging left (negative), clamp so it can't be pulled past a max reveal
+        if (diff < 0) {
+            setDragX(Math.max(diff, -120));
+        }
+    };
+
+    const handleTouchEnd = () => {
+        dragging.current = false;
+        setIsDragging(false);
+
+        if (dragX <= -SWIPE_DELETE_THRESHOLD) {
+            setIsDeleting(true);
+            setDragX(-400); // slide fully off-screen
+            setTimeout(onDelete, 200); // let the slide-out animation finish first
+        } else {
+            setDragX(0); // snap back
+        }
+    };
+
+    return (
+        <div className="relative overflow-hidden border-b border-slate-50 dark:border-ink-700 last:border-0">
+            {/* Red delete backdrop, revealed as the card slides left */}
+            <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-5">
+                <Trash2 size={18} className="text-white" />
+            </div>
+
+            <Link
+                to={targetLink}
+                onClick={(e) => {
+                    // Don't navigate if the user was mid-swipe/just deleted
+                    if (isDeleting || Math.abs(dragX) > 5) {
+                        e.preventDefault();
+                        return;
+                    }
+                    onNavigate();
+                }}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className="relative flex items-start gap-3 px-4 py-3.5 bg-white dark:bg-ink-800 hover:bg-slate-50 dark:hover:bg-ink-700"
+                style={{
+                    transform: `translateX(${dragX}px)`,
+                    transition: isDragging ? 'none' : 'transform 0.25s ease-out',
+                }}
+            >
+                {n.primary_image ? (
+                    <img src={n.primary_image} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                ) : (
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base shrink-0 ${meta.color}`}>
+                        {meta.emoji}
+                    </div>
+                )}
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 leading-snug">
+                        {n.title}
+                    </p>
+                    {n.message && (
+                        <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5 leading-relaxed">
+                            {n.message}
+                        </p>
+                    )}
+                    {n.created_at && (
+                        <p className="text-[11px] text-slate-400 dark:text-gold-300/40 mt-1">
+                            {formatRelativeTime(n.created_at)}
+                        </p>
+                    )}
+                </div>
+            </Link>
+        </div>
     );
 }

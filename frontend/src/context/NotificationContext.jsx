@@ -220,6 +220,22 @@ export function NotificationProvider({ children }) {
         }
     };
 
+    // ---- Remove a single notification (used by swipe-to-delete) ----
+    const removeNotification = async (id) => {
+        const isBackendNotif = backendNotifs.some((n) => n.id === id);
+
+        if (isBackendNotif) {
+            try {
+                await api.delete(`/notifications/${id}`);
+            } catch {
+                // Even if the backend call fails, still remove it locally so the UI stays responsive
+            }
+            setBackendNotifs((prev) => prev.filter((n) => n.id !== id));
+        } else {
+            setProductNotifs((prev) => prev.filter((n) => n.id !== id));
+        }
+    };
+
     // ---- Polling ----
     useEffect(() => {
         checkForNewListings();
@@ -250,6 +266,7 @@ export function NotificationProvider({ children }) {
                 unreadCount,
                 markAllRead,
                 clearAllNotifications,
+                removeNotification,
             }}
         >
             {children}
