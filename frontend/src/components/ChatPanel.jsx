@@ -76,11 +76,11 @@ export default function ChatPanel() {
 
     const handleAttachClick = () => fileInputRef.current?.click();
 
-    const handleFileChange = (e) => {
+        const handleFileChange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        sendMedia(file, 'image');
-        e.target.value = ''; // allow re-selecting the same file later
+        sendMedia(file);
+        e.target.value = '';
     };
 
     const startRecording = async () => {
@@ -90,11 +90,11 @@ export default function ChatPanel() {
             audioChunksRef.current = [];
 
             recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-            recorder.onstop = () => {
+                        recorder.onstop = () => {
                 stream.getTracks().forEach((t) => t.stop());
                 const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const file = new File([blob], 'voice-note.webm', { type: 'audio/webm' });
-                sendMedia(file, 'audio');
+                sendMedia(file);
             };
 
             recorder.start();

@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect } f
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from './AuthContext';
-import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 const ChatContext = createContext(null);
 const MESSAGE_POLL_MS = 4000;
@@ -101,20 +100,19 @@ export function ChatProvider({ children }) {
         }
     }, [conversation, fetchMessages]);
 
-    // file: a File or Blob. mediaType: 'image' | 'audio'
-    const sendMedia = useCallback(async (file, mediaType) => {
+     // file: a File or Blob. mediaType is inferred server-side from the file's mimetype.
+    const sendMedia = useCallback(async (file) => {
         if (!conversation) return;
         setUploading(true);
         try {
-            const resourceType = mediaType === 'audio' ? 'video' : 'image'; // Cloudinary files audio under "video"
-            const result = await uploadToCloudinary(file, resourceType);
-            await api.post(`/chat/${conversation.id}/messages`, {
-                media_url: result.secure_url,
-                media_type: mediaType,
+            const formData = new FormData();
+            formData.append('media', file);
+            await api.post(`/chat/${conversation.id}/media`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
             await fetchMessages(conversation.id);
-        } catch {
-            toast.error('Upload failed');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Upload failed');
         } finally {
             setUploading(false);
         }

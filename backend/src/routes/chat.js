@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { uploadChatMedia } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -135,6 +136,45 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Get messages error:', err);
         res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+});
+
+// POST /api/chat/:id/media — send an image or voice note as a message
+router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (req, res) => {
+    const { id } = req.params;
+
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file received' });
+    }
+
+    try {
+        const convo = await pool.query(
+            `SELECT buyer_id, seller_id FROM conversations WHERE id = $1`,
+            [id]
+        );
+        if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
+        const { buyer_id, seller_id } = convo.rows[0];
+        if (req.userId !== buyer_id && req.userId !== seller_id) {
+            return res.status(403).json({ error: 'Not part of this conversation' });
+        }
+
+        await touchLastActive(req.userId);
+
+        // Same Base64-in-DB pattern already used for avatars — no external
+        // storage dependency, nothing to configure.
+        const mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+        const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio' : 'image';
+
+        const inserted = await pool.query(
+            `INSERT INTO messages (conversation_id, sender_id, media_url, media_type)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id, sender_id, content, media_url, media_type, read, created_at`,
+            [id, req.userId, mediaUrl, mediaType]
+        );
+        res.json(inserted.rows[0]);
+    } catch (err) {
+        console.error('Send media error:', err);
+        res.status(500).json({ error: 'Something went wrong sending your media' });
     }
 });
 

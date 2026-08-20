@@ -39,4 +39,17 @@ const uploadProductMedia = multer({
     { name: 'video', maxCount: 1 },
 ]);
 
-module.exports = { uploadAvatar, uploadProductImages, uploadProductMedia };
+const chatMediaFilter = (req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('audio/')) {
+        return cb(null, true);
+    }
+    cb(new Error('Only image or audio files are allowed'));
+};
+
+const uploadChatMedia = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: chatMediaFilter,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB — covers a comfortably long voice note
+});
+
+module.exports = { uploadAvatar, uploadProductImages, uploadProductMedia, uploadChatMedia };
