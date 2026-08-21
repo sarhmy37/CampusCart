@@ -133,10 +133,10 @@ export default function Navbar() {
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
                            <div className={`items-center font-serif font-black italic tracking-tight whitespace-nowrap ${mobileExpanded ? 'hidden sm:flex' : 'flex'}`}>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-white">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">
                                     Tre
                                 </span>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-white mx-0.5">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">
                                     -
                                 </span>
                                 <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">
@@ -152,10 +152,10 @@ export default function Navbar() {
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
                             <div className={`items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0 ${mobileExpanded ? 'hidden sm:flex' : 'flex'}`}>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-white">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">
                                     Tre
                                 </span>
-                                <span className="text-base  sm:text-lg text-slate-900 dark:text-white mx-0.5">
+                                <span className="text-base  sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">
                                     -
                                 </span>
                                 <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">

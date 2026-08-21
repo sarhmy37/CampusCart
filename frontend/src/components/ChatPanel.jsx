@@ -83,17 +83,43 @@ export default function ChatPanel() {
         e.target.value = '';
     };
 
+        // Ask for the most widely-compatible format the browser can actually record,
+    // rather than assuming webm — Safari and some other browsers default to
+    // a different codec, and mislabeling the file breaks playback.
+    const MIME_CANDIDATES = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/aac',
+        'audio/ogg;codecs=opus',
+    ];
+
+    const pickSupportedMimeType = () => {
+        if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
+        return MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+    };
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
+            const preferredType = pickSupportedMimeType();
+            const recorder = preferredType
+                ? new MediaRecorder(stream, { mimeType: preferredType })
+                : new MediaRecorder(stream);
             audioChunksRef.current = [];
 
             recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-                        recorder.onstop = () => {
+            recorder.onstop = () => {
                 stream.getTracks().forEach((t) => t.stop());
-                const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const file = new File([blob], 'voice-note.webm', { type: 'audio/webm' });
+                // recorder.mimeType reflects what the browser ACTUALLY used,
+                // regardless of what we asked for — always trust this over
+                // any assumption.
+                const actualType = recorder.mimeType || 'audio/webm';
+                const extension = actualType.includes('mp4') ? 'm4a'
+                    : actualType.includes('ogg') ? 'ogg'
+                    : 'webm';
+                const blob = new Blob(audioChunksRef.current, { type: actualType });
+                const file = new File([blob], `voice-note.${extension}`, { type: actualType });
                 sendMedia(file);
             };
 
