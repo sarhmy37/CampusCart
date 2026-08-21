@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, X, Smartphone, CheckCircle } from 'lucide-react';
+import { Download, X, Smartphone, CheckCircle ,Share } from 'lucide-react';
 import useInstallPrompt from '../hooks/useInstallPrompt';
 
 export default function InstallButton() {
@@ -82,12 +82,14 @@ export default function InstallButton() {
                         </ul>
 
                         {isIOS && !isStandalone ? (
-                            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 mb-4">
-                                <p className="text-xs text-amber-700 dark:text-amber-400">
-                                    📱 Tap the Share button <span className="font-bold">⎔</span> and select <span className="font-bold">"Add to Home Screen"</span>
-                                </p>
-                            </div>
-                        ) : null}
+    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 mb-4">
+        <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+            📱 Tap the Share button{' '}
+            <Share className="w-4 h-4 inline-block align-middle" />
+            and select <span className="font-bold">"Add to Home Screen"</span>
+        </p>
+    </div>
+) : null}
 
                         <button
                             onClick={handleInstall}

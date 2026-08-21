@@ -4,6 +4,7 @@ import Reveal from '../components/Reveal';
 import { HERO_IMAGES, GALLERY } from '../data/media';
 import HeroSlideshow from '../components/HeroSlideshow';
 import SellerRequiredModal from '../components/SellerRequiredModal';
+import { UserGroupIcon, StarIcon, CurrencyDollarIcon } from '@heroicons/react/24/solid';
 import {
     ShieldCheck,
     MessageCircle,
@@ -82,17 +83,17 @@ const STEPS = [
 
 const VALUES = [
     {
-        icon: GraduationCap,
+        icon: UserGroupIcon,
         label: 'Verified university students',
         desc: 'Every account is email-verified',
     },
     {
-        icon: ShieldCheck,
+        icon: StarIcon,
         label: 'Built-in reviews',
         desc: 'Know who you’re dealing with',
     },
     {
-        icon: Sparkles,
+        icon: CurrencyDollarIcon,
         label: 'Zero listing fees',
         desc: 'Sell what you don’t need, keep what you earn',
     },
@@ -184,7 +185,7 @@ export default function Home() {
                             className="flex items-center gap-3"
                         >
                             <div className="shrink-0 w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                                <v.icon size={20} />
+                                <v.icon className="w-5 h-5" />
                             </div>
 
                             <div>
