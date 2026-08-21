@@ -9,7 +9,6 @@ import {
     ShieldCheck,
     MessageCircle,
     Handshake,
-    GraduationCap,
     Sparkles,
     ArrowRight,
 } from 'lucide-react';
