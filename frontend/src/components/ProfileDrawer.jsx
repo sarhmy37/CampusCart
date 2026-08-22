@@ -67,6 +67,13 @@ export default function ProfileDrawer({ open, onClose }) {
         }
     };
 
+    const handleLogout = () => {
+        logout();
+        toast.success('Logged out successfully. See you soon! 👋');
+        setConfirmLogout(false);
+        onClose();
+    };
+
     return (
         <>
             {/* Backdrop */}
@@ -286,7 +293,7 @@ export default function ProfileDrawer({ open, onClose }) {
                 title="Log out?"
                 message="You'll need to log back in with your university email to continue."
                 confirmLabel="Log out"
-                onConfirm={() => { setConfirmLogout(false); logout(); }}
+                onConfirm={handleLogout}
                 onCancel={() => setConfirmLogout(false)}
             />
 
