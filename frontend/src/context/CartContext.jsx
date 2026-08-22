@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 const CartContext = createContext(null);
 
@@ -15,6 +16,14 @@ export function CartProvider({ children }) {
     const addItem = (product) => {
         setItems((prev) => {
             const existing = prev.find((i) => i.product_id === product.id);
+            const newQuantity = existing ? existing.quantity + 1 : 1;
+
+            // 👇 Check against stock
+            if (product.stock !== undefined && newQuantity > product.stock) {
+                toast.error(`Only ${product.stock} available in stock.`);
+                return prev;
+            }
+
             if (existing) {
                 return prev.map((i) =>
                     i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i
@@ -30,6 +39,7 @@ export function CartProvider({ children }) {
                 seller_name: product.seller_name || 'Seller',
                 seller_whatsapp: product.seller_whatsapp || product.whatsapp || null,
                 seller_school: product.seller_school || null,
+                stock: product.stock || 0,
             }];
         });
     };
@@ -40,7 +50,18 @@ export function CartProvider({ children }) {
 
     const updateQuantity = (productId, quantity) => {
         if (quantity < 1) return removeItem(productId);
-        setItems((prev) => prev.map((i) => (i.product_id === productId ? { ...i, quantity } : i)));
+        setItems((prev) => {
+            const item = prev.find((i) => i.product_id === productId);
+            if (!item) return prev;
+
+            // 👇 Check against stock
+            if (item.stock !== undefined && quantity > item.stock) {
+                toast.error(`Only ${item.stock} available in stock.`);
+                return prev;
+            }
+
+            return prev.map((i) => (i.product_id === productId ? { ...i, quantity } : i));
+        });
     };
 
     const clearCart = () => setItems([]);

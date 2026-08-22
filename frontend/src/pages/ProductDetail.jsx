@@ -124,29 +124,35 @@ export default function ProductDetail() {
     const isOutOfStock = stock <= 0;
     const isOwner = user && user.id === product.seller_id;
 
-    const handleAddToCart = () => {
-        if (isOutOfStock) {
-            toast.error('Sorry, this item is out of stock.');
-            return;
-        }
-        if (isOwner) {
-            toast.error('You cannot add your own listing to cart.');
-            return;
-        }
-        for (let i = 0; i < qty; i++) {
-            addItem({
-                id: product.id,
-                title: product.title,
-                price: product.price,
-                primary_image: product.images?.[0]?.image_url || product.primary_image,
-                seller_id: product.seller_id,
-                seller_name: product.seller_name,
-                seller_whatsapp: product.seller_whatsapp || product.whatsapp,
-                seller_school: product.seller_school,
-            });
-        }
-        toast.success(`Added ${qty} to cart`);
-    };
+ const handleAddToCart = () => {
+    if (isOutOfStock) {
+        toast.error('Sorry, this item is out of stock.');
+        return;
+    }
+    if (isOwner) {
+        toast.error('You cannot add your own listing to cart.');
+        return;
+    }
+    // Check if qty exceeds stock before adding
+    if (qty > stock) {
+        toast.error(`Only ${stock} available in stock.`);
+        return;
+    }
+    for (let i = 0; i < qty; i++) {
+        addItem({
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            primary_image: product.images?.[0]?.image_url || product.primary_image,
+            seller_id: product.seller_id,
+            seller_name: product.seller_name,
+            seller_whatsapp: product.seller_whatsapp || product.whatsapp,
+            seller_school: product.seller_school,
+            stock: product.stock, // 👈 Add this line
+        });
+    }
+    toast.success(`Added ${qty} to cart`);
+};
 
     const handleBuyNow = () => {
         if (isOutOfStock) {
