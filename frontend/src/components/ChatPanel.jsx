@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square, Check, CheckCheck } from 'lucide-react';
+import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square, Check, CheckCheck, MoreVertical } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
+import { wallpaperToStyle } from '../data/wallpapers';
+import ChatSettingsMenu from './ChatSettingsMenu';
+import WallpaperPicker from './WallpaperPicker';
 
 const MOBILE_BREAKPOINT = 640;
 const SWIPE_DISMISS_THRESHOLD = 80;
@@ -31,7 +34,7 @@ function formatDuration(seconds) {
 }
 
 export default function ChatPanel() {
-    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia } = useChat();
+    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper } = useChat();
     const { user } = useAuth();
     const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
@@ -39,6 +42,8 @@ export default function ChatPanel() {
     const [isDragging, setIsDragging] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingSeconds, setRecordingSeconds] = useState(0);
+    const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+    const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
 
     const startY = useRef(null);
     const dragging = useRef(false);
@@ -72,6 +77,30 @@ export default function ChatPanel() {
     useEffect(() => {
         if (isOpen) setDragY(0);
     }, [isOpen]);
+
+    // Close the settings menu/picker whenever the panel closes or the conversation changes
+    useEffect(() => {
+        if (!isOpen) {
+            setShowSettingsMenu(false);
+            setShowWallpaperPicker(false);
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        setShowSettingsMenu(false);
+        setShowWallpaperPicker(false);
+    }, [conversation?.id]);
+
+    const handleComingSoon = (key) => {
+        const labels = {
+            mute: 'Muting conversations',
+            clear: 'Clearing chat history',
+            report: 'Reporting a user from chat',
+            block: 'Blocking a user',
+        };
+        // Placeholder until the matching backend route exists — see suggestions.
+        console.info(`[chat settings] "${labels[key] || key}" is not wired up yet.`);
+    };
 
     const handleSend = (e) => {
         e.preventDefault();
@@ -215,7 +244,24 @@ export default function ChatPanel() {
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-ink-600 shrink-0">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        {/* Settings trigger — sits to the left of the seller's avatar */}
+                        <div className="relative shrink-0">
+                            <button
+                                onClick={() => setShowSettingsMenu((v) => !v)}
+                                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-200/50 transition"
+                                title="Chat settings"
+                            >
+                                <MoreVertical size={18} />
+                            </button>
+                            <ChatSettingsMenu
+                                open={showSettingsMenu}
+                                onClose={() => setShowSettingsMenu(false)}
+                                onChangeWallpaper={() => setShowWallpaperPicker(true)}
+                                onComingSoon={handleComingSoon}
+                            />
+                        </div>
+
                         {conversation?.otherUserAvatar ? (
                             <img
                                 src={conversation.otherUserAvatar}
@@ -245,7 +291,10 @@ export default function ChatPanel() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
+                <div
+                    className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3"
+                    style={wallpaperToStyle(wallpaper)}
+                >
                     {loading ? (
                         <div className="flex items-center justify-center h-full text-slate-300 dark:text-gold-200/30">
                             <Loader2 size={20} className="animate-spin" />
@@ -362,6 +411,8 @@ export default function ChatPanel() {
                     )}
                 </div>
             </div>
+
+            <WallpaperPicker open={showWallpaperPicker} onClose={() => setShowWallpaperPicker(false)} />
         </div>
     );
 }

@@ -21,6 +21,10 @@ export function ChatProvider({ children }) {
     const [conversations, setConversations] = useState([]);
     const [visibleCount, setVisibleCount] = useState(INBOX_PAGE_SIZE);
 
+    // Wallpaper — per conversation, per user (stored server-side so it follows the user across devices)
+    const [wallpaper, setWallpaper] = useState(null); // { type: 'none' | 'preset' | 'custom', value: string | null }
+    const [uploadingWallpaper, setUploadingWallpaper] = useState(false);
+
     const messagePollRef = useRef(null);
     const inboxPollRef = useRef(null);
     const presencePollRef = useRef(null);
@@ -48,11 +52,54 @@ export function ChatProvider({ children }) {
         } catch { /* ignore */ }
     }, []);
 
+    const fetchWallpaper = useCallback(async (conversationId) => {
+        try {
+            const res = await api.get(`/chat/${conversationId}/wallpaper`);
+            // Expected shape: { type: 'none' | 'preset' | 'custom', value: string | null }
+            setWallpaper(res.data || { type: 'none', value: null });
+        } catch {
+            setWallpaper({ type: 'none', value: null });
+        }
+    }, []);
+
+    const setWallpaperPreset = useCallback(async (type, value) => {
+        if (!conversation) return;
+        // optimistic update
+        const previous = wallpaper;
+        setWallpaper({ type, value });
+        try {
+            const res = await api.put(`/chat/${conversation.id}/wallpaper`, { type, value });
+            setWallpaper(res.data || { type, value });
+        } catch (err) {
+            setWallpaper(previous);
+            toast.error(err.response?.data?.error || 'Could not update wallpaper');
+        }
+    }, [conversation, wallpaper]);
+
+    const uploadWallpaper = useCallback(async (file) => {
+        if (!conversation) return;
+        setUploadingWallpaper(true);
+        try {
+            const formData = new FormData();
+            formData.append('wallpaper', file);
+            const res = await api.post(`/chat/${conversation.id}/wallpaper/upload`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setWallpaper(res.data || { type: 'custom', value: null });
+            toast.success('Wallpaper updated');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Upload failed');
+        } finally {
+            setUploadingWallpaper(false);
+        }
+    }, [conversation]);
+
     // Used from Cart.jsx — finds or creates a conversation with a seller about a product
     const openChat = useCallback(async ({ sellerId, sellerName, productId }) => {
     setIsOpen(true);
     setLoading(true);
     setMessages([]);
+    setWallpaper(null);
     try {
         const res = await api.post('/chat/start', { sellerId, productId });
         const convo = {
@@ -62,7 +109,7 @@ export function ChatProvider({ children }) {
             otherUserAvatar: res.data.seller_avatar || null,
         };
         setConversation(convo);
-        await fetchMessages(convo.id);
+        await Promise.all([fetchMessages(convo.id), fetchWallpaper(convo.id)]);
     } catch (err) {
         if (err.response?.data?.banned) {
             toast.error(err.response?.data?.error || 'Cannot start chat — account is banned.');
@@ -73,22 +120,23 @@ export function ChatProvider({ children }) {
     } finally {
         setLoading(false);
     }
-}, [fetchMessages]);
+}, [fetchMessages, fetchWallpaper]);
 
     // Used from the Navbar inbox — opens an existing conversation directly
     const openConversation = useCallback(async (convo) => {
         setIsOpen(true);
         setLoading(true);
         setMessages([]);
+        setWallpaper(null);
         setConversation({
             id: convo.id,
             otherUserId: convo.other_user_id,
             otherUserName: convo.other_user_name,
             otherUserAvatar: convo.other_user_avatar || null,
         });
-        await fetchMessages(convo.id);
+        await Promise.all([fetchMessages(convo.id), fetchWallpaper(convo.id)]);
         setLoading(false);
-    }, [fetchMessages]);
+    }, [fetchMessages, fetchWallpaper]);
 
     const closeChat = useCallback(() => {
         setIsOpen(false);
@@ -182,6 +230,10 @@ export function ChatProvider({ children }) {
                 visibleCount,
                 showMoreConversations,
                 unreadCount,
+                wallpaper,
+                uploadingWallpaper,
+                setWallpaperPreset,
+                uploadWallpaper,
             }}
         >
             {children}

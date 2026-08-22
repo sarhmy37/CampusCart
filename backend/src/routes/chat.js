@@ -13,6 +13,25 @@ async function touchLastActive(userId) {
     }
 }
 
+// Shared helper: confirms the requesting user is actually part of this
+// conversation before letting them read/write anything tied to it.
+async function getConversationOrForbid(conversationId, userId, res) {
+    const convo = await pool.query(
+        `SELECT buyer_id, seller_id FROM conversations WHERE id = $1`,
+        [conversationId]
+    );
+    if (convo.rows.length === 0) {
+        res.status(404).json({ error: 'Conversation not found' });
+        return null;
+    }
+    const { buyer_id, seller_id } = convo.rows[0];
+    if (userId !== buyer_id && userId !== seller_id) {
+        res.status(403).json({ error: 'Not part of this conversation' });
+        return null;
+    }
+    return convo.rows[0];
+}
+
 // POST /api/chat/start — find or create a conversation with a seller
 router.post('/start', requireAuth, async (req, res) => {
     const { sellerId, productId } = req.body;
@@ -117,6 +136,89 @@ router.get('/presence/:userId', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Get presence error:', err);
         res.status(500).json({ error: 'Failed to fetch presence' });
+    }
+});
+
+// GET /api/chat/:id/wallpaper — this user's wallpaper choice for this conversation
+router.get('/:id/wallpaper', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const convo = await getConversationOrForbid(id, req.userId, res);
+        if (!convo) return;
+
+        const result = await pool.query(
+            `SELECT wallpaper_type AS type, wallpaper_value AS value
+             FROM chat_wallpapers
+             WHERE conversation_id = $1 AND user_id = $2`,
+            [id, req.userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ type: 'none', value: null });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Get wallpaper error:', err);
+        res.status(500).json({ error: 'Failed to load wallpaper' });
+    }
+});
+
+// PUT /api/chat/:id/wallpaper — set a preset wallpaper, or clear it back to 'none'
+router.put('/:id/wallpaper', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { type, value } = req.body;
+
+    if (!['none', 'preset', 'custom'].includes(type)) {
+        return res.status(400).json({ error: 'Invalid wallpaper type' });
+    }
+
+    try {
+        const convo = await getConversationOrForbid(id, req.userId, res);
+        if (!convo) return;
+
+        const result = await pool.query(
+            `INSERT INTO chat_wallpapers (conversation_id, user_id, wallpaper_type, wallpaper_value, updated_at)
+             VALUES ($1, $2, $3, $4, now())
+             ON CONFLICT (conversation_id, user_id)
+             DO UPDATE SET wallpaper_type = $3, wallpaper_value = $4, updated_at = now()
+             RETURNING wallpaper_type AS type, wallpaper_value AS value`,
+            [id, req.userId, type, value || null]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Set wallpaper error:', err);
+        res.status(500).json({ error: 'Failed to update wallpaper' });
+    }
+});
+
+// POST /api/chat/:id/wallpaper/upload — custom image wallpaper
+// Reuses the same uploadChatMedia middleware/pattern as /media, storing the
+// image as a base64 data URL so no extra storage setup (S3 etc.) is needed.
+router.post('/:id/wallpaper/upload', requireAuth, uploadChatMedia.single('wallpaper'), async (req, res) => {
+    const { id } = req.params;
+
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file received' });
+    }
+
+    try {
+        const convo = await getConversationOrForbid(id, req.userId, res);
+        if (!convo) return;
+
+        const imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+        const result = await pool.query(
+            `INSERT INTO chat_wallpapers (conversation_id, user_id, wallpaper_type, wallpaper_value, updated_at)
+             VALUES ($1, $2, 'custom', $3, now())
+             ON CONFLICT (conversation_id, user_id)
+             DO UPDATE SET wallpaper_type = 'custom', wallpaper_value = $3, updated_at = now()
+             RETURNING wallpaper_type AS type, wallpaper_value AS value`,
+            [id, req.userId, imageUrl]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Upload wallpaper error:', err);
+        res.status(500).json({ error: 'Something went wrong uploading your wallpaper' });
     }
 });
 
