@@ -37,11 +37,20 @@ export default function ProfileDrawer({ open, onClose }) {
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
-    // 👇 Scroll to top when drawer opens
+    // 👇 Prevent background scroll + scroll to top when drawer opens
     useEffect(() => {
-        if (open && drawerRef.current) {
-            drawerRef.current.scrollTop = 0;
+        if (open) {
+            document.body.style.overflow = 'hidden';
+            if (drawerRef.current) {
+                drawerRef.current.scrollTop = 0;
+            }
+        } else {
+            document.body.style.overflow = 'unset';
         }
+
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [open]);
 
     if (!user) return null;
