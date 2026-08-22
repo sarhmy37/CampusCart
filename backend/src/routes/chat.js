@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { uploadChatMedia } = require('../middleware/upload');
+const { uploadChatMedia, uploadWallpaper } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -192,9 +192,9 @@ router.put('/:id/wallpaper', requireAuth, async (req, res) => {
 });
 
 // POST /api/chat/:id/wallpaper/upload — custom image wallpaper
-// Reuses the same uploadChatMedia middleware/pattern as /media, storing the
-// image as a base64 data URL so no extra storage setup (S3 etc.) is needed.
-router.post('/:id/wallpaper/upload', requireAuth, uploadChatMedia.single('wallpaper'), async (req, res) => {
+// Uses uploadWallpaper (image-only, unlike uploadChatMedia which also allows
+// audio for voice notes). Stored as a base64 data URL, same pattern as /media.
+router.post('/:id/wallpaper/upload', requireAuth, uploadWallpaper.single('wallpaper'), async (req, res) => {
     const { id } = req.params;
 
     if (!req.file) {

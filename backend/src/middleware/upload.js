@@ -52,4 +52,12 @@ const uploadChatMedia = multer({
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB — covers a comfortably long voice note
 });
 
-module.exports = { uploadAvatar, uploadProductImages, uploadProductMedia, uploadChatMedia };
+// Chat wallpapers are always images (never audio), so this uses the same
+// imageFilter as avatars/product photos rather than the looser chatMediaFilter.
+const uploadWallpaper = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: imageFilter,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});
+
+module.exports = { uploadAvatar, uploadProductImages, uploadProductMedia, uploadChatMedia, uploadWallpaper };
