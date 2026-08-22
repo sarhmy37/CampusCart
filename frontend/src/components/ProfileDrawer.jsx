@@ -1,12 +1,12 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link ,useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
     MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
-    ChevronDown, MessageCircle, Info, Shield, Search
+    ChevronDown,ChevronRight, MessageCircle, Info, Shield, Search
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
