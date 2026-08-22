@@ -21,7 +21,6 @@ const NOTIF_META = {
     default: { emoji: '🔔', color: 'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-gold-300' },
 };
 
-// Caps any badge count at "9+" so it never overflows the pill's padding
 function formatBadgeCount(n) {
     return n > 9 ? '9+' : n;
 }
@@ -65,6 +64,14 @@ export default function Navbar() {
     const notificationsRef = useRef(null);
     const wishlistRef = useRef(null);
     const messagesRef = useRef(null);
+
+    // 👇 Listen for state from navigation to reopen profile drawer
+    useEffect(() => {
+        if (location.state?.openProfile) {
+            setShowProfile(true);
+            window.history.replaceState({}, document.title);
+        }
+    }, [location]);
 
     useEffect(() => {
         const handleOutsideClick = (e) => {
@@ -125,7 +132,7 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                                        {isAdmin ? (
+                    {isAdmin ? (
                         <span className="flex items-center gap-1.5 sm:gap-2 cursor-default shrink-0">
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
@@ -145,7 +152,7 @@ export default function Navbar() {
                             </div>
                         </span>
                     ) : (
-                                                <Link to="/" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0">
+                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0">
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 

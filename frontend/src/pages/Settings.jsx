@@ -11,7 +11,7 @@ import {
 import { SETTINGS_VIDEO } from '../data/media';
 
 const APP_VERSION = '1.0.0';
-const PLATFORM_FEE_RATE = 1.5; // % (Changed from 2% to 1.5%)
+const PLATFORM_FEE_RATE = 1.5;
 
 export default function Settings() {
     const navigate = useNavigate();
@@ -150,7 +150,7 @@ export default function Settings() {
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-500/10 rounded-full blur-3xl" />
                 <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => navigate('/', { state: { openProfile: true } })}
                         className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
                     >
                         <ArrowLeft size={16} /> Back
@@ -185,7 +185,7 @@ export default function Settings() {
                     </div>
                 </div>
 
-                {/* SELLER FEES & TERMS (SHOWS ONLY FOR SELLERS) */}
+                {/* SELLER FEES & TERMS */}
                 {isSeller && (
                     <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
                         <button
@@ -266,7 +266,7 @@ export default function Settings() {
                     </div>
                 )}
 
-                {/* BUYER TERMS OF SERVICE (SHOWS ONLY FOR BUYERS) */}
+                {/* BUYER TERMS */}
                 {!isSeller && (
                     <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
                         <button
@@ -407,7 +407,7 @@ export default function Settings() {
                     )}
                 </div>
 
-                {/* DEFAULT DELIVERY PREFERENCE */}
+                {/* DEFAULT DELIVERY */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-4">
                         <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
