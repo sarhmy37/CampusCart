@@ -6,7 +6,7 @@ import { LOGIN_IMAGE } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, GraduationCap } from 'lucide-react';
 
 export default function Login() {
-    const { login, user } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
     const [form, setForm] = useState({ university_email: '', password: '' });
     const [loading, setLoading] = useState(false);
@@ -16,8 +16,8 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
         try {
-            await login(form.university_email, form.password);
-            toast.success(`Welcome back ,${user.name}!`);
+            const loggedInUser = await login(form.university_email, form.password);
+            toast.success(`Welcome back, ${loggedInUser.name}!`);
             navigate('/');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Login failed');

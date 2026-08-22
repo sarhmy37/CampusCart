@@ -309,38 +309,64 @@ export default function ChatPanel() {
     const otherUserOnline = otherUserLastActive
         && (Date.now() - new Date(otherUserLastActive).getTime() < ONLINE_THRESHOLD_MS);
 
+    const isImage = m.media_type === 'image';
+
+    const meta = (
+        <span
+            className={`inline-flex items-center gap-1 shrink-0 select-none ${
+                isImage
+                    ? 'text-white'
+                    : isMine
+                        ? 'text-white/75 dark:text-ink-900/60'
+                        : 'text-slate-400 dark:text-gold-300/50'
+            }`}
+        >
+            <span className="text-[11px]">{formatMessageTime(m.created_at)}</span>
+            {isMine && (
+                m.read ? (
+                    <CheckCheck size={13} className={isImage ? 'text-blue-300' : 'text-current'} />
+                ) : otherUserOnline ? (
+                    <CheckCheck size={13} className="text-current" />
+                ) : (
+                    <Check size={13} className="text-current" />
+                )
+            )}
+        </span>
+    );
+
     return (
         <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                 <div
-                    className={`rounded-2xl text-sm leading-relaxed overflow-hidden ${
-                        m.media_type === 'image' ? '' : 'px-3.5 py-2.5'
+                    className={`relative rounded-2xl text-sm leading-relaxed overflow-hidden ${
+                        isImage ? 'pb-1' : 'px-3.5 pt-2.5 pb-1.5'
                     } ${
                         isMine
                             ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
                             : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
                     }`}
                 >
-                    {m.media_type === 'image' && (
-                        <img src={m.media_url} alt="" className="max-w-full rounded-2xl" />
+                    {isImage && (
+                        <div className="relative">
+                            <img src={m.media_url} alt="" className="max-w-full rounded-t-2xl block" />
+                            <span className="absolute bottom-1.5 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
+                                {meta}
+                            </span>
+                        </div>
                     )}
                     {m.media_type === 'audio' && (
-                        <audio controls src={m.media_url} className="max-w-full" />
+                        <div className="px-3.5 pt-2.5 pb-1">
+                            <audio controls src={m.media_url} className="max-w-full" />
+                        </div>
                     )}
-                    {m.content && <p className={m.media_type ? 'px-3.5 py-2.5' : ''}>{m.content}</p>}
-                </div>
-                <div className="flex items-center gap-1 mt-1 px-1">
-                    <span className="text-[11px] text-slate-400 dark:text-gold-300/40">
-                        {formatMessageTime(m.created_at)}
-                    </span>
-                    {isMine && (
-                        m.read ? (
-                            <CheckCheck size={14} className="text-brand-500 dark:text-gold-400" />
-                        ) : otherUserOnline ? (
-                            <CheckCheck size={14} className="text-slate-300 dark:text-gold-300/30" />
-                        ) : (
-                            <Check size={14} className="text-slate-300 dark:text-gold-300/30" />
-                        )
+                    {m.content && (
+                        <p className={isImage ? 'px-3.5 pt-2' : ''}>{m.content}</p>
+                    )}
+
+                    {!isImage && (
+                        <div className={`flex items-center justify-end mt-1 ${m.media_type === 'audio' ? 'px-3.5' : ''}`}>
+                            {meta}
+                        </div>
                     )}
                 </div>
             </div>
