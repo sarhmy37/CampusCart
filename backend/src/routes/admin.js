@@ -148,4 +148,63 @@ router.get('/orders', async (req, res) => {
     }
 });
 
+// GET /api/admin/orders/search?q=... — search by order ID, buyer name/email, or item title
+router.get('/orders/search', async (req, res) => {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json([]);
+
+    try {
+        const result = await pool.query(
+            `SELECT DISTINCT o.id, o.status, o.delivery_method, o.total_amount, o.created_at,
+                    u.name AS buyer_name, u.university_email AS buyer_email
+             FROM orders o
+             JOIN users u ON u.id = o.buyer_id
+             LEFT JOIN order_items oi ON oi.order_id = o.id
+             WHERE o.id::text ILIKE $1
+                OR u.name ILIKE $1
+                OR u.university_email ILIKE $1
+                OR oi.title ILIKE $1
+             ORDER BY o.created_at DESC
+             LIMIT 50`,
+            [`%${q}%`]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin search orders error:', err);
+        res.status(500).json({ error: 'Something went wrong searching orders' });
+    }
+});
+
+// GET /api/admin/orders/:id — full detail for one order
+router.get('/orders/:id', async (req, res) => {
+    try {
+        const orderResult = await pool.query(
+            `SELECT o.*, u.name AS buyer_name, u.university_email AS buyer_email,
+                    u.whatsapp AS buyer_whatsapp, u.location AS buyer_location
+             FROM orders o
+             JOIN users u ON u.id = o.buyer_id
+             WHERE o.id = $1`,
+            [req.params.id]
+        );
+        const order = orderResult.rows[0];
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        const itemsResult = await pool.query(
+            `SELECT oi.*, s.name AS seller_name, s.university_email AS seller_email,
+                    s.whatsapp AS seller_whatsapp, s.school AS seller_school
+             FROM order_items oi
+             JOIN users s ON s.id = oi.seller_id
+             WHERE oi.order_id = $1
+             ORDER BY oi.id ASC`,
+            [req.params.id]
+        );
+        order.items = itemsResult.rows;
+
+        res.json(order);
+    } catch (err) {
+        console.error('Admin get order detail error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching this order' });
+    }
+});
+
 module.exports = router;

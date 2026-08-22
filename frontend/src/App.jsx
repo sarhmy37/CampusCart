@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import AppToaster from './components/AppToaster';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -25,6 +25,9 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import OrderConfirmation from './pages/OrderConfirmation';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+
 
 
 export default function App() {
@@ -38,7 +41,7 @@ export default function App() {
                 <BrowserRouter>
                   <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
                     <Navbar />
-                    <Toaster position="top-center" />
+                    <AppToaster />
                     <AwayTimeoutModal />
                     <PullToRefresh>
                       <Routes>
@@ -54,6 +57,8 @@ export default function App() {
                         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                         <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
                         <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+                        <Route path="/terms" element={<Terms />} />
+                        <Route path="/privacy" element={<Privacy />} />
                       </Routes>
                     </PullToRefresh>
                     <InstallButton />

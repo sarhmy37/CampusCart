@@ -32,6 +32,7 @@ export default function Settings() {
     const [show, setShow] = useState(false);
     const [saving, setSaving] = useState(false);
     const [termsOpen, setTermsOpen] = useState(false);
+    const [fullTermsOpen, setFullTermsOpen] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
 
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -221,7 +222,7 @@ export default function Settings() {
                                     <li className="flex gap-2">
                                         <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
                                         At the end of each month, the total amount owed must be paid to
-                                        continue creating new listings and selling on CampusCart.
+                                        continue creating new listings and selling on Tre-X.
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
@@ -240,6 +241,26 @@ export default function Settings() {
                                     {fullTermsOpen ? 'Hide' : 'Read'} full Seller Terms of Service
                                     <ChevronDown size={14} className={`transition-transform ${fullTermsOpen ? 'rotate-180' : ''}`} />
                                 </button>
+
+                                {fullTermsOpen && (
+                                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-ink-600 space-y-4 text-sm text-slate-600 dark:text-gold-200/70">
+                                        <TermsBlock title="1. Platform fee">
+                                            Tre-X charges a {PLATFORM_FEE_RATE}% commission on the sale price of every completed transaction. This fee is deducted automatically from your payout.
+                                        </TermsBlock>
+                                        <TermsBlock title="2. Monthly settlement">
+                                            Fees accrued across a calendar month are totaled and must be settled before new listings can be created in the following month.
+                                        </TermsBlock>
+                                        <TermsBlock title="3. Listing accuracy">
+                                            Sellers must accurately represent the condition, price, and availability of items listed. Misrepresentation may result in listing removal or account suspension.
+                                        </TermsBlock>
+                                        <TermsBlock title="4. Order fulfillment">
+                                            Sellers are expected to honor pickup or delivery arrangements made with buyers within the agreed timeframe.
+                                        </TermsBlock>
+                                        <TermsBlock title="5. Account standing">
+                                            Tre-X reserves the right to suspend or ban seller accounts that repeatedly violate these terms or receive substantiated reports from buyers.
+                                        </TermsBlock>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -283,12 +304,10 @@ export default function Settings() {
                                         <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
                                         Always communicate with sellers through our built-in messaging system for safety and dispute resolution.
                                     </li>
-                                    {/* === NEW: SERVICE FEE REASON ADDED === */}
                                     <li className="flex gap-2">
                                         <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
                                         A small service fee (2%) is applied to your checkout to cover payment processing charges by our payment provider (Paystack). This fee ensures your payment is secure and the platform remains safe for everyone.
                                     </li>
-                                    {/* ===================================== */}
                                 </ul>
                             </div>
                         )}
@@ -570,10 +589,15 @@ export default function Settings() {
                                 <Phone size={15} className="text-brand-600 dark:text-gold-400" />
                                 <span>Call line: <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>
                             </div>
-                            <div className="flex items-center gap-2.5">
+                            <a
+                                href="https://wa.me/Trex_Support1"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2.5 hover:text-brand-700 dark:hover:text-gold-300 transition"
+                            >
                                 <MessageCircle size={15} className="text-brand-600 dark:text-gold-400" />
-                                <span>WhatsApp: <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>
-                            </div>
+                                <span>WhatsApp: <span className="font-semibold text-brand-600 dark:text-gold-400 underline underline-offset-2">@Trex_Support1</span></span>
+                            </a>
                             <div className="flex items-center gap-2.5">
                                 <MessageCircle size={15} className="text-brand-600 dark:text-gold-400" />
                                 <span>For quicker service, send an SMS to <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>

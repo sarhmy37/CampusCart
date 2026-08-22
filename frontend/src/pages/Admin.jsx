@@ -305,32 +305,223 @@ function ListingsTab({ filter, initialListings, loading }) {
 }
 
 // ---------- OrdersTab (unchanged) ----------
+// ---------- OrdersTab with search + detail view ----------
 function OrdersTab() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     useEffect(() => {
         api.get('/admin/orders').then((res) => setOrders(res.data)).finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <SkeletonList />;
+    const runSearch = async (e) => {
+        e.preventDefault();
+        if (!search.trim()) {
+            setSearching(false);
+            api.get('/admin/orders').then((res) => setOrders(res.data));
+            return;
+        }
+        setSearching(true);
+        setLoading(true);
+        try {
+            const res = await api.get('/admin/orders/search', { params: { q: search.trim() } });
+            setOrders(res.data);
+        } catch {
+            toast.error('Search failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const openOrder = async (id) => {
+        setLoadingDetail(true);
+        try {
+            const res = await api.get(`/admin/orders/${id}`);
+            setSelectedOrder(res.data);
+        } catch {
+            toast.error('Failed to load order details');
+        } finally {
+            setLoadingDetail(false);
+        }
+    };
 
     return (
-        <div className="max-w-3xl mx-auto space-y-2">
-            {orders.map((o) => (
-                <div key={o.id} className="flex items-center justify-between gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">Order #{o.id}</p>
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
-                            {o.buyer_name} · {o.delivery_method} · {new Date(o.created_at).toLocaleDateString()}
-                        </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-slate-900 dark:text-gold-50">GHS {parseFloat(o.total_amount).toFixed(2)}</p>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300 capitalize">{o.status}</span>
-                    </div>
+        <div className="max-w-3xl mx-auto">
+            <form onSubmit={runSearch} className="flex gap-2 mb-4">
+                <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by order ID, buyer name, email, or item…"
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                />
+                <button
+                    type="submit"
+                    className="px-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition"
+                >
+                    Search
+                </button>
+            </form>
+
+            {loading ? (
+                <SkeletonList />
+            ) : orders.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
+                    {searching ? `No orders found for "${search}".` : 'No orders yet.'}
                 </div>
-            ))}
+            ) : (
+                <div className="space-y-2">
+                    {orders.map((o) => (
+                        <button
+                            key={o.id}
+                            onClick={() => openOrder(o.id)}
+                            className="w-full flex items-center justify-between gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-brand-300 dark:hover:border-gold-500 rounded-2xl p-4 text-left transition"
+                        >
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 font-mono truncate">
+                                    #{o.id}
+                                </p>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
+                                    {o.buyer_name} · {o.delivery_method} · {new Date(o.created_at).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className="text-sm font-bold text-slate-900 dark:text-gold-50">GHS {parseFloat(o.total_amount).toFixed(2)}</p>
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300 capitalize">{o.status}</span>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {(selectedOrder || loadingDetail) && (
+                <OrderDetailModal
+                    order={selectedOrder}
+                    loading={loadingDetail}
+                    onClose={() => setSelectedOrder(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+function OrderDetailModal({ order, loading, onClose }) {
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6">
+                {loading || !order ? (
+                    <div className="space-y-3">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="h-10 rounded-xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+                        ))}
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex items-start justify-between gap-3 mb-5">
+                            <div>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 font-mono">#{order.id}</p>
+                                <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50 mt-1">Order details</h3>
+                            </div>
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300 capitalize shrink-0">
+                                {order.status}
+                            </span>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-4 mb-5">
+                            <DetailBlock title="Buyer">
+                                <p className="font-semibold text-slate-800 dark:text-gold-100">{order.buyer_name}</p>
+                                <p>{order.buyer_email}</p>
+                                {order.buyer_whatsapp && <p>WhatsApp: {order.buyer_whatsapp}</p>}
+                                {order.buyer_location && <p>Location: {order.buyer_location}</p>}
+                            </DetailBlock>
+
+                            <DetailBlock title="Order timing">
+                                <p>Placed: {new Date(order.created_at).toLocaleString()}</p>
+                                {order.completed_at && <p>Completed: {new Date(order.completed_at).toLocaleString()}</p>}
+                                <p className="mt-1">Delivery method: <span className="capitalize font-semibold text-slate-700 dark:text-gold-100">{order.delivery_method}</span></p>
+                                {order.payment_reference && <p className="font-mono text-[11px] mt-1">Ref: {order.payment_reference}</p>}
+                            </DetailBlock>
+                        </div>
+
+                        <div className="mb-5">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide mb-2">Items ({order.items.length})</p>
+                            <div className="space-y-2">
+                                {order.items.map((item) => (
+                                    <div key={item.id} className="bg-slate-50 dark:bg-ink-700 rounded-xl p-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">{item.title}</p>
+                                                <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
+                                                    Qty {item.quantity} · GHS {parseFloat(item.price_at_purchase).toFixed(2)} each
+                                                </p>
+                                            </div>
+                                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-ink-800 text-slate-600 dark:text-gold-200/70 capitalize shrink-0">
+                                                {item.status}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 mt-2.5 pt-2.5 border-t border-slate-200 dark:border-ink-600 text-xs">
+                                            <div>
+                                                <p className="text-slate-400 dark:text-gold-200/50">Seller</p>
+                                                <p className="font-semibold text-slate-700 dark:text-gold-100 truncate">{item.seller_name}</p>
+                                                <p className="text-slate-400 dark:text-gold-200/40 truncate">{item.seller_email}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-slate-400 dark:text-gold-200/50">Platform fee</p>
+                                                <p className="font-semibold text-slate-700 dark:text-gold-100">GHS {parseFloat(item.platform_fee).toFixed(2)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-slate-400 dark:text-gold-200/50">Seller earnings</p>
+                                                <p className="font-semibold text-brand-700 dark:text-gold-400">GHS {parseFloat(item.seller_earnings).toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="border-t border-slate-100 dark:border-ink-600 pt-4 space-y-1.5 text-sm">
+                            <div className="flex justify-between text-slate-500 dark:text-gold-200/60">
+                                <span>Subtotal</span>
+                                <span>GHS {parseFloat(order.subtotal).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-500 dark:text-gold-200/60">
+                                <span>Delivery fee</span>
+                                <span>GHS {parseFloat(order.delivery_fee).toFixed(2)}</span>
+                            </div>
+                            {parseFloat(order.credit_applied) > 0 && (
+                                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                                    <span>Credit applied</span>
+                                    <span>−GHS {parseFloat(order.credit_applied).toFixed(2)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between font-bold text-slate-900 dark:text-gold-50 text-base pt-1.5 border-t border-slate-100 dark:border-ink-600 mt-1.5">
+                                <span>Total paid</span>
+                                <span>GHS {parseFloat(order.total_amount).toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={onClose}
+                            className="w-full mt-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                        >
+                            Close
+                        </button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function DetailBlock({ title, children }) {
+    return (
+        <div className="bg-slate-50 dark:bg-ink-700 rounded-xl p-3.5">
+            <p className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide mb-2">{title}</p>
+            <div className="text-sm text-slate-600 dark:text-gold-200/70 space-y-0.5">{children}</div>
         </div>
     );
 }
