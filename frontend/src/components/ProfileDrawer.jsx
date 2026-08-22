@@ -37,29 +37,43 @@ export default function ProfileDrawer({ open, onClose }) {
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
-    // 👇 Prevent background scroll + scroll to top when drawer opens
-useEffect(() => {
+
+  useEffect(() => {
     if (open) {
-        // Lock both html and body
         document.documentElement.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
-        document.body.style.touchAction = 'none';
-        
-        // Scroll drawer to top
+
         if (drawerRef.current) {
             drawerRef.current.scrollTop = 0;
         }
     } else {
-        // Restore scrolling
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
-        document.body.style.touchAction = '';
     }
 
     return () => {
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
-        document.body.style.touchAction = '';
+    };
+}, [open]);
+
+// 👇 Actually blocks background scroll — CSS overflow:hidden alone isn't reliable
+
+useEffect(() => {
+    if (!open) return;
+
+    const blockOutsideScroll = (e) => {
+        if (drawerRef.current && !drawerRef.current.contains(e.target)) {
+            e.preventDefault();
+        }
+    };
+
+    document.addEventListener('wheel', blockOutsideScroll, { passive: false });
+    document.addEventListener('touchmove', blockOutsideScroll, { passive: false });
+
+    return () => {
+        document.removeEventListener('wheel', blockOutsideScroll);
+        document.removeEventListener('touchmove', blockOutsideScroll);
     };
 }, [open]);
 
