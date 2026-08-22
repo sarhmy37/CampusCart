@@ -227,7 +227,6 @@ export default function ProfileDrawer({ open, onClose }) {
                         {personalOpen && (
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
                                     {!editing && (
                                         <button
                                             onClick={() => !onCooldown && setEditing(true)}
