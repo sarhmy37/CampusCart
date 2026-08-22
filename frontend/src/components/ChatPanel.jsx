@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square, Check, CheckCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useChat } from '../context/ChatContext';
 
 const MOBILE_BREAKPOINT = 640;
 const SWIPE_DISMISS_THRESHOLD = 80;
