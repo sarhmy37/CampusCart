@@ -63,6 +63,14 @@ export default function ProfileDrawer({ open, onClose }) {
         }
     }, [open]);
 
+    // 👇 Reset dropdowns when drawer closes
+    useEffect(() => {
+        if (!open) {
+            setPersonalOpen(false);
+            setSupportOpen(false);
+        }
+    }, [open]);
+
     if (!user) return null;
 
     const handleAvatarClick = () => fileInputRef.current?.click();
@@ -211,7 +219,7 @@ export default function ProfileDrawer({ open, onClose }) {
                 {/* Body */}
                 <div className="px-6 mt-6 pb-8 space-y-2">
 
-                    {/* PERSONAL DETAILS - DROPDOWN (no padding around expanded content) */}
+                    {/* PERSONAL DETAILS - DROPDOWN */}
                     <div className="pb-4 border-b border-slate-100 dark:border-ink-600">
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
@@ -329,7 +337,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </button>
 
-                    {/* SUPPORT & ABOUT - DROPDOWN (has padding, but no selected state) */}
+                    {/* SUPPORT & ABOUT - DROPDOWN */}
                     <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
                         <button
                             onClick={() => setSupportOpen(!supportOpen)}
