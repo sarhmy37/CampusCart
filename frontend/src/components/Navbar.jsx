@@ -65,7 +65,6 @@ export default function Navbar() {
     const wishlistRef = useRef(null);
     const messagesRef = useRef(null);
 
-    // 👇 Listen for state from navigation to reopen profile drawer
     useEffect(() => {
         if (location.state?.openProfile) {
             setShowProfile(true);
@@ -403,8 +402,14 @@ export default function Navbar() {
                         </>
                     ) : (
                         <>
-                            <Link to="/login" className="px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition whitespace-nowrap">Log in</Link>
-                            <Link to="/register" className="px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Sign up</Link>
+                            {/* Desktop — unchanged */}
+                            <Link to="/login" className="hidden sm:inline-block px-3 py-2 text-sm font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition whitespace-nowrap">Log in</Link>
+                            <Link to="/register" className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Sign up</Link>
+
+                            {/* Mobile — draggable roll ball */}
+                            <div className="sm:hidden">
+                                <AuthRollBall />
+                            </div>
                         </>
                     )}
                 </nav>
@@ -431,6 +436,120 @@ function SearchBar({ isAdmin, onSubmit }) {
                 className="w-full px-3 py-2 sm:px-4 sm:py-2.5 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-xs sm:text-sm transition"
             />
         </form>
+    );
+}
+
+// Draggable "roll ball" that reveals Login/Signup on mobile.
+// Drag it up or down past the threshold to toggle open/closed.
+// A plain tap also works as a shortcut.
+const ROLL_THRESHOLD = 28;
+
+function AuthRollBall() {
+    const [open, setOpen] = useState(false);
+    const [dragOffset, setDragOffset] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const startY = useRef(null);
+    const dragging = useRef(false);
+    const movedRef = useRef(false);
+
+    const handleStart = (clientY) => {
+        startY.current = clientY;
+        dragging.current = true;
+        movedRef.current = false;
+        setIsDragging(true);
+    };
+
+    const handleMove = (clientY) => {
+        if (!dragging.current) return;
+        const diff = clientY - startY.current;
+        if (Math.abs(diff) > 4) movedRef.current = true;
+        setDragOffset(diff);
+    };
+
+    const handleEnd = () => {
+        if (!dragging.current) return;
+        dragging.current = false;
+        setIsDragging(false);
+        if (Math.abs(dragOffset) >= ROLL_THRESHOLD) {
+            setOpen((o) => !o);
+        }
+        setDragOffset(0);
+    };
+
+    const onTouchStart = (e) => handleStart(e.touches[0].clientY);
+    const onTouchMove = (e) => handleMove(e.touches[0].clientY);
+    const onTouchEnd = () => handleEnd();
+
+    const onMouseDown = (e) => {
+        handleStart(e.clientY);
+        const onMouseMove = (ev) => handleMove(ev.clientY);
+        const onMouseUp = () => {
+            handleEnd();
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const handleClick = () => {
+        if (movedRef.current) return;
+        setOpen((o) => !o);
+    };
+
+    // Visual "rolling" feedback while dragging
+    const rotation = dragOffset * 2.5;
+
+    if (open) {
+        return (
+            <div className="flex items-center gap-1.5">
+                <Link
+                    to="/login"
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition whitespace-nowrap"
+                >
+                    Log in
+                </Link>
+                <Link
+                    to="/register"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 transition shadow-sm whitespace-nowrap"
+                >
+                    Sign up
+                </Link>
+                <button
+                    onClick={handleClick}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                    onMouseDown={onMouseDown}
+                    className="w-6 h-6 rounded-full bg-slate-200 dark:bg-ink-700 flex items-center justify-center shrink-0 active:scale-90"
+                    style={{
+                        transform: `rotate(${rotation}deg)`,
+                        transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                    }}
+                    title="Hide"
+                >
+                    <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-gold-300/50" />
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <button
+            onClick={handleClick}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onMouseDown={onMouseDown}
+            className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 flex items-center justify-center shadow-sm active:scale-90"
+            style={{
+                transform: `rotate(${rotation}deg) scale(${isDragging ? 1.08 : 1})`,
+                transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+            }}
+            title="Log in or sign up"
+        >
+            <span className="w-3.5 h-3.5 rounded-full border-2 border-white/70 dark:border-ink-900/60" />
+        </button>
     );
 }
 
