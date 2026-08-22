@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square } from 'lucide-react';
-import { useChat } from '../context/ChatContext';
+import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square, Check, CheckCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const MOBILE_BREAKPOINT = 640;
 const SWIPE_DISMISS_THRESHOLD = 80;
+const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // treat as "logged in" if active within the last 2 minutes
+
+function formatMessageTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
 
 function formatPresence(lastActiveAt) {
     if (!lastActiveAt) return '';
@@ -250,29 +255,48 @@ export default function ChatPanel() {
                         </p>
                     ) : (
                         messages.map((m) => {
-                            const isMine = m.sender_id === user?.id;
-                            return (
-                                <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                    <div
-                                        className={`max-w-[75%] rounded-2xl text-sm leading-relaxed overflow-hidden ${
-                                            m.media_type === 'image' ? '' : 'px-3.5 py-2.5'
-                                        } ${
-                                            isMine
-                                                ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
-                                                : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
-                                        }`}
-                                    >
-                                        {m.media_type === 'image' && (
-                                            <img src={m.media_url} alt="" className="max-w-full rounded-2xl" />
-                                        )}
-                                        {m.media_type === 'audio' && (
-                                            <audio controls src={m.media_url} className="max-w-full" />
-                                        )}
-                                        {m.content && <p className={m.media_type ? 'px-3.5 py-2.5' : ''}>{m.content}</p>}
-                                    </div>
-                                </div>
-                            );
-                        })
+    const isMine = m.sender_id === user?.id;
+    const otherUserOnline = otherUserLastActive
+        && (Date.now() - new Date(otherUserLastActive).getTime() < ONLINE_THRESHOLD_MS);
+
+    return (
+        <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                <div
+                    className={`rounded-2xl text-sm leading-relaxed overflow-hidden ${
+                        m.media_type === 'image' ? '' : 'px-3.5 py-2.5'
+                    } ${
+                        isMine
+                            ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
+                            : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
+                    }`}
+                >
+                    {m.media_type === 'image' && (
+                        <img src={m.media_url} alt="" className="max-w-full rounded-2xl" />
+                    )}
+                    {m.media_type === 'audio' && (
+                        <audio controls src={m.media_url} className="max-w-full" />
+                    )}
+                    {m.content && <p className={m.media_type ? 'px-3.5 py-2.5' : ''}>{m.content}</p>}
+                </div>
+                <div className="flex items-center gap-1 mt-1 px-1">
+                    <span className="text-[11px] text-slate-400 dark:text-gold-300/40">
+                        {formatMessageTime(m.created_at)}
+                    </span>
+                    {isMine && (
+                        m.read ? (
+                            <CheckCheck size={14} className="text-brand-500 dark:text-gold-400" />
+                        ) : otherUserOnline ? (
+                            <CheckCheck size={14} className="text-slate-300 dark:text-gold-300/30" />
+                        ) : (
+                            <Check size={14} className="text-slate-300 dark:text-gold-300/30" />
+                        )
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+})
                     )}
                     <div ref={messagesEndRef} />
                 </div>
