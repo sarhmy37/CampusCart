@@ -208,10 +208,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     </div>
                 </div>
 
-                {/* Body */}
-                <div className="px-6 mt-6 pb-8 space-y-2">
-
-                    {/* PERSONAL DETAILS - DROPDOWN (no padding around expanded content) */}
+                {/* PERSONAL DETAILS - DROPDOWN (no padding around expanded content) */}
                     <div className="pb-4 border-b border-slate-100 dark:border-ink-600">
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
@@ -309,6 +306,11 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </div>
 
+                {/* Body */}
+                <div className="px-6 mt-6 pb-8 space-y-2">
+
+                    
+
                     {/* DASHBOARD */}
                     <button
                         onClick={() => { onClose(); navigate('/dashboard'); }}
@@ -389,7 +391,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     </div>
 
                     {/* APP VERSION - at the very bottom */}
-                    <div className="pt-6 pb-2 text-center">
+                    <div className="pt-20 pb-2 text-center">
                         <span className="text-xs text-slate-400 dark:text-gold-300/40">App version v{APP_VERSION}</span>
                     </div>
 
