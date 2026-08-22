@@ -234,22 +234,6 @@ export default function ProfileDrawer({ open, onClose }) {
 
                         {personalOpen && (
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    {!editing && (
-                                        <button
-                                            onClick={() => !onCooldown && setEditing(true)}
-                                            disabled={onCooldown}
-                                            className={`text-xs font-semibold ${
-                                                onCooldown
-                                                    ? 'text-slate-300 dark:text-gold-300/30 cursor-not-allowed'
-                                                    : 'text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300'
-                                            }`}
-                                        >
-                                            Edit
-                                        </button>
-                                    )}
-                                </div>
-
                                 {onCooldown && !editing && (
                                     <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-gold-400">
                                         <Clock size={12} /> You can edit again in {cooldownMinutes} minute{cooldownMinutes === 1 ? '' : 's'}
@@ -312,6 +296,21 @@ export default function ProfileDrawer({ open, onClose }) {
                                         <InfoRow icon={<MapPin size={15} />} label="Location" value={user.location || 'Not added yet'} />
                                     </div>
                                 )}
+                                <div className="flex items-center justify-between ml-3">
+                                    {!editing && (
+                                        <button
+                                            onClick={() => !onCooldown && setEditing(true)}
+                                            disabled={onCooldown}
+                                            className={`text-xs font-semibold ${
+                                                onCooldown
+                                                    ? 'text-slate-300 dark:text-gold-300/30 cursor-not-allowed'
+                                                    : 'text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300'
+                                            }`}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
