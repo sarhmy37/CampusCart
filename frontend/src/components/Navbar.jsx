@@ -446,18 +446,35 @@ const ROLL_THRESHOLD = 28;
 const ITEM_W = 68; // px width of each reel item — sized to fit "Sign up" snugly
 const REEL_ITEMS = Array.from({ length: 20 }, (_, i) => (i % 2 === 0 ? 'Log in' : 'Sign up'));
 
+
 function AuthRollBall() {
     const navigate = useNavigate();
-    const [index, setIndex] = useState(0);
+    const [index, setIndex] = useState(0); // can go negative or beyond array length now
     const [dragPixels, setDragPixels] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
+    const [hasInteracted, setHasInteracted] = useState(false);
     const startX = useRef(null);
     const dragging = useRef(false);
     const movedRef = useRef(false);
 
-    const maxOffset = (REEL_ITEMS.length - 1) * ITEM_W;
+    // Idle hint animation on first mount — nudge left then right, then stop
+    const [hintOffset, setHintOffset] = useState(0);
+    useEffect(() => {
+        if (hasInteracted) return;
+        const seq = [8, -8, 4, 0];
+        let i = 0;
+        const timer = setInterval(() => {
+            setHintOffset(seq[i]);
+            i++;
+            if (i >= seq.length) clearInterval(timer);
+        }, 260);
+        return () => clearInterval(timer);
+    }, [hasInteracted]);
+
+    const label = (i) => (((i % 2) + 2) % 2 === 0 ? 'Log in' : 'Sign up');
 
     const handleStart = (clientX) => {
+        setHasInteracted(true);
         startX.current = clientX;
         dragging.current = true;
         movedRef.current = false;
@@ -478,10 +495,9 @@ function AuthRollBall() {
 
         if (movedRef.current) {
             const rawIndex = index - dragPixels / ITEM_W;
-            const clamped = Math.min(Math.max(Math.round(rawIndex), 0), REEL_ITEMS.length - 1);
-            setIndex(clamped);
+            setIndex(Math.round(rawIndex));
         } else {
-            navigate(REEL_ITEMS[index] === 'Log in' ? '/login' : '/register');
+            navigate(label(index) === 'Log in' ? '/login' : '/register');
         }
         setDragPixels(0);
     };
@@ -502,8 +518,10 @@ function AuthRollBall() {
         window.addEventListener('mouseup', onMouseUp);
     };
 
-    let translateX = -(index * ITEM_W) + dragPixels;
-    translateX = Math.min(Math.max(translateX, -maxOffset), 0);
+    // Render a window of 5 items centered on the current index — infinite either direction
+    const visible = [index - 2, index - 1, index, index + 1, index + 2];
+    const baseTranslate = -2 * ITEM_W; // keeps "index - 2" item flush left at rest
+    const translateX = baseTranslate + dragPixels + (hasInteracted ? 0 : hintOffset);
 
     return (
         <div
@@ -521,27 +539,32 @@ function AuthRollBall() {
                     transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
                 }}
             >
-                {REEL_ITEMS.map((label, i) => (
+                {visible.map((i) => (
                     <div
                         key={i}
                         style={{ width: ITEM_W }}
                         className={`shrink-0 h-full flex items-center justify-center text-xs font-semibold ${
-                            label === 'Log in'
+                            label(i) === 'Log in'
                                 ? 'text-slate-700 dark:text-gold-200'
                                 : 'text-white dark:text-ink-900'
                         }`}
                     >
                         <span
-                            className={label === 'Sign up' ? 'px-2.5 py-1 rounded-lg bg-brand-600 dark:bg-gold-500' : ''}
+                            className={label(i) === 'Sign up' ? 'px-2.5 py-1 rounded-lg bg-brand-600 dark:bg-gold-500' : ''}
                         >
-                            {label}
+                            {label(i)}
                         </span>
                     </div>
                 ))}
             </div>
 
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-slate-50 dark:from-ink-800 to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-2 bg-gradient-to-l from-slate-50 dark:from-ink-800 to-transparent" />
+            {/* Chevron hints — signal "swipeable" without needing text */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-slate-50 dark:from-ink-800 to-transparent flex items-center">
+                <ChevronLeft size={10} className="text-slate-300 dark:text-gold-300/30" />
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-slate-50 dark:from-ink-800 to-transparent flex items-center justify-end">
+                <ChevronRight size={10} className="text-slate-300 dark:text-gold-300/30" />
+            </div>
         </div>
     );
 }
