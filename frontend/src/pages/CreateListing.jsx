@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
-import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2, Info } from 'lucide-react';
+import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2, Info, Camera, Image } from 'lucide-react';
 
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB
@@ -48,6 +48,12 @@ export default function CreateListing() {
     const [isEnhanced, setIsEnhanced] = useState(false);
     const [loading, setLoading] = useState(false);
 
+    // Refs for file inputs
+    const imageGalleryInputRef = useRef(null);
+    const imageCameraInputRef = useRef(null);
+    const videoGalleryInputRef = useRef(null);
+    const videoCameraInputRef = useRef(null);
+
     useEffect(() => {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
     }, []);
@@ -60,7 +66,21 @@ export default function CreateListing() {
         return () => { if (videoPreview) URL.revokeObjectURL(videoPreview); };
     }, [videoPreview]);
 
-    const handleFilesSelected = async (e) => {
+    // ---- IMAGE HANDLING ----
+    const handleAddPhotoClick = () => {
+        // Show a modal or use a simple confirm to choose between camera and gallery
+        const choice = window.confirm('Choose source:\n\n• Click "OK" to take a photo with camera\n• Click "Cancel" to select from gallery');
+        
+        if (choice) {
+            // Camera
+            imageCameraInputRef.current?.click();
+        } else {
+            // Gallery
+            imageGalleryInputRef.current?.click();
+        }
+    };
+
+    const handleImageFilesSelected = async (e, isCamera = false) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
 
@@ -100,6 +120,17 @@ export default function CreateListing() {
         setPreviews((prev) => prev.filter((_, i) => i !== index));
     };
 
+    // ---- VIDEO HANDLING ----
+    const handleAddVideoClick = () => {
+        const choice = window.confirm('Choose source:\n\n• Click "OK" to record a video with camera\n• Click "Cancel" to select from gallery');
+        
+        if (choice) {
+            videoCameraInputRef.current?.click();
+        } else {
+            videoGalleryInputRef.current?.click();
+        }
+    };
+
     const handleVideoSelected = async (e) => {
         const file = e.target.files?.[0];
         e.target.value = '';
@@ -134,7 +165,7 @@ export default function CreateListing() {
         setVideoPreview(null);
     };
 
-    // Enhance / Revert logic
+    // ---- ENHANCE ----
     const handleEnhanceAllImages = async () => {
         if (isEnhanced) {
             setImageUrls(originalImageUrls);
@@ -300,23 +331,36 @@ export default function CreateListing() {
                                         </div>
                                     )}
                                     {imageUrls.length < MAX_IMAGES && !uploading && (
-                                        <label className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition">
+                                        <button
+                                            type="button"
+                                            onClick={handleAddPhotoClick}
+                                            className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition"
+                                        >
                                             <ImagePlus size={20} />
                                             <span className="text-[11px] font-semibold">Add</span>
-                                            {/* capture="environment" triggers camera on mobile */}
-                                            <input 
-                                                type="file" 
-                                                accept="image/*" 
-                                                capture="environment" 
-                                                multiple 
-                                                onChange={handleFilesSelected} 
-                                                className="hidden" 
-                                            />
-                                        </label>
+                                        </button>
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
                                 
+                                {/* Hidden image inputs */}
+                                <input
+                                    ref={imageGalleryInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={(e) => handleImageFilesSelected(e, false)}
+                                    className="hidden"
+                                />
+                                <input
+                                    ref={imageCameraInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={(e) => handleImageFilesSelected(e, true)}
+                                    className="hidden"
+                                />
+
                                 {imageUrls.length > 0 && (
                                     <div>
                                         <button
@@ -342,7 +386,6 @@ export default function CreateListing() {
                                                 </>
                                             )}
                                         </button>
-                                        {/* INFO TEXT FOR THE ENHANCE FEATURE */}
                                         <p className="flex items-start gap-1 text-[10px] text-slate-400 dark:text-gold-300/50 mt-1.5 leading-tight">
                                             <Info size={12} className="shrink-0 mt-0.5" />
                                             Removes messy backgrounds. Best for items with cluttered surroundings.
@@ -371,21 +414,34 @@ export default function CreateListing() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <label className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition">
+                                        <button
+                                            type="button"
+                                            onClick={handleAddVideoClick}
+                                            className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition"
+                                        >
                                             <VideoIcon size={20} />
                                             <span className="text-[11px] font-semibold">Add video</span>
-                                            {/* capture="environment" triggers camera on mobile for video */}
-                                            <input 
-                                                type="file" 
-                                                accept="video/*" 
-                                                capture="environment" 
-                                                onChange={handleVideoSelected} 
-                                                className="hidden" 
-                                            />
-                                        </label>
+                                        </button>
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Optional. Up to 20MB.</p>
+                                
+                                {/* Hidden video inputs */}
+                                <input
+                                    ref={videoGalleryInputRef}
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={handleVideoSelected}
+                                    className="hidden"
+                                />
+                                <input
+                                    ref={videoCameraInputRef}
+                                    type="file"
+                                    accept="video/*"
+                                    capture="environment"
+                                    onChange={handleVideoSelected}
+                                    className="hidden"
+                                />
                             </div>
 
                         </div>
