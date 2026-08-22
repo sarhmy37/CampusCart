@@ -37,45 +37,29 @@ export default function ProfileDrawer({ open, onClose }) {
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
+    // 👇 Locks the background completely by pinning <body> in place — the standard,
+    // cross-browser-reliable technique (simple overflow:hidden alone is known to fail
+    // on iOS Safari due to how it handles scroll-chaining under fixed overlays).
+    useEffect(() => {
+        if (open) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
 
-  useEffect(() => {
-    if (open) {
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overflow = 'hidden';
-
-        if (drawerRef.current) {
-            drawerRef.current.scrollTop = 0;
+            if (drawerRef.current) {
+                drawerRef.current.scrollTop = 0;
+            }
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
-    } else {
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
-    }
-
-    return () => {
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
-    };
-}, [open]);
-
-// 👇 Actually blocks background scroll — CSS overflow:hidden alone isn't reliable
-
-useEffect(() => {
-    if (!open) return;
-
-    const blockOutsideScroll = (e) => {
-        if (drawerRef.current && !drawerRef.current.contains(e.target)) {
-            e.preventDefault();
-        }
-    };
-
-    document.addEventListener('wheel', blockOutsideScroll, { passive: false });
-    document.addEventListener('touchmove', blockOutsideScroll, { passive: false });
-
-    return () => {
-        document.removeEventListener('wheel', blockOutsideScroll);
-        document.removeEventListener('touchmove', blockOutsideScroll);
-    };
-}, [open]);
+    }, [open]);
 
     if (!user) return null;
 
