@@ -6,27 +6,23 @@ import toast from 'react-hot-toast';
 const TYPE_STYLES = {
     success: {
         icon: CheckCircle2,
-        iconColor: 'text-emerald-500 dark:text-emerald-400',
-        glow: 'bg-emerald-400/40 dark:bg-emerald-400/25',
-        bar: 'bg-emerald-500/80 dark:bg-emerald-400/80',
+        badge: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400',
+        bar: 'bg-emerald-500 dark:bg-emerald-400',
     },
     error: {
         icon: XCircle,
-        iconColor: 'text-red-500 dark:text-red-400',
-        glow: 'bg-red-400/40 dark:bg-red-400/25',
-        bar: 'bg-red-500/80 dark:bg-red-400/80',
+        badge: 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400',
+        bar: 'bg-red-500 dark:bg-red-400',
     },
     loading: {
         icon: Loader2,
-        iconColor: 'text-brand-600 dark:text-gold-300',
-        glow: 'bg-brand-400/40 dark:bg-gold-400/25',
-        bar: 'bg-brand-500/80 dark:bg-gold-400/80',
+        badge: 'bg-brand-50 dark:bg-gold-900/40 text-brand-600 dark:text-gold-400',
+        bar: 'bg-brand-500 dark:bg-gold-400',
     },
     blank: {
         icon: Info,
-        iconColor: 'text-brand-600 dark:text-gold-300',
-        glow: 'bg-brand-400/40 dark:bg-gold-400/25',
-        bar: 'bg-brand-500/80 dark:bg-gold-400/80',
+        badge: 'bg-brand-50 dark:bg-gold-900/40 text-brand-600 dark:text-gold-400',
+        bar: 'bg-brand-500 dark:bg-gold-400',
     },
 };
 
@@ -67,51 +63,39 @@ function ToastCard({ t }) {
                 transform: visible
                     ? `translateY(0) scale(${hovered ? 1.015 : 1})`
                     : 'translateY(-12px) scale(0.93)',
-                filter: visible ? 'blur(0px)' : 'blur(3px)',
-                transition: 'opacity 340ms cubic-bezier(0.22, 1, 0.36, 1), transform 340ms cubic-bezier(0.22, 1, 0.36, 1), filter 340ms ease',
+                transition: 'opacity 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 280ms cubic-bezier(0.22, 1, 0.36, 1)',
             }}
         >
-            {/* Soft colored glow bleeding out from behind the glass */}
-            <div className={`absolute -inset-1 rounded-[22px] blur-lg opacity-60 ${style.glow}`} />
-
             <div
-                className="relative overflow-hidden rounded-2xl border border-white/60 dark:border-white/10
-                           bg-gradient-to-b from-white/70 to-white/40 dark:from-white/[0.08] dark:to-white/[0.04]
-                           backdrop-blur-2xl backdrop-saturate-150
-                           shadow-[0_1px_0_rgba(255,255,255,0.7)_inset,0_10px_28px_-6px_rgba(0,0,0,0.16)]
-                           dark:shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_10px_28px_-6px_rgba(0,0,0,0.5)]"
+                className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-ink-600
+                           bg-white dark:bg-ink-800
+                           shadow-xl shadow-slate-900/10 dark:shadow-black/30"
             >
-                {/* Specular highlight along the top edge */}
-                <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
-
-                <div className="relative flex items-start gap-2.5 px-3.5 py-3">
-                    <span className="relative shrink-0 w-7 h-7 flex items-center justify-center">
-                        <span className="absolute inset-0 rounded-full border border-white/50 dark:border-white/10 bg-white/40 dark:bg-white/[0.06] backdrop-blur-md" />
-                        <Icon size={15} className={`relative ${style.iconColor} ${t.type === 'loading' ? 'animate-spin' : ''}`} />
+                <div className="flex items-start gap-3 px-3.5 py-3">
+                    <span className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${style.badge}`}>
+                        <Icon size={16} className={t.type === 'loading' ? 'animate-spin' : ''} />
                     </span>
 
-                    <p className="flex-1 text-[13px] font-medium text-slate-800 dark:text-gold-50 leading-snug pt-1 tracking-[-0.01em]">
+                    <p className="flex-1 text-sm font-medium text-slate-800 dark:text-gold-100 leading-snug pt-1">
                         {resolveValue(t.message, t)}
                     </p>
 
                     {t.type !== 'loading' && (
                         <button
                             onClick={() => toast.dismiss(t.id)}
-                            className="shrink-0 mt-0.5 w-4.5 h-4.5 rounded-full flex items-center justify-center text-slate-400/70 dark:text-gold-200/40 hover:text-slate-700 dark:hover:text-gold-100 hover:bg-black/5 dark:hover:bg-white/10 transition"
+                            className="shrink-0 mt-0.5 text-slate-300 dark:text-gold-300/40 hover:text-slate-500 dark:hover:text-gold-200 transition"
                         >
-                            <X size={12} />
+                            <X size={14} />
                         </button>
                     )}
                 </div>
 
                 {t.type !== 'loading' && (
-                    <div className="relative px-3.5 pb-2 -mt-0.5">
-                        <div className="h-[2.5px] w-full rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
-                            <div
-                                className={`h-full rounded-full ${style.bar}`}
-                                style={{ width: `${progress}%`, transition: progress === 100 ? 'none' : 'width 30ms linear' }}
-                            />
-                        </div>
+                    <div className="h-0.5 w-full bg-slate-100 dark:bg-ink-700">
+                        <div
+                            className={`h-full ${style.bar}`}
+                            style={{ width: `${progress}%`, transition: progress === 100 ? 'none' : 'width 30ms linear' }}
+                        />
                     </div>
                 )}
             </div>
