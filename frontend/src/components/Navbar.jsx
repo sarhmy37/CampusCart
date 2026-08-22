@@ -443,7 +443,7 @@ function SearchBar({ isAdmin, onSubmit }) {
 // Drag it up or down past the threshold to toggle open/closed.
 // A plain tap also works as a shortcut.
 const ROLL_THRESHOLD = 28;
-const ITEM_H = 34; // px height of each reel item
+const ITEM_W = 68; // px width of each reel item — sized to fit "Sign up" snugly
 const REEL_ITEMS = Array.from({ length: 20 }, (_, i) => (i % 2 === 0 ? 'Log in' : 'Sign up'));
 
 function AuthRollBall() {
@@ -451,22 +451,22 @@ function AuthRollBall() {
     const [index, setIndex] = useState(0);
     const [dragPixels, setDragPixels] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
-    const startY = useRef(null);
+    const startX = useRef(null);
     const dragging = useRef(false);
     const movedRef = useRef(false);
 
-    const maxOffset = (REEL_ITEMS.length - 1) * ITEM_H;
+    const maxOffset = (REEL_ITEMS.length - 1) * ITEM_W;
 
-    const handleStart = (clientY) => {
-        startY.current = clientY;
+    const handleStart = (clientX) => {
+        startX.current = clientX;
         dragging.current = true;
         movedRef.current = false;
         setIsDragging(true);
     };
 
-    const handleMove = (clientY) => {
+    const handleMove = (clientX) => {
         if (!dragging.current) return;
-        const diff = clientY - startY.current;
+        const diff = clientX - startX.current;
         if (Math.abs(diff) > 4) movedRef.current = true;
         setDragPixels(diff);
     };
@@ -477,23 +477,22 @@ function AuthRollBall() {
         setIsDragging(false);
 
         if (movedRef.current) {
-            const rawIndex = index - dragPixels / ITEM_H;
+            const rawIndex = index - dragPixels / ITEM_W;
             const clamped = Math.min(Math.max(Math.round(rawIndex), 0), REEL_ITEMS.length - 1);
             setIndex(clamped);
         } else {
-            // Plain tap — go to whatever's currently showing
             navigate(REEL_ITEMS[index] === 'Log in' ? '/login' : '/register');
         }
         setDragPixels(0);
     };
 
-    const onTouchStart = (e) => handleStart(e.touches[0].clientY);
-    const onTouchMove = (e) => handleMove(e.touches[0].clientY);
+    const onTouchStart = (e) => handleStart(e.touches[0].clientX);
+    const onTouchMove = (e) => handleMove(e.touches[0].clientX);
     const onTouchEnd = () => handleEnd();
 
     const onMouseDown = (e) => {
-        handleStart(e.clientY);
-        const onMouseMove = (ev) => handleMove(ev.clientY);
+        handleStart(e.clientX);
+        const onMouseMove = (ev) => handleMove(ev.clientX);
         const onMouseUp = () => {
             handleEnd();
             window.removeEventListener('mousemove', onMouseMove);
@@ -503,8 +502,8 @@ function AuthRollBall() {
         window.addEventListener('mouseup', onMouseUp);
     };
 
-    let translateY = -(index * ITEM_H) + dragPixels;
-    translateY = Math.min(Math.max(translateY, -maxOffset), 0);
+    let translateX = -(index * ITEM_W) + dragPixels;
+    translateX = Math.min(Math.max(translateX, -maxOffset), 0);
 
     return (
         <div
@@ -512,27 +511,28 @@ function AuthRollBall() {
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
             onMouseDown={onMouseDown}
-            className="relative w-24 rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 overflow-hidden select-none cursor-grab active:cursor-grabbing shadow-sm"
-            style={{ height: ITEM_H }}
+            className="relative rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 overflow-hidden select-none cursor-grab active:cursor-grabbing shadow-sm"
+            style={{ width: ITEM_W, height: 30 }}
         >
             <div
+                className="flex h-full"
                 style={{
-                    transform: `translateY(${translateY}px)`,
+                    transform: `translateX(${translateX}px)`,
                     transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
                 }}
             >
                 {REEL_ITEMS.map((label, i) => (
                     <div
                         key={i}
-                        style={{ height: ITEM_H }}
-                        className={`flex items-center justify-center text-xs font-semibold ${
+                        style={{ width: ITEM_W }}
+                        className={`shrink-0 h-full flex items-center justify-center text-xs font-semibold ${
                             label === 'Log in'
                                 ? 'text-slate-700 dark:text-gold-200'
                                 : 'text-white dark:text-ink-900'
                         }`}
                     >
                         <span
-                            className={label === 'Sign up' ? 'px-3 py-1 rounded-lg bg-brand-600 dark:bg-gold-500' : ''}
+                            className={label === 'Sign up' ? 'px-2.5 py-1 rounded-lg bg-brand-600 dark:bg-gold-500' : ''}
                         >
                             {label}
                         </span>
@@ -540,9 +540,8 @@ function AuthRollBall() {
                 ))}
             </div>
 
-            {/* Top/bottom fade to hint there's more to scroll */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-2 bg-gradient-to-b from-slate-50 dark:from-ink-800 to-transparent" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-gradient-to-t from-slate-50 dark:from-ink-800 to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-slate-50 dark:from-ink-800 to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-2 bg-gradient-to-l from-slate-50 dark:from-ink-800 to-transparent" />
         </div>
     );
 }
