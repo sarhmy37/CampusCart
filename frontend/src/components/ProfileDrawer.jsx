@@ -225,7 +225,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         </button>
 
                         {personalOpen && (
-                            <div className="px-3 pb-3 space-y-3">
+                            <div className="space-y-3">
                                 <div className="flex items-center justify-between pt-1">
                                     <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
                                     {!editing && (
@@ -309,7 +309,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </div>
 
-                    {/* DASHBOARD with padding */}
+                    {/* DASHBOARD */}
                     <button
                         onClick={() => { onClose(); navigate('/dashboard'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
@@ -317,7 +317,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
 
-                    {/* CHAT / MESSAGING with padding */}
+                    {/* CHAT / MESSAGING */}
                     <button
                         onClick={() => { onClose(); navigate('/chat'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
@@ -330,7 +330,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </button>
 
-                    {/* SUPPORT & ABOUT - DROPDOWN with padding */}
+                    {/* SUPPORT & ABOUT - DROPDOWN (has padding, but no selected state) */}
                     <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
                         <button
                             onClick={() => setSupportOpen(!supportOpen)}
@@ -370,7 +370,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </div>
 
-                    {/* SETTINGS with padding */}
+                    {/* SETTINGS */}
                     <button
                         onClick={() => { onClose(); navigate('/settings'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
