@@ -428,9 +428,9 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         }
 
         await pool.query(
-            `UPDATE order_items SET buyer_confirmed_at = now() WHERE id = $1`,
-            [itemId]
-        );
+    `UPDATE order_items SET buyer_confirmed_at = now(), status = 'completed' WHERE id = $1`,
+    [itemId]
+);
 
         // ============ ADMIN NET PROFIT CALCULATION ============
         // 1. Base product price

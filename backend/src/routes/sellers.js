@@ -4,7 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Ensures every past calendar month with completed sales has a
+// Ensures every past calendar month with confirmed sales has a
 // seller_payments row (created as 'pending' the first time it's checked).
 async function reconcilePayments(sellerId) {
     const monthsResult = await pool.query(
@@ -15,7 +15,7 @@ async function reconcilePayments(sellerId) {
          FROM order_items oi
          JOIN orders o ON o.id = oi.order_id
          WHERE oi.seller_id = $1
-           AND oi.status = 'completed'
+           AND oi.buyer_confirmed_at IS NOT NULL
            AND date_trunc('month', o.created_at) < date_trunc('month', now())
          GROUP BY 1, 2`,
         [sellerId]
@@ -57,7 +57,7 @@ for (const row of monthsResult.rows) {
 
 async function getSuccessfulPurchaseCount(sellerId) {
     const result = await pool.query(
-        `SELECT COUNT(*)::int AS count FROM order_items WHERE seller_id = $1 AND status = 'completed'`,
+        `SELECT COUNT(*)::int AS count FROM order_items WHERE seller_id = $1 AND buyer_confirmed_at IS NOT NULL`,
         [sellerId]
     );
     return result.rows[0].count;
@@ -88,8 +88,8 @@ async function checkAndCreditRewards(sellerId) {
             `SELECT COALESCE(SUM(seller_earnings), 0) AS total
              FROM (
                 SELECT seller_earnings FROM order_items
-                WHERE seller_id = $1 AND status = 'completed'
-                ORDER BY created_at ASC
+                WHERE seller_id = $1 AND buyer_confirmed_at IS NOT NULL
+                ORDER BY buyer_confirmed_at ASC
                 LIMIT $2 OFFSET $3
              ) batch`,
             [sellerId, REWARD_MILESTONE_INTERVAL, milestone - REWARD_MILESTONE_INTERVAL]
@@ -135,7 +135,7 @@ router.get('/overview', requireAuth, async (req, res) => {
                 COALESCE(SUM(platform_fee), 0) AS platform_fees,
                 COALESCE(SUM(seller_earnings), 0) AS net_earnings
              FROM order_items
-             WHERE seller_id = $1 AND status = 'completed' AND ${dateFilter}`,
+             WHERE seller_id = $1 AND buyer_confirmed_at IS NOT NULL AND ${dateFilter}`,
             [req.userId]
         );
 
@@ -197,7 +197,7 @@ router.get('/rewards', requireAuth, async (req, res) => {
     }
 });
 
-// GET /api/sellers/purchase-count — total successful (completed) sales for the logged-in seller
+// GET /api/sellers/purchase-count — total confirmed sales for the logged-in seller
 router.get('/purchase-count', requireAuth, async (req, res) => {
     try {
         const count = await getSuccessfulPurchaseCount(req.userId);
@@ -218,7 +218,7 @@ router.get('/payment-status', requireAuth, async (req, res) => {
              FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
              WHERE oi.seller_id = $1
-               AND oi.status = 'completed'
+               AND oi.buyer_confirmed_at IS NOT NULL
                AND date_trunc('month', o.created_at) = date_trunc('month', now())`,
             [req.userId]
         );
