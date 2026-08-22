@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
     Users, Package, ShoppingBag, DollarSign, ShieldCheck, ShieldAlert,
-    Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp
+    Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X
 } from 'lucide-react';
 
 export default function Admin() {
@@ -18,7 +18,6 @@ export default function Admin() {
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [loadingListings, setLoadingListings] = useState(false);
 
-    // Fetch stats and earnings
     useEffect(() => {
         Promise.all([
             api.get('/admin/stats'),
@@ -29,15 +28,12 @@ export default function Admin() {
         }).catch(() => {});
     }, []);
 
-    // Fetch users and listings when search query exists
     useEffect(() => {
         if (!searchQuery) {
-            // If no search, we don't need to preload everything
             setAllUsers([]);
             setAllListings([]);
             return;
         }
-        // Load both users and listings to decide which tab to show
         setLoadingUsers(true);
         setLoadingListings(true);
         Promise.all([
@@ -46,7 +42,6 @@ export default function Admin() {
         ]).then(([users, listings]) => {
             setAllUsers(users);
             setAllListings(listings);
-            // Decide tab: if any user matches (name or email includes query), switch to users tab
             const userMatch = users.some(u =>
                 u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 u.university_email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -59,26 +54,17 @@ export default function Admin() {
             } else if (listingMatch) {
                 setTab('listings');
             }
-            // else keep current tab (default users)
         }).catch(() => {}).finally(() => {
             setLoadingUsers(false);
             setLoadingListings(false);
         });
     }, [searchQuery]);
 
-    // When search is cleared, reset tab to default 'users'
     useEffect(() => {
         if (!searchQuery) {
             setTab('users');
         }
     }, [searchQuery]);
-
-    const handleTabChange = (t) => {
-        setTab(t);
-        // Clear search param when switching tabs manually
-        // We'll just let the search persist but the tab change overrides.
-        // We'll rely on the tab's own filter.
-    };
 
     return (
         <div className="bg-white dark:bg-ink-900 min-h-screen">
@@ -105,7 +91,6 @@ export default function Admin() {
                         </div>
                     )}
                     
-                    {/* Details breakdown for Admin */}
                     {earnings && (
                         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-white/70 text-[10px] sm:text-xs">
                             <div>2% Buyer Fees: <span className="text-white font-semibold">GHS {earnings.totalBuyerFees}</span></div>
@@ -122,7 +107,7 @@ export default function Admin() {
                     {['users', 'listings', 'orders', 'reports'].map((t) => (
                         <button
                             key={t}
-                            onClick={() => handleTabChange(t)}
+                            onClick={() => setTab(t)}
                             className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition ${
                                 tab === t
                                     ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
@@ -153,17 +138,17 @@ function StatCard({ icon: Icon, label, value, highlight }) {
     );
 }
 
-// ---------- UsersTab with filter ----------
+// ---------- UsersTab ----------
 function UsersTab({ filter, initialUsers, loading }) {
     const [users, setUsers] = useState(initialUsers || []);
     const [localLoading, setLocalLoading] = useState(loading);
+    const [selectedUser, setSelectedUser] = useState(null);
 
     useEffect(() => {
         if (initialUsers && initialUsers.length > 0) {
             setUsers(initialUsers);
             setLocalLoading(false);
         } else if (!filter) {
-            // only fetch if no initial data and no filter (to avoid double fetch)
             setLocalLoading(true);
             api.get('/admin/users').then((res) => {
                 setUsers(res.data);
@@ -171,7 +156,6 @@ function UsersTab({ filter, initialUsers, loading }) {
         }
     }, [initialUsers, filter]);
 
-    // Filter users based on search query
     const filteredUsers = filter
         ? users.filter(u =>
             u.name.toLowerCase().includes(filter.toLowerCase()) ||
@@ -183,11 +167,22 @@ function UsersTab({ filter, initialUsers, loading }) {
         try {
             await api.patch(`/admin/users/${id}`, payload);
             toast.success('Updated');
-            // refresh
             const res = await api.get('/admin/users');
             setUsers(res.data);
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to update user');
+        }
+    };
+
+    const deleteUser = async (id) => {
+        if (!window.confirm('⚠️ Are you sure you want to permanently delete this user? This cannot be undone.')) return;
+        try {
+            await api.delete(`/admin/users/${id}`);
+            toast.success('User deleted');
+            const res = await api.get('/admin/users');
+            setUsers(res.data);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete user');
         }
     };
 
@@ -212,7 +207,7 @@ function UsersTab({ filter, initialUsers, loading }) {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                             <IconButton
                                 onClick={() => updateUser(u.id, { verified: !u.verified })}
                                 title={u.verified ? 'Unverify' : 'Verify'}
@@ -235,15 +230,125 @@ function UsersTab({ filter, initialUsers, loading }) {
                             >
                                 <Crown size={15} />
                             </IconButton>
+                            <IconButton
+                                onClick={() => setSelectedUser(u)}
+                                title="Investigate"
+                                className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                            >
+                                <Eye size={15} />
+                            </IconButton>
+                            <IconButton
+                                onClick={() => deleteUser(u.id)}
+                                title="Delete account"
+                                danger
+                                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                            >
+                                <Trash2 size={15} />
+                            </IconButton>
                         </div>
                     </div>
                 ))
             )}
+
+            <InvestigateModal
+                user={selectedUser}
+                open={!!selectedUser}
+                onClose={() => setSelectedUser(null)}
+            />
         </div>
     );
 }
 
-// ---------- ListingsTab with filter ----------
+// ---------- InvestigateModal ----------
+function InvestigateModal({ user, open, onClose }) {
+    const [orders, setOrders] = useState([]);
+    const [listings, setListings] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (open && user) {
+            setLoading(true);
+            Promise.all([
+                api.get(`/admin/users/${user.id}/orders`).then(res => res.data).catch(() => []),
+                api.get(`/admin/users/${user.id}/listings`).then(res => res.data).catch(() => []),
+            ]).then(([ordersData, listingsData]) => {
+                setOrders(ordersData);
+                setListings(listingsData);
+                setLoading(false);
+            }).catch(() => setLoading(false));
+        }
+    }, [open, user]);
+
+    if (!open || !user) return null;
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 border border-slate-200 dark:border-ink-600">
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                >
+                    <X size={18} />
+                </button>
+
+                <h2 className="text-xl font-extrabold text-slate-900 dark:text-gold-50">Investigate Account</h2>
+                <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">{user.university_email}</p>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm bg-slate-50 dark:bg-ink-700 rounded-xl p-4">
+                    <div><span className="text-slate-400 dark:text-gold-200/50">Name</span><br /><span className="font-semibold text-slate-800 dark:text-gold-100">{user.name}</span></div>
+                    <div><span className="text-slate-400 dark:text-gold-200/50">Account Type</span><br /><span className="font-semibold text-slate-800 dark:text-gold-100 capitalize">{user.account_type}</span></div>
+                    <div><span className="text-slate-400 dark:text-gold-200/50">Role</span><br /><span className="font-semibold text-slate-800 dark:text-gold-100 capitalize">{user.role}</span></div>
+                    <div><span className="text-slate-400 dark:text-gold-200/50">Verified</span><br /><span className={`font-semibold ${user.verified ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{user.verified ? '✅ Yes' : '❌ No'}</span></div>
+                    <div><span className="text-slate-400 dark:text-gold-200/50">Banned</span><br /><span className={`font-semibold ${user.banned ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{user.banned ? '🚫 Yes' : '✅ No'}</span></div>
+                    <div><span className="text-slate-400 dark:text-gold-200/50">Joined</span><br /><span className="font-semibold text-slate-800 dark:text-gold-100">{new Date(user.created_at).toLocaleDateString()}</span></div>
+                </div>
+
+                <div className="mt-4">
+                    <h3 className="font-bold text-slate-800 dark:text-gold-100 mb-2">Listings ({listings.length})</h3>
+                    {loading ? (
+                        <div className="text-center py-4 text-slate-400 dark:text-gold-200/50">Loading...</div>
+                    ) : listings.length === 0 ? (
+                        <p className="text-sm text-slate-400 dark:text-gold-200/50">No listings found.</p>
+                    ) : (
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {listings.map((p) => (
+                                <div key={p.id} className="flex items-center justify-between text-sm bg-slate-50 dark:bg-ink-700 rounded-lg px-3 py-2">
+                                    <span className="text-slate-700 dark:text-gold-100 truncate">{p.title}</span>
+                                    <span className="text-slate-400 dark:text-gold-200/50">GHS {parseFloat(p.price).toFixed(2)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-4">
+                    <h3 className="font-bold text-slate-800 dark:text-gold-100 mb-2">Orders ({orders.length})</h3>
+                    {loading ? (
+                        <div className="text-center py-4 text-slate-400 dark:text-gold-200/50">Loading...</div>
+                    ) : orders.length === 0 ? (
+                        <p className="text-sm text-slate-400 dark:text-gold-200/50">No orders found.</p>
+                    ) : (
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {orders.map((o) => (
+                                <div key={o.id} className="flex items-center justify-between text-sm bg-slate-50 dark:bg-ink-700 rounded-lg px-3 py-2">
+                                    <span className="text-slate-700 dark:text-gold-100">Order #{o.id}</span>
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
+                                        o.status === 'completed' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' :
+                                        o.status === 'pending' ? 'bg-amber-50 text-amber-700 dark:bg-gold-900/40 dark:text-gold-400' :
+                                        'bg-slate-100 text-slate-500 dark:bg-ink-700 dark:text-gold-200/50'
+                                    }`}>{o.status}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---------- ListingsTab ----------
 function ListingsTab({ filter, initialListings, loading }) {
     const [listings, setListings] = useState(initialListings || []);
     const [localLoading, setLocalLoading] = useState(loading);
@@ -304,8 +409,7 @@ function ListingsTab({ filter, initialListings, loading }) {
     );
 }
 
-// ---------- OrdersTab (unchanged) ----------
-// ---------- OrdersTab with search + detail view ----------
+// ---------- OrdersTab ----------
 function OrdersTab() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -526,7 +630,7 @@ function DetailBlock({ title, children }) {
     );
 }
 
-// ---------- ReportsTab (unchanged) ----------
+// ---------- ReportsTab ----------
 const REPORT_STATUS_FILTERS = ['pending', 'reviewed', 'dismissed', 'actioned'];
 
 const REASON_LABELS = {
@@ -664,12 +768,12 @@ function Tag({ children, color }) {
     );
 }
 
-function IconButton({ children, onClick, title, active, danger }) {
+function IconButton({ children, onClick, title, active, danger, className = '' }) {
     return (
         <button
             onClick={onClick}
             title={title}
-            className={`p-2 rounded-lg transition ${
+            className={`p-2 rounded-lg transition ${className} ${
                 active
                     ? danger
                         ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'

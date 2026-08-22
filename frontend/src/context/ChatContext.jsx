@@ -50,26 +50,30 @@ export function ChatProvider({ children }) {
 
     // Used from Cart.jsx — finds or creates a conversation with a seller about a product
     const openChat = useCallback(async ({ sellerId, sellerName, productId }) => {
-        setIsOpen(true);
-        setLoading(true);
-        setMessages([]);
-        try {
-            const res = await api.post('/chat/start', { sellerId, productId });
-            const convo = {
-                id: res.data.id,
-                otherUserId: sellerId,
-                otherUserName: res.data.seller_name || sellerName,
-                otherUserAvatar: res.data.seller_avatar || null,
-            };
-            setConversation(convo);
-            await fetchMessages(convo.id);
-        } catch {
-            toast.error('Could not start chat');
-            setIsOpen(false);
-        } finally {
-            setLoading(false);
+    setIsOpen(true);
+    setLoading(true);
+    setMessages([]);
+    try {
+        const res = await api.post('/chat/start', { sellerId, productId });
+        const convo = {
+            id: res.data.id,
+            otherUserId: sellerId,
+            otherUserName: res.data.seller_name || sellerName,
+            otherUserAvatar: res.data.seller_avatar || null,
+        };
+        setConversation(convo);
+        await fetchMessages(convo.id);
+    } catch (err) {
+        if (err.response?.data?.banned) {
+            toast.error(err.response?.data?.error || 'Cannot start chat — account is banned.');
+        } else {
+            toast.error(err.response?.data?.error || 'Could not start chat');
         }
-    }, [fetchMessages]);
+        setIsOpen(false);
+    } finally {
+        setLoading(false);
+    }
+}, [fetchMessages]);
 
     // Used from the Navbar inbox — opens an existing conversation directly
     const openConversation = useCallback(async (convo) => {

@@ -17,7 +17,7 @@ export default function Login() {
         setLoading(true);
         try {
             await login(form.university_email, form.password);
-            toast.success(`Welcome back! ,${user.name}`);
+            toast.success(`Welcome back ,${user.name}!`);
             navigate('/');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Login failed');

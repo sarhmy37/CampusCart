@@ -19,6 +19,21 @@ router.post('/start', requireAuth, async (req, res) => {
     if (!sellerId) return res.status(400).json({ error: 'sellerId is required' });
 
     try {
+        // 👇 Check if the seller is banned
+        const sellerCheck = await pool.query(
+            'SELECT id, banned, name FROM users WHERE id = $1',
+            [sellerId]
+        );
+        if (sellerCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Seller not found' });
+        }
+        if (sellerCheck.rows[0].banned) {
+            return res.status(403).json({ 
+                error: 'This seller\'s account has been banned.',
+                banned: true 
+            });
+        }
+
         await touchLastActive(req.userId);
 
         const existing = await pool.query(
@@ -160,8 +175,6 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
 
         await touchLastActive(req.userId);
 
-        // Same Base64-in-DB pattern already used for avatars — no external
-        // storage dependency, nothing to configure.
         const mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio' : 'image';
 

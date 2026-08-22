@@ -207,4 +207,60 @@ router.get('/orders/:id', async (req, res) => {
     }
 });
 
+// GET /api/admin/users/:id/orders — get all orders for a user
+router.get('/users/:id/orders', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, status, total_amount, created_at
+             FROM orders
+             WHERE buyer_id = $1
+             ORDER BY created_at DESC
+             LIMIT 50`,
+            [req.params.id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin get user orders error:', err);
+        res.status(500).json({ error: 'Failed to fetch user orders' });
+    }
+});
+
+// GET /api/admin/users/:id/listings — get all listings for a user
+router.get('/users/:id/listings', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, title, price, stock, status, created_at
+             FROM products
+             WHERE seller_id = $1
+             ORDER BY created_at DESC
+             LIMIT 50`,
+            [req.params.id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin get user listings error:', err);
+        res.status(500).json({ error: 'Failed to fetch user listings' });
+    }
+});
+
+// DELETE /api/admin/users/:id — permanently delete a user
+router.delete('/users/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = $1)', [req.params.id]);
+        await client.query('DELETE FROM orders WHERE buyer_id = $1', [req.params.id]);
+        await client.query('DELETE FROM products WHERE seller_id = $1', [req.params.id]);
+        await client.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+        await client.query('COMMIT');
+        res.json({ message: 'User deleted successfully' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Admin delete user error:', err);
+        res.status(500).json({ error: 'Failed to delete user' });
+    } finally {
+        client.release();
+    }
+});
+
 module.exports = router;
