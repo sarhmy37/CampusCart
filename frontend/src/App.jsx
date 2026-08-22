@@ -13,7 +13,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import InstallButton from './components/InstallButton';
 import ChatPanel from './components/ChatPanel';
 import PullToRefresh from './components/PullToRefresh';
-
+import ChatHistory from './pages/ChatHistory';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Login from './pages/Login';
@@ -57,6 +57,7 @@ export default function App() {
                         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                         <Route path="/admin" element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
                         <Route path="/orders/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+                        <Route path="/chat" element={<ProtectedRoute><ChatHistory /></ProtectedRoute>} />
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/privacy" element={<Privacy />} />
                       </Routes>

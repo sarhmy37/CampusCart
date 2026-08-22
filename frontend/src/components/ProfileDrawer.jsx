@@ -27,8 +27,6 @@ export default function ProfileDrawer({ open, onClose }) {
     const [showVerify, setShowVerify] = useState(false);
     const [personalOpen, setPersonalOpen] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
-    const [showChatHistory, setShowChatHistory] = useState(false);
-    const [chatSearch, setChatSearch] = useState('');
     const [form, setForm] = useState({
         about: user?.about || '',
         personal_email: user?.personal_email || '',
@@ -100,26 +98,6 @@ export default function ProfileDrawer({ open, onClose }) {
         logout();
         toast.success('Logged out successfully. See you soon! 👋');
         setConfirmLogout(false);
-        onClose();
-    };
-
-    const filteredChats = chatSearch
-        ? conversations.filter(c => 
-            c.other_user_name.toLowerCase().includes(chatSearch.toLowerCase())
-          )
-        : conversations;
-
-    const handleChatClick = () => {
-        if (conversations.length === 0) {
-            toast('You haven\'t started any chats yet. Browse listings to connect with sellers!', { icon: '💬' });
-            return;
-        }
-        setShowChatHistory(true);
-    };
-
-    const handleOpenConversation = (convo) => {
-        openConversation(convo);
-        setShowChatHistory(false);
         onClose();
     };
 
@@ -233,11 +211,11 @@ export default function ProfileDrawer({ open, onClose }) {
                 {/* Body */}
                 <div className="px-6 mt-6 pb-8 space-y-2">
 
-                    {/* PERSONAL DETAILS - DROPDOWN with padding */}
-                    <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
+                    {/* PERSONAL DETAILS - DROPDOWN (clean, no padding) */}
+                    <div>
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
+                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-ink-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
                         >
                             <div className="flex items-center gap-3">
                                 <FileText size={17} />
@@ -247,7 +225,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         </button>
 
                         {personalOpen && (
-                            <div className="px-3 pb-3 space-y-3">
+                            <div className="mt-1 px-3 pb-3 space-y-3">
                                 <div className="flex items-center justify-between pt-1">
                                     <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
                                     {!editing && (
@@ -341,7 +319,7 @@ export default function ProfileDrawer({ open, onClose }) {
 
                     {/* CHAT / MESSAGING with padding */}
                     <button
-                        onClick={handleChatClick}
+                        onClick={() => { onClose(); navigate('/chat'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <MessageCircle size={17} /> Chat / Messaging
@@ -367,7 +345,6 @@ export default function ProfileDrawer({ open, onClose }) {
 
                         {supportOpen && (
                             <div className="px-3 pb-3 space-y-1">
-                                {/* Contact Support */}
                                 <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition">
                                     <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
                                     <div>
@@ -380,23 +357,15 @@ export default function ProfileDrawer({ open, onClose }) {
                                     </div>
                                 </div>
 
-                                {/* Terms of Service */}
                                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
                                     <FileText size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
                                     <span className="text-sm text-slate-700 dark:text-gold-100">Terms of Service</span>
                                 </button>
 
-                                {/* Privacy Policy */}
                                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
                                     <Shield size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
                                     <span className="text-sm text-slate-700 dark:text-gold-100">Privacy Policy</span>
                                 </button>
-
-                                {/* App Version */}
-                                <div className="flex items-center gap-3 px-3 py-2">
-                                    <span className="text-sm text-slate-400 dark:text-gold-300/50">App version</span>
-                                    <span className="text-sm font-semibold text-slate-600 dark:text-gold-200">v{APP_VERSION}</span>
-                                </div>
                             </div>
                         )}
                     </div>
@@ -409,7 +378,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         <Settings size={17} /> Settings
                     </button>
 
-                    {/* LOGOUT at the bottom */}
+                    {/* LOGOUT */}
                     <div className="pt-4 border-t border-slate-100 dark:border-ink-600">
                         <button
                             onClick={() => setConfirmLogout(true)}
@@ -418,76 +387,14 @@ export default function ProfileDrawer({ open, onClose }) {
                             <LogOut size={17} /> Log out
                         </button>
                     </div>
+
+                    {/* APP VERSION - at the very bottom, far below logout */}
+                    <div className="pt-6 pb-2 text-center">
+                        <span className="text-xs text-slate-400 dark:text-gold-300/40">App version v{APP_VERSION}</span>
+                    </div>
+
                 </div>
             </div>
-
-            {/* CHAT HISTORY MODAL */}
-            {showChatHistory && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowChatHistory(false)} />
-                    <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6 border border-slate-200 dark:border-ink-600">
-                        <button
-                            onClick={() => setShowChatHistory(false)}
-                            className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
-                        >
-                            <X size={18} />
-                        </button>
-
-                        <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50 mb-1">Your Chats</h3>
-                        <p className="text-xs text-slate-500 dark:text-gold-200/50 mb-4">Select a conversation to continue messaging.</p>
-
-                        <div className="relative mb-4">
-                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-300/50" />
-                            <input
-                                type="text"
-                                value={chatSearch}
-                                onChange={(e) => setChatSearch(e.target.value)}
-                                placeholder="Search contacts..."
-                                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition"
-                            />
-                        </div>
-
-                        {conversations.length === 0 ? (
-                            <div className="text-center py-8">
-                                <MessageCircle size={32} className="mx-auto text-slate-300 dark:text-gold-300/30 mb-3" />
-                                <p className="text-sm text-slate-500 dark:text-gold-200/50">No conversations yet.</p>
-                                <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Browse listings and message sellers to get started.</p>
-                            </div>
-                        ) : filteredChats.length === 0 ? (
-                            <p className="text-sm text-slate-500 dark:text-gold-200/50 text-center py-4">No results for "{chatSearch}"</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {filteredChats.map((c) => (
-                                    <button
-                                        key={c.id}
-                                        onClick={() => handleOpenConversation(c)}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left"
-                                    >
-                                        {c.other_user_avatar ? (
-                                            <img src={c.other_user_avatar} alt={c.other_user_name} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                                        ) : (
-                                            <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center text-sm font-bold shrink-0">
-                                                {c.other_user_name?.[0]?.toUpperCase() || '?'}
-                                            </div>
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">{c.other_user_name}</p>
-                                            <p className="text-xs text-slate-500 dark:text-gold-200/60 truncate">
-                                                {c.last_message || 'No messages yet'}
-                                            </p>
-                                        </div>
-                                        {c.unread_count > 0 && (
-                                            <span className="bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center shrink-0">
-                                                {c.unread_count > 9 ? '9+' : c.unread_count}
-                                            </span>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             <ConfirmModal
                 open={confirmLogout}
