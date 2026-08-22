@@ -77,15 +77,13 @@ export default function Dashboard() {
                         <div className="flex items-center gap-4 sm:gap-5">
                             {/* ✅ EXACT COPY OF PRODUCT DETAIL CHEVRON STYLE */}
                             <button
-                                onClick={() => {
-                                    navigate('/');
-                                    // ✅ INCREASED DELAY TO 150ms SO THE HOME PAGE LOADS FIRST
-                                    setTimeout(() => setShowProfile(true), 150); 
-                                }}
-                                className="w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
+    onClick={() => {
+        navigate('/', { state: { openProfile: true } });
+    }}
+    className="w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
+>
+    <ChevronLeft size={20} />
+</button>
 
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
