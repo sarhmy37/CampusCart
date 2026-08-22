@@ -337,44 +337,57 @@ export default function ProfileDrawer({ open, onClose }) {
                     </button>
 
                     {/* SUPPORT & ABOUT - DROPDOWN */}
-                    <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
-                        <button
-                            onClick={() => setSupportOpen(!supportOpen)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
-                        >
-                            <div className="flex items-center gap-3">
-                                <Info size={17} />
-                                <span>Support & About</span>
-                            </div>
-                            <ChevronDown size={16} className={`transition-transform ${supportOpen ? 'rotate-180' : ''}`} />
-                        </button>
+<div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
+    <button
+        onClick={() => setSupportOpen(!supportOpen)}
+        className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-gold-100 transition hover:bg-slate-100 dark:hover:bg-ink-600"
+    >
+        <div className="flex items-center gap-3">
+            <Info size={17} />
+            <span>Support & About</span>
+        </div>
+        <ChevronDown size={16} className={`transition-transform ${supportOpen ? 'rotate-180' : ''}`} />
+    </button>
 
-                        {supportOpen && (
-                            <div className="px-3 pb-3 space-y-1">
-                                <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition">
-                                    <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">Contact support</p>
-                                        <div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-0.5 mt-0.5">
-                                            <p>📞 +233 24 123 4567</p>
-                                            <p>💬 <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span> on WhatsApp</p>
-                                            <p>✉️ support@campuscart.app</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
-                                    <FileText size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                                    <span className="text-sm text-slate-800 dark:text-gold-100">Terms of Service</span>
-                                </button>
-
-                                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
-                                    <Shield size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                                    <span className="text-sm text-slate-800 dark:text-gold-100">Privacy Policy</span>
-                                </button>
-                            </div>
-                        )}
+    {supportOpen && (
+        <div className="px-3 pb-3 space-y-1">
+            {/* Contact Support */}
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/50 dark:bg-ink-800/50">
+                <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                <div>
+                    <p className="text-sm font-semibold text-slate-700 dark:text-gold-100">Contact support</p>
+                    <div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-0.5 mt-0.5">
+                        <p>📞 +233 24 123 4567</p>
+                        <p>💬 <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span> on WhatsApp</p>
+                        <p>✉️ support@campuscart.app</p>
                     </div>
+                </div>
+            </div>
+
+            {/* Terms of Service - navigates to /terms */}
+            <Link
+                to="/terms"
+                onClick={onClose}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
+            >
+                <FileText size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                <span className="text-sm text-slate-700 dark:text-gold-100">Terms of Service</span>
+                <ChevronRight size={15} className="ml-auto text-slate-300 dark:text-gold-300/30" />
+            </Link>
+
+            {/* Privacy Policy - navigates to /privacy */}
+            <Link
+                to="/privacy"
+                onClick={onClose}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
+            >
+                <Shield size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                <span className="text-sm text-slate-700 dark:text-gold-100">Privacy Policy</span>
+                <ChevronRight size={15} className="ml-auto text-slate-300 dark:text-gold-300/30" />
+            </Link>
+        </div>
+    )}
+</div>
 
                     {/* SETTINGS */}
                     <button
