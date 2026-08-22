@@ -1,17 +1,18 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
     MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
-    ChevronDown, MessageCircle, Info, Gift, Tag, Copy, Search
+    ChevronDown, MessageCircle, Info, FileText as FileIcon, Shield, Copy
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
 
 const COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes
+const APP_VERSION = '1.0.0';
 
 export default function ProfileDrawer({ open, onClose }) {
     const { user, logout, updateProfile, uploadAvatar } = useAuth();
@@ -234,7 +235,7 @@ export default function ProfileDrawer({ open, onClose }) {
                 {/* Body */}
                 <div className="px-6 mt-6 pb-8 space-y-2">
 
-                    {/* PERSONAL DETAILS - DROPDOWN (first item) */}
+                    {/* PERSONAL DETAILS - DROPDOWN */}
                     <div>
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
@@ -367,25 +368,36 @@ export default function ProfileDrawer({ open, onClose }) {
                         </button>
 
                         {supportOpen && (
-                            <div className="mt-2 space-y-1 pl-4 text-sm text-slate-600 dark:text-gold-200/70">
-                                <a
-                                    href="mailto:support@campuscart.app"
-                                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition"
-                                >
-                                    <Mail size={15} className="text-slate-400 dark:text-gold-300/50" />
-                                    <span>Email support</span>
-                                </a>
+                            <div className="mt-2 space-y-1 pl-4">
+                                {/* Contact Support */}
+                                <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition">
+                                    <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-700 dark:text-gold-100">Contact support</p>
+                                        <div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-0.5 mt-0.5">
+                                            <p>📞 +233 24 123 4567</p>
+                                            <p>💬 <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span> on WhatsApp</p>
+                                            <p>✉️ support@campuscart.app</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Terms of Service */}
                                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
-                                    <FileText size={15} className="text-slate-400 dark:text-gold-300/50" />
-                                    <span>Terms of Service</span>
+                                    <FileIcon size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <span className="text-sm text-slate-700 dark:text-gold-100">Terms of Service</span>
                                 </button>
+
+                                {/* Privacy Policy */}
                                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
-                                    <ShieldAlert size={15} className="text-slate-400 dark:text-gold-300/50" />
-                                    <span>Privacy Policy</span>
+                                    <Shield size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <span className="text-sm text-slate-700 dark:text-gold-100">Privacy Policy</span>
                                 </button>
+
+                                {/* App Version */}
                                 <div className="flex items-center gap-3 px-3 py-2">
-                                    <span className="text-slate-400 dark:text-gold-300/50">App version</span>
-                                    <span className="font-semibold text-slate-600 dark:text-gold-200">v1.0.0</span>
+                                    <span className="text-sm text-slate-400 dark:text-gold-300/50">App version</span>
+                                    <span className="text-sm font-semibold text-slate-600 dark:text-gold-200">v{APP_VERSION}</span>
                                 </div>
                             </div>
                         )}

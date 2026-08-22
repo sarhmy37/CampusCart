@@ -33,7 +33,6 @@ export default function Settings() {
     const [saving, setSaving] = useState(false);
     const [termsOpen, setTermsOpen] = useState(false);
     const [fullTermsOpen, setFullTermsOpen] = useState(false);
-    const [supportOpen, setSupportOpen] = useState(false);
 
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deletePassword, setDeletePassword] = useState('');
@@ -156,7 +155,7 @@ export default function Settings() {
                         <ArrowLeft size={16} /> Back
                     </button>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-5">Settings</h1>
-                    <p className="text-white/70 text-sm mt-1">Manage your account, preferences, and fees</p>
+                    <p className="text-white/70 text-sm mt-1">Manage your account and preferences</p>
                 </div>
             </section>
 
@@ -542,77 +541,28 @@ export default function Settings() {
                                 Your referrals ({referrals.length})
                             </p>
                             {referrals.map((r, i) => (
-                                <div key={i} className="flex items-center justify-between text-sm">
-                                    <div>
-                                        <span className="font-medium text-slate-700 dark:text-gold-100">{r.name}</span>
-                                       <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                            r.credit_earned > 0
-                                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                                                : 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400'
-                                        }`}>
-                                            {r.credit_earned > 0 ? 'Earned credit' : 'No order yet'}
-                                        </span>
-                                    </div>
-                                    <span className="text-xs font-semibold text-brand-700 dark:text-gold-400">
-                                        {r.verified ? `+GHS ${r.credit_earned.toFixed(2)}` : '—'}
-                                    </span>
-                                </div>
-                            ))}
+    <div key={i} className="flex items-center justify-between text-sm">
+        <div>
+            <span className="font-medium text-slate-700 dark:text-gold-100">{r.name}</span>
+            <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                r.credit_earned > 0
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400'
+            }`}>
+                {r.credit_earned > 0 ? 'Earned credit' : 'No order yet'}
+            </span>
+        </div>
+        <span className="text-xs font-semibold text-brand-700 dark:text-gold-400">
+            {r.verified ? `+GHS ${r.credit_earned.toFixed(2)}` : '—'}
+        </span>
+    </div>
+))}
                         </div>
                     )}
                 </div>
 
-                {/* SUPPORT & ABOUT */}
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                            <Info size={16} />
-                        </div>
-                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Support & About</h2>
-                    </div>
+                {/* SUPPORT & ABOUT - REMOVED */}
 
-                    {/* CONTACT SUPPORT DROPDOWN */}
-                    <button
-                        onClick={() => setSupportOpen((o) => !o)}
-                        className="flex items-center justify-between w-full py-3 border-t border-slate-100 dark:border-ink-600 first:border-0 first:pt-0 group"
-                    >
-                        <div className="flex items-center gap-2.5">
-                            <Mail size={16} className="text-slate-400 dark:text-gold-300/50" />
-                            <span className="text-sm font-semibold text-slate-700 dark:text-gold-100">Contact support</span>
-                        </div>
-                        <ChevronDown size={16} className={`text-slate-300 dark:text-gold-300/40 transition-transform ${supportOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {supportOpen && (
-                        <div className="pb-3 border-b border-slate-100 dark:border-ink-600 space-y-2.5 text-sm text-slate-600 dark:text-gold-200/70">
-                            <div className="flex items-center gap-2.5 pt-2">
-                                <Phone size={15} className="text-brand-600 dark:text-gold-400" />
-                                <span>Call line: <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>
-                            </div>
-                            <a
-                                href="https://wa.me/Trex_Support1"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2.5 hover:text-brand-700 dark:hover:text-gold-300 transition"
-                            >
-                                <MessageCircle size={15} className="text-brand-600 dark:text-gold-400" />
-                                <span>WhatsApp: <span className="font-semibold text-brand-600 dark:text-gold-400 underline underline-offset-2">@Trex_Support1</span></span>
-                            </a>
-                            <div className="flex items-center gap-2.5">
-                                <MessageCircle size={15} className="text-brand-600 dark:text-gold-400" />
-                                <span>For quicker service, send an SMS to <span className="font-semibold text-slate-800 dark:text-gold-100">+233 24 123 4567</span></span>
-                            </div>
-                        </div>
-                    )}
-
-                    <AboutRow icon={FileText} label="Terms of Service" to="/terms" />
-                    <AboutRow icon={Shield} label="Privacy Policy" to="/privacy" />
-
-                    <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-ink-600 mt-1">
-                        <span className="text-sm text-slate-400 dark:text-gold-200/50">App version</span>
-                        <span className="text-sm font-semibold text-slate-600 dark:text-gold-200">v{APP_VERSION}</span>
-                    </div>
-                </div>
             </div>
 
             {deleteOpen && (
