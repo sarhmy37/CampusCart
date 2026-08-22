@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
-import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2, Info, Camera, Image } from 'lucide-react';
+import { GraduationCap, ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2, Info } from 'lucide-react';
 
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB
@@ -50,9 +50,7 @@ export default function CreateListing() {
 
     // Refs for file inputs
     const imageGalleryInputRef = useRef(null);
-    const imageCameraInputRef = useRef(null);
     const videoGalleryInputRef = useRef(null);
-    const videoCameraInputRef = useRef(null);
 
     useEffect(() => {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
@@ -68,19 +66,10 @@ export default function CreateListing() {
 
     // ---- IMAGE HANDLING ----
     const handleAddPhotoClick = () => {
-        // Show a modal or use a simple confirm to choose between camera and gallery
-        const choice = window.confirm('Choose source:\n\n• Click "OK" to take a photo with camera\n• Click "Cancel" to select from gallery');
-        
-        if (choice) {
-            // Camera
-            imageCameraInputRef.current?.click();
-        } else {
-            // Gallery
-            imageGalleryInputRef.current?.click();
-        }
+        imageGalleryInputRef.current?.click();
     };
 
-    const handleImageFilesSelected = async (e, isCamera = false) => {
+    const handleImageFilesSelected = async (e) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
 
@@ -122,13 +111,7 @@ export default function CreateListing() {
 
     // ---- VIDEO HANDLING ----
     const handleAddVideoClick = () => {
-        const choice = window.confirm('Choose source:\n\n• Click "OK" to record a video with camera\n• Click "Cancel" to select from gallery');
-        
-        if (choice) {
-            videoCameraInputRef.current?.click();
-        } else {
-            videoGalleryInputRef.current?.click();
-        }
+        videoGalleryInputRef.current?.click();
     };
 
     const handleVideoSelected = async (e) => {
@@ -343,21 +326,13 @@ export default function CreateListing() {
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
                                 
-                                {/* Hidden image inputs */}
+                                {/* Hidden image gallery input */}
                                 <input
                                     ref={imageGalleryInputRef}
                                     type="file"
                                     accept="image/*"
                                     multiple
-                                    onChange={(e) => handleImageFilesSelected(e, false)}
-                                    className="hidden"
-                                />
-                                <input
-                                    ref={imageCameraInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    capture="environment"
-                                    onChange={(e) => handleImageFilesSelected(e, true)}
+                                    onChange={handleImageFilesSelected}
                                     className="hidden"
                                 />
 
@@ -426,19 +401,11 @@ export default function CreateListing() {
                                 </div>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Optional. Up to 20MB.</p>
                                 
-                                {/* Hidden video inputs */}
+                                {/* Hidden video gallery input */}
                                 <input
                                     ref={videoGalleryInputRef}
                                     type="file"
                                     accept="video/*"
-                                    onChange={handleVideoSelected}
-                                    className="hidden"
-                                />
-                                <input
-                                    ref={videoCameraInputRef}
-                                    type="file"
-                                    accept="video/*"
-                                    capture="environment"
                                     onChange={handleVideoSelected}
                                     className="hidden"
                                 />
