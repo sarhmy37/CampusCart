@@ -61,6 +61,10 @@ export default function Navbar() {
     const [mobileExpanded, setMobileExpanded] = useState(false);
     const { theme } = useTheme();
 
+    // 👇 Logo click counter for admin access (5 taps)
+    const [logoClickCount, setLogoClickCount] = useState(0);
+    const [logoClickTimeout, setLogoClickTimeout] = useState(null);
+
     const notificationsRef = useRef(null);
     const wishlistRef = useRef(null);
     const messagesRef = useRef(null);
@@ -71,6 +75,29 @@ export default function Navbar() {
             window.history.replaceState({}, document.title);
         }
     }, [location]);
+
+    // 👇 Handle logo clicks for admin access
+    const handleLogoClick = (e) => {
+        // If already on admin page, no need
+        if (isAdmin) return;
+        
+        e.preventDefault();
+        const newCount = logoClickCount + 1;
+        setLogoClickCount(newCount);
+        
+        if (newCount === 5) {
+            navigate('/admin/login');
+            setLogoClickCount(0);
+            return;
+        }
+        
+        // Reset counter after 3 seconds of inactivity
+        if (logoClickTimeout) clearTimeout(logoClickTimeout);
+        const timeout = setTimeout(() => {
+            setLogoClickCount(0);
+        }, 3000);
+        setLogoClickTimeout(timeout);
+    };
 
     useEffect(() => {
         const handleOutsideClick = (e) => {
@@ -151,7 +178,11 @@ export default function Navbar() {
                             </div>
                         </span>
                     ) : (
-                        <Link to="/" className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0">
+                        <Link 
+                            to="/" 
+                            onClick={handleLogoClick}
+                            className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
+                        >
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
@@ -414,11 +445,7 @@ export default function Navbar() {
                     )}
                 </nav>
             </div>
-            <Link
-                to="/admin/login"
-                className="fixed top-0 right-0 h-16 w-1.5 z-50 opacity-0 hover:opacity-20 dark:hover:opacity-30 bg-slate-900 dark:bg-gold-500 transition-opacity"
-                aria-label="Admin"
-            />
+            {/* 👇 REMOVED the hidden admin link (thin vertical bar) */}
         </header>
         <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
         </>
@@ -440,16 +467,13 @@ function SearchBar({ isAdmin, onSubmit }) {
 }
 
 // Draggable "roll ball" that reveals Login/Signup on mobile.
-// Drag it up or down past the threshold to toggle open/closed.
-// A plain tap also works as a shortcut.
 const ROLL_THRESHOLD = 28;
-const ITEM_W = 68; // px width of each reel item — sized to fit "Sign up" snugly
+const ITEM_W = 68;
 const REEL_ITEMS = Array.from({ length: 20 }, (_, i) => (i % 2 === 0 ? 'Log in' : 'Sign up'));
-
 
 function AuthRollBall() {
     const navigate = useNavigate();
-    const [index, setIndex] = useState(0); // can go negative or beyond array length now
+    const [index, setIndex] = useState(0);
     const [dragPixels, setDragPixels] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [hasInteracted, setHasInteracted] = useState(false);
@@ -457,7 +481,6 @@ function AuthRollBall() {
     const dragging = useRef(false);
     const movedRef = useRef(false);
 
-    // Idle hint animation on first mount — nudge left then right, then stop
     const [hintOffset, setHintOffset] = useState(0);
     useEffect(() => {
         if (hasInteracted) return;
@@ -518,9 +541,8 @@ function AuthRollBall() {
         window.addEventListener('mouseup', onMouseUp);
     };
 
-    // Render a window of 5 items centered on the current index — infinite either direction
     const visible = [index - 2, index - 1, index, index + 1, index + 2];
-    const baseTranslate = -2 * ITEM_W; // keeps "index - 2" item flush left at rest
+    const baseTranslate = -2 * ITEM_W;
     const translateX = baseTranslate + dragPixels + (hasInteracted ? 0 : hintOffset);
 
     return (
@@ -558,7 +580,6 @@ function AuthRollBall() {
                 ))}
             </div>
 
-            {/* Chevron hints — signal "swipeable" without needing text */}
             <div className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-slate-50 dark:from-ink-800 to-transparent flex items-center">
                 <ChevronLeft size={10} className="text-slate-300 dark:text-gold-300/30" />
             </div>
