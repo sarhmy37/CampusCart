@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { Download, X, Smartphone, CheckCircle ,Share } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Download, X, Smartphone, CheckCircle, Share } from 'lucide-react';
 import useInstallPrompt from '../hooks/useInstallPrompt';
 
 export default function InstallButton() {
+    const location = useLocation();
     const { install, isInstallable, isIOS, isStandalone, canInstall } = useInstallPrompt();
     const [showModal, setShowModal] = useState(false);
     const [installing, setInstalling] = useState(false);
+
+    // Only show on Home page
+    const isHome = location.pathname === '/';
+
+    // Don't show if not on Home page
+    if (!isHome) return null;
 
     // Don't show anything if already installed
     if (isStandalone) return null;
@@ -58,7 +66,7 @@ export default function InstallButton() {
                             </div>
                             <div>
                                 <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">
-                                    Install CampusCart
+                                    Install Tre-X
                                 </h3>
                                 <p className="text-xs text-slate-500 dark:text-gold-200/50">
                                     Get the app for a better experience
@@ -82,14 +90,14 @@ export default function InstallButton() {
                         </ul>
 
                         {isIOS && !isStandalone ? (
-    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 mb-4">
-        <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-            📱 Tap the Share button{' '}
-            <Share className="w-4 h-4 inline-block align-middle" />
-            and select <span className="font-bold">"Add to Home Screen"</span>
-        </p>
-    </div>
-) : null}
+                            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 mb-4">
+                                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                                    📱 Tap the Share button{' '}
+                                    <Share className="w-4 h-4 inline-block align-middle" />
+                                    and select <span className="font-bold">"Add to Home Screen"</span>
+                                </p>
+                            </div>
+                        ) : null}
 
                         <button
                             onClick={handleInstall}

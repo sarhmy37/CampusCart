@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +15,7 @@ export default function ProfileDrawer({ open, onClose }) {
     const { user, logout, updateProfile, uploadAvatar } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
+    const drawerRef = useRef(null);
     const [uploading, setUploading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -35,6 +36,13 @@ export default function ProfileDrawer({ open, onClose }) {
 
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
+
+    // 👇 Scroll to top when drawer opens
+    useEffect(() => {
+        if (open && drawerRef.current) {
+            drawerRef.current.scrollTop = 0;
+        }
+    }, [open]);
 
     if (!user) return null;
 
@@ -86,6 +94,7 @@ export default function ProfileDrawer({ open, onClose }) {
 
             {/* Drawer */}
             <div
+                ref={drawerRef}
                 className={`fixed top-0 left-0 h-full w-3/4 max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 overflow-y-auto ${
                     open ? 'translate-x-0' : '-translate-x-full'
                 }`}
