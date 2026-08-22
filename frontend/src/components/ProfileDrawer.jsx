@@ -2,9 +2,11 @@ import { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
-    MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock
+    MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
+    ChevronDown, MessageCircle, Info, Gift, Tag, Copy, Search
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
@@ -13,6 +15,7 @@ const COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes
 
 export default function ProfileDrawer({ open, onClose }) {
     const { user, logout, updateProfile, uploadAvatar } = useAuth();
+    const { conversations, openConversation } = useChat();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const drawerRef = useRef(null);
@@ -21,6 +24,10 @@ export default function ProfileDrawer({ open, onClose }) {
     const [editing, setEditing] = useState(false);
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [showVerify, setShowVerify] = useState(false);
+    const [personalOpen, setPersonalOpen] = useState(false);
+    const [supportOpen, setSupportOpen] = useState(false);
+    const [showChatHistory, setShowChatHistory] = useState(false);
+    const [chatSearch, setChatSearch] = useState('');
     const [form, setForm] = useState({
         about: user?.about || '',
         personal_email: user?.personal_email || '',
@@ -37,9 +44,7 @@ export default function ProfileDrawer({ open, onClose }) {
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
-    // 👇 Locks the background completely by pinning <body> in place — the standard,
-    // cross-browser-reliable technique (simple overflow:hidden alone is known to fail
-    // on iOS Safari due to how it handles scroll-chaining under fixed overlays).
+    // Lock background when drawer is open
     useEffect(() => {
         if (open) {
             const scrollY = window.scrollY;
@@ -47,7 +52,6 @@ export default function ProfileDrawer({ open, onClose }) {
             document.body.style.top = `-${scrollY}px`;
             document.body.style.left = '0';
             document.body.style.right = '0';
-
             if (drawerRef.current) {
                 drawerRef.current.scrollTop = 0;
             }
@@ -99,6 +103,26 @@ export default function ProfileDrawer({ open, onClose }) {
         onClose();
     };
 
+    const filteredChats = chatSearch
+        ? conversations.filter(c => 
+            c.other_user_name.toLowerCase().includes(chatSearch.toLowerCase())
+          )
+        : conversations;
+
+    const handleChatClick = () => {
+        if (conversations.length === 0) {
+            toast('You haven\'t started any chats yet. Browse listings to connect with sellers!', { icon: '💬' });
+            return;
+        }
+        setShowChatHistory(true);
+    };
+
+    const handleOpenConversation = (convo) => {
+        openConversation(convo);
+        setShowChatHistory(false);
+        onClose();
+    };
+
     return (
         <>
             {/* Backdrop */}
@@ -113,8 +137,8 @@ export default function ProfileDrawer({ open, onClose }) {
             <div
                 ref={drawerRef}
                 className={`fixed top-0 left-0 h-full w-3/4 max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 overflow-y-auto no-scrollbar ${
-    open ? 'translate-x-0' : '-translate-x-full'
-}`}
+                    open ? 'translate-x-0' : '-translate-x-full'
+                }`}
             >
                 {/* Header */}
                 <div className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-accent-500 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 px-6 pt-6 pb-16">
@@ -208,8 +232,107 @@ export default function ProfileDrawer({ open, onClose }) {
                 </div>
 
                 {/* Body */}
-                <div className="px-6 mt-6 pb-8 space-y-5">
-                    {/* DASHBOARD — sits right before personal details */}
+                <div className="px-6 mt-6 pb-8 space-y-2">
+
+                    {/* PERSONAL DETAILS - DROPDOWN (first item) */}
+                    <div>
+                        <button
+                            onClick={() => setPersonalOpen(!personalOpen)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
+                        >
+                            <div className="flex items-center gap-3">
+                                <FileText size={17} />
+                                <span>Personal details</span>
+                            </div>
+                            <ChevronDown size={16} className={`transition-transform ${personalOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {personalOpen && (
+                            <div className="mt-2 space-y-3 pl-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
+                                    {!editing && (
+                                        <button
+                                            onClick={() => !onCooldown && setEditing(true)}
+                                            disabled={onCooldown}
+                                            className={`text-xs font-semibold ${
+                                                onCooldown
+                                                    ? 'text-slate-300 dark:text-gold-300/30 cursor-not-allowed'
+                                                    : 'text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300'
+                                            }`}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </div>
+
+                                {onCooldown && !editing && (
+                                    <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-gold-400 -mt-2">
+                                        <Clock size={12} /> You can edit again in {cooldownMinutes} minute{cooldownMinutes === 1 ? '' : 's'}
+                                    </p>
+                                )}
+
+                                {editing ? (
+                                    <div className="space-y-3">
+                                        <Field
+                                            icon={<FileText size={15} />}
+                                            label="About"
+                                            as="textarea"
+                                            value={form.about}
+                                            onChange={(v) => setForm({ ...form, about: v })}
+                                            placeholder="A short bio — what you're studying, what you usually sell..."
+                                        />
+                                        <Field
+                                            icon={<Mail size={15} />}
+                                            label="Personal email"
+                                            value={form.personal_email}
+                                            onChange={(v) => setForm({ ...form, personal_email: v })}
+                                            placeholder="you@gmail.com"
+                                        />
+                                        <Field
+                                            icon={<Phone size={15} />}
+                                            label="WhatsApp contact"
+                                            value={form.whatsapp}
+                                            onChange={(v) => setForm({ ...form, whatsapp: v })}
+                                            placeholder="+233 ..."
+                                        />
+                                        <Field
+                                            icon={<MapPin size={15} />}
+                                            label="Location"
+                                            value={form.location}
+                                            onChange={(v) => setForm({ ...form, location: v })}
+                                            placeholder="Hostel, hall, or area"
+                                        />
+
+                                        <div className="flex gap-2 pt-1">
+                                            <button
+                                                onClick={handleSave}
+                                                disabled={saving}
+                                                className="flex-1 py-2 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
+                                            >
+                                                {saving ? 'Saving…' : 'Save changes'}
+                                            </button>
+                                            <button
+                                                onClick={() => setEditing(false)}
+                                                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <InfoRow icon={<FileText size={15} />} label="About" value={user.about || 'Not added yet'} />
+                                        <InfoRow icon={<Mail size={15} />} label="Personal email" value={user.personal_email || 'Not added yet'} />
+                                        <InfoRow icon={<Phone size={15} />} label="WhatsApp" value={user.whatsapp || 'Not added yet'} />
+                                        <InfoRow icon={<MapPin size={15} />} label="Location" value={user.location || 'Not added yet'} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* DASHBOARD */}
                     <button
                         onClick={() => { onClose(); navigate('/dashboard'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
@@ -217,102 +340,143 @@ export default function ProfileDrawer({ open, onClose }) {
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
 
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
-                        {!editing && (
-                            <button
-                                onClick={() => !onCooldown && setEditing(true)}
-                                disabled={onCooldown}
-                                className={`text-xs font-semibold ${
-                                    onCooldown
-                                        ? 'text-slate-300 dark:text-gold-300/30 cursor-not-allowed'
-                                        : 'text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300'
-                                }`}
-                            >
-                                Edit
-                            </button>
+                    {/* CHAT / MESSAGING */}
+                    <button
+                        onClick={handleChatClick}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
+                    >
+                        <MessageCircle size={17} /> Chat / Messaging
+                        {conversations.length > 0 && (
+                            <span className="ml-auto text-xs bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 px-1.5 py-0.5 rounded-full">
+                                {conversations.length}
+                            </span>
+                        )}
+                    </button>
+
+                    {/* SUPPORT & ABOUT - DROPDOWN */}
+                    <div>
+                        <button
+                            onClick={() => setSupportOpen(!supportOpen)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Info size={17} />
+                                <span>Support & About</span>
+                            </div>
+                            <ChevronDown size={16} className={`transition-transform ${supportOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {supportOpen && (
+                            <div className="mt-2 space-y-1 pl-4 text-sm text-slate-600 dark:text-gold-200/70">
+                                <a
+                                    href="mailto:support@campuscart.app"
+                                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                                >
+                                    <Mail size={15} className="text-slate-400 dark:text-gold-300/50" />
+                                    <span>Email support</span>
+                                </a>
+                                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
+                                    <FileText size={15} className="text-slate-400 dark:text-gold-300/50" />
+                                    <span>Terms of Service</span>
+                                </button>
+                                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
+                                    <ShieldAlert size={15} className="text-slate-400 dark:text-gold-300/50" />
+                                    <span>Privacy Policy</span>
+                                </button>
+                                <div className="flex items-center gap-3 px-3 py-2">
+                                    <span className="text-slate-400 dark:text-gold-300/50">App version</span>
+                                    <span className="font-semibold text-slate-600 dark:text-gold-200">v1.0.0</span>
+                                </div>
+                            </div>
                         )}
                     </div>
 
-                    {onCooldown && !editing && (
-                        <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-gold-400 -mt-3">
-                            <Clock size={12} /> You can edit again in {cooldownMinutes} minute{cooldownMinutes === 1 ? '' : 's'}
-                        </p>
-                    )}
+                    {/* SETTINGS */}
+                    <button
+                        onClick={() => { onClose(); navigate('/settings'); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                    >
+                        <Settings size={17} /> Settings
+                    </button>
 
-                    {editing ? (
-                        <div className="space-y-3">
-                            <Field
-                                icon={<FileText size={15} />}
-                                label="About"
-                                as="textarea"
-                                value={form.about}
-                                onChange={(v) => setForm({ ...form, about: v })}
-                                placeholder="A short bio — what you're studying, what you usually sell..."
-                            />
-                            <Field
-                                icon={<Mail size={15} />}
-                                label="Personal email"
-                                value={form.personal_email}
-                                onChange={(v) => setForm({ ...form, personal_email: v })}
-                                placeholder="you@gmail.com"
-                            />
-                            <Field
-                                icon={<Phone size={15} />}
-                                label="WhatsApp contact"
-                                value={form.whatsapp}
-                                onChange={(v) => setForm({ ...form, whatsapp: v })}
-                                placeholder="+233 ..."
-                            />
-                            <Field
-                                icon={<MapPin size={15} />}
-                                label="Location"
-                                value={form.location}
-                                onChange={(v) => setForm({ ...form, location: v })}
-                                placeholder="Hostel, hall, or area"
-                            />
-
-                            <div className="flex gap-2 pt-1">
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className="flex-1 py-2 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
-                                >
-                                    {saving ? 'Saving…' : 'Save changes'}
-                                </button>
-                                <button
-                                    onClick={() => setEditing(false)}
-                                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            <InfoRow icon={<FileText size={15} />} label="About" value={user.about || 'Not added yet'} />
-                            <InfoRow icon={<Mail size={15} />} label="Personal email" value={user.personal_email || 'Not added yet'} />
-                            <InfoRow icon={<Phone size={15} />} label="WhatsApp" value={user.whatsapp || 'Not added yet'} />
-                            <InfoRow icon={<MapPin size={15} />} label="Location" value={user.location || 'Not added yet'} />
-                        </div>
-                    )}
-
-                    <div className="border-t border-slate-100 dark:border-ink-600 pt-5 space-y-1">
-                        <button
-                            onClick={() => { onClose(); navigate('/settings'); }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
-                        >
-                            <Settings size={17} /> Settings
-                        </button>
-                        <button
-                            onClick={() => setConfirmLogout(true)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold text-red-600 dark:text-red-400 transition"
-                        >
-                            <LogOut size={17} /> Log out
-                        </button>
-                    </div>
+                    {/* LOGOUT */}
+                    <button
+                        onClick={() => setConfirmLogout(true)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold text-red-600 dark:text-red-400 transition"
+                    >
+                        <LogOut size={17} /> Log out
+                    </button>
                 </div>
             </div>
+
+            {/* CHAT HISTORY MODAL */}
+            {showChatHistory && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowChatHistory(false)} />
+                    <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6 border border-slate-200 dark:border-ink-600">
+                        <button
+                            onClick={() => setShowChatHistory(false)}
+                            className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50 mb-1">Your Chats</h3>
+                        <p className="text-xs text-slate-500 dark:text-gold-200/50 mb-4">Select a conversation to continue messaging.</p>
+
+                        {/* Search bar */}
+                        <div className="relative mb-4">
+                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-300/50" />
+                            <input
+                                type="text"
+                                value={chatSearch}
+                                onChange={(e) => setChatSearch(e.target.value)}
+                                placeholder="Search contacts..."
+                                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition"
+                            />
+                        </div>
+
+                        {conversations.length === 0 ? (
+                            <div className="text-center py-8">
+                                <MessageCircle size={32} className="mx-auto text-slate-300 dark:text-gold-300/30 mb-3" />
+                                <p className="text-sm text-slate-500 dark:text-gold-200/50">No conversations yet.</p>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Browse listings and message sellers to get started.</p>
+                            </div>
+                        ) : filteredChats.length === 0 ? (
+                            <p className="text-sm text-slate-500 dark:text-gold-200/50 text-center py-4">No results for "{chatSearch}"</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {filteredChats.map((c) => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => handleOpenConversation(c)}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left"
+                                    >
+                                        {c.other_user_avatar ? (
+                                            <img src={c.other_user_avatar} alt={c.other_user_name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center text-sm font-bold shrink-0">
+                                                {c.other_user_name?.[0]?.toUpperCase() || '?'}
+                                            </div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">{c.other_user_name}</p>
+                                            <p className="text-xs text-slate-500 dark:text-gold-200/60 truncate">
+                                                {c.last_message || 'No messages yet'}
+                                            </p>
+                                        </div>
+                                        {c.unread_count > 0 && (
+                                            <span className="bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center shrink-0">
+                                                {c.unread_count > 9 ? '9+' : c.unread_count}
+                                            </span>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <ConfirmModal
                 open={confirmLogout}
