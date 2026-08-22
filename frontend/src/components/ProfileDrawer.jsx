@@ -1,12 +1,12 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
     MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
-    ChevronDown, MessageCircle, Info, FileText as FileIcon, Shield, Copy
+    ChevronDown, MessageCircle, Info, Shield, Search
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
@@ -45,7 +45,6 @@ export default function ProfileDrawer({ open, onClose }) {
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
-    // Lock background when drawer is open
     useEffect(() => {
         if (open) {
             const scrollY = window.scrollY;
@@ -183,7 +182,6 @@ export default function ProfileDrawer({ open, onClose }) {
                         />
                     </div>
 
-                    {/* Name + status */}
                     <div className="mt-3">
                         <h2 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">{user.name}</h2>
                         <p className="text-sm text-slate-500 dark:text-gold-200/60">{user.university_email}</p>
@@ -235,11 +233,11 @@ export default function ProfileDrawer({ open, onClose }) {
                 {/* Body */}
                 <div className="px-6 mt-6 pb-8 space-y-2">
 
-                    {/* PERSONAL DETAILS - DROPDOWN */}
-                    <div>
+                    {/* PERSONAL DETAILS - DROPDOWN with padding */}
+                    <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
+                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
                         >
                             <div className="flex items-center gap-3">
                                 <FileText size={17} />
@@ -249,8 +247,8 @@ export default function ProfileDrawer({ open, onClose }) {
                         </button>
 
                         {personalOpen && (
-                            <div className="mt-2 space-y-3 pl-4">
-                                <div className="flex items-center justify-between">
+                            <div className="px-3 pb-3 space-y-3">
+                                <div className="flex items-center justify-between pt-1">
                                     <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
                                     {!editing && (
                                         <button
@@ -333,7 +331,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </div>
 
-                    {/* DASHBOARD */}
+                    {/* DASHBOARD with padding */}
                     <button
                         onClick={() => { onClose(); navigate('/dashboard'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
@@ -341,10 +339,10 @@ export default function ProfileDrawer({ open, onClose }) {
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
 
-                    {/* CHAT / MESSAGING */}
+                    {/* CHAT / MESSAGING with padding */}
                     <button
                         onClick={handleChatClick}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <MessageCircle size={17} /> Chat / Messaging
                         {conversations.length > 0 && (
@@ -354,11 +352,11 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </button>
 
-                    {/* SUPPORT & ABOUT - DROPDOWN */}
-                    <div>
+                    {/* SUPPORT & ABOUT - DROPDOWN with padding */}
+                    <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
                         <button
                             onClick={() => setSupportOpen(!supportOpen)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-ink-700 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
+                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-700 dark:text-gold-200 transition"
                         >
                             <div className="flex items-center gap-3">
                                 <Info size={17} />
@@ -368,7 +366,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         </button>
 
                         {supportOpen && (
-                            <div className="mt-2 space-y-1 pl-4">
+                            <div className="px-3 pb-3 space-y-1">
                                 {/* Contact Support */}
                                 <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition">
                                     <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
@@ -384,7 +382,7 @@ export default function ProfileDrawer({ open, onClose }) {
 
                                 {/* Terms of Service */}
                                 <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left">
-                                    <FileIcon size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <FileText size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
                                     <span className="text-sm text-slate-700 dark:text-gold-100">Terms of Service</span>
                                 </button>
 
@@ -403,7 +401,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </div>
 
-                    {/* SETTINGS */}
+                    {/* SETTINGS with padding */}
                     <button
                         onClick={() => { onClose(); navigate('/settings'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
@@ -411,13 +409,15 @@ export default function ProfileDrawer({ open, onClose }) {
                         <Settings size={17} /> Settings
                     </button>
 
-                    {/* LOGOUT */}
-                    <button
-                        onClick={() => setConfirmLogout(true)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold text-red-600 dark:text-red-400 transition"
-                    >
-                        <LogOut size={17} /> Log out
-                    </button>
+                    {/* LOGOUT at the bottom */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-ink-600">
+                        <button
+                            onClick={() => setConfirmLogout(true)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold text-red-600 dark:text-red-400 transition"
+                        >
+                            <LogOut size={17} /> Log out
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -436,7 +436,6 @@ export default function ProfileDrawer({ open, onClose }) {
                         <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50 mb-1">Your Chats</h3>
                         <p className="text-xs text-slate-500 dark:text-gold-200/50 mb-4">Select a conversation to continue messaging.</p>
 
-                        {/* Search bar */}
                         <div className="relative mb-4">
                             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-300/50" />
                             <input
