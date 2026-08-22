@@ -6,7 +6,7 @@ import { LOGIN_IMAGE } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, GraduationCap } from 'lucide-react';
 
 export default function Login() {
-    const { login } = useAuth();
+    const { login, user } = useAuth();
     const navigate = useNavigate();
     const [form, setForm] = useState({ university_email: '', password: '' });
     const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function Login() {
         setLoading(true);
         try {
             await login(form.university_email, form.password);
-            toast.success('Welcome back!');
+            toast.success(`Welcome back! ,${user.name}`);
             navigate('/');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Login failed');
@@ -72,7 +72,7 @@ export default function Login() {
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
                         <span className="inline-flex items-center gap-1.5 w-fit bg-white/15 backdrop-blur text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20">
-                            <GraduationCap size={13} /> CampusCart
+                            <GraduationCap size={13} /> Tre-X
                         </span>
                         <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
                             Welcome back to your campus marketplace.

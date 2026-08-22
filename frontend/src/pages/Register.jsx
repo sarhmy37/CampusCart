@@ -60,7 +60,7 @@ const BANK_PATTERNS = {
 const DEFAULT_BANK_RULE = { minLength: 10, label: 'Bank' };
 
 export default function Register() {
-    const { register } = useAuth();
+    const { register, user } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [accountType, setAccountType] = useState(searchParams.get('role') === 'seller' ? 'seller' : 'buyer');
@@ -230,7 +230,7 @@ export default function Register() {
             }
 
             await register(payload);
-            toast.success('Account created! Welcome to CampusCart.');
+            toast.success(`Account created! Welcome to Tre-X, ${user.name}`);
             navigate('/');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Registration failed');
@@ -289,7 +289,7 @@ export default function Register() {
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
                         <span className="inline-flex items-center gap-1.5 w-fit bg-white/15 backdrop-blur text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20">
-                            <GraduationCap size={13} /> CampusCart
+                            <GraduationCap size={13} /> Tre-X
                         </span>
                         <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
                             Buy and sell with students who actually get it.

@@ -68,7 +68,7 @@ export default function AwayTimeoutModal() {
                 <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center mb-4">
                     <Clock size={24} />
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">Welcome back</h3>
+                <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">Welcome back ,{user.name}!</h3>
                 <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-1.5">
                     You were away. Your session will end in
                 </p>
