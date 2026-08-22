@@ -208,11 +208,14 @@ export default function ProfileDrawer({ open, onClose }) {
                     </div>
                 </div>
 
-                {/* PERSONAL DETAILS - DROPDOWN (no padding around expanded content) */}
+                {/* Body */}
+                <div className="px-6 mt-6 pb-8 space-y-2">
+
+                    {/* PERSONAL DETAILS - DROPDOWN (no padding around expanded content) */}
                     <div className="pb-4 border-b border-slate-100 dark:border-ink-600">
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-ink-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                         >
                             <div className="flex items-center gap-3">
                                 <FileText size={17} />
@@ -305,11 +308,6 @@ export default function ProfileDrawer({ open, onClose }) {
                             </div>
                         )}
                     </div>
-
-                {/* Body */}
-                <div className="px-6 mt-6 pb-8 space-y-2">
-
-                    
 
                     {/* DASHBOARD */}
                     <button
