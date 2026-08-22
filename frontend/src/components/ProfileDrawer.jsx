@@ -211,8 +211,8 @@ export default function ProfileDrawer({ open, onClose }) {
                 {/* Body */}
                 <div className="px-6 mt-6 pb-8 space-y-2">
 
-                    {/* PERSONAL DETAILS - DROPDOWN (clean, no background, no padding) */}
-                    <div className="mb-1">
+                    {/* PERSONAL DETAILS - DROPDOWN (no padding around expanded content) */}
+                    <div className="pb-4 border-b border-slate-100 dark:border-ink-600">
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
                             className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-ink-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
@@ -226,7 +226,7 @@ export default function ProfileDrawer({ open, onClose }) {
 
                         {personalOpen && (
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between pt-1">
+                                <div className="flex items-center justify-between">
                                     <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50">Personal details</h3>
                                     {!editing && (
                                         <button
@@ -244,7 +244,7 @@ export default function ProfileDrawer({ open, onClose }) {
                                 </div>
 
                                 {onCooldown && !editing && (
-                                    <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-gold-400 -mt-2">
+                                    <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-gold-400">
                                         <Clock size={12} /> You can edit again in {cooldownMinutes} minute{cooldownMinutes === 1 ? '' : 's'}
                                     </p>
                                 )}
