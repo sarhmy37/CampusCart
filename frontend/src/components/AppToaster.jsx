@@ -6,35 +6,31 @@ import toast from 'react-hot-toast';
 const TYPE_STYLES = {
     success: {
         icon: CheckCircle2,
-        badge: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400',
-        glow: 'bg-emerald-400',
-        accent: 'before:bg-emerald-500 dark:before:bg-emerald-400',
-        bar: 'from-emerald-400 to-emerald-600 dark:from-emerald-300 dark:to-emerald-500',
-        shadow: 'shadow-emerald-500/20 dark:shadow-emerald-400/10',
+        iconColor: 'text-emerald-500 dark:text-emerald-400',
+        tint: 'bg-emerald-400/10 dark:bg-emerald-400/10',
+        glow: 'bg-emerald-400/50',
+        bar: 'bg-emerald-500/70 dark:bg-emerald-400/70',
     },
     error: {
         icon: XCircle,
-        badge: 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400',
-        glow: 'bg-red-400',
-        accent: 'before:bg-red-500 dark:before:bg-red-400',
-        bar: 'from-red-400 to-red-600 dark:from-red-300 dark:to-red-500',
-        shadow: 'shadow-red-500/20 dark:shadow-red-400/10',
+        iconColor: 'text-red-500 dark:text-red-400',
+        tint: 'bg-red-400/10 dark:bg-red-400/10',
+        glow: 'bg-red-400/50',
+        bar: 'bg-red-500/70 dark:bg-red-400/70',
     },
     loading: {
         icon: Loader2,
-        badge: 'bg-brand-100 text-brand-600 dark:bg-gold-500/20 dark:text-gold-400',
-        glow: 'bg-brand-400 dark:bg-gold-400',
-        accent: 'before:bg-brand-500 dark:before:bg-gold-400',
-        bar: 'from-brand-400 to-brand-600 dark:from-gold-300 dark:to-gold-500',
-        shadow: 'shadow-brand-500/20 dark:shadow-gold-400/10',
+        iconColor: 'text-brand-600 dark:text-gold-300',
+        tint: 'bg-brand-400/10 dark:bg-gold-400/10',
+        glow: 'bg-brand-400/50 dark:bg-gold-400/50',
+        bar: 'bg-brand-500/70 dark:bg-gold-400/70',
     },
     blank: {
         icon: Info,
-        badge: 'bg-brand-100 text-brand-600 dark:bg-gold-500/20 dark:text-gold-400',
-        glow: 'bg-brand-400 dark:bg-gold-400',
-        accent: 'before:bg-brand-500 dark:before:bg-gold-400',
-        bar: 'from-brand-400 to-brand-600 dark:from-gold-300 dark:to-gold-500',
-        shadow: 'shadow-brand-500/20 dark:shadow-gold-400/10',
+        iconColor: 'text-brand-600 dark:text-gold-300',
+        tint: 'bg-brand-400/10 dark:bg-gold-400/10',
+        glow: 'bg-brand-400/50 dark:bg-gold-400/50',
+        bar: 'bg-brand-500/70 dark:bg-gold-400/70',
     },
 };
 
@@ -69,42 +65,74 @@ function ToastCard({ t }) {
         <div
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            className={`relative overflow-hidden max-w-sm w-full bg-white/95 dark:bg-ink-800/95 backdrop-blur-md border border-slate-200/80 dark:border-ink-600/80 shadow-xl ${style.shadow} rounded-2xl pl-1 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 ${style.accent}`}
+            className="relative max-w-sm w-full"
             style={{
                 opacity: visible ? 1 : 0,
                 transform: visible
-                    ? `translateY(0) scale(${hovered ? 1.02 : 1})`
-                    : 'translateY(-10px) scale(0.94)',
-                transition: 'opacity 320ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease',
+                    ? `translateY(0) scale(${hovered ? 1.015 : 1})`
+                    : 'translateY(-14px) scale(0.92)',
+                filter: visible ? 'blur(0px)' : 'blur(4px)',
+                transition: 'opacity 380ms cubic-bezier(0.22, 1, 0.36, 1), transform 380ms cubic-bezier(0.22, 1, 0.36, 1), filter 380ms ease',
             }}
         >
-            <div className="flex items-start gap-3 px-3.5 py-3">
-                <span className="relative shrink-0 w-8 h-8 flex items-center justify-center">
-                    <span className={`absolute inset-0 rounded-full blur-md opacity-30 ${style.glow}`} />
-                    <span className={`relative w-8 h-8 rounded-full flex items-center justify-center ${style.badge}`}>
-                        <Icon size={16} className={t.type === 'loading' ? 'animate-spin' : ''} />
+            {/* Soft colored glow bleeding out from behind the glass */}
+            <div className={`absolute -inset-1.5 rounded-[30px] blur-xl opacity-40 ${style.glow}`} />
+
+            <div
+                className={`relative overflow-hidden rounded-[26px] border border-white/60 dark:border-white/[0.08] ${style.tint}`}
+                style={{
+                    backdropFilter: 'blur(28px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+                    background:
+                        'linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.25) 100%)',
+                    boxShadow:
+                        '0 1px 1px rgba(255,255,255,0.6) inset, 0 -1px 1px rgba(0,0,0,0.04) inset, 0 12px 32px -8px rgba(0,0,0,0.18)',
+                }}
+            >
+                {/* Specular highlight along the top edge, like glass catching light */}
+                <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-white/90 dark:via-white/30 to-transparent" />
+
+                {/* Dark-mode tint layer (the light-mode gradient above washes out too much on dark bg) */}
+                <div className="absolute inset-0 hidden dark:block bg-ink-900/40" />
+
+                <div className="relative flex items-start gap-3 px-4 py-3.5">
+                    <span className="relative shrink-0 w-8 h-8 flex items-center justify-center">
+                        <span
+                            className="absolute inset-0 rounded-full border border-white/50 dark:border-white/10"
+                            style={{
+                                backdropFilter: 'blur(6px)',
+                                WebkitBackdropFilter: 'blur(6px)',
+                                background: 'linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2))',
+                            }}
+                        />
+                        <Icon size={17} className={`relative ${style.iconColor} ${t.type === 'loading' ? 'animate-spin' : ''}`} />
                     </span>
-                </span>
-                <p className="flex-1 text-sm font-medium text-slate-800 dark:text-gold-100 leading-snug pt-1.5">
-                    {resolveValue(t.message, t)}
-                </p>
+
+                    <p className="flex-1 text-[13.5px] font-medium text-slate-800 dark:text-gold-50 leading-snug pt-1.5 tracking-[-0.01em]">
+                        {resolveValue(t.message, t)}
+                    </p>
+
+                    {t.type !== 'loading' && (
+                        <button
+                            onClick={() => toast.dismiss(t.id)}
+                            className="shrink-0 mt-1 w-5 h-5 rounded-full flex items-center justify-center text-slate-400/70 dark:text-gold-200/40 hover:text-slate-700 dark:hover:text-gold-100 hover:bg-black/5 dark:hover:bg-white/10 transition"
+                        >
+                            <X size={12.5} />
+                        </button>
+                    )}
+                </div>
+
                 {t.type !== 'loading' && (
-                    <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="shrink-0 mt-1 w-5 h-5 rounded-full flex items-center justify-center text-slate-300 dark:text-gold-300/40 hover:text-slate-600 dark:hover:text-gold-100 hover:bg-slate-100 dark:hover:bg-ink-700 transition"
-                    >
-                        <X size={13} />
-                    </button>
+                    <div className="relative px-4 pb-2.5 -mt-1">
+                        <div className="h-[3px] w-full rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
+                            <div
+                                className={`h-full rounded-full ${style.bar}`}
+                                style={{ width: `${progress}%`, transition: progress === 100 ? 'none' : 'width 30ms linear' }}
+                            />
+                        </div>
+                    </div>
                 )}
             </div>
-            {t.type !== 'loading' && (
-                <div className="h-1 w-full bg-slate-100 dark:bg-ink-700">
-                    <div
-                        className={`h-full bg-gradient-to-r ${style.bar} rounded-r-full`}
-                        style={{ width: `${progress}%`, transition: progress === 100 ? 'none' : 'width 30ms linear' }}
-                    />
-                </div>
-            )}
         </div>
     );
 }
