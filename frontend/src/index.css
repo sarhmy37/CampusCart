@@ -65,20 +65,36 @@ body::-webkit-scrollbar,
   --brand-950: 21 42 86;
 }
 
-/* Prevent iOS zoom on input fields */
-input,
-textarea,
-select,
-button {
-    font-size: 16px !important;
+.pinch-dot {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: theme('colors.brand.500');
+    animation: pinch-move 1.4s ease-in-out infinite;
 }
 
-/* On desktop, allow the default font-size to apply */
-@media (min-width: 640px) {
-    input,
-    textarea,
-    select,
-    button {
-        font-size: inherit !important;
-    }
+.dark .pinch-dot {
+    background: theme('colors.gold.400');
+}
+
+.pinch-dot-left {
+    left: 6px;
+    animation-name: pinch-move-left;
+}
+
+.pinch-dot-right {
+    right: 6px;
+    animation-name: pinch-move-right;
+}
+
+@keyframes pinch-move-left {
+    0%, 100% { transform: translate(0, -50%); }
+    50% { transform: translate(18px, -50%); }
+}
+
+@keyframes pinch-move-right {
+    0%, 100% { transform: translate(0, -50%); }
+    50% { transform: translate(-18px, -50%); }
 }

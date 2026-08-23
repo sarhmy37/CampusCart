@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AppToaster from './components/AppToaster';
+import ZoomHintOverlay from './components/ZoomHintOverlay';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -31,6 +33,20 @@ import Privacy from './pages/Privacy';
 
 
 export default function App() {
+  const [showZoomHint, setShowZoomHint] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Enter') return;
+      if (window.innerWidth >= 640) return; // mobile only
+      if (e.target.tagName === 'INPUT') {
+        setShowZoomHint(true);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -64,6 +80,7 @@ export default function App() {
                     </PullToRefresh>
                     <InstallButton />
                     <ChatPanel />
+                    <ZoomHintOverlay open={showZoomHint} onDismiss={() => setShowZoomHint(false)} />
                   </div>
                 </BrowserRouter>
               </ChatProvider>
