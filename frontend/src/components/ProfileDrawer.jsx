@@ -1,12 +1,12 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { Link ,useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
     MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
-    ChevronDown,ChevronRight, MessageCircle, Info, Shield, Search
+    ChevronDown, ChevronRight, MessageCircle, Info, Shield, Search
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
@@ -52,6 +52,7 @@ export default function ProfileDrawer({ open, onClose }) {
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
+    // 👇 Lock body scroll when drawer is open (prevents background scrolling & pull-to-refresh)
     useEffect(() => {
         if (open) {
             const scrollY = window.scrollY;
@@ -59,6 +60,10 @@ export default function ProfileDrawer({ open, onClose }) {
             document.body.style.top = `-${scrollY}px`;
             document.body.style.left = '0';
             document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+
             if (drawerRef.current) {
                 drawerRef.current.scrollTop = 0;
             }
@@ -68,6 +73,9 @@ export default function ProfileDrawer({ open, onClose }) {
             document.body.style.top = '';
             document.body.style.left = '';
             document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
             window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
     }, [open]);
@@ -134,6 +142,7 @@ export default function ProfileDrawer({ open, onClose }) {
                 className={`fixed top-0 left-0 h-full w-3/4 max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 overflow-y-auto no-scrollbar ${
                     open ? 'translate-x-0' : '-translate-x-full'
                 }`}
+                style={{ overscrollBehavior: 'contain' }}
             >
                 {/* Header */}
                 <div className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-accent-500 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 px-6 pt-6 pb-16">
@@ -346,75 +355,75 @@ export default function ProfileDrawer({ open, onClose }) {
                     </button>
 
                     {/* SUPPORT & ABOUT - DROPDOWN */}
-<div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
-    <button
-        onClick={() => setSupportOpen(!supportOpen)}
-        className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-gold-100 transition hover:bg-slate-100 dark:hover:bg-ink-600"
-    >
-        <div className="flex items-center gap-3">
-            <Info size={17} />
-            <span>Support & About</span>
-        </div>
-        <ChevronDown size={16} className={`transition-transform ${supportOpen ? 'rotate-180' : ''}`} />
-    </button>
+                    <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
+                        <button
+                            onClick={() => setSupportOpen(!supportOpen)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-gold-100 transition hover:bg-slate-100 dark:hover:bg-ink-600"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Info size={17} />
+                                <span>Support & About</span>
+                            </div>
+                            <ChevronDown size={16} className={`transition-transform ${supportOpen ? 'rotate-180' : ''}`} />
+                        </button>
 
-    {supportOpen && (
-        <div className="px-3 pb-3 space-y-1">
-            {/* Contact Support */}
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/50 dark:bg-ink-800/50">
-                <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                <div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-gold-100">Contact support</p>
-<div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-1 mt-1">
-    <a
-        href="tel:+233241234567"
-        className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
-    >
-        📞 <span>+233 24 123 4567</span>
-    </a>
-    <a   
-        href="https://wa.me/Trex_Support1"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
-    >
-        <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-        <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span>
-    </a>
-   <a 
-        href="mailto:support@campuscart.app"
-        className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
-    >
-        ✉️ <span>support@trex.app</span>
-    </a>
-</div>
-                </div>
-            </div>
+                        {supportOpen && (
+                            <div className="px-3 pb-3 space-y-1">
+                                {/* Contact Support */}
+                                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/50 dark:bg-ink-800/50">
+                                    <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-700 dark:text-gold-100">Contact support</p>
+                                        <div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-1 mt-1">
+                                            <a
+                                                href="tel:+233241234567"
+                                                className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
+                                            >
+                                                📞 <span>+233 24 123 4567</span>
+                                            </a>
+                                            <a   
+                                                href="https://wa.me/Trex_Support1"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
+                                            >
+                                                <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                                <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span>
+                                            </a>
+                                            <a 
+                                                href="mailto:support@campuscart.app"
+                                                className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
+                                            >
+                                                ✉️ <span>support@trex.app</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
 
-            {/* Terms of Service - navigates to /terms */}
-            <Link
-                to="/terms"
-                onClick={onClose}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
-            >
-                <FileText size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                <span className="text-sm text-slate-700 dark:text-gold-100">Terms of Service</span>
-                <ChevronRight size={15} className="ml-auto text-slate-300 dark:text-gold-300/30" />
-            </Link>
+                                {/* Terms of Service - navigates to /terms */}
+                                <Link
+                                    to="/terms"
+                                    onClick={onClose}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
+                                >
+                                    <FileText size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <span className="text-sm text-slate-700 dark:text-gold-100">Terms of Service</span>
+                                    <ChevronRight size={15} className="ml-auto text-slate-300 dark:text-gold-300/30" />
+                                </Link>
 
-            {/* Privacy Policy - navigates to /privacy */}
-            <Link
-                to="/privacy"
-                onClick={onClose}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
-            >
-                <Shield size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                <span className="text-sm text-slate-700 dark:text-gold-100">Privacy Policy</span>
-                <ChevronRight size={15} className="ml-auto text-slate-300 dark:text-gold-300/30" />
-            </Link>
-        </div>
-    )}
-</div>
+                                {/* Privacy Policy - navigates to /privacy */}
+                                <Link
+                                    to="/privacy"
+                                    onClick={onClose}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
+                                >
+                                    <Shield size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <span className="text-sm text-slate-700 dark:text-gold-100">Privacy Policy</span>
+                                    <ChevronRight size={15} className="ml-auto text-slate-300 dark:text-gold-300/30" />
+                                </Link>
+                            </div>
+                        )}
+                    </div>
 
                     {/* SETTINGS */}
                     <button
