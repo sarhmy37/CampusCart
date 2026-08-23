@@ -76,5 +76,8 @@ select {
     textarea,
     select {
         font-size: 16px !important;
+        transform: scale(0.8125);
+        transform-origin: left center;
+        width: 123.1%;
     }
 }
