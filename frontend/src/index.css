@@ -71,10 +71,10 @@ select {
     font-size: 16px;
 }
 
-@media (min-width: 640px) {
+@media (max-width: 639px) {
     input,
     textarea,
     select {
-        font-size: inherit;
+        font-size: 16px !important;
     }
 }
