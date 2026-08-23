@@ -1,15 +1,17 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 export default function Privacy() {
+    const navigate = useNavigate();
+
     return (
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 bg-white dark:bg-ink-900 min-h-screen">
-            <Link
-                to="/settings"
+            <button
+                onClick={() => navigate('/', { state: { openProfile: true } })}
                 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-gold-200/60 hover:text-slate-700 dark:hover:text-gold-100 transition mb-6"
             >
-                <ArrowLeft size={16} /> Back to Settings
-            </Link>
+                <ArrowLeft size={16} /> Back
+            </button>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-gold-50">Privacy Policy</h1>
             <p className="text-sm text-slate-400 dark:text-gold-200/50 mt-1">Last updated: 2026</p>

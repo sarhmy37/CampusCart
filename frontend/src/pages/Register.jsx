@@ -5,8 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { REGISTER_IMAGE } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, User, School, GraduationCap, ShoppingBag, Store, Phone, MapPin, ChevronDown, Landmark, Loader2, CheckCircle, XCircle } from 'lucide-react';
-// 👇 ADDED IMPORT HERE
-import AutoLocationInput from '../components/AutoLocationInput'; 
+import AutoLocationInput from '../components/AutoLocationInput';
 
 const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU'];
 
@@ -25,7 +24,16 @@ const COUNTRY_CODES = [
     { code: '+61', label: '+61 (Australia)' },
 ];
 
-// Mobile Money patterns
+// Mobile money is a fixed, known set of 3 networks in Ghana — it has nothing
+// to do with banks and should never be sourced from the banks API or filtered
+// by a `type` field. Vodafone Cash was rebranded to Telecel Cash (same network,
+// same prefixes). AirtelTigo Money is a separate, distinct network.
+const MOBILE_MONEY_NETWORKS = [
+    { code: 'MTN', name: 'MTN Mobile Money' },
+    { code: 'VOD', name: 'Vodafone Cash / Telecel Cash' },
+    { code: 'AT', name: 'AirtelTigo Money' },
+];
+
 const NETWORK_PATTERNS = {
     'MTN': /^(024|054|055|059|023|053|057)\d{7}$/,
     'VOD': /^(020|050)\d{7}$/,
@@ -97,6 +105,8 @@ export default function Register() {
         setLoadingBanks(false);
     };
 
+    // Only ever fetches real banks now — mobile money networks are a fixed
+    // local list (MOBILE_MONEY_NETWORKS) and never come from this endpoint.
     useEffect(() => {
         if (accountType === 'seller') {
             fetchBanks();
@@ -145,18 +155,13 @@ export default function Register() {
                     message = 'Please select a network first';
                 } else {
                     const pattern = NETWORK_PATTERNS[bankCode];
-                    if (pattern) {
-                        if (pattern.test(number)) {
-                            const networkName = banks.find(b => b.code === bankCode)?.name || bankCode;
-                            isValid = true;
-                            message = `✓ Valid ${networkName} number`;
-                            type = 'success';
-                        } else {
-                            const networkName = banks.find(b => b.code === bankCode)?.name || bankCode;
-                            message = `Invalid ${networkName} number. Check prefix.`;
-                        }
+                    const networkName = MOBILE_MONEY_NETWORKS.find((n) => n.code === bankCode)?.name || bankCode;
+                    if (pattern && pattern.test(number)) {
+                        isValid = true;
+                        message = `✓ Valid ${networkName} number`;
+                        type = 'success';
                     } else {
-                        message = 'Unknown network';
+                        message = `Invalid ${networkName} number. Check prefix.`;
                     }
                 }
             }
@@ -239,9 +244,9 @@ export default function Register() {
         }
     };
 
-    const filteredBanks = banks.filter((b) =>
-        payoutMethod === 'bank' ? b.type !== 'mobile_money' : b.type === 'mobile_money'
-    );
+    // Banks and mobile money are separate, unrelated lists — no shared
+    // filtering logic between them.
+    const networkOptions = payoutMethod === 'bank' ? banks : MOBILE_MONEY_NETWORKS;
 
     return (
         <>
@@ -436,10 +441,9 @@ export default function Register() {
                                 <div>
                                     <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Delivery Location</label>
                                     <div className="mt-1">
-                                        {/* 👇 REPLACED OLD INPUT WITH THIS */}
-                                        <AutoLocationInput 
-                                            value={form.location} 
-                                            onChange={(newLocation) => setForm({ ...form, location: newLocation })} 
+                                        <AutoLocationInput
+                                            value={form.location}
+                                            onChange={(newLocation) => setForm({ ...form, location: newLocation })}
                                             placeholder="Tap here to auto-detect your location..."
                                         />
                                     </div>
@@ -461,7 +465,7 @@ export default function Register() {
                                     <div className="flex gap-1 mb-3 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
                                         <button
                                             type="button"
-                                            onClick={() => setPayoutMethod('bank')}
+                                            onClick={() => { setPayoutMethod('bank'); setBankCode(''); }}
                                             className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                                                 payoutMethod === 'bank'
                                                     ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
@@ -472,7 +476,7 @@ export default function Register() {
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => setPayoutMethod('mobile_money')}
+                                            onClick={() => { setPayoutMethod('mobile_money'); setBankCode(''); }}
                                             className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                                                 payoutMethod === 'mobile_money'
                                                     ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
@@ -490,15 +494,17 @@ export default function Register() {
                                         <select
                                             value={bankCode}
                                             onChange={(e) => setBankCode(e.target.value)}
-                                            disabled={loadingBanks}
+                                            disabled={payoutMethod === 'bank' && loadingBanks}
                                             className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm disabled:opacity-60"
                                         >
                                             <option value="">Select {payoutMethod === 'bank' ? 'bank' : 'network'}</option>
-                                            {filteredBanks.map((b) => (
+                                            {networkOptions.map((b) => (
                                                 <option key={b.code} value={b.code}>{b.name}</option>
                                             ))}
                                         </select>
-                                        {loadingBanks && <p className="text-xs text-slate-400 mt-1">Loading banks...</p>}
+                                        {payoutMethod === 'bank' && loadingBanks && (
+                                            <p className="text-xs text-slate-400 mt-1">Loading banks...</p>
+                                        )}
                                     </div>
 
                                     <div>
