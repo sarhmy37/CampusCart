@@ -77,7 +77,7 @@ select {
     select {
         font-size: 16px !important;
         transform: scale(0.87);
-        transform-origin: left center;
-        width: 240%;
+        transform-origin: center;
+        width: 300%;
     }
 }
