@@ -14,6 +14,15 @@ import VerifyModal from './VerifyModal';
 const COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes
 const APP_VERSION = '1.0.0';
 
+function WhatsAppIcon(props) {
+    return (
+        <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.86.505 3.678 1.462 5.272L2 22l4.83-1.44a10.001 10.001 0 0 0 5.174 1.44h.004c5.518 0 10.004-4.486 10.004-10.004C22.008 6.486 17.522 2 12.004 2zm0 18.09h-.003a8.077 8.077 0 0 1-4.116-1.128l-.295-.176-3.056.912.918-2.98-.192-.306a8.062 8.062 0 0 1-1.246-4.408c0-4.463 3.632-8.095 8.098-8.095 2.163 0 4.195.843 5.724 2.373a8.037 8.037 0 0 1 2.372 5.727c0 4.463-3.633 8.095-8.204 8.081z"/>
+        </svg>
+    );
+}
+
 export default function ProfileDrawer({ open, onClose }) {
     const { user, logout, updateProfile, uploadAvatar } = useAuth();
     const { conversations, openConversation } = useChat();
@@ -356,11 +365,29 @@ export default function ProfileDrawer({ open, onClose }) {
                 <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
                 <div>
                     <p className="text-sm font-semibold text-slate-700 dark:text-gold-100">Contact support</p>
-                    <div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-0.5 mt-0.5">
-                        <p>📞 +233 24 123 4567</p>
-                        <p>💬 <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span> on WhatsApp</p>
-                        <p>✉️ support@campuscart.app</p>
-                    </div>
+<div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-1 mt-1">
+    <a
+        href="tel:+233241234567"
+        className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
+    >
+        📞 <span>+233 24 123 4567</span>
+    </a>
+    <a   
+        href="https://wa.me/Trex_Support1"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
+    >
+        <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+        <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span>
+    </a>
+   <a 
+        href="mailto:support@campuscart.app"
+        className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
+    >
+        ✉️ <span>support@trex.app</span>
+    </a>
+</div>
                 </div>
             </div>
 
