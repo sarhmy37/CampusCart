@@ -40,10 +40,12 @@ useEffect(() => {
     const handleKeyDown = (e) => {
         if (e.key !== 'Enter') return;
         if (window.innerWidth >= 640) return; // mobile only
-        if (e.target.tagName === 'INPUT') {
-            setZoomHintAnchor(e.target.getBoundingClientRect());
-            setShowZoomHint(true);
-        }
+        if (e.target.tagName !== 'INPUT') return;
+        if (localStorage.getItem('cc_zoom_hint_seen') === 'true') return;
+
+        setZoomHintAnchor(e.target.getBoundingClientRect());
+        setShowZoomHint(true);
+        localStorage.setItem('cc_zoom_hint_seen', 'true');
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
