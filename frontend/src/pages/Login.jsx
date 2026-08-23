@@ -21,8 +21,7 @@ export default function Login() {
             navigate('/');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Login failed');
-        } finally {
-            setLoading(false);
+        } finally {            setLoading(false);
         }
     };
 

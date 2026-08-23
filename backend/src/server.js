@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
+const authRoutes = require('./routes/auth');
+
 const productRoutes = require('./routes/products');
 
 const categoryRoutes = require('./routes/categories');
@@ -12,8 +14,6 @@ const orderRoutes = require('./routes/orders');
 const wishlistRoutes = require('./routes/wishlist');
 
 const sellerRoutes = require('./routes/sellers');
-
-const authRoutes = require('./routes/auth');
 
 const notificationRoutes = require('./routes/notifications');
 
@@ -31,11 +31,11 @@ const chatRoutes = require('./routes/chat');
 
 const app = express();
 
-const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+const rawOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+const corsOrigin = rawOrigins.includes('*') || rawOrigins.length === 0 ? '*' : rawOrigins;
 
 app.use(cors({
-    origin: allowedOrigins.length ? allowedOrigins : '*',
-    credentials: true,
+    origin: corsOrigin,
 }));
 app.use(express.json({
     verify: (req, res, buf) => { req.rawBody = buf; },
@@ -84,6 +84,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`CampusCart API running on http://localhost:${PORT}`);
+    console.log(`CampusCart API running on network: http://0.0.0.0:${PORT}`);
 });

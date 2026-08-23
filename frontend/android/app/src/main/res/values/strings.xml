@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Tre-X</string>
+    <string name="title_activity_main">Tre-X</string>
+    <string name="package_name">com.trex.app</string>
+    <string name="custom_url_scheme">com.trex.app</string>
+</resources>
