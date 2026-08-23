@@ -479,25 +479,6 @@ export default function Settings() {
                     </div>
                 </div>
 
-                {/* DANGER ZONE */}
-                <div className="bg-white dark:bg-ink-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center">
-                            <AlertTriangle size={16} />
-                        </div>
-                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Danger zone</h2>
-                    </div>
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
-                        Deleting your account is permanent — your listings, orders, and messages will be removed and cannot be recovered.
-                    </p>
-                    <button
-                        onClick={() => setDeleteOpen(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold transition"
-                    >
-                        <Trash2 size={15} /> Delete my account
-                    </button>
-                </div>
-
                 {/* REFER A FRIEND */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-1">
@@ -561,7 +542,24 @@ export default function Settings() {
                     )}
                 </div>
 
-                {/* SUPPORT & ABOUT - REMOVED */}
+                   {/* DANGER ZONE */}
+                <div className="bg-white dark:bg-ink-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center">
+                            <AlertTriangle size={16} />
+                        </div>
+                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Danger zone</h2>
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                        Deleting your account is permanent — your listings, orders, and messages will be removed and cannot be recovered.
+                    </p>
+                    <button
+                        onClick={() => setDeleteOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold transition"
+                    >
+                        <Trash2 size={15} /> Delete my account
+                    </button>
+                </div>
 
             </div>
 

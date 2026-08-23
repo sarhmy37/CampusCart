@@ -64,3 +64,17 @@ body::-webkit-scrollbar,
   --brand-900: 27 65 141;
   --brand-950: 21 42 86;
 }
+
+input,
+textarea,
+select {
+    font-size: 16px;
+}
+
+@media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+        font-size: inherit;
+    }
+}
