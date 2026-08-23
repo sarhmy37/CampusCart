@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
-const DISMISS_SHRINK_THRESHOLD = 40; // px the two touch points must move closer together
+const DISMISS_SHRINK_THRESHOLD = 40;
+const CARD_WIDTH = 260;
+const VIEWPORT_MARGIN = 12;
 
-export default function ZoomHintOverlay({ open, onDismiss }) {
+export default function ZoomHintOverlay({ open, anchorRect, onDismiss }) {
     const initialDistance = useRef(null);
 
     useEffect(() => {
@@ -38,21 +40,30 @@ export default function ZoomHintOverlay({ open, onDismiss }) {
         };
     }, [open, onDismiss]);
 
-    if (!open) return null;
+    if (!open || !anchorRect) return null;
+
+    // Position right under the input, clamped so it never overflows off-screen
+    let left = anchorRect.left;
+    const maxLeft = window.innerWidth - CARD_WIDTH - VIEWPORT_MARGIN;
+    left = Math.min(Math.max(left, VIEWPORT_MARGIN), Math.max(maxLeft, VIEWPORT_MARGIN));
+    const top = anchorRect.bottom + 8;
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-end justify-center pb-10 px-4 pointer-events-none">
-            <div className="pointer-events-auto flex flex-col items-center gap-3 bg-white/95 dark:bg-ink-800/95 backdrop-blur-md border border-slate-200 dark:border-ink-600 rounded-2xl shadow-xl px-6 py-5 max-w-xs w-full relative">
+        <div className="fixed inset-0 z-[200] pointer-events-none">
+            <div
+                className="pointer-events-auto flex flex-col items-center gap-2.5 bg-white/95 dark:bg-ink-800/95 backdrop-blur-md border border-slate-200 dark:border-ink-600 rounded-2xl shadow-xl px-4 py-3.5 relative"
+                style={{ position: 'fixed', top, left, width: CARD_WIDTH }}
+            >
                 <button
                     onClick={onDismiss}
-                    className="absolute top-2.5 right-2.5 text-slate-300 dark:text-gold-300/40 hover:text-slate-500 dark:hover:text-gold-200 transition"
+                    className="absolute top-2 right-2 text-slate-300 dark:text-gold-300/40 hover:text-slate-500 dark:hover:text-gold-200 transition"
                 >
-                    <X size={16} />
+                    <X size={14} />
                 </button>
 
                 <PinchIcon />
 
-                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 text-center leading-snug">
+                <p className="text-xs font-semibold text-slate-800 dark:text-gold-100 text-center leading-snug">
                     Pinch your fingers together to zoom back out
                 </p>
             </div>
@@ -62,7 +73,7 @@ export default function ZoomHintOverlay({ open, onDismiss }) {
 
 function PinchIcon() {
     return (
-        <div className="relative w-16 h-16">
+        <div className="relative w-14 h-14">
             <span className="pinch-dot pinch-dot-left" />
             <span className="pinch-dot pinch-dot-right" />
         </div>

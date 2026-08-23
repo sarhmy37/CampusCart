@@ -34,18 +34,20 @@ import Privacy from './pages/Privacy';
 
 export default function App() {
   const [showZoomHint, setShowZoomHint] = useState(false);
+  const [zoomHintAnchor, setZoomHintAnchor] = useState(null);
 
-  useEffect(() => {
+useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key !== 'Enter') return;
-      if (window.innerWidth >= 640) return; // mobile only
-      if (e.target.tagName === 'INPUT') {
-        setShowZoomHint(true);
-      }
+        if (e.key !== 'Enter') return;
+        if (window.innerWidth >= 640) return; // mobile only
+        if (e.target.tagName === 'INPUT') {
+            setZoomHintAnchor(e.target.getBoundingClientRect());
+            setShowZoomHint(true);
+        }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+}, []);
 
   return (
     <ThemeProvider>
@@ -80,8 +82,7 @@ export default function App() {
                     </PullToRefresh>
                     <InstallButton />
                     <ChatPanel />
-                    <ZoomHintOverlay open={showZoomHint} onDismiss={() => setShowZoomHint(false)} />
-                  </div>
+<ZoomHintOverlay open={showZoomHint} anchorRect={zoomHintAnchor} onDismiss={() => setShowZoomHint(false)} />                  </div>
                 </BrowserRouter>
               </ChatProvider>
             </NotificationProvider>
