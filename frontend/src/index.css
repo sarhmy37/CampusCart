@@ -65,16 +65,20 @@ body::-webkit-scrollbar,
   --brand-950: 21 42 86;
 }
 
+/* Prevent iOS zoom on input fields */
 input,
 textarea,
-select {
-    font-size: 16px;
+select,
+button {
+    font-size: 16px !important;
 }
 
+/* On desktop, allow the default font-size to apply */
 @media (min-width: 640px) {
     input,
     textarea,
-    select {
-        font-size: inherit;
+    select,
+    button {
+        font-size: inherit !important;
     }
 }
