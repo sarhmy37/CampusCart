@@ -56,11 +56,10 @@ router.post('/start', requireAuth, async (req, res) => {
         await touchLastActive(req.userId);
 
         const existing = await pool.query(
-            `SELECT id FROM conversations
-             WHERE buyer_id = $1 AND seller_id = $2
-               AND product_id IS NOT DISTINCT FROM $3`,
-            [req.userId, sellerId, productId || null]
-        );
+    `SELECT id FROM conversations
+     WHERE buyer_id = $1 AND seller_id = $2`,
+    [req.userId, sellerId]
+);
 
         let conversationId;
         if (existing.rows.length > 0) {
