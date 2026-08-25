@@ -214,7 +214,7 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // PATCH /api/auth/me
 router.patch('/me', requireAuth, async (req, res) => {
-    const { about, personal_email, whatsapp, location, name, school, verified } = req.body;
+    const { about, personal_email, whatsapp, location, name, school, verified, avatar_url } = req.body;
 
     const PROFILE_EDIT_COOLDOWN_SECONDS = 60 * 60;
 
@@ -238,7 +238,7 @@ router.patch('/me', requireAuth, async (req, res) => {
             }
         }
 
-        const result = await pool.query(
+                const result = await pool.query(
             `UPDATE users SET
                 about = COALESCE($1, about),
                 personal_email = COALESCE($2, personal_email),
@@ -247,11 +247,13 @@ router.patch('/me', requireAuth, async (req, res) => {
                 name = COALESCE($5, name),
                 school = COALESCE($6, school),
                 verified = COALESCE($7, verified),
+                avatar_url = COALESCE($10, avatar_url),
                 profile_updated_at = CASE WHEN $9 THEN now() ELSE profile_updated_at END
              WHERE id = $8
              RETURNING *`,
-            [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit]
+            [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit, avatar_url]
         );
+        
         res.json(toPublicUser(result.rows[0]));
     } catch (err) {
         console.error('Update profile error:', err);
@@ -278,6 +280,105 @@ router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req
     } catch (err) {
         console.error('Avatar upload error:', err);
         res.status(500).json({ error: 'Something went wrong uploading your photo' });
+    }
+});
+
+// POST /api/auth/forgot-password — request a reset code by email (no login required)
+router.post('/forgot-password', async (req, res) => {
+    const { university_email } = req.body;
+    if (!university_email) return res.status(400).json({ error: 'Email is required' });
+
+    try {
+        const result = await pool.query(
+            'SELECT id, password_reset_last_sent_at FROM users WHERE university_email = $1',
+            [university_email]
+        );
+        const user = result.rows[0];
+
+        // Always respond the same way whether or not the account exists,
+        // so this endpoint can't be used to check which emails are registered.
+        if (!user) {
+            return res.json({ message: 'If that account exists, a reset code has been sent.' });
+        }
+
+        if (user.password_reset_last_sent_at) {
+            const secondsSince = (Date.now() - new Date(user.password_reset_last_sent_at).getTime()) / 1000;
+            if (secondsSince < RESEND_COOLDOWN_SECONDS) {
+                const waitSeconds = Math.ceil(RESEND_COOLDOWN_SECONDS - secondsSince);
+                return res.status(429).json({ error: `Please wait ${waitSeconds}s before requesting another code` });
+            }
+        }
+
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+        await pool.query(
+            `UPDATE users SET
+                password_reset_code = $1,
+                password_reset_code_expires = $2,
+                password_reset_attempts = 0,
+                password_reset_last_sent_at = now()
+             WHERE id = $3`,
+            [code, expires, user.id]
+        );
+
+        sendPasswordResetEmail(university_email, code)
+            .catch(err => console.error('Background email failed:', err));
+
+        res.json({ message: 'If that account exists, a reset code has been sent.' });
+    } catch (err) {
+        console.error('Forgot password error:', err);
+        res.status(500).json({ error: 'Something went wrong sending your reset code' });
+    }
+});
+
+// POST /api/auth/reset-password — verify code and set new password (no login required)
+router.post('/reset-password', async (req, res) => {
+    const { university_email, code, new_password } = req.body;
+    if (!university_email || !code || !new_password) {
+        return res.status(400).json({ error: 'Email, code, and new password are required' });
+    }
+    if (new_password.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT id, password_reset_code, password_reset_code_expires, password_reset_attempts FROM users WHERE university_email = $1',
+            [university_email]
+        );
+        const user = result.rows[0];
+
+        if (!user || !user.password_reset_code) {
+            return res.status(400).json({ error: 'No pending request — start over' });
+        }
+        if (new Date() > new Date(user.password_reset_code_expires)) {
+            return res.status(400).json({ error: 'Code has expired — request a new one' });
+        }
+        if (user.password_reset_attempts >= MAX_VERIFY_ATTEMPTS) {
+            return res.status(429).json({ error: 'Too many incorrect attempts — request a new code' });
+        }
+        if (user.password_reset_code !== code) {
+            await pool.query('UPDATE users SET password_reset_attempts = password_reset_attempts + 1 WHERE id = $1', [user.id]);
+            const remaining = MAX_VERIFY_ATTEMPTS - (user.password_reset_attempts + 1);
+            return res.status(400).json({ error: `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} left.` });
+        }
+
+        const newHash = await bcrypt.hash(new_password, 10);
+        await pool.query(
+            `UPDATE users SET
+                password_hash = $1,
+                password_reset_code = NULL,
+                password_reset_code_expires = NULL,
+                password_reset_attempts = 0
+             WHERE id = $2`,
+            [newHash, user.id]
+        );
+
+        res.json({ message: 'Password reset successfully' });
+    } catch (err) {
+        console.error('Reset password error:', err);
+        res.status(500).json({ error: 'Something went wrong resetting your password' });
     }
 });
 

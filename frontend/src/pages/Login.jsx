@@ -123,6 +123,11 @@ export default function Login() {
                                     </button>
                                 </div>
                             </div>
+                                                        <div className="flex justify-end">
+                                <Link to="/forgot-password" className="text-sm text-brand-600 dark:text-gold-400 font-semibold">
+                                    Forgot password?
+                                </Link>
+                            </div>
                             <button
                                 type="submit"
                                 disabled={loading}

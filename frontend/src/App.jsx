@@ -20,6 +20,7 @@ import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import CreateListing from './pages/CreateListing';
@@ -70,6 +71,7 @@ useEffect(() => {
                         <Route path="/login" element={<Login />} />
                         <Route path="/admin/login" element={<AdminLogin />} />
                         <Route path="/register" element={<Register />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
                         <Route path="/product/:id" element={<ProductDetail />} />
                         <Route path="/cart" element={<Cart />} />
                         <Route path="/sell/new" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
