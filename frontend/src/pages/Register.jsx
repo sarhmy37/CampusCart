@@ -284,11 +284,11 @@ export default function Register() {
                 }
 
                 @keyframes logoPulse {
-                    0%, 100% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.05); opacity: 0.85; }
+                    0%, 100% { transform: scale(1); opacity: 0.55; }
+                    50% { transform: scale(1.35); opacity: 1; }
                 }
                 .logo-pulse {
-                    animation: logoPulse 2.5s ease-in-out infinite;
+                    animation: logoPulse 3.5s ease-in-out infinite;
                 }
             `}</style>
 
