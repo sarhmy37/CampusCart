@@ -198,39 +198,39 @@ export default function Cart() {
     };
 
     return (
-        <div className="dark:bg-ink-900 min-h-screen flex flex-col">
+        <div className="dark:bg-ink-900 min-h-screen flex flex-col overflow-x-hidden">
             <CartHeader count={itemCount} />
 
             {/* Main content with scrolling */}
-            <div className="flex-1 overflow-y-auto">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8 grid lg:grid-cols-3 gap-6 pb-24 lg:pb-8">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 grid lg:grid-cols-3 gap-6 pb-24 lg:pb-8">
                     {/* ITEMS */}
-                    <div className="lg:col-span-2 space-y-3">
+                    <div className="lg:col-span-2 space-y-3 overflow-x-hidden">
                         {items.map((item) => (
                             <div
                                 key={item.product_id}
-                                className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 shadow-sm hover:shadow-md dark:hover:shadow-gold-900/20 transition"
+                                className="flex items-center gap-2 sm:gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-2 sm:p-3 shadow-sm hover:shadow-md dark:hover:shadow-gold-900/20 transition w-full"
                             >
-                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
+                                <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
                                     {item.image && <img src={item.image} className="w-full h-full object-cover" alt={item.title} />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-slate-800 dark:text-gold-50 text-sm truncate">{item.title}</p>
-                                    <p className="text-brand-700 dark:text-gold-400 font-bold text-sm mt-1">GHS {parseFloat(item.price).toFixed(2)}</p>
+                                    <p className="font-semibold text-slate-800 dark:text-gold-50 text-xs sm:text-sm truncate">{item.title}</p>
+                                    <p className="text-brand-700 dark:text-gold-400 font-bold text-xs sm:text-sm mt-0.5">GHS {parseFloat(item.price).toFixed(2)}</p>
                                 </div>
-                                <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 dark:bg-ink-700 rounded-full px-2 sm:px-3 py-1.5">
+                                <div className="flex items-center gap-1 sm:gap-3 bg-slate-50 dark:bg-ink-700 rounded-full px-1.5 sm:px-3 py-1 sm:py-1.5 shrink-0">
                                     <button
                                         onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
                                         className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
                                     >
-                                        <Minus size={13} />
+                                        <Minus size={12} className="sm:size-[13px]" />
                                     </button>
-                                    <span className="text-sm font-semibold w-4 text-center text-slate-800 dark:text-gold-50">{item.quantity}</span>
+                                    <span className="text-xs sm:text-sm font-semibold w-4 text-center text-slate-800 dark:text-gold-50">{item.quantity}</span>
                                     <button
                                         onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
                                         className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
                                     >
-                                        <Plus size={13} />
+                                        <Plus size={12} className="sm:size-[13px]" />
                                     </button>
                                 </div>
                                 <button
@@ -238,7 +238,7 @@ export default function Cart() {
                                     className="text-slate-300 dark:text-gold-200/40 hover:text-red-500 transition p-1 shrink-0"
                                     title="Remove"
                                 >
-                                    <Trash2 size={18} />
+                                    <Trash2 size={16} className="sm:size-[18px]" />
                                 </button>
                             </div>
                         ))}
@@ -270,7 +270,7 @@ export default function Cart() {
                                                             productId: group.items[0]?.product_id,
                                                         });
                                                     }}
-                                                    className="flex-1 flex items-center justify-between gap-3 px-3 sm:px-4 py-3 rounded-xl border border-brand-200 dark:border-gold-800 bg-brand-50 dark:bg-gold-900/30 hover:bg-brand-100 dark:hover:bg-gold-900/50 text-brand-800 dark:text-gold-300 text-sm font-semibold transition"
+                                                    className="flex-1 flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-brand-200 dark:border-gold-800 bg-brand-50 dark:bg-gold-900/30 hover:bg-brand-100 dark:hover:bg-gold-900/50 text-brand-800 dark:text-gold-300 text-xs sm:text-sm font-semibold transition"
                                                 >
                                                     <span className="truncate">Message {group.sellerName} in-app</span>
                                                 </button>
@@ -290,14 +290,14 @@ export default function Cart() {
                                                             alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
                                                         }
                                                     }}
-                                                    className={`flex items-center justify-center px-3 sm:px-4 py-3 rounded-xl border transition shrink-0 ${
+                                                    className={`flex items-center justify-center px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border transition shrink-0 ${
                                                         href
                                                             ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
                                                             : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 cursor-not-allowed'
                                                     }`}
                                                     title="Chat on WhatsApp"
                                                 >
-                                                    <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
+                                                    <WhatsAppIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
                                                 </a>
                                             </div>
                                         );
@@ -309,7 +309,7 @@ export default function Cart() {
 
                     {/* SUMMARY - Sticky on desktop, normal on mobile */}
                     <div className="lg:col-span-1">
-                        <div className="lg:sticky lg:top-24 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                        <div className="lg:sticky lg:top-24 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 sm:p-6 shadow-sm">
                             <h3 className="font-bold text-slate-900 dark:text-gold-50 mb-4">Order summary</h3>
 
                             <div className="space-y-2 mb-5">
