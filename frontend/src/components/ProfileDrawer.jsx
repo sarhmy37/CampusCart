@@ -500,8 +500,8 @@ export default function ProfileDrawer({ open, onClose }) {
                     className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                     onClick={() => !uploading && setAvatarModalOpen(false)}
                 />
-                <div
-                    className={`relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-xs p-6 transition-transform duration-200 ${
+                                <div
+                    className={`relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 transition-transform duration-200 ${
                         avatarModalOpen ? 'scale-100' : 'scale-95'
                     }`}
                 >
@@ -516,8 +516,7 @@ export default function ProfileDrawer({ open, onClose }) {
                         Profile photo
                     </h3>
 
-                    <div className="w-40 h-40 mx-auto rounded-full overflow-hidden bg-slate-100 dark:bg-ink-700 flex items-center justify-center relative">
-                        {avatarPreview || user.avatar_url ? (
+                    <div className="w-64 h-64 mx-auto rounded-full overflow-hidden bg-slate-100 dark:bg-ink-700 flex items-center justify-center relative">                        {avatarPreview || user.avatar_url ? (
                             <img
                                 src={avatarPreview || user.avatar_url}
                                 alt={user.name}
