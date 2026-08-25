@@ -28,6 +28,11 @@ router.post('/', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Cart is empty' });
     }
 
+    const verifyCheck = await pool.query('SELECT verified FROM users WHERE id = $1', [req.userId]);
+    if (!verifyCheck.rows[0]?.verified) {
+        return res.status(403).json({ error: 'Please verify your email before placing an order', needs_verification: true });
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');

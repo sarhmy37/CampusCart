@@ -61,6 +61,21 @@ const ALLOWED_EMAIL_DOMAINS = [
     'ashesi.edu.gh',
 ];
 
+
+const ALLOWED_BUYER_EMAIL_DOMAINS = [
+    'gmail.com',
+    'yahoo.com',
+    'outlook.com',
+    'hotmail.com',
+    'icloud.com',
+    'live.com',
+];
+
+function isAllowedBuyerEmailDomain(email) {
+    const domain = email.split('@')[1]?.toLowerCase();
+    return ALLOWED_BUYER_EMAIL_DOMAINS.some((allowed) => domain === allowed);
+}
+
 function isAllowedEmailDomain(email) {
     const domain = email.split('@')[1]?.toLowerCase();
     return ALLOWED_EMAIL_DOMAINS.some((allowed) => domain === allowed);
@@ -85,6 +100,10 @@ router.post('/register', async (req, res) => {
 
     if (resolvedAccountType === 'seller' && !isAllowedEmailDomain(university_email)) {
         return res.status(400).json({ error: 'Sellers must sign up with a valid university email address' });
+    }
+    
+    if (resolvedAccountType === 'buyer' && !isAllowedBuyerEmailDomain(university_email)) {
+        return res.status(400).json({ error: 'Please sign up with a valid Gmail, Yahoo, Outlook, or iCloud email address' });
     }
 
     if (resolvedAccountType === 'buyer' && !location) {
