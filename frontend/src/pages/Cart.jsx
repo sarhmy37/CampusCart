@@ -125,22 +125,24 @@ export default function Cart() {
 
     if (items.length === 0) {
         return (
-            <div className="dark:bg-ink-900 min-h-screen">
+            <div className="dark:bg-ink-900 min-h-screen flex flex-col">
                 <CartHeader count={0} />
-                <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center mb-5">
-                        <ShoppingBag className="text-brand-400 dark:text-gold-400" size={28} />
+                <div className="flex-1 flex items-center justify-center px-4 py-20">
+                    <div className="text-center">
+                        <div className="w-16 h-16 mx-auto rounded-2xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center mb-5">
+                            <ShoppingBag className="text-brand-400 dark:text-gold-400" size={28} />
+                        </div>
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-gold-50">Your cart is empty</h2>
+                        <p className="text-sm text-slate-400 dark:text-gold-200/50 mt-1.5">
+                            Browse listings from students on your campus and add something you like.
+                        </p>
+                        <Link
+                            to="/browse"
+                            className="inline-flex items-center gap-1.5 mt-6 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition shadow-sm"
+                        >
+                            Browse listings →
+                        </Link>
                     </div>
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-gold-50">Your cart is empty</h2>
-                    <p className="text-sm text-slate-400 dark:text-gold-200/50 mt-1.5">
-                        Browse listings from students on your campus and add something you like.
-                    </p>
-                    <Link
-                        to="/browse"
-                        className="inline-flex items-center gap-1.5 mt-6 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition shadow-sm"
-                    >
-                        Browse listings →
-                    </Link>
                 </div>
             </div>
         );
@@ -184,8 +186,8 @@ export default function Cart() {
             });
             clearCart();
             window.location.href = res.data.authorization_url;
-                } catch (err) {
-                        if (err.response?.data?.needs_verification) {
+        } catch (err) {
+            if (err.response?.data?.needs_verification) {
                 toast.error('Please verify your email before placing an order');
                 navigate('/', { state: { openProfile: true } });
             } else {
@@ -196,218 +198,221 @@ export default function Cart() {
     };
 
     return (
-        <div className="dark:bg-ink-900 min-h-screen">
+        <div className="dark:bg-ink-900 min-h-screen flex flex-col">
             <CartHeader count={itemCount} />
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-3 gap-6">
-                {/* ITEMS */}
-                <div className="lg:col-span-2 space-y-3">
-                    {items.map((item) => (
-                        <div
-                            key={item.product_id}
-                            className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 shadow-sm hover:shadow-md dark:hover:shadow-gold-900/20 transition"
-                        >
-                            <div className="w-20 h-20 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
-                                {item.image && <img src={item.image} className="w-full h-full object-cover" alt={item.title} />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-slate-800 dark:text-gold-50 text-sm truncate">{item.title}</p>
-                                <p className="text-brand-700 dark:text-gold-400 font-bold text-sm mt-1">GHS {parseFloat(item.price).toFixed(2)}</p>
-                            </div>
-                            <div className="flex items-center gap-3 bg-slate-50 dark:bg-ink-700 rounded-full px-3 py-1.5">
+            {/* Main content with scrolling */}
+            <div className="flex-1 overflow-y-auto">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8 grid lg:grid-cols-3 gap-6 pb-24 lg:pb-8">
+                    {/* ITEMS */}
+                    <div className="lg:col-span-2 space-y-3">
+                        {items.map((item) => (
+                            <div
+                                key={item.product_id}
+                                className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 shadow-sm hover:shadow-md dark:hover:shadow-gold-900/20 transition"
+                            >
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
+                                    {item.image && <img src={item.image} className="w-full h-full object-cover" alt={item.title} />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-slate-800 dark:text-gold-50 text-sm truncate">{item.title}</p>
+                                    <p className="text-brand-700 dark:text-gold-400 font-bold text-sm mt-1">GHS {parseFloat(item.price).toFixed(2)}</p>
+                                </div>
+                                <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 dark:bg-ink-700 rounded-full px-2 sm:px-3 py-1.5">
+                                    <button
+                                        onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
+                                        className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
+                                    >
+                                        <Minus size={13} />
+                                    </button>
+                                    <span className="text-sm font-semibold w-4 text-center text-slate-800 dark:text-gold-50">{item.quantity}</span>
+                                    <button
+                                        onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
+                                        className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
+                                    >
+                                        <Plus size={13} />
+                                    </button>
+                                </div>
                                 <button
-                                    onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
+                                    onClick={() => removeItem(item.product_id)}
+                                    className="text-slate-300 dark:text-gold-200/40 hover:text-red-500 transition p-1 shrink-0"
+                                    title="Remove"
                                 >
-                                    <Minus size={13} />
+                                    <Trash2 size={18} />
                                 </button>
-                                <span className="text-sm font-semibold w-4 text-center text-slate-800 dark:text-gold-50">{item.quantity}</span>
+                            </div>
+                        ))}
+
+                        {/* SELLER CONTACT — grouped by seller (only shown for pickup) */}
+                        {deliveryMethod === 'pickup' && (
+                            <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 mt-2">
+                                <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">
+                                    Chat with sellers
+                                </p>
+                                <div className="space-y-2">
+                                    {Object.values(sellerGroups).map((group) => {
+                                        const number = formatWhatsAppNumber(group.whatsapp);
+                                        const message = buildWhatsAppMessage(group.sellerName, group.items);
+                                        const href = number
+                                            ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+                                            : null;
+                                        const sellerId = group.items[0]?.seller_id;
+
+                                        return (
+                                            <div key={group.sellerName + (group.whatsapp || '')} className="flex gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        if (!user) return navigate('/login');
+                                                        if (!sellerId) return toast.error('Could not identify this seller');
+                                                        openChat({
+                                                            sellerId,
+                                                            sellerName: group.sellerName,
+                                                            productId: group.items[0]?.product_id,
+                                                        });
+                                                    }}
+                                                    className="flex-1 flex items-center justify-between gap-3 px-3 sm:px-4 py-3 rounded-xl border border-brand-200 dark:border-gold-800 bg-brand-50 dark:bg-gold-900/30 hover:bg-brand-100 dark:hover:bg-gold-900/50 text-brand-800 dark:text-gold-300 text-sm font-semibold transition"
+                                                >
+                                                    <span className="truncate">Message {group.sellerName} in-app</span>
+                                                </button>
+
+                                                <a
+                                                    href={href || '#'}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => {
+                                                        if (!user) {
+                                                            e.preventDefault();
+                                                            navigate('/login');
+                                                            return;
+                                                        }
+                                                        if (!href) {
+                                                            e.preventDefault();
+                                                            alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
+                                                        }
+                                                    }}
+                                                    className={`flex items-center justify-center px-3 sm:px-4 py-3 rounded-xl border transition shrink-0 ${
+                                                        href
+                                                            ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                                                            : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 cursor-not-allowed'
+                                                    }`}
+                                                    title="Chat on WhatsApp"
+                                                >
+                                                    <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
+                                                </a>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SUMMARY - Sticky on desktop, normal on mobile */}
+                    <div className="lg:col-span-1">
+                        <div className="lg:sticky lg:top-24 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                            <h3 className="font-bold text-slate-900 dark:text-gold-50 mb-4">Order summary</h3>
+
+                            <div className="space-y-2 mb-5">
                                 <button
-                                    onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white dark:hover:bg-ink-600 text-slate-600 dark:text-gold-200 transition"
+                                    onClick={() => setDeliveryMethod('pickup')}
+                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
+                                        deliveryMethod === 'pickup'
+                                            ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
+                                            : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
+                                    }`}
                                 >
-                                    <Plus size={13} />
+                                    <MapPin size={16} className={deliveryMethod === 'pickup' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Meet on campus</p>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50">Free — arrange with the seller</p>
+                                    </div>
                                 </button>
+                                <button
+                                    onClick={() => setDeliveryMethod('delivery')}
+                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
+                                        deliveryMethod === 'delivery'
+                                            ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
+                                            : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
+                                    }`}
+                                >
+                                    <Truck size={16} className={deliveryMethod === 'delivery' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Delivery</p>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50">Fee based on distance</p>
+                                    </div>
+                                </button>
+
+                                {deliveryMethod === 'delivery' && (
+                                    <div className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700">
+                                        <label className="flex items-center gap-2.5 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={onCampusChecked}
+                                                onChange={(e) => handleOnCampusToggle(e.target.checked)}
+                                                disabled={verifyingCampus}
+                                                className="w-4 h-4 rounded accent-brand-600 dark:accent-gold-500"
+                                            />
+                                            <span className="text-sm font-medium text-slate-700 dark:text-gold-100">
+                                                Are you on campus?
+                                            </span>
+                                        </label>
+
+                                        {verifyingCampus && (
+                                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2 flex items-center gap-1.5">
+                                                <Loader2 size={12} className="animate-spin" /> Checking your location…
+                                            </p>
+                                        )}
+                                        {!verifyingCampus && confirmedOnCampus === true && (
+                                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                                                ✓ You're on campus — delivery is GHS 10.
+                                            </p>
+                                        )}
+                                        {!verifyingCampus && confirmedOnCampus === false && (
+                                            <p className="text-xs text-red-500 mt-2">
+                                                You are not on campus. Standard delivery rates apply based on your distance.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                            <button
-                                onClick={() => removeItem(item.product_id)}
-                                className="text-slate-300 dark:text-gold-200/40 hover:text-red-500 transition p-1"
-                                title="Remove"
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        </div>
-                    ))}
 
-                    {/* SELLER CONTACT — grouped by seller (only shown for pickup) */}
-                    {deliveryMethod === 'pickup' && (
-                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 mt-2">
-                            <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">
-                                Chat with sellers
-                            </p>
-                            <div className="space-y-2">
-                                {Object.values(sellerGroups).map((group) => {
-                                    const number = formatWhatsAppNumber(group.whatsapp);
-                                    const message = buildWhatsAppMessage(group.sellerName, group.items);
-                                    const href = number
-                                        ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
-                                        : null;
-                                    const sellerId = group.items[0]?.seller_id;
+                            {deliveryMethod === 'delivery' && confirmedOnCampus !== true && (
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-3 mb-1">Delivered within 1–3 working days.</p>
+                            )}
 
-                                    return (
-                                        <div key={group.sellerName + (group.whatsapp || '')} className="flex gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    if (!user) return navigate('/login');
-                                                    if (!sellerId) return toast.error('Could not identify this seller');
-                                                    openChat({
-                                                        sellerId,
-                                                        sellerName: group.sellerName,
-                                                        productId: group.items[0]?.product_id,
-                                                    });
-                                                }}
-                                                className="flex-1 flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-brand-200 dark:border-gold-800 bg-brand-50 dark:bg-gold-900/30 hover:bg-brand-100 dark:hover:bg-gold-900/50 text-brand-800 dark:text-gold-300 text-sm font-semibold transition"
-                                            >
-                                                <span>Message {group.sellerName} in-app</span>
-                                            </button>
-
-                                            <a
-                                                href={href || '#'}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                onClick={(e) => {
-                                                    if (!user) {
-                                                        e.preventDefault();
-                                                        navigate('/login');
-                                                        return;
-                                                    }
-                                                    if (!href) {
-                                                        e.preventDefault();
-                                                        alert(`${group.sellerName} hasn't added a WhatsApp number yet.`);
-                                                    }
-                                                }}
-                                                className={`flex items-center justify-center px-4 py-3 rounded-xl border transition shrink-0 ${
-                                                    href
-                                                        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
-                                                        : 'border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700 cursor-not-allowed'
-                                                }`}
-                                                title="Chat on WhatsApp"
-                                            >
-                                                <WhatsAppIcon className={`w-5 h-5 ${href ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-gold-200/30'}`} />
-                                            </a>
-                                        </div>
-                                    );
-                                })}
+                            <div className="border-t border-slate-100 dark:border-ink-600 pt-4 space-y-2.5">
+                                <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
+                                    <span>Subtotal ({itemCount} item{itemCount > 1 ? 's' : ''})</span>
+                                    <span>GHS {subtotal.toFixed(2)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
+                                    <span>Delivery</span>
+                                    <span>{deliveryFee > 0 ? `GHS ${deliveryFee.toFixed(2)}` : 'Free'}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
+                                    <span>Service fee</span>
+                                    <span>GHS {serviceFee.toFixed(2)}</span>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
 
-                {/* SUMMARY */}
-                <div className="lg:col-span-1">
-                    <div className="sticky top-24 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-                        <h3 className="font-bold text-slate-900 dark:text-gold-50 mb-4">Order summary</h3>
+                            <div className="border-t border-slate-100 dark:border-ink-600 mt-4 pt-4 flex items-center justify-between mb-6">
+                                <span className="font-semibold text-slate-900 dark:text-gold-50">Total</span>
+                                <span className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">GHS {grandTotal.toFixed(2)}</span>
+                            </div>
 
-                        <div className="space-y-2 mb-5">
                             <button
-                                onClick={() => setDeliveryMethod('pickup')}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
-                                    deliveryMethod === 'pickup'
-                                        ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
-                                        : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
-                                }`}
+                                onClick={handleAction}
+                                disabled={paying || (deliveryMethod === 'delivery' && locating)}
+                                className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 hover:opacity-90 text-white dark:text-ink-900 font-semibold text-sm transition shadow-sm disabled:opacity-60"
                             >
-                                <MapPin size={16} className={deliveryMethod === 'pickup' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Meet on campus</p>
-                                    <p className="text-xs text-slate-400 dark:text-gold-200/50">Free — arrange with the seller</p>
-                                </div>
+                                {paying ? 'Redirecting to payment…' : (deliveryMethod === 'pickup' ? 'Chat with Seller(s)' : `Pay · GHS ${grandTotal.toFixed(2)}`)}
                             </button>
-                            <button
-                                onClick={() => setDeliveryMethod('delivery')}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
-                                    deliveryMethod === 'delivery'
-                                        ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
-                                        : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
-                                }`}
-                            >
-                                <Truck size={16} className={deliveryMethod === 'delivery' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Delivery</p>
-                                    <p className="text-xs text-slate-400 dark:text-gold-200/50">Fee based on distance</p>
-                                </div>
-                            </button>
-
-                            {deliveryMethod === 'delivery' && (
-                                <div className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700">
-                                    <label className="flex items-center gap-2.5 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={onCampusChecked}
-                                            onChange={(e) => handleOnCampusToggle(e.target.checked)}
-                                            disabled={verifyingCampus}
-                                            className="w-4 h-4 rounded accent-brand-600 dark:accent-gold-500"
-                                        />
-                                        <span className="text-sm font-medium text-slate-700 dark:text-gold-100">
-                                            Are you on campus?
-                                        </span>
-                                    </label>
-
-                                    {verifyingCampus && (
-                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2 flex items-center gap-1.5">
-                                            <Loader2 size={12} className="animate-spin" /> Checking your location…
-                                        </p>
-                                    )}
-                                    {!verifyingCampus && confirmedOnCampus === true && (
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-                                            ✓ You're on campus — delivery is GHS 10.
-                                        </p>
-                                    )}
-                                    {!verifyingCampus && confirmedOnCampus === false && (
-                                        <p className="text-xs text-red-500 mt-2">
-                                            You are not on campus. Standard delivery rates apply based on your distance.
-                                        </p>
-                                    )}
-                                </div>
+                            {!user && (
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 text-center mt-3">
+                                    You'll need to log in first
+                                </p>
                             )}
                         </div>
-
-                        {deliveryMethod === 'delivery' && confirmedOnCampus !== true && (
-                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-3 mb-1">Delivered within 1–3 working days.</p>
-                        )}
-
-                        <div className="border-t border-slate-100 dark:border-ink-600 pt-4 space-y-2.5">
-                            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
-                                <span>Subtotal ({itemCount} item{itemCount > 1 ? 's' : ''})</span>
-                                <span>GHS {subtotal.toFixed(2)}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
-                                <span>Delivery</span>
-                                <span>{deliveryFee > 0 ? `GHS ${deliveryFee.toFixed(2)}` : 'Free'}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
-                                <span>Service fee</span>
-                                <span>GHS {serviceFee.toFixed(2)}</span>
-                            </div>
-                        </div>
-
-                        <div className="border-t border-slate-100 dark:border-ink-600 mt-4 pt-4 flex items-center justify-between mb-6">
-                            <span className="font-semibold text-slate-900 dark:text-gold-50">Total</span>
-                            <span className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">GHS {grandTotal.toFixed(2)}</span>
-                        </div>
-
-                        <button
-                            onClick={handleAction}
-                            disabled={paying || (deliveryMethod === 'delivery' && locating)}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 hover:opacity-90 text-white dark:text-ink-900 font-semibold text-sm transition shadow-sm disabled:opacity-60"
-                        >
-                            {paying ? 'Redirecting to payment…' : (deliveryMethod === 'pickup' ? 'Chat with Seller(s)' : `Pay · GHS ${grandTotal.toFixed(2)}`)}
-                        </button>
-                        {!user && (
-                            <p className="text-xs text-slate-400 dark:text-gold-200/50 text-center mt-3">
-                                You'll need to log in first
-                            </p>
-                        )}
                     </div>
                 </div>
             </div>
@@ -417,7 +422,7 @@ export default function Cart() {
 
 function CartHeader({ count }) {
     return (
-        <section className="relative overflow-hidden">
+        <section className="relative overflow-hidden shrink-0">
             <video 
                 autoPlay 
                 loop 
