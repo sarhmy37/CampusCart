@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 
-// Attaches req.userId if a valid token is present. Rejects with 401 otherwise.
+// Attaches req.user (full user object) and req.userId if valid token
 function requireAuth(req, res, next) {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -15,8 +15,17 @@ function requireAuth(req, res, next) {
         req.userId = payload.userId;
         req.userRole = payload.role;
 
-        // Fire-and-forget — don't hold up the response waiting on this.
-        pool.query('UPDATE users SET last_active = now() WHERE id = $1', [req.userId]).catch(() => {});
+        // Fetch full user object from database
+        pool.query(
+            'SELECT id, name, university_email, school, account_type, role, verified, avatar_url FROM users WHERE id = $1',
+            [req.userId]
+        ).then((result) => {
+            if (result.rows.length > 0) {
+                req.user = result.rows[0];
+            }
+            // Fire-and-forget update
+            pool.query('UPDATE users SET last_active = now() WHERE id = $1', [req.userId]).catch(() => {});
+        }).catch(() => {});
 
         next();
     } catch (err) {

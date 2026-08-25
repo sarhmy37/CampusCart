@@ -26,7 +26,7 @@ router.get('/webauthn/check', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             'SELECT id FROM webauthn_credentials WHERE user_id = $1 LIMIT 1',
-            [req.user.id]
+            [req.userId]
         );
         res.json({ hasPasskey: result.rows.length > 0 });
     } catch (err) {
@@ -39,17 +39,29 @@ router.get('/webauthn/check', requireAuth, async (req, res) => {
 // REGISTRATION — user is already logged in
 // =========================================================
 router.post('/webauthn/register-options', requireAuth, async (req, res) => {
-    const user = req.user;
+    const userId = req.userId;
+
+    // Get user details for display name
+    const userRes = await pool.query(
+        'SELECT id, name, university_email FROM users WHERE id = $1',
+        [userId]
+    );
+    
+    if (userRes.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userRes.rows[0];
 
     const existingCreds = await pool.query(
         'SELECT credential_id, transports FROM webauthn_credentials WHERE user_id = $1',
-        [user.id]
+        [userId]
     );
 
     const options = await generateRegistrationOptions({
         rpName: RP_NAME,
         rpID: RP_ID,
-        userID: isoUint8Array.fromUTF8String(String(user.id)),
+        userID: isoUint8Array.fromUTF8String(String(userId)),
         userName: user.university_email,
         userDisplayName: user.name,
         attestationType: 'none',
@@ -64,13 +76,13 @@ router.post('/webauthn/register-options', requireAuth, async (req, res) => {
         },
     });
 
-    challengeStore.set(`reg:${user.id}`, options.challenge);
+    challengeStore.set(`reg:${userId}`, options.challenge);
     res.json(options);
 });
 
 router.post('/webauthn/register-verify', requireAuth, async (req, res) => {
-    const user = req.user;
-    const expectedChallenge = challengeStore.get(`reg:${user.id}`);
+    const userId = req.userId;
+    const expectedChallenge = challengeStore.get(`reg:${userId}`);
 
     if (!expectedChallenge) {
         return res.status(400).json({ error: 'Registration session expired, try again' });
@@ -89,7 +101,7 @@ router.post('/webauthn/register-verify', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Could not verify device' });
     }
 
-    challengeStore.delete(`reg:${user.id}`);
+    challengeStore.delete(`reg:${userId}`);
 
     if (!verification.verified || !verification.registrationInfo) {
         return res.status(400).json({ error: 'Verification failed' });
@@ -102,7 +114,7 @@ router.post('/webauthn/register-verify', requireAuth, async (req, res) => {
          (user_id, credential_id, public_key, counter, device_type, transports)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
-            user.id,
+            userId,
             credential.id,
             Buffer.from(credential.publicKey),
             credential.counter,
