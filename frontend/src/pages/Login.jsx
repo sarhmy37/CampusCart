@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { LOGIN_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+
+const LOGO_FULL = 'Tre-X';
+const TAGLINE_FULL = 'Your campus marketplace';
+const TYPE_SPEED_MS = 70;   // per character — tweak to taste
+const PULSE_ALONE_MS = 5000;
+const HOLD_MS = 10000;
 
 export default function Login() {
     const { login } = useAuth();
@@ -11,6 +17,61 @@ export default function Login() {
     const [form, setForm] = useState({ university_email: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    // --- Animated logo sequence ---
+    const [phase, setPhase] = useState('pulse'); // 'pulse' | 'typing-logo' | 'typing-tagline' | 'hold'
+    const [logoText, setLogoText] = useState('');
+    const [taglineText, setTaglineText] = useState('');
+    const [cycle, setCycle] = useState(0); // bump this to restart the whole loop
+
+    // Reset + kick off pulse-alone phase every cycle
+    useEffect(() => {
+        setPhase('pulse');
+        setLogoText('');
+        setTaglineText('');
+        const t = setTimeout(() => setPhase('typing-logo'), PULSE_ALONE_MS);
+        return () => clearTimeout(t);
+    }, [cycle]);
+
+    // Type "Tre-X" — the image shift is driven by `phase` via CSS below,
+    // so it happens at the same time as this typing.
+    useEffect(() => {
+        if (phase !== 'typing-logo') return;
+        let i = 0;
+        const interval = setInterval(() => {
+            i++;
+            setLogoText(LOGO_FULL.slice(0, i));
+            if (i >= LOGO_FULL.length) {
+                clearInterval(interval);
+                setPhase('typing-tagline');
+            }
+        }, TYPE_SPEED_MS);
+        return () => clearInterval(interval);
+    }, [phase]);
+
+    // Type the tagline underneath
+    useEffect(() => {
+        if (phase !== 'typing-tagline') return;
+        let i = 0;
+        const interval = setInterval(() => {
+            i++;
+            setTaglineText(TAGLINE_FULL.slice(0, i));
+            if (i >= TAGLINE_FULL.length) {
+                clearInterval(interval);
+                setPhase('hold');
+            }
+        }, TYPE_SPEED_MS);
+        return () => clearInterval(interval);
+    }, [phase]);
+
+    // Hold for 10s, then loop
+    useEffect(() => {
+        if (phase !== 'hold') return;
+        const t = setTimeout(() => setCycle((c) => c + 1), HOLD_MS);
+        return () => clearTimeout(t);
+    }, [phase]);
+
+    const isShifted = phase !== 'pulse';
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -87,8 +148,42 @@ export default function Login() {
                     <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/15 rounded-full blur-3xl" />
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
-                        <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
-                        <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
+                        {/* Logo image + typed wordmark, side by side */}
+                        <div className="flex items-center">
+                            <div
+                                className={`flex items-center transition-transform duration-500 ease-out ${
+                                    isShifted ? '-translate-x-2' : 'translate-x-0'
+                                }`}
+                            >
+                                <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
+                                <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
+                            </div>
+
+                            {/* Typed "Tre-X" appears here as the image shifts left */}
+                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0 ml-2">
+                                <span className="text-xl xl:text-2xl text-white">
+                                    {logoText.slice(0, 3)}
+                                </span>
+                                <span className="text-xl xl:text-2xl text-white mx-0.5">
+                                    {logoText.slice(3, 4)}
+                                </span>
+                                <span className="text-2xl xl:text-3xl italic text-accent-300 dark:text-gold-400 leading-none">
+                                    {logoText.slice(4, 5)}
+                                </span>
+                                {phase === 'typing-logo' && (
+                                    <span className="inline-block w-[2px] h-5 bg-white/80 ml-1 animate-pulse" />
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Typed tagline underneath */}
+                        <p className="mt-3 text-white/80 text-sm max-w-sm min-h-[1.25rem]">
+                            {taglineText}
+                            {phase === 'typing-tagline' && (
+                                <span className="inline-block w-[2px] h-4 bg-white/70 ml-0.5 animate-pulse align-middle" />
+                            )}
+                        </p>
+
                         <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
                             Welcome back to your campus marketplace.
                         </h1>
