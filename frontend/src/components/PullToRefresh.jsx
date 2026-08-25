@@ -15,49 +15,65 @@ export default function PullToRefresh({ children }) {
     const dragging = useRef(false);
 
     useEffect(() => {
-        const onTouchStart = (e) => {
-            if (window.scrollY === 0 && !refreshing) {
-                startY.current = e.touches[0].clientY;
-                dragging.current = true;
-                setIsDragging(true);
-            }
-        };
+    // Any modal/drawer that locks body scroll (ProfileDrawer, ConfirmModal,
+    // VerifyModal, etc.) sets document.body.style.position = 'fixed'.
+    // While that's true, window.scrollY is pinned at 0 even though the user
+    // isn't actually at the top of the page — so we must not treat that as
+    // "safe to pull-to-refresh".
+    const isScrollLocked = () => document.body.style.position === 'fixed';
 
-        const onTouchMove = (e) => {
-            if (!dragging.current || startY.current === null || refreshing) return;
-            const diff = e.touches[0].clientY - startY.current;
+    const onTouchStart = (e) => {
+        if (isScrollLocked()) return;
+        if (window.scrollY === 0 && !refreshing) {
+            startY.current = e.touches[0].clientY;
+            dragging.current = true;
+            setIsDragging(true);
+        }
+    };
 
-            if (diff > 0 && window.scrollY === 0) {
-                e.preventDefault();
-                setPullDistance(Math.min(diff * 0.5, MAX_PULL));
-            }
-        };
-
-        const onTouchEnd = () => {
-            if (!dragging.current) return;
+    const onTouchMove = (e) => {
+        if (!dragging.current || startY.current === null || refreshing) return;
+        if (isScrollLocked()) {
+            // A modal opened mid-drag — bail out cleanly instead of pulling.
             dragging.current = false;
             setIsDragging(false);
-
-            if (pullDistance >= PULL_THRESHOLD) {
-                setRefreshing(true);
-                setPullDistance(PULL_THRESHOLD);
-                setTimeout(() => window.location.reload(), REFRESH_HOLD_MS);
-            } else {
-                setPullDistance(0);
-            }
+            setPullDistance(0);
             startY.current = null;
-        };
+            return;
+        }
+        const diff = e.touches[0].clientY - startY.current;
 
-        window.addEventListener('touchstart', onTouchStart, { passive: true });
-        window.addEventListener('touchmove', onTouchMove, { passive: false });
-        window.addEventListener('touchend', onTouchEnd, { passive: true });
+        if (diff > 0 && window.scrollY === 0) {
+            e.preventDefault();
+            setPullDistance(Math.min(diff * 0.5, MAX_PULL));
+        }
+    };
 
-        return () => {
-            window.removeEventListener('touchstart', onTouchStart);
-            window.removeEventListener('touchmove', onTouchMove);
-            window.removeEventListener('touchend', onTouchEnd);
-        };
-    }, [pullDistance, refreshing]);
+    const onTouchEnd = () => {
+        if (!dragging.current) return;
+        dragging.current = false;
+        setIsDragging(false);
+
+        if (pullDistance >= PULL_THRESHOLD) {
+            setRefreshing(true);
+            setPullDistance(PULL_THRESHOLD);
+            setTimeout(() => window.location.reload(), REFRESH_HOLD_MS);
+        } else {
+            setPullDistance(0);
+        }
+        startY.current = null;
+    };
+
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+        window.removeEventListener('touchstart', onTouchStart);
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+    };
+}, [pullDistance, refreshing]);
 
     const progress = Math.min(pullDistance / PULL_THRESHOLD, 1);
 

@@ -52,47 +52,33 @@ export default function ProfileDrawer({ open, onClose }) {
     const onCooldown = cooldownRemaining > 0;
     const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
 
-useEffect(() => {
-    if (open) {
-        const scrollY = window.scrollY;
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${scrollY}px`;
-        document.body.style.left = '0';
-        document.body.style.right = '0';
-        document.body.style.overflow = 'hidden';
-        document.body.style.touchAction = 'none';
-        document.documentElement.style.overscrollBehavior = 'none';
+    // 👇 Lock body scroll when drawer is open (prevents background scrolling & pull-to-refresh)
+    useEffect(() => {
+        if (open) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
 
-        // 👇 Block touchmove on background
-        const preventTouchMove = (e) => {
-            if (!drawerRef.current?.contains(e.target)) {
-                e.preventDefault();
+            if (drawerRef.current) {
+                drawerRef.current.scrollTop = 0;
             }
-        };
-        document.addEventListener('touchmove', preventTouchMove, { passive: false });
-        window.__preventTouchMove = preventTouchMove;
-
-        if (drawerRef.current) {
-            drawerRef.current.scrollTop = 0;
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
-    } else {
-        const scrollY = document.body.style.top;
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.overflow = '';
-        document.body.style.touchAction = '';
-        document.documentElement.style.overscrollBehavior = '';
-
-        if (window.__preventTouchMove) {
-            document.removeEventListener('touchmove', window.__preventTouchMove);
-            delete window.__preventTouchMove;
-        }
-
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
-    }
-}, [open]);
+    }, [open]);
 
     // 👇 Reset dropdowns when drawer closes
     useEffect(() => {
