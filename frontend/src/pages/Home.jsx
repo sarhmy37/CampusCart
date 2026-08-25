@@ -137,7 +137,7 @@ export default function Home() {
 
                     <Reveal delay={100}>
                         <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] text-white max-w-2xl">
-                            Buy & sell within your campus, safely.
+                            Your campus. Your marketplace. Your vibe. 🛒 ⇄ 💰  
                         </h1>
                     </Reveal>
 
