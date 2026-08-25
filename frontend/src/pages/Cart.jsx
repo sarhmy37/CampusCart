@@ -184,8 +184,13 @@ export default function Cart() {
             });
             clearCart();
             window.location.href = res.data.authorization_url;
-        } catch (err) {
-            toast.error(err.response?.data?.error || 'Checkout failed');
+                } catch (err) {
+                        if (err.response?.data?.needs_verification) {
+                toast.error('Please verify your email before placing an order');
+                navigate('/', { state: { openProfile: true } });
+            } else {
+                toast.error(err.response?.data?.error || 'Checkout failed');
+            }
             setPaying(false);
         }
     };
