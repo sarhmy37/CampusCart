@@ -58,16 +58,31 @@ export function AuthProvider({ children }) {
     };
 
     const uploadAvatar = async (file) => {
-        // Assumes POST /auth/me/avatar accepting multipart/form-data with field "avatar"
-        const formData = new FormData();
-        formData.append('avatar', file);
-        const res = await api.post('/auth/me/avatar', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        localStorage.setItem('cc_user', JSON.stringify(res.data));
-        setUser(res.data);
-        return res.data;
-    };
+    const CLOUD_NAME = 'b7fch4rp';
+    const UPLOAD_PRESET = 'campuscart_preset';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!cloudRes.ok) {
+        const error = await cloudRes.json();
+        throw new Error(error.error?.message || 'Avatar upload failed');
+    }
+
+    const cloudData = await cloudRes.json();
+    const avatarUrl = cloudData.secure_url;
+
+    const res = await api.patch('/auth/me', { avatar_url: avatarUrl });
+    localStorage.setItem('cc_user', JSON.stringify(res.data));
+    setUser(res.data);
+    return res.data;
+};
 
     return (
         <AuthContext.Provider value={{ user, login, setUser, register, logout, loading, updateProfile, uploadAvatar }}>
