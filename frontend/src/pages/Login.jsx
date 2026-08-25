@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/client';
 import { LOGIN_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
-import { Mail, Lock, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
     const { login } = useAuth();
@@ -12,7 +11,6 @@ export default function Login() {
     const [form, setForm] = useState({ university_email: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [faceLoading, setFaceLoading] = useState(false);
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -25,56 +23,6 @@ export default function Login() {
             toast.error(err.response?.data?.error || 'Login failed');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleFaceLogin = async () => {
-        if (!window.PublicKeyCredential) {
-            toast.error('Your browser does not support Face ID / Passkey.');
-            return;
-        }
-
-        setFaceLoading(true);
-        try {
-            // Step 1: First check if the user has a passkey
-            // We'll try to get login options. If no passkey exists, the backend will return an error.
-            const optionsRes = await api.post('/auth/webauthn/login-options');
-            const { options, loginToken } = optionsRes.data;
-
-            // Step 2: Authenticate with browser (Face ID / Fingerprint)
-            const credential = await navigator.credentials.get({
-                publicKey: options,
-            });
-
-            // Step 3: Verify with backend
-            const verifyRes = await api.post('/auth/webauthn/login-verify', {
-                loginToken,
-                response: credential,
-            });
-
-            const { token, user } = verifyRes.data;
-            localStorage.setItem('cc_token', token);
-            localStorage.setItem('cc_user', JSON.stringify(user));
-            toast.success(`Welcome back, ${user.name}! 👋`);
-            navigate('/');
-        } catch (err) {
-            // Check if the error is because user has no passkey
-            if (err.response?.data?.error === 'No passkey found for this account' || 
-                err.response?.data?.error === 'No passkey registered for this account' ||
-                err.response?.data?.error === 'Credential not recognized') {
-                toast.error(
-                    'No Face ID / Passkey found. Please set one up in Settings first.', 
-                    { duration: 5000 }
-                );
-            } else if (err.name === 'NotAllowedError') {
-                toast.error('Face ID / Fingerprint was cancelled or not recognized.');
-            } else if (err.response?.data?.error) {
-                toast.error(err.response.data.error);
-            } else {
-                toast.error('Face ID login failed. Please try again.');
-            }
-        } finally {
-            setFaceLoading(false);
         }
     };
 
@@ -214,18 +162,10 @@ export default function Login() {
                                 </button>
                             </form>
 
-                            <div className="mt-6 flex items-center justify-center gap-3">
+                            <div className="mt-6 flex items-center justify-center">
                                 <p className="text-sm text-slate-500 dark:text-gold-200/50">
                                     Don't have an account? <Link to="/register" className="text-brand-600 dark:text-gold-400 font-semibold">Sign up</Link>
                                 </p>
-                                <button
-                                    onClick={handleFaceLogin}
-                                    disabled={faceLoading}
-                                    className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-ink-700 transition text-slate-400 dark:text-gold-200/60 disabled:opacity-40"
-                                    title="Login with Face ID"
-                                >
-                                    <Fingerprint size={18} className={faceLoading ? 'animate-pulse' : ''} />
-                                </button>
                             </div>
                         </div>
                     </div>
