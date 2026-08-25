@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/client';
 import { LOGIN_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Fingerprint } from 'lucide-react';
 
 export default function Login() {
     const { login } = useAuth();
@@ -11,6 +12,32 @@ export default function Login() {
     const [form, setForm] = useState({ university_email: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [faceLoading, setFaceLoading] = useState(false);
+
+    useEffect(() => {
+        // Auto-trigger Face ID login if the user has a passkey
+        const autoLoginWithPasskey = async () => {
+            // Only run on page load, not on every render
+            if (sessionStorage.getItem('face_login_attempted') === 'true') return;
+            sessionStorage.setItem('face_login_attempted', 'true');
+
+            // Check if browser supports WebAuthn
+            if (!window.PublicKeyCredential) return;
+
+            try {
+                // Check if user has any passkey (we'll try to get login options without email)
+                // First, we need to get a list of credentials for the user.
+                // Since we don't have the email, we'll just try to authenticate.
+                // The backend will need to support a "discoverable" credential flow.
+                
+                // For now, we'll show the icon and let the user click it.
+                // The user still needs to click the icon to trigger Face ID.
+            } catch {
+                // Silently fail
+            }
+        };
+        autoLoginWithPasskey();
+    }, []);
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -26,9 +53,50 @@ export default function Login() {
         }
     };
 
+    const handleFaceLogin = async () => {
+        if (!window.PublicKeyCredential) {
+            toast.error('Your browser does not support Face ID / Passkey.');
+            return;
+        }
+
+        setFaceLoading(true);
+        try {
+            // Step 1: Get login options from backend (without email)
+            const optionsRes = await api.post('/auth/webauthn/login-options');
+            const { options, loginToken } = optionsRes.data;
+
+            // Step 2: Authenticate with browser (Face ID / Fingerprint)
+            const credential = await navigator.credentials.get({
+                publicKey: options,
+            });
+
+            // Step 3: Verify with backend
+            const verifyRes = await api.post('/auth/webauthn/login-verify', {
+                loginToken,
+                response: credential,
+            });
+
+            const { token, user } = verifyRes.data;
+            localStorage.setItem('cc_token', token);
+            localStorage.setItem('cc_user', JSON.stringify(user));
+            toast.success(`Welcome back, ${user.name}! 👋`);
+            navigate('/');
+        } catch (err) {
+            if (err.name === 'NotAllowedError') {
+                toast.error('Face ID / Fingerprint was cancelled or not recognized.');
+            } else if (err.response?.data?.error) {
+                toast.error(err.response.data.error);
+            } else {
+                toast.error('Face ID login failed. Please try again.');
+            }
+        } finally {
+            setFaceLoading(false);
+        }
+    };
+
     return (
         <>
-            {/* Autofill styles – ash/gray-gold */}
+            {/* Autofill styles */}
             <style>{`
                 input:-webkit-autofill,
                 input:-webkit-autofill:hover,
@@ -71,8 +139,7 @@ export default function Login() {
             `}</style>
 
             <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2 relative overflow-hidden">
-                {/* MOBILE-ONLY background treatment — replaces the flat bg-slate-50 that
-                    showed on phones once the lg:block visual panel disappeared. */}
+                {/* MOBILE-ONLY background treatment */}
                 <div className="absolute inset-0 lg:hidden">
                     <img src={LOGIN_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover opacity-[0.14] dark:opacity-[0.10]" />
                     <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-slate-50/95 to-slate-50 dark:from-ink-900 dark:via-ink-900/95 dark:to-ink-900" />
@@ -102,7 +169,7 @@ export default function Login() {
                 {/* RIGHT — form */}
                 <div className="relative z-10 flex items-center justify-center px-4 py-14 sm:py-16 lg:bg-slate-50 lg:dark:bg-ink-900">
                     <div className="w-full max-w-sm">
-                        {/* Logo — mobile only, since the desktop panel already carries it */}
+                        {/* Logo — mobile only */}
                         <div className="flex justify-center mb-8 lg:hidden">
                             <img src={LOGO_DARK} alt="Tre-X" className="h-9 w-auto dark:hidden logo-pulse" />
                             <img src={LOGO_LIGHT} alt="Tre-X" className="h-9 w-auto hidden dark:block logo-pulse" />
@@ -163,9 +230,19 @@ export default function Login() {
                                 </button>
                             </form>
 
-                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-6 text-center">
-                                Don't have an account? <Link to="/register" className="text-brand-600 dark:text-gold-400 font-semibold">Sign up</Link>
-                            </p>
+                            <div className="mt-6 flex items-center justify-center gap-3">
+                                <p className="text-sm text-slate-500 dark:text-gold-200/50">
+                                    Don't have an account? <Link to="/register" className="text-brand-600 dark:text-gold-400 font-semibold">Sign up</Link>
+                                </p>
+                                <button
+                                    onClick={handleFaceLogin}
+                                    disabled={faceLoading}
+                                    className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-ink-700 transition text-slate-400 dark:text-gold-200/60 disabled:opacity-40"
+                                    title="Login with Face ID"
+                                >
+                                    <Fingerprint size={18} className={faceLoading ? 'animate-pulse' : ''} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

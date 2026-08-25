@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 
 const authRoutes = require('./routes/auth');
+const webauthnRoutes = require('./routes/webauthn'); // 👈 added
 
 const productRoutes = require('./routes/products');
 
@@ -50,6 +51,7 @@ app.use('/media', express.static(path.join(__dirname, '..', 'media')));
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', webauthnRoutes); // 👈 WebAuthn routes mounted here
 
 app.use('/api/products', productRoutes);
 

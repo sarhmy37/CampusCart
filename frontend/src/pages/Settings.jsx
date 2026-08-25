@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck, Info,
-    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift, Phone, MessageCircle
+    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift, Phone, MessageCircle,
+    Fingerprint
 } from 'lucide-react';
 import { SETTINGS_VIDEO } from '../data/media';
 
@@ -33,6 +34,10 @@ export default function Settings() {
     const [saving, setSaving] = useState(false);
     const [termsOpen, setTermsOpen] = useState(false);
     const [fullTermsOpen, setFullTermsOpen] = useState(false);
+
+    // Face ID / Passkey states
+    const [webauthnLoading, setWebauthnLoading] = useState(false);
+    const [hasPasskey, setHasPasskey] = useState(false);
 
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deletePassword, setDeletePassword] = useState('');
@@ -67,6 +72,19 @@ export default function Settings() {
     );
     
     const [referrals, setReferrals] = useState([]);
+
+    // Check if user has a passkey
+    useEffect(() => {
+        const checkPasskey = async () => {
+            try {
+                const res = await api.get('/auth/webauthn/check');
+                setHasPasskey(res.data.hasPasskey);
+            } catch {
+                setHasPasskey(false);
+            }
+        };
+        if (user) checkPasskey();
+    }, [user]);
 
     useEffect(() => {
         api.get('/auth/me').then((res) => {
@@ -138,6 +156,41 @@ export default function Settings() {
         }
     };
 
+    // Handle Face ID / Passkey registration
+    const handleAddPasskey = async () => {
+        if (!window.PublicKeyCredential) {
+            toast.error('Your browser does not support Face ID / Passkey.');
+            return;
+        }
+
+        setWebauthnLoading(true);
+        try {
+            // Step 1: Get registration options from backend
+            const optionsRes = await api.post('/auth/webauthn/register-options');
+            const options = optionsRes.data;
+
+            // Step 2: Create credential with browser (Face ID / Fingerprint)
+            const credential = await navigator.credentials.create({
+                publicKey: options,
+            });
+
+            // Step 3: Verify with backend
+            await api.post('/auth/webauthn/register-verify', credential);
+            toast.success('✅ Face ID / Passkey added successfully!');
+            setHasPasskey(true);
+        } catch (err) {
+            if (err.name === 'NotAllowedError') {
+                toast.error('Face ID / Fingerprint was cancelled or not recognized.');
+            } else if (err.response?.data?.error) {
+                toast.error(err.response.data.error);
+            } else {
+                toast.error('Failed to add Face ID / Passkey. Please try again.');
+            }
+        } finally {
+            setWebauthnLoading(false);
+        }
+    };
+
     return (
         <div>
             <section className="relative overflow-hidden">
@@ -182,6 +235,41 @@ export default function Settings() {
                             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform flex items-center justify-center ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0.5'}`} />
                         </button>
                     </div>
+                </div>
+
+                {/* FACE ID / PASSKEY - NEW SECTION */}
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                            <Fingerprint size={16} />
+                        </div>
+                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Face ID / Passkey</h2>
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                        Use Face ID, fingerprint, or Windows Hello to log in instantly on supported devices.
+                    </p>
+                    
+                    {hasPasskey ? (
+                        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                            <span className="text-emerald-500">✅</span> Passkey is set up
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleAddPasskey}
+                            disabled={webauthnLoading}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
+                        >
+                            {webauthnLoading ? (
+                                <>
+                                    <span className="animate-spin">⏳</span> Adding...
+                                </>
+                            ) : (
+                                <>
+                                    <Fingerprint size={16} /> Add Face ID / Passkey
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
 
                 {/* SELLER FEES & TERMS */}
@@ -421,22 +509,22 @@ export default function Settings() {
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setDelivery('pickup')}
-                            className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${
+                            className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${(
                                 defaultDelivery === 'pickup'
                                     ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
                                     : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
-                            }`}
+                            )}`}
                         >
                             <MapPin size={18} />
                             Meet on campus
                         </button>
                         <button
                             onClick={() => setDelivery('delivery')}
-                            className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${
+                            className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${(
                                 defaultDelivery === 'delivery'
                                     ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
                                     : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
-                            }`}
+                            )}`}
                         >
                             <Truck size={18} />
                             Delivery
@@ -542,7 +630,7 @@ export default function Settings() {
                     )}
                 </div>
 
-                   {/* DANGER ZONE */}
+                {/* DANGER ZONE */}
                 <div className="bg-white dark:bg-ink-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-2">
                         <div className="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center">
