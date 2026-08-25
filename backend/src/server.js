@@ -5,8 +5,6 @@ const path = require('path');
 
 const authRoutes = require('./routes/auth');
 
-const webauthnRoutes = require('./routes/webauthn');
-
 const productRoutes = require('./routes/products');
 
 const categoryRoutes = require('./routes/categories');
@@ -83,8 +81,6 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Mount routes
 app.use('/api/auth', authRoutes);
-
-app.use('/api/auth', webauthnRoutes);
 
 app.use('/api/products', productRoutes);
 
