@@ -16,6 +16,7 @@ import InstallButton from './components/InstallButton';
 import ChatPanel from './components/ChatPanel';
 import PullToRefresh from './components/PullToRefresh';
 import ChatHistory from './pages/ChatHistory';
+import ProfileDrawer from './components/ProfileDrawer';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Login from './pages/Login';
@@ -31,26 +32,24 @@ import OrderConfirmation from './pages/OrderConfirmation';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 
-
-
 export default function App() {
   const [showZoomHint, setShowZoomHint] = useState(false);
   const [zoomHintAnchor, setZoomHintAnchor] = useState(null);
 
-useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (e) => {
-        if (e.key !== 'Enter') return;
-        if (window.innerWidth >= 640) return; // mobile only
-        if (e.target.tagName !== 'INPUT') return;
-        if (localStorage.getItem('cc_zoom_hint_seen') === 'true') return;
+      if (e.key !== 'Enter') return;
+      if (window.innerWidth >= 640) return; // mobile only
+      if (e.target.tagName !== 'INPUT') return;
+      if (localStorage.getItem('cc_zoom_hint_seen') === 'true') return;
 
-        setZoomHintAnchor(e.target.getBoundingClientRect());
-        setShowZoomHint(true);
-        localStorage.setItem('cc_zoom_hint_seen', 'true');
+      setZoomHintAnchor(e.target.getBoundingClientRect());
+      setShowZoomHint(true);
+      localStorage.setItem('cc_zoom_hint_seen', 'true');
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-}, []);
+  }, []);
 
   return (
     <ThemeProvider>
@@ -64,6 +63,7 @@ useEffect(() => {
                     <Navbar />
                     <AppToaster />
                     <AwayTimeoutModal />
+
                     <PullToRefresh>
                       <Routes>
                         <Route path="/" element={<Home />} />
@@ -84,9 +84,16 @@ useEffect(() => {
                         <Route path="/privacy" element={<Privacy />} />
                       </Routes>
                     </PullToRefresh>
+
+                    <ProfileDrawer />
                     <InstallButton />
                     <ChatPanel />
-<ZoomHintOverlay open={showZoomHint} anchorRect={zoomHintAnchor} onDismiss={() => setShowZoomHint(false)} />                  </div>
+                    <ZoomHintOverlay 
+                      open={showZoomHint} 
+                      anchorRect={zoomHintAnchor} 
+                      onDismiss={() => setShowZoomHint(false)} 
+                    />
+                  </div>
                 </BrowserRouter>
               </ChatProvider>
             </NotificationProvider>
