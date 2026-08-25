@@ -18,7 +18,7 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    // --- Animated logo sequence ---
+    // --- Animated logo sequence (MOBILE ONLY) ---
     const [phase, setPhase] = useState('pulse'); // 'pulse' | 'typing-logo' | 'typing-tagline' | 'hold'
     const [logoText, setLogoText] = useState('');
     const [taglineText, setTaglineText] = useState('');
@@ -140,7 +140,7 @@ export default function Login() {
                     <div className="absolute -left-16 bottom-0 w-64 h-64 bg-accent-400/15 dark:bg-gold-700/10 rounded-full blur-3xl" />
                 </div>
 
-                {/* LEFT — visual panel (desktop only) */}
+                {/* LEFT — visual panel (desktop only, STATIC logo, no animation) */}
                 <div className="relative hidden lg:block overflow-hidden">
                     <img src={LOGIN_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/45" />
@@ -148,41 +148,11 @@ export default function Login() {
                     <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/15 rounded-full blur-3xl" />
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
-                        {/* Logo image + typed wordmark, side by side */}
-                        <div className="flex items-center">
-                            <div
-                                className={`flex items-center transition-transform duration-500 ease-out ${
-                                    isShifted ? '-translate-x-2' : 'translate-x-0'
-                                }`}
-                            >
-                                <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
-                                <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
-                            </div>
-
-                            {/* Typed "Tre-X" appears here as the image shifts left */}
-                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0 ml-2">
-                                <span className="text-xl xl:text-2xl text-white">
-                                    {logoText.slice(0, 3)}
-                                </span>
-                                <span className="text-xl xl:text-2xl text-white mx-0.5">
-                                    {logoText.slice(3, 4)}
-                                </span>
-                                <span className="text-2xl xl:text-3xl italic text-accent-300 dark:text-gold-400 leading-none">
-                                    {logoText.slice(4, 5)}
-                                </span>
-                                {phase === 'typing-logo' && (
-                                    <span className="inline-block w-[2px] h-5 bg-white/80 ml-1 animate-pulse" />
-                                )}
-                            </div>
+                        {/* Just the logo, sitting on a translucent pill */}
+                        <div className="inline-flex items-center gap-2 self-start bg-white/10 backdrop-blur-md border border-white/15 rounded-full pl-3 pr-5 py-2 w-fit">
+                            <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
+                            <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
                         </div>
-
-                        {/* Typed tagline underneath */}
-                        <p className="mt-3 text-white/80 text-sm max-w-sm min-h-[1.25rem]">
-                            {taglineText}
-                            {phase === 'typing-tagline' && (
-                                <span className="inline-block w-[2px] h-4 bg-white/70 ml-0.5 animate-pulse align-middle" />
-                            )}
-                        </p>
 
                         <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
                             Welcome back to your campus marketplace.
@@ -196,10 +166,40 @@ export default function Login() {
                 {/* RIGHT — form */}
                 <div className="relative z-10 flex items-center justify-center px-4 py-14 sm:py-16 lg:bg-slate-50 lg:dark:bg-ink-900">
                     <div className="w-full max-w-sm">
-                        {/* Logo — mobile only */}
-                        <div className="flex justify-center mb-8 lg:hidden">
-                            <img src={LOGO_DARK} alt="Tre-X" className="h-12 w-auto dark:hidden logo-pulse" />
-                            <img src={LOGO_LIGHT} alt="Tre-X" className="h-12 w-auto hidden dark:block logo-pulse" />
+                        {/* Logo — mobile only, ANIMATED (pulse alone → type "Tre-X" while shifting → type tagline → hold → repeat) */}
+                        <div className="flex flex-col items-center mb-8 lg:hidden text-center">
+                            <div className="flex items-center justify-center">
+                                <div
+                                    className={`flex items-center transition-transform duration-500 ease-out ${
+                                        isShifted ? '-translate-x-2' : 'translate-x-0'
+                                    }`}
+                                >
+                                    <img src={LOGO_DARK} alt="Tre-X" className="h-12 w-auto dark:hidden logo-pulse" />
+                                    <img src={LOGO_LIGHT} alt="Tre-X" className="h-12 w-auto hidden dark:block logo-pulse" />
+                                </div>
+
+                                <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0 ml-2">
+                                    <span className="text-2xl text-slate-900 dark:text-gold-200">
+                                        {logoText.slice(0, 3)}
+                                    </span>
+                                    <span className="text-2xl text-slate-900 dark:text-gold-200 mx-0.5">
+                                        {logoText.slice(3, 4)}
+                                    </span>
+                                    <span className="text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
+                                        {logoText.slice(4, 5)}
+                                    </span>
+                                    {phase === 'typing-logo' && (
+                                        <span className="inline-block w-[2px] h-5 bg-slate-900/70 dark:bg-gold-200/70 ml-1 animate-pulse" />
+                                    )}
+                                </div>
+                            </div>
+
+                            <p className="mt-2 text-sm text-slate-500 dark:text-gold-200/50 min-h-[1.25rem]">
+                                {taglineText}
+                                {phase === 'typing-tagline' && (
+                                    <span className="inline-block w-[2px] h-4 bg-slate-500/70 dark:bg-gold-200/40 ml-0.5 animate-pulse align-middle" />
+                                )}
+                            </p>
                         </div>
 
                         <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
