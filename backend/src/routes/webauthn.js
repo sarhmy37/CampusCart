@@ -11,7 +11,7 @@ const pool = require('../db/pool');
 
 const router = express.Router();
 
-// ---- Config: change these for your real domain in production ----
+// ---- Config ----
 const RP_NAME = 'Tre-X';
 const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
 const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:5173';
@@ -20,9 +20,24 @@ const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:5173';
 const challengeStore = new Map();
 
 // =========================================================
+// CHECK - if user has a passkey
+// =========================================================
+router.get('/webauthn/check', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT id FROM webauthn_credentials WHERE user_id = $1 LIMIT 1',
+            [req.user.id]
+        );
+        res.json({ hasPasskey: result.rows.length > 0 });
+    } catch (err) {
+        console.error('Check passkey error:', err);
+        res.status(500).json({ error: 'Failed to check passkey status' });
+    }
+});
+
+// =========================================================
 // REGISTRATION — user is already logged in
 // =========================================================
-
 router.post('/webauthn/register-options', requireAuth, async (req, res) => {
     const user = req.user;
 
@@ -100,43 +115,24 @@ router.post('/webauthn/register-verify', requireAuth, async (req, res) => {
 });
 
 // =========================================================
-// LOGIN — user is NOT authenticated yet
+// LOGIN — user is NOT authenticated yet (NO EMAIL REQUIRED!)
 // =========================================================
-
 router.post('/webauthn/login-options', async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email required' });
+    try {
+        const options = await generateAuthenticationOptions({
+            rpID: RP_ID,
+            userVerification: 'required',
+            // No allowCredentials = uses discoverable credentials
+        });
 
-    const userRes = await pool.query(
-        'SELECT id FROM users WHERE university_email = $1',
-        [email]
-    );
-    if (userRes.rows.length === 0) {
-        return res.status(400).json({ error: 'No passkey found for this account' });
+        const loginToken = isoBase64URL.fromUTF8String(`${Date.now()}:${Math.random()}`);
+        challengeStore.set(`login:${loginToken}`, { challenge: options.challenge });
+
+        res.json({ options, loginToken });
+    } catch (err) {
+        console.error('WebAuthn login options error:', err);
+        res.status(500).json({ error: 'Failed to initialize Face ID login' });
     }
-    const userId = userRes.rows[0].id;
-
-    const credsRes = await pool.query(
-        'SELECT credential_id, transports FROM webauthn_credentials WHERE user_id = $1',
-        [userId]
-    );
-    if (credsRes.rows.length === 0) {
-        return res.status(400).json({ error: 'No passkey registered for this account' });
-    }
-
-    const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
-        userVerification: 'required',
-        allowCredentials: credsRes.rows.map((c) => ({
-            id: c.credential_id,
-            transports: c.transports,
-        })),
-    });
-
-    const loginToken = isoBase64URL.fromUTF8String(`${userId}:${Date.now()}:${Math.random()}`);
-    challengeStore.set(`login:${loginToken}`, { challenge: options.challenge, userId });
-
-    res.json({ options, loginToken });
 });
 
 router.post('/webauthn/login-verify', async (req, res) => {
@@ -147,10 +143,12 @@ router.post('/webauthn/login-verify', async (req, res) => {
         return res.status(400).json({ error: 'Login session expired, try again' });
     }
 
+    // Find the credential in the database by credential_id (no userId needed)
     const credRes = await pool.query(
-        'SELECT * FROM webauthn_credentials WHERE credential_id = $1 AND user_id = $2',
-        [response.id, stored.userId]
+        'SELECT * FROM webauthn_credentials WHERE credential_id = $1',
+        [response.id]
     );
+    
     if (credRes.rows.length === 0) {
         return res.status(400).json({ error: 'Credential not recognized' });
     }
@@ -186,10 +184,15 @@ router.post('/webauthn/login-verify', async (req, res) => {
         [verification.authenticationInfo.newCounter, savedCred.id]
     );
 
-    const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [stored.userId]);
+    // Get user info using the userId from the credential
+    const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [savedCred.user_id]);
     const user = userRes.rows[0];
 
-    // Generate JWT token (same as your login route)
+    if (!user) {
+        return res.status(400).json({ error: 'User not found' });
+    }
+
+    // Generate JWT token
     const jwt = require('jsonwebtoken');
     const token = jwt.sign(
         { userId: user.id, role: user.role },
@@ -210,40 +213,6 @@ router.post('/webauthn/login-verify', async (req, res) => {
             avatar_url: user.avatar_url,
         },
     });
-});
-
-// GET /api/auth/webauthn/check — check if user has a passkey
-router.get('/webauthn/check', requireAuth, async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT id FROM webauthn_credentials WHERE user_id = $1 LIMIT 1',
-            [req.user.id]
-        );
-        res.json({ hasPasskey: result.rows.length > 0 });
-    } catch (err) {
-        console.error('Check passkey error:', err);
-        res.status(500).json({ error: 'Failed to check passkey status' });
-    }
-});
-
-// POST /api/auth/webauthn/login-options-no-email — login without typing email
-router.post('/webauthn/login-options', async (req, res) => {
-    try {
-        const options = await generateAuthenticationOptions({
-            rpID: RP_ID,
-            userVerification: 'required',
-            // No allowCredentials = webauthn will ask the user which credential to use
-            // (supports "discoverable credentials")
-        });
-
-        const loginToken = isoBase64URL.fromUTF8String(`${Date.now()}:${Math.random()}`);
-        challengeStore.set(`login:${loginToken}`, { challenge: options.challenge });
-
-        res.json({ options, loginToken });
-    } catch (err) {
-        console.error('WebAuthn login options error:', err);
-        res.status(500).json({ error: 'Failed to initialize Face ID login' });
-    }
 });
 
 module.exports = router;
