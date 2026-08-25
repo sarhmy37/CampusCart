@@ -30,6 +30,8 @@ export default function ProfileDrawer({ open, onClose }) {
     const fileInputRef = useRef(null);
     const drawerRef = useRef(null);
     const [uploading, setUploading] = useState(false);
+    const [avatarPreview, setAvatarPreview] = useState(null);
+    const previewUrlRef = useRef(null);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
     const [confirmLogout, setConfirmLogout] = useState(false);
@@ -80,7 +82,7 @@ export default function ProfileDrawer({ open, onClose }) {
         }
     }, [open]);
 
-    // 👇 Reset dropdowns when drawer closes
+        // 👇 Reset dropdowns when drawer closes
     useEffect(() => {
         if (!open) {
             setPersonalOpen(false);
@@ -88,21 +90,40 @@ export default function ProfileDrawer({ open, onClose }) {
         }
     }, [open]);
 
+    // 👇 Clean up any object URL we created for the avatar preview
+    useEffect(() => {
+        return () => {
+            if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+        };
+    }, []);
+
     if (!user) return null;
 
     const handleAvatarClick = () => fileInputRef.current?.click();
 
-    const handleAvatarChange = async (e) => {
+        const handleAvatarChange = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        // Show the picked image immediately, before the upload even starts
+        if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+        const localUrl = URL.createObjectURL(file);
+        previewUrlRef.current = localUrl;
+        setAvatarPreview(localUrl);
+
         setUploading(true);
         try {
             await uploadAvatar(file);
             toast.success('Profile picture updated');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Upload failed');
+            // Upload failed — drop the local preview and fall back to the saved avatar
+            URL.revokeObjectURL(localUrl);
+            previewUrlRef.current = null;
+            setAvatarPreview(null);
         } finally {
             setUploading(false);
+            e.target.value = ''; // lets the user re-pick the same file later if needed
         }
     };
 
@@ -158,18 +179,23 @@ export default function ProfileDrawer({ open, onClose }) {
                 {/* Avatar overlapping header */}
                 <div className="px-6 -mt-12">
                     <div className="relative w-24 h-24">
-                        <button
+                                                <button
                             onClick={handleAvatarClick}
-                            className="w-24 h-24 rounded-full border-4 border-white dark:border-ink-800 bg-slate-100 dark:bg-ink-700 shadow-md overflow-hidden flex items-center justify-center group relative"
+                            disabled={uploading}
+                            className="w-24 h-24 rounded-full border-4 border-white dark:border-ink-800 bg-slate-100 dark:bg-ink-700 shadow-md overflow-hidden flex items-center justify-center group relative disabled:cursor-wait"
                         >
-                            {user.avatar_url ? (
-                                <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                            {avatarPreview || user.avatar_url ? (
+                                <img src={avatarPreview || user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                             ) : (
                                 <span className="text-[11px] font-semibold text-slate-400 dark:text-gold-300/50 text-center px-2 leading-tight">
                                     Upload photo
                                 </span>
                             )}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <div
+                                className={`absolute inset-0 bg-black/40 transition flex items-center justify-center ${
+                                    uploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                }`}
+                            >
                                 {uploading ? (
                                     <Loader2 size={18} className="text-white animate-spin" />
                                 ) : (

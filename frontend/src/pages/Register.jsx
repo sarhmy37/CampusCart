@@ -6,6 +6,7 @@ import api from '../api/client';
 import { REGISTER_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, User, School, ShoppingBag, Store, Phone, ChevronDown, Landmark, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import AutoLocationInput from '../components/AutoLocationInput';
+import { AcademicCapIcon } from '@heroicons/react/24/outline';
 
 const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU'];
 
@@ -368,9 +369,14 @@ export default function Register() {
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
                         {/* Just the logo, sitting on a translucent pill */}
-                        <div className="inline-flex items-center gap-2 self-start bg-white/10 backdrop-blur-md border border-white/15 rounded-full pl-3 pr-5 py-2 w-fit">
-                            <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
-                            <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
+                                                {/* Site name + graduation cap icon, sitting on a translucent pill — text only, no image */}
+                        <div className="inline-flex items-center gap-2 self-start bg-white/10 backdrop-blur-md border border-white/15 rounded-full pl-4 pr-5 py-2 w-fit">
+                            <AcademicCapIcon className="h-6 w-6 text-white shrink-0" />
+                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                                <span className="text-lg text-white">Tre</span>
+                                <span className="text-lg text-white mx-0.5">-</span>
+                                <span className="text-2xl italic text-accent-300 dark:text-gold-400 leading-none">X</span>
+                            </div>
                         </div>
 
                         <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
