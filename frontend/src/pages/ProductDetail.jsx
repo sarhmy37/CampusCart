@@ -28,7 +28,7 @@ import {
 
 function isRecentlyActive(lastActive) {
     if (!lastActive) return false;
-    return Date.now() - new Date(lastActive).getTime() < 15 * 60 * 1000; // 15 minutes
+    return Date.now() - new Date(lastActive).getTime() < 15 * 60 * 1000;
 }
 
 function formatLastActive(lastActive) {
@@ -184,9 +184,16 @@ export default function ProductDetail() {
     const posted = isDemo ? product.posted : (product.created_at ? new Date(product.created_at).toLocaleDateString() : null);
     const relatedCategory = product.category || product.category_name;
 
+    // ---- Glass Card Component ----
+    const GlassCard = ({ children, className = '' }) => (
+        <div className={`bg-white/70 dark:bg-ink-800/70 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] ${className}`}>
+            {children}
+        </div>
+    );
+
     // ---- Seller Card Component ----
     const SellerCard = () => (
-        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
+        <GlassCard>
             <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">Sold by</p>
             <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
@@ -194,10 +201,10 @@ export default function ProductDetail() {
                         <img
                             src={product.seller_avatar}
                             alt={sellerName}
-                            className="w-11 h-11 rounded-full object-cover"
+                            className="w-11 h-11 rounded-full object-cover ring-2 ring-white/50 dark:ring-gold-500/30"
                         />
                     ) : (
-                        <div className="w-11 h-11 rounded-full bg-brand-100 dark:bg-gold-900 text-brand-700 dark:text-gold-400 flex items-center justify-center font-bold text-sm">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-brand-400 to-accent-500 dark:from-gold-400 dark:to-gold-600 text-white flex items-center justify-center font-bold text-sm shadow-lg">
                             {sellerInitial}
                         </div>
                     )}
@@ -229,7 +236,7 @@ export default function ProductDetail() {
                 </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-ink-600 space-y-2.5">
+            <div className="mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10 space-y-2.5">
                 {(isDemo ? product.seller_school : product.seller_school) && (
                     <div className="flex items-center gap-2 text-sm">
                         <MapPin size={14} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
@@ -259,37 +266,123 @@ export default function ProductDetail() {
                     </a>
                 )}
             </div>
-        </div>
+        </GlassCard>
     );
 
     // ---- Trust Strip Component ----
     const TrustStrip = () => (
-        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-3">
-                <ShieldCheck size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
-                <p className="text-sm text-slate-600 dark:text-gold-100/80">Email-verified student seller</p>
+        <GlassCard>
+            <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                    <ShieldCheck size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
+                    <p className="text-sm text-slate-600 dark:text-gold-100/80">Email-verified student seller</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Truck size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
+                    <p className="text-sm text-slate-600 dark:text-gold-100/80">Meet up on campus, or arrange delivery with the seller</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Clock size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
+                    <p className="text-sm text-slate-600 dark:text-gold-100/80">Usually responds within a few hours</p>
+                </div>
             </div>
-            <div className="flex items-center gap-3">
-                <Truck size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
-                <p className="text-sm text-slate-600 dark:text-gold-100/80">Meet up on campus, or arrange delivery with the seller</p>
+        </GlassCard>
+    );
+
+    // ---- Action Card (Price + Buttons) ----
+    const ActionCard = () => (
+        <GlassCard>
+            <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-700 dark:text-gold-400 text-xs font-semibold capitalize">
+                {product.condition}
+            </span>
+            <h1 className="text-xl font-extrabold text-slate-900 dark:text-gold-50 mt-2 leading-snug">{product.title}</h1>
+            {reviews?.avg_rating && (
+                <div className="flex items-center gap-1.5 mt-1 text-sm">
+                    <Star size={14} className="fill-amber-400 text-amber-400" />
+                    <span className="font-semibold text-slate-700 dark:text-gold-100">{reviews.avg_rating}</span>
+                    <span className="text-slate-400 dark:text-gold-200/50">({reviews.total} reviews)</span>
+                </div>
+            )}
+            <p className="text-3xl font-extrabold text-brand-700 dark:text-gold-400 mt-2">GHS {parseFloat(product.price).toFixed(2)}</p>
+
+            {isOwner && (
+                <div className="mt-2 p-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/30 backdrop-blur-sm border border-amber-200/50 dark:border-amber-800/50 text-xs text-amber-700 dark:text-amber-400">
+                    ⚠️ You are the seller of this item. You cannot purchase your own listing.
+                </div>
+            )}
+
+            <div className="flex items-center gap-3 mt-4">
+                <span className="text-sm font-semibold text-slate-700 dark:text-gold-100">Qty</span>
+                <div className="flex items-center gap-3 border border-slate-200/50 dark:border-white/10 bg-white/50 dark:bg-ink-700/50 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                    <button
+                        onClick={() => setQty((q) => Math.max(1, q - 1))}
+                        disabled={qty <= 1 || isOwner}
+                        className="text-slate-500 dark:text-gold-200/60 hover:text-slate-800 dark:hover:text-gold-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        <Minus size={14} />
+                    </button>
+                    <span className="text-sm w-4 text-center font-semibold text-slate-800 dark:text-gold-100">{qty}</span>
+                    <button
+                        onClick={() => setQty((q) => Math.min(stock, q + 1))}
+                        disabled={isOutOfStock || qty >= stock || isOwner}
+                        className="text-slate-500 dark:text-gold-200/60 hover:text-slate-800 dark:hover:text-gold-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        <Plus size={14} />
+                    </button>
+                </div>
+                <span className="text-xs text-slate-400 dark:text-gold-200/50">
+                    {isOutOfStock ? 'Out of stock' : `${stock} available`}
+                </span>
             </div>
-            <div className="flex items-center gap-3">
-                <Clock size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
-                <p className="text-sm text-slate-600 dark:text-gold-100/80">Usually responds within a few hours</p>
+
+            <div className="mt-4 flex flex-col gap-2.5">
+                <button
+                    onClick={handleBuyNow}
+                    disabled={isOutOfStock || isOwner}
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                        isOutOfStock || isOwner
+                            ? 'bg-slate-200/50 dark:bg-ink-700/50 text-slate-400 dark:text-gold-200/30 cursor-not-allowed backdrop-blur-sm'
+                            : 'bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-500 dark:to-gold-400 hover:scale-[1.02] active:scale-[0.98] text-white dark:text-ink-900 shadow-lg shadow-brand-500/25 dark:shadow-gold-500/25'
+                    }`}
+                >
+                    {isOutOfStock ? 'Out of Stock' : isOwner ? 'Your Own Listing' : 'Buy now'}
+                </button>
+                <button
+                    onClick={handleAddToCart}
+                    disabled={isOutOfStock || isOwner}
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition-all duration-200 ${
+                        isOutOfStock || isOwner
+                            ? 'border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-gold-200/30 cursor-not-allowed backdrop-blur-sm'
+                            : 'border-slate-200/50 dark:border-white/10 bg-white/50 dark:bg-ink-700/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-ink-600/80 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
+                    }`}
+                >
+                    <ShoppingCart size={18} /> {isOwner ? 'Cannot buy' : 'Add to cart'}
+                </button>
+                <button
+                    onClick={handleMessage}
+                    disabled={isOwner}
+                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition-all duration-200 ${
+                        isOwner
+                            ? 'border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-gold-200/30 cursor-not-allowed backdrop-blur-sm'
+                            : 'border-slate-200/50 dark:border-white/10 bg-white/50 dark:bg-ink-700/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-ink-600/80 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
+                    }`}
+                >
+                    <MessageCircle size={18} /> {isOwner ? 'You are the seller' : 'Message seller'}
+                </button>
             </div>
-        </div>
+        </GlassCard>
     );
 
     return (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-white dark:bg-ink-900 min-h-screen">
-            <Link to="/browse" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-gold-200/60 hover:text-brand-600 dark:hover:text-gold-400 mb-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-b from-slate-50 to-white dark:from-ink-900 dark:to-ink-950 min-h-screen">
+            <Link to="/browse" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-gold-200/60 hover:text-brand-600 dark:hover:text-gold-400 mb-6 transition">
                 <ChevronLeft size={16} /> Back to browse
             </Link>
 
             <div className="grid lg:grid-cols-5 gap-8">
                 {/* IMAGES / VIDEO */}
                 <div className="lg:col-span-3">
-                    <div className="relative aspect-square bg-slate-100 dark:bg-ink-700 rounded-2xl overflow-hidden group">
+                    <div className="relative aspect-square bg-slate-100/50 dark:bg-ink-700/50 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-ink-900/50 group border border-white/30 dark:border-white/5">
                         {slides.every((s) => !s.image_url && !s.video_url) ? (
                             <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-ink-500">
                                 <Tag size={48} />
@@ -373,102 +466,23 @@ export default function ProductDetail() {
                     )}
 
                     {/* ============================================================ */}
-                    {/* MOBILE: Title, Price, Sold By, Description, Details, Reviews, Trust */}
+                    {/* MOBILE: Action Card (Price, Title, Qty, Buttons) */}
                     {/* ============================================================ */}
-
-                    {/* Title & Price - Mobile only */}
                     <div className="lg:hidden mt-4">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-700 dark:text-gold-400 text-xs font-semibold capitalize">
-                            {product.condition}
-                        </span>
-                        <h1 className="text-xl font-extrabold text-slate-900 dark:text-gold-50 mt-2 leading-snug">{product.title}</h1>
-                        {reviews?.avg_rating && (
-                            <div className="flex items-center gap-1.5 mt-1 text-sm">
-                                <Star size={14} className="fill-amber-400 text-amber-400" />
-                                <span className="font-semibold text-slate-700 dark:text-gold-100">{reviews.avg_rating}</span>
-                                <span className="text-slate-400 dark:text-gold-200/50">({reviews.total} reviews)</span>
-                            </div>
-                        )}
-                        <p className="text-3xl font-extrabold text-brand-700 dark:text-gold-400 mt-2">GHS {parseFloat(product.price).toFixed(2)}</p>
-
-                        {isOwner && (
-                            <div className="mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-700 dark:text-amber-400">
-                                ⚠️ You are the seller of this item. You cannot purchase your own listing.
-                            </div>
-                        )}
-
-                        <div className="flex items-center gap-3 mt-4">
-                            <span className="text-sm font-semibold text-slate-700 dark:text-gold-100">Qty</span>
-                            <div className="flex items-center gap-3 border border-slate-200 dark:border-ink-600 rounded-lg px-3 py-1.5">
-                                <button
-                                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                                    disabled={qty <= 1 || isOwner}
-                                    className="text-slate-500 dark:text-gold-200/60 hover:text-slate-800 dark:hover:text-gold-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    <Minus size={14} />
-                                </button>
-                                <span className="text-sm w-4 text-center font-semibold text-slate-800 dark:text-gold-100">{qty}</span>
-                                <button
-                                    onClick={() => setQty((q) => Math.min(stock, q + 1))}
-                                    disabled={isOutOfStock || qty >= stock || isOwner}
-                                    className="text-slate-500 dark:text-gold-200/60 hover:text-slate-800 dark:hover:text-gold-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    <Plus size={14} />
-                                </button>
-                            </div>
-                            <span className="text-xs text-slate-400 dark:text-gold-200/50">
-                                {isOutOfStock ? 'Out of stock' : `${stock} available`}
-                            </span>
-                        </div>
-
-                        <div className="mt-4 flex flex-col gap-2.5">
-                            <button
-                                onClick={handleBuyNow}
-                                disabled={isOutOfStock || isOwner}
-                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition ${
-                                    isOutOfStock || isOwner
-                                        ? 'bg-slate-300 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50 cursor-not-allowed'
-                                        : 'bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900'
-                                }`}
-                            >
-                                {isOutOfStock ? 'Out of Stock' : isOwner ? 'Your Own Listing' : 'Buy now'}
-                            </button>
-                            <button
-                                onClick={handleAddToCart}
-                                disabled={isOutOfStock || isOwner}
-                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition ${
-                                    isOutOfStock || isOwner
-                                        ? 'border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-200/30 cursor-not-allowed'
-                                        : 'border-slate-200 dark:border-ink-600 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
-                                }`}
-                            >
-                                <ShoppingCart size={18} /> {isOwner ? 'Cannot buy' : 'Add to cart'}
-                            </button>
-                            <button
-                                onClick={handleMessage}
-                                disabled={isOwner}
-                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition ${
-                                    isOwner
-                                        ? 'border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-200/30 cursor-not-allowed'
-                                        : 'border-slate-200 dark:border-ink-600 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
-                                }`}
-                            >
-                                <MessageCircle size={18} /> {isOwner ? 'You are the seller' : 'Message seller'}
-                            </button>
-                        </div>
+                        <ActionCard />
                     </div>
 
                     {/* ============================================================ */}
-                    {/* Sold By - Mobile only (moved up before description) */}
+                    {/* Sold By - Mobile only */}
                     {/* ============================================================ */}
-                    <div className="lg:hidden mt-6">
+                    <div className="lg:hidden mt-4">
                         <SellerCard />
                     </div>
 
                     {/* ============================================================ */}
                     {/* Description */}
                     {/* ============================================================ */}
-                    <div className="mt-8 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
+                    <div className="mt-6 bg-white/70 dark:bg-ink-800/70 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                         <h2 className="font-bold text-slate-900 dark:text-gold-50 mb-2">Description</h2>
                         <p className="text-slate-600 dark:text-gold-100/80 text-sm leading-relaxed whitespace-pre-line">
                             {product.description || 'No description provided.'}
@@ -478,7 +492,7 @@ export default function ProductDetail() {
                     {/* ============================================================ */}
                     {/* Details */}
                     {/* ============================================================ */}
-                    <div className="mt-6 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
+                    <div className="mt-4 bg-white/70 dark:bg-ink-800/70 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                         <h2 className="font-bold text-slate-900 dark:text-gold-50 mb-3">Details</h2>
                         <dl className="grid grid-cols-2 gap-y-3 text-sm">
                             <dt className="text-slate-400 dark:text-gold-200/50">Condition</dt>
@@ -506,9 +520,9 @@ export default function ProductDetail() {
                     <ReviewsSection reviewsData={reviews} productId={product.id} />
 
                     {/* ============================================================ */}
-                    {/* Trust Strip - Mobile only (moved below reviews) */}
+                    {/* Trust Strip - Mobile only (below reviews) */}
                     {/* ============================================================ */}
-                    <div className="lg:hidden mt-6">
+                    <div className="lg:hidden mt-4">
                         <TrustStrip />
                     </div>
 
@@ -528,104 +542,20 @@ export default function ProductDetail() {
                 {/* ============================================================ */}
                 {/* DESKTOP SIDEBAR (lg: and up) */}
                 {/* ============================================================ */}
-                <div className="hidden lg:block lg:col-span-2 space-y-5">
-                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 sticky top-24">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-700 dark:text-gold-400 text-xs font-semibold capitalize">
-                            {product.condition}
-                        </span>
-                        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-gold-50 mt-3 leading-snug">{product.title}</h1>
-
-                        {reviews?.avg_rating && (
-                            <div className="flex items-center gap-1.5 mt-2 text-sm">
-                                <Star size={14} className="fill-amber-400 text-amber-400" />
-                                <span className="font-semibold text-slate-700 dark:text-gold-100">{reviews.avg_rating}</span>
-                                <span className="text-slate-400 dark:text-gold-200/50">({reviews.total} reviews)</span>
-                            </div>
+                <div className="hidden lg:block lg:col-span-2 space-y-4">
+                    <div className="sticky top-24 space-y-4">
+                        <ActionCard />
+                        <SellerCard />
+                        <TrustStrip />
+                        {!isDemo && (
+                            <button
+                                onClick={() => setShowReport(true)}
+                                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-gold-200/40 hover:text-red-500 dark:hover:text-red-400 transition py-2"
+                            >
+                                <Flag size={13} /> Report this listing
+                            </button>
                         )}
-
-                        <p className="text-3xl font-extrabold text-brand-700 dark:text-gold-400 mt-3">GHS {parseFloat(product.price).toFixed(2)}</p>
-
-                        {isOwner && (
-                            <div className="mt-3 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-700 dark:text-amber-400">
-                                ⚠️ You are the seller of this item. You cannot purchase your own listing.
-                            </div>
-                        )}
-
-                        <div className="flex items-center gap-3 mt-5">
-                            <span className="text-sm font-semibold text-slate-700 dark:text-gold-100">Qty</span>
-                            <div className="flex items-center gap-3 border border-slate-200 dark:border-ink-600 rounded-lg px-3 py-1.5">
-                                <button
-                                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                                    disabled={qty <= 1 || isOwner}
-                                    className="text-slate-500 dark:text-gold-200/60 hover:text-slate-800 dark:hover:text-gold-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    <Minus size={14} />
-                                </button>
-                                <span className="text-sm w-4 text-center font-semibold text-slate-800 dark:text-gold-100">{qty}</span>
-                                <button
-                                    onClick={() => setQty((q) => Math.min(stock, q + 1))}
-                                    disabled={isOutOfStock || qty >= stock || isOwner}
-                                    className="text-slate-500 dark:text-gold-200/60 hover:text-slate-800 dark:hover:text-gold-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    <Plus size={14} />
-                                </button>
-                            </div>
-                            <span className="text-xs text-slate-400 dark:text-gold-200/50">
-                                {isOutOfStock ? 'Out of stock' : `${stock} available`}
-                            </span>
-                        </div>
-
-                        <div className="mt-5 flex flex-col gap-2.5">
-                            <button
-                                onClick={handleBuyNow}
-                                disabled={isOutOfStock || isOwner}
-                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition ${
-                                    isOutOfStock || isOwner
-                                        ? 'bg-slate-300 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50 cursor-not-allowed'
-                                        : 'bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900'
-                                }`}
-                            >
-                                {isOutOfStock ? 'Out of Stock' : isOwner ? 'Your Own Listing' : 'Buy now'}
-                            </button>
-                            <button
-                                onClick={handleAddToCart}
-                                disabled={isOutOfStock || isOwner}
-                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition ${
-                                    isOutOfStock || isOwner
-                                        ? 'border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-200/30 cursor-not-allowed'
-                                        : 'border-slate-200 dark:border-ink-600 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
-                                }`}
-                            >
-                                <ShoppingCart size={18} /> {isOwner ? 'Cannot buy' : 'Add to cart'}
-                            </button>
-                            <button
-                                onClick={handleMessage}
-                                disabled={isOwner}
-                                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition ${
-                                    isOwner
-                                        ? 'border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-200/30 cursor-not-allowed'
-                                        : 'border-slate-200 dark:border-ink-600 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
-                                }`}
-                            >
-                                <MessageCircle size={18} /> {isOwner ? 'You are the seller' : 'Message seller'}
-                            </button>
-                        </div>
                     </div>
-
-                    {/* Desktop: Seller Card */}
-                    <SellerCard />
-
-                    {/* Desktop: Trust Strip */}
-                    <TrustStrip />
-
-                    {!isDemo && (
-                        <button
-                            onClick={() => setShowReport(true)}
-                            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-gold-200/40 hover:text-red-500 dark:hover:text-red-400 transition py-2"
-                        >
-                            <Flag size={13} /> Report this listing
-                        </button>
-                    )}
                 </div>
             </div>
 
