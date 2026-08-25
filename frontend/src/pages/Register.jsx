@@ -67,6 +67,13 @@ const BANK_PATTERNS = {
 
 const DEFAULT_BANK_RULE = { minLength: 10, label: 'Bank' };
 
+// --- Animated logo sequence (MOBILE ONLY, matches Login.jsx) ---
+const LOGO_FULL = 'Tre-X';
+const TAGLINE_FULL = 'Redefining Campus Shopping';
+const TYPE_SPEED_MS = 70;
+const PULSE_ALONE_MS = 5000;
+const HOLD_MS = 10000;
+
 export default function Register() {
     const { register, user } = useAuth();
     const navigate = useNavigate();
@@ -95,6 +102,56 @@ export default function Register() {
 
     const [validating, setValidating] = useState(false);
     const [validationResult, setValidationResult] = useState({ isValid: false, message: '', type: '' });
+
+    // --- Animated mobile logo state ---
+    const [phase, setPhase] = useState('pulse'); // 'pulse' | 'typing-logo' | 'typing-tagline' | 'hold'
+    const [logoText, setLogoText] = useState('');
+    const [taglineText, setTaglineText] = useState('');
+    const [cycle, setCycle] = useState(0);
+
+    useEffect(() => {
+        setPhase('pulse');
+        setLogoText('');
+        setTaglineText('');
+        const t = setTimeout(() => setPhase('typing-logo'), PULSE_ALONE_MS);
+        return () => clearTimeout(t);
+    }, [cycle]);
+
+    useEffect(() => {
+        if (phase !== 'typing-logo') return;
+        let i = 0;
+        const interval = setInterval(() => {
+            i++;
+            setLogoText(LOGO_FULL.slice(0, i));
+            if (i >= LOGO_FULL.length) {
+                clearInterval(interval);
+                setPhase('typing-tagline');
+            }
+        }, TYPE_SPEED_MS);
+        return () => clearInterval(interval);
+    }, [phase]);
+
+    useEffect(() => {
+        if (phase !== 'typing-tagline') return;
+        let i = 0;
+        const interval = setInterval(() => {
+            i++;
+            setTaglineText(TAGLINE_FULL.slice(0, i));
+            if (i >= TAGLINE_FULL.length) {
+                clearInterval(interval);
+                setPhase('hold');
+            }
+        }, TYPE_SPEED_MS);
+        return () => clearInterval(interval);
+    }, [phase]);
+
+    useEffect(() => {
+        if (phase !== 'hold') return;
+        const t = setTimeout(() => setCycle((c) => c + 1), HOLD_MS);
+        return () => clearTimeout(t);
+    }, [phase]);
+
+    const isShifted = phase !== 'pulse';
 
     const fetchBanks = async () => {
         setLoadingBanks(true);
@@ -302,7 +359,7 @@ export default function Register() {
                     <div className="absolute -left-16 bottom-0 w-64 h-64 bg-accent-400/15 dark:bg-gold-700/10 rounded-full blur-3xl" />
                 </div>
 
-                {/* LEFT — visual panel (desktop only) */}
+                {/* LEFT — visual panel (desktop only, STATIC logo, no animation) */}
                 <div className="relative hidden lg:block overflow-hidden">
                     <img src={REGISTER_IMAGE} alt="" className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/45" />
@@ -310,8 +367,12 @@ export default function Register() {
                     <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/15 rounded-full blur-3xl" />
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
-                        <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
-                        <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
+                        {/* Just the logo, sitting on a translucent pill */}
+                        <div className="inline-flex items-center gap-2 self-start bg-white/10 backdrop-blur-md border border-white/15 rounded-full pl-3 pr-5 py-2 w-fit">
+                            <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
+                            <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
+                        </div>
+
                         <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
                             Buy and sell with students who actually get it.
                         </h1>
@@ -324,10 +385,44 @@ export default function Register() {
                 {/* RIGHT — form */}
                 <div className="relative z-10 flex items-center justify-center px-4 py-14 sm:py-16 lg:bg-slate-50 lg:dark:bg-ink-900">
                     <div className="w-full max-w-sm">
-                        {/* Logo — mobile only, since the desktop panel already carries it */}
+                        {/* Logo — mobile only, ANIMATED (pulse alone → type "Tre-X" while shifting → type tagline → hold → repeat) */}
                         <div className="flex justify-center mb-8 lg:hidden">
-                            <img src={LOGO_DARK} alt="Tre-X" className="h-12 w-auto dark:hidden logo-pulse" />
-                            <img src={LOGO_LIGHT} alt="Tre-X" className="h-12 w-auto hidden dark:block logo-pulse" />
+                            <div className="flex items-center">
+                                {/* image — shifts left */}
+                                <div
+                                    className={`flex items-center transition-transform duration-500 ease-out ${
+                                        isShifted ? '-translate-x-2' : 'translate-x-0'
+                                    }`}
+                                >
+                                    <img src={LOGO_DARK} alt="Tre-X" className="h-12 w-auto dark:hidden logo-pulse" />
+                                    <img src={LOGO_LIGHT} alt="Tre-X" className="h-12 w-auto hidden dark:block logo-pulse" />
+                                </div>
+
+                                {/* wordmark + tagline share the same left edge, so "R" sits under "T" */}
+                                <div className="flex flex-col items-start ml-2">
+                                    <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                                        <span className="text-2xl text-slate-900 dark:text-gold-200">
+                                            {logoText.slice(0, 3)}
+                                        </span>
+                                        <span className="text-2xl text-slate-900 dark:text-gold-200 mx-0.5">
+                                            {logoText.slice(3, 4)}
+                                        </span>
+                                        <span className="text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
+                                            {logoText.slice(4, 5)}
+                                        </span>
+                                        {phase === 'typing-logo' && (
+                                            <span className="inline-block w-[2px] h-5 bg-slate-900/70 dark:bg-gold-200/70 ml-1 animate-pulse" />
+                                        )}
+                                    </div>
+
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-gold-200/50 min-h-[1rem] text-left whitespace-nowrap">
+                                        {taglineText}
+                                        {phase === 'typing-tagline' && (
+                                            <span className="inline-block w-[2px] h-3 bg-slate-500/70 dark:bg-gold-200/40 ml-0.5 animate-pulse align-middle" />
+                                        )}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">

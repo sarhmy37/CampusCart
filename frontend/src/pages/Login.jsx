@@ -6,7 +6,7 @@ import { LOGIN_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const LOGO_FULL = 'Tre-X';
-const TAGLINE_FULL = 'Your campus marketplace';
+const TAGLINE_FULL = 'Redefining Campus Shopping';
 const TYPE_SPEED_MS = 70;   // per character — tweak to taste
 const PULSE_ALONE_MS = 5000;
 const HOLD_MS = 10000;
@@ -167,8 +167,9 @@ export default function Login() {
                 <div className="relative z-10 flex items-center justify-center px-4 py-14 sm:py-16 lg:bg-slate-50 lg:dark:bg-ink-900">
                     <div className="w-full max-w-sm">
                         {/* Logo — mobile only, ANIMATED (pulse alone → type "Tre-X" while shifting → type tagline → hold → repeat) */}
-                        <div className="flex flex-col items-center mb-8 lg:hidden text-center">
-                            <div className="flex items-center justify-center">
+                        <div className="flex justify-center mb-8 lg:hidden">
+                            <div className="flex items-center">
+                                {/* image — shifts left */}
                                 <div
                                     className={`flex items-center transition-transform duration-500 ease-out ${
                                         isShifted ? '-translate-x-2' : 'translate-x-0'
@@ -178,28 +179,31 @@ export default function Login() {
                                     <img src={LOGO_LIGHT} alt="Tre-X" className="h-12 w-auto hidden dark:block logo-pulse" />
                                 </div>
 
-                                <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0 ml-2">
-                                    <span className="text-2xl text-slate-900 dark:text-gold-200">
-                                        {logoText.slice(0, 3)}
-                                    </span>
-                                    <span className="text-2xl text-slate-900 dark:text-gold-200 mx-0.5">
-                                        {logoText.slice(3, 4)}
-                                    </span>
-                                    <span className="text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
-                                        {logoText.slice(4, 5)}
-                                    </span>
-                                    {phase === 'typing-logo' && (
-                                        <span className="inline-block w-[2px] h-5 bg-slate-900/70 dark:bg-gold-200/70 ml-1 animate-pulse" />
-                                    )}
+                                {/* wordmark + tagline share the same left edge, so "R" sits under "T" */}
+                                <div className="flex flex-col items-start ml-2">
+                                    <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                                        <span className="text-2xl text-slate-900 dark:text-gold-200">
+                                            {logoText.slice(0, 3)}
+                                        </span>
+                                        <span className="text-2xl text-slate-900 dark:text-gold-200 mx-0.5">
+                                            {logoText.slice(3, 4)}
+                                        </span>
+                                        <span className="text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
+                                            {logoText.slice(4, 5)}
+                                        </span>
+                                        {phase === 'typing-logo' && (
+                                            <span className="inline-block w-[2px] h-5 bg-slate-900/70 dark:bg-gold-200/70 ml-1 animate-pulse" />
+                                        )}
+                                    </div>
+
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-gold-200/50 min-h-[1rem] text-left whitespace-nowrap">
+                                        {taglineText}
+                                        {phase === 'typing-tagline' && (
+                                            <span className="inline-block w-[2px] h-3 bg-slate-500/70 dark:bg-gold-200/40 ml-0.5 animate-pulse align-middle" />
+                                        )}
+                                    </p>
                                 </div>
                             </div>
-
-                            <p className="mt-2 text-sm text-slate-500 dark:text-gold-200/50 min-h-[1.25rem]">
-                                {taglineText}
-                                {phase === 'typing-tagline' && (
-                                    <span className="inline-block w-[2px] h-4 bg-slate-500/70 dark:bg-gold-200/40 ml-0.5 animate-pulse align-middle" />
-                                )}
-                            </p>
                         </div>
 
                         <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
