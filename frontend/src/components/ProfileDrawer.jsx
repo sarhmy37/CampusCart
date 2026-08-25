@@ -32,6 +32,7 @@ export default function ProfileDrawer({ open, onClose }) {
     const [uploading, setUploading] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState(null);
     const previewUrlRef = useRef(null);
+    const [avatarModalOpen, setAvatarModalOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
     const [confirmLogout, setConfirmLogout] = useState(false);
@@ -99,7 +100,8 @@ export default function ProfileDrawer({ open, onClose }) {
 
     if (!user) return null;
 
-    const handleAvatarClick = () => fileInputRef.current?.click();
+        const handleAvatarClick = () => setAvatarModalOpen(true);
+    const handleChangePhotoClick = () => fileInputRef.current?.click();
 
         const handleAvatarChange = async (e) => {
         const file = e.target.files?.[0];
@@ -486,7 +488,70 @@ export default function ProfileDrawer({ open, onClose }) {
                 onCancel={() => setConfirmLogout(false)}
             />
 
-            <VerifyModal open={showVerify} onClose={() => setShowVerify(false)} />
+                        <VerifyModal open={showVerify} onClose={() => setShowVerify(false)} />
+
+            {/* Avatar preview / change modal */}
+            <div
+                className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-opacity ${
+                    avatarModalOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+            >
+                <div
+                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                    onClick={() => !uploading && setAvatarModalOpen(false)}
+                />
+                <div
+                    className={`relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-xs p-6 transition-transform duration-200 ${
+                        avatarModalOpen ? 'scale-100' : 'scale-95'
+                    }`}
+                >
+                    <button
+                        onClick={() => !uploading && setAvatarModalOpen(false)}
+                        className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 dark:text-gold-300/50 hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                    >
+                        <X size={18} />
+                    </button>
+
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-gold-50 text-center mb-4">
+                        Profile photo
+                    </h3>
+
+                    <div className="w-40 h-40 mx-auto rounded-full overflow-hidden bg-slate-100 dark:bg-ink-700 flex items-center justify-center relative">
+                        {avatarPreview || user.avatar_url ? (
+                            <img
+                                src={avatarPreview || user.avatar_url}
+                                alt={user.name}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <span className="text-xs font-semibold text-slate-400 dark:text-gold-300/50 text-center px-4">
+                                No photo yet
+                            </span>
+                        )}
+                        {uploading && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <Loader2 size={22} className="text-white animate-spin" />
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={handleChangePhotoClick}
+                        disabled={uploading}
+                        className="w-full mt-5 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
+                    >
+                        {uploading ? (
+                            <>
+                                <Loader2 size={16} className="animate-spin" /> Uploading…
+                            </>
+                        ) : (
+                            <>
+                                <Camera size={16} /> Change photo
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
         </>
     );
 }
