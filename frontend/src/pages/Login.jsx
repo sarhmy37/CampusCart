@@ -14,31 +14,6 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [faceLoading, setFaceLoading] = useState(false);
 
-    useEffect(() => {
-        // Auto-trigger Face ID login if the user has a passkey
-        const autoLoginWithPasskey = async () => {
-            // Only run on page load, not on every render
-            if (sessionStorage.getItem('face_login_attempted') === 'true') return;
-            sessionStorage.setItem('face_login_attempted', 'true');
-
-            // Check if browser supports WebAuthn
-            if (!window.PublicKeyCredential) return;
-
-            try {
-                // Check if user has any passkey (we'll try to get login options without email)
-                // First, we need to get a list of credentials for the user.
-                // Since we don't have the email, we'll just try to authenticate.
-                // The backend will need to support a "discoverable" credential flow.
-                
-                // For now, we'll show the icon and let the user click it.
-                // The user still needs to click the icon to trigger Face ID.
-            } catch {
-                // Silently fail
-            }
-        };
-        autoLoginWithPasskey();
-    }, []);
-
     const onSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -61,7 +36,8 @@ export default function Login() {
 
         setFaceLoading(true);
         try {
-            // Step 1: Get login options from backend (without email)
+            // Step 1: First check if the user has a passkey
+            // We'll try to get login options. If no passkey exists, the backend will return an error.
             const optionsRes = await api.post('/auth/webauthn/login-options');
             const { options, loginToken } = optionsRes.data;
 
@@ -82,7 +58,15 @@ export default function Login() {
             toast.success(`Welcome back, ${user.name}! 👋`);
             navigate('/');
         } catch (err) {
-            if (err.name === 'NotAllowedError') {
+            // Check if the error is because user has no passkey
+            if (err.response?.data?.error === 'No passkey found for this account' || 
+                err.response?.data?.error === 'No passkey registered for this account' ||
+                err.response?.data?.error === 'Credential not recognized') {
+                toast.error(
+                    'No Face ID / Passkey found. Please set one up in Settings first.', 
+                    { duration: 5000 }
+                );
+            } else if (err.name === 'NotAllowedError') {
                 toast.error('Face ID / Fingerprint was cancelled or not recognized.');
             } else if (err.response?.data?.error) {
                 toast.error(err.response.data.error);

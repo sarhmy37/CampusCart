@@ -4,7 +4,8 @@ const cors = require('cors');
 const path = require('path');
 
 const authRoutes = require('./routes/auth');
-const webauthnRoutes = require('./routes/webauthn'); // 👈 added
+
+const webauthnRoutes = require('./routes/webauthn');
 
 const productRoutes = require('./routes/products');
 
@@ -32,12 +33,42 @@ const chatRoutes = require('./routes/chat');
 
 const app = express();
 
-const rawOrigins = (process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
-const corsOrigin = rawOrigins.includes('*') || rawOrigins.length === 0 ? '*' : rawOrigins;
+// ============================================================
+// CORS Configuration - FIXED for production
+// ============================================================
+// Get allowed origins from environment variable
+const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
+    : ['http://localhost:5173', 'http://localhost:3000'];
+
+console.log('✅ CORS allowed origins:', allowedOrigins);
 
 app.use(cors({
-    origin: corsOrigin,
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, etc)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        // Check if origin is allowed
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log('🚫 Blocked by CORS:', origin);
+            console.log('✅ Allowed origins:', allowedOrigins);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // 24 hours
 }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
 app.use(express.json({
     verify: (req, res, buf) => { req.rawBody = buf; },
 }));
@@ -50,8 +81,10 @@ app.use('/media', express.static(path.join(__dirname, '..', 'media')));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
+// Mount routes
 app.use('/api/auth', authRoutes);
-app.use('/api/auth', webauthnRoutes); // 👈 WebAuthn routes mounted here
+
+app.use('/api/auth', webauthnRoutes);
 
 app.use('/api/products', productRoutes);
 
@@ -77,16 +110,17 @@ app.use('/api/reviews', reviewRoutes);
 
 app.use('/api/chat', chatRoutes);
 
+// 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 
-// Basic error handler (e.g. multer file-size/type errors land here)
+// Basic error handler
 app.use((err, req, res, next) => {
-    console.error(err);
+    console.error('❌ Error:', err);
     res.status(err.status || 500).json({ error: err.message || 'Something went wrong' });
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`CampusCart API running on http://localhost:${PORT}`);
-    console.log(`CampusCart API running on network: http://0.0.0.0:${PORT}`);
+    console.log(`🚀 CampusCart API running on http://localhost:${PORT}`);
+    console.log(`🚀 CampusCart API running on network: http://0.0.0.0:${PORT}`);
 });
