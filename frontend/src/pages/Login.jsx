@@ -60,6 +60,14 @@ export default function Login() {
                     background-color: #4a4540 !important;
                     color: #f0edea !important;
                 }
+
+                @keyframes logoPulse {
+                    0%, 100% { transform: scale(1); opacity: 1; }
+                    50% { transform: scale(1.05); opacity: 0.85; }
+                }
+                .logo-pulse {
+                    animation: logoPulse 2.5s ease-in-out infinite;
+                }
             `}</style>
 
             <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2 relative overflow-hidden">
@@ -80,8 +88,8 @@ export default function Login() {
                     <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/15 rounded-full blur-3xl" />
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
-                        <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto dark:hidden" />
-                        <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto hidden dark:block" />
+                        <img src={LOGO_DARK} alt="Tre-X" className="h-8 w-auto dark:hidden logo-pulse" />
+                        <img src={LOGO_LIGHT} alt="Tre-X" className="h-8 w-auto hidden dark:block logo-pulse" />
                         <h1 className="mt-6 text-3xl xl:text-4xl font-extrabold text-white leading-tight max-w-md">
                             Welcome back to your campus marketplace.
                         </h1>
@@ -96,8 +104,8 @@ export default function Login() {
                     <div className="w-full max-w-sm">
                         {/* Logo — mobile only, since the desktop panel already carries it */}
                         <div className="flex justify-center mb-8 lg:hidden">
-                            <img src={LOGO_LIGHT} alt="Tre-X" className="h-9 w-auto dark:hidden" />
-                            <img src={LOGO_DARK} alt="Tre-X" className="h-9 w-auto hidden dark:block" />
+                            <img src={LOGO_DARK} alt="Tre-X" className="h-9 w-auto dark:hidden logo-pulse" />
+                            <img src={LOGO_LIGHT} alt="Tre-X" className="h-9 w-auto hidden dark:block logo-pulse" />
                         </div>
 
                         <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
