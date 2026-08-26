@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
@@ -47,7 +47,6 @@ const PRICE_RANGES = [
 ];
 
 // ─── TAB CONFIG (mobile bottom bar) ────────────────────────────────────────
-// Order matters: Categories sits in the middle of the five tabs.
 const MOBILE_TABS = ['all', 'new', 'categories', 'nearby', 'verified'];
 
 const BROWSE_TAB_LABELS = {
@@ -58,7 +57,6 @@ const BROWSE_TAB_LABELS = {
     verified: 'Verified',
 };
 
-// Outline (inactive) / Solid (active) Heroicon pairs, one per tab.
 const TAB_ICONS = {
     all: { outline: AdjustmentsHorizontalIcon, solid: AdjustmentsHorizontalIconSolid },
     new: { outline: SparklesIcon, solid: SparklesIconSolid },
@@ -67,9 +65,12 @@ const TAB_ICONS = {
     verified: { outline: CheckBadgeIcon, solid: CheckBadgeIconSolid },
 };
 
-// How far (in px) the user needs to scroll on mobile before the header
-// is considered "collapsed". Kept low so the shrink feels responsive.
-const MOBILE_COLLAPSE_THRESHOLD = 44;
+// How many px of scroll it takes to go from fully expanded (0) to fully
+// collapsed (1) on mobile. Lower = shrinks faster. Tweak freely.
+const MOBILE_COLLAPSE_DISTANCE = 130;
+
+const lerp = (from, to, t) => from + (to - from) * t;
+const clamp01 = (n) => Math.min(1, Math.max(0, n));
 
 export default function Browse() {
     const [searchParams] = useSearchParams();
@@ -84,47 +85,49 @@ export default function Browse() {
     const [budgetInput, setBudgetInput] = useState('');
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('all');
-    // Which mobile action-sheet is open: null | 'category' | 'school'
     const [openSheet, setOpenSheet] = useState(null);
-    // Mobile-only: true once the user has scrolled past the threshold,
-    // triggers the header shrink animation. Always false on sm+ screens.
-    const [isScrolled, setIsScrolled] = useState(false);
     const search = searchParams.get('search') || '';
 
-    useEffect(() => {
-        api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
-    }, []);
+    // Continuous 0→1 scroll progress, mobile only. This drives every
+    // header measurement directly — no CSS transition, no threshold
+    // snap — so the shrink tracks the scrollbar 1:1.
+    const [progress, setProgress] = useState(0);
+    const [isMobileViewport, setIsMobileViewport] = useState(
+        typeof window !== 'undefined' ? window.innerWidth < 640 : false
+    );
+    const tickingRef = useRef(false);
 
-    // Mobile header shrink-on-scroll. Guards on viewport width so desktop
-    // is completely unaffected regardless of scroll position.
     useEffect(() => {
-        let ticking = false;
-
         const evaluate = () => {
-            if (window.innerWidth >= 640) {
-                setIsScrolled((prev) => (prev ? false : prev));
+            const mobile = window.innerWidth < 640;
+            setIsMobileViewport(mobile);
+            if (!mobile) {
+                setProgress(0);
                 return;
             }
-            const shouldCollapse = window.scrollY > MOBILE_COLLAPSE_THRESHOLD;
-            setIsScrolled((prev) => (prev !== shouldCollapse ? shouldCollapse : prev));
+            setProgress(clamp01(window.scrollY / MOBILE_COLLAPSE_DISTANCE));
         };
 
-        const handleScroll = () => {
-            if (ticking) return;
-            ticking = true;
+        const onScrollOrResize = () => {
+            if (tickingRef.current) return;
+            tickingRef.current = true;
             window.requestAnimationFrame(() => {
                 evaluate();
-                ticking = false;
+                tickingRef.current = false;
             });
         };
 
         evaluate();
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        window.addEventListener('resize', handleScroll);
+        window.addEventListener('scroll', onScrollOrResize, { passive: true });
+        window.addEventListener('resize', onScrollOrResize);
         return () => {
-            window.removeEventListener('scroll', handleScroll);
-            window.removeEventListener('resize', handleScroll);
+            window.removeEventListener('scroll', onScrollOrResize);
+            window.removeEventListener('resize', onScrollOrResize);
         };
+    }, []);
+
+    useEffect(() => {
+        api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
     }, []);
 
     const handleSchoolChange = (e) => {
@@ -181,8 +184,6 @@ export default function Browse() {
             .finally(() => setLoading(false));
     }, [search, activeCategory, itemCategory, school]);
 
-    // Shared budget-apply logic, used by both the Enter key and the new
-    // search/enter icon button.
     const applyBudgetValue = () => {
         const val = parseFloat(budgetInput);
         if (!val || val <= 0) return;
@@ -262,7 +263,6 @@ export default function Browse() {
         </div>
     );
 
-    // ── DESKTOP tab-pill behavior (unchanged from before) ──────────────────
     const handleDesktopTabChange = (tab) => {
         if (tab === 'verified') {
             setVerifiedOnly(!verifiedOnly);
@@ -276,7 +276,6 @@ export default function Browse() {
         }
     };
 
-    // ── MOBILE tab behavior: Categories / Nearby open an action sheet ─────
     const handleMobileTabChange = (tab) => {
         if (tab === 'verified') {
             setVerifiedOnly(!verifiedOnly);
@@ -308,8 +307,6 @@ export default function Browse() {
         setOpenSheet(null);
     };
 
-    // A tab is "active" independently of the others — this is what lets
-    // e.g. "New" + "Verified" both show as active at the same time.
     const isTabActive = (tab) => {
         if (tab === 'verified') return verifiedOnly;
         if (tab === 'categories') return !!itemCategory;
@@ -329,6 +326,21 @@ export default function Browse() {
 
     const headerTitle = search ? `Results for "${search}"` : 'Browse listings';
 
+    // ── Mobile header measurements, all derived from `progress` (0→1) ──
+    const mobileHeaderPadding = isMobileViewport
+        ? { paddingTop: lerp(28, 12, progress), paddingBottom: lerp(28, 12, progress) }
+        : undefined;
+
+    const backBtnWidth = lerp(96, 32, progress);
+    const backBtnPad = lerp(12, 0, progress);
+    const homeLabelOpacity = 1 - clamp01(progress * 1.8);
+    const homeLabelMaxWidth = lerp(40, 0, progress);
+    const titleFontSize = lerp(21, 16, progress);
+    const budgetFade = clamp01(progress * 1.8);
+    const budgetMaxWidth = lerp(150, 0, budgetFade);
+    const budgetOpacity = 1 - budgetFade;
+    const budgetMarginLeft = lerp(10, 0, budgetFade);
+
     return (
         <div className="relative min-h-screen">
             {/* HEADER STRIP */}
@@ -341,43 +353,62 @@ export default function Browse() {
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
                 <div
-                    className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-[padding] duration-300 ease-out ${
-                        isScrolled ? 'py-3' : 'py-8 sm:py-10'
-                    }`}
+                    className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
+                    style={mobileHeaderPadding}
                 >
-                    {/* ── MOBILE collapsible top row ───────────────────────
-                        Back button + title live here permanently on mobile.
-                        Expanded: button is a labeled pill, title is invisible
-                        (the real title sits in the row below).
-                        Collapsed: button becomes a bare circle, title fades
-                        in beside it, budget row below collapses to nothing. */}
-                    <div className="sm:hidden flex items-center gap-2.5">
+                    {/* ── MOBILE: one persistent row, always mounted.
+                        Nothing here mounts/unmounts or swaps — every
+                        measurement is a direct function of `progress`,
+                        which is a direct function of window.scrollY.
+                        Scroll a pixel, the header moves a pixel. ── */}
+                    <div className="sm:hidden flex items-center" style={{ gap: 10 }}>
                         <Link
                             to="/"
                             aria-label="Back to home"
-                            className={`inline-flex items-center justify-center gap-1.5 bg-white/10 text-white font-semibold border border-white/30 hover:bg-white/20 active:scale-95 transition-all duration-300 ease-out backdrop-blur shrink-0 ${
-                                isScrolled ? 'w-8 h-8 rounded-full p-0' : 'px-2.5 py-1 rounded-full text-xs'
-                            }`}
+                            className="inline-flex items-center justify-center gap-1.5 bg-white/10 text-white font-semibold border border-white/30 hover:bg-white/20 active:scale-95 backdrop-blur shrink-0 rounded-full overflow-hidden"
+                            style={{
+                                height: 32,
+                                width: backBtnWidth,
+                                paddingLeft: backBtnPad,
+                                paddingRight: backBtnPad,
+                                transition: 'none',
+                            }}
                         >
-                            <ArrowLeft className={`shrink-0 transition-all duration-300 ${isScrolled ? 'w-3.5 h-3.5' : 'w-3 h-3'}`} />
+                            <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
                             <span
-                                className={`overflow-hidden whitespace-nowrap transition-all duration-200 ease-out ${
-                                    isScrolled ? 'max-w-0 opacity-0' : 'max-w-[3rem] opacity-100'
-                                }`}
+                                className="text-xs whitespace-nowrap overflow-hidden"
+                                style={{
+                                    opacity: homeLabelOpacity,
+                                    maxWidth: homeLabelMaxWidth,
+                                    transition: 'none',
+                                }}
                             >
                                 Home
                             </span>
                         </Link>
+
                         <span
-                            className={`font-extrabold text-white truncate transition-all duration-300 ease-out ${
-                                isScrolled ? 'text-base opacity-100 max-w-[65vw]' : 'text-xl opacity-0 max-w-0'
-                            }`}
+                            className="font-extrabold text-white truncate flex-1 min-w-0"
+                            style={{ fontSize: titleFontSize, transition: 'none' }}
                         >
                             {headerTitle}
                         </span>
+
+                        <div
+                            className="shrink-0 overflow-hidden"
+                            style={{
+                                maxWidth: budgetMaxWidth,
+                                opacity: budgetOpacity,
+                                marginLeft: budgetMarginLeft,
+                                pointerEvents: budgetFade > 0.6 ? 'none' : 'auto',
+                                transition: 'none',
+                            }}
+                        >
+                            {budgetInputField}
+                        </div>
                     </div>
 
-                    {/* ── DESKTOP top row (unchanged) ──────────────────── */}
+                    {/* ── DESKTOP top row (unchanged, no scroll behavior) ── */}
                     <div className="hidden sm:flex items-center justify-between flex-wrap gap-2 sm:gap-3">
                         <Link
                             to="/"
@@ -387,9 +418,6 @@ export default function Browse() {
                             <span>Back to home</span>
                         </Link>
 
-                        {/* Category / school selects — desktop only now.
-                            On mobile, this job moves to the Categories and
-                            Nearby tabs at the bottom of the screen. */}
                         <div className="flex items-center gap-3 flex-wrap">
                             <div className="relative inline-flex items-center">
                                 <select
@@ -422,22 +450,11 @@ export default function Browse() {
                         </div>
                     </div>
 
-                    {/* ── Title + budget row ───────────────────────────────
-                        Desktop: always shown, unchanged.
-                        Mobile: this is the "real" title + budget field —
-                        it collapses to nothing as the user scrolls, while
-                        the compact row above takes over showing the title. */}
-                    <div
-                        className={`overflow-hidden transition-all duration-300 ease-out sm:!max-h-none sm:!opacity-100 sm:mt-5 ${
-                            isScrolled ? 'max-h-0 opacity-0 mt-0' : 'max-h-24 opacity-100 mt-4'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                            <h1 className="text-xl sm:text-3xl font-extrabold text-white truncate">
-                                {headerTitle}
-                            </h1>
-                            {budgetInputField}
-                        </div>
+                    <div className="hidden sm:flex items-center justify-between gap-3 mt-4 sm:mt-5">
+                        <h1 className="text-xl sm:text-3xl font-extrabold text-white truncate">
+                            {headerTitle}
+                        </h1>
+                        {budgetInputField}
                     </div>
 
                     {/* ─── DESKTOP FILTER PILLS (unchanged) ─────────────── */}
@@ -480,10 +497,9 @@ export default function Browse() {
                 </div>
             </section>
 
-            {/* LISTINGS - with bottom padding for mobile tabs */}
+            {/* LISTINGS */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-32 sm:pb-10">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
-                    {/* Active filter indicators */}
                     {itemCategory && (
                         <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
                             {itemCategory}
@@ -571,7 +587,6 @@ export default function Browse() {
                 />
             </div>
 
-            {/* ─── MOBILE ACTION SHEETS (Categories / Nearby) ───────────── */}
             <MobileFilterSheet
                 open={openSheet === 'category'}
                 title="Categories"
@@ -592,12 +607,6 @@ export default function Browse() {
     );
 }
 
-// ─── MOBILE GLASS TAB BAR ───────────────────────────────────────────────
-// A fixed, full-width, evenly spaced segmented bar (no horizontal scroll,
-// so it can never drift left/right). Each tab lights up independently, so
-// e.g. "New" plus "Verified" can be active together. The outer container
-// and each active tab's chip share the same corner radius so the shape
-// reads as one cohesive piece of glass rather than two mismatched ones.
 function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory }) {
     const getTabLabel = (tab) => {
         if (tab === 'nearby') return school || 'Nearby';
@@ -614,7 +623,6 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
                     WebkitBackdropFilter: 'blur(24px) saturate(180%)',
                 }}
             >
-                {/* soft top gloss to sell the "glass" look */}
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent dark:from-white/10" />
                 <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/40 dark:ring-white/5" />
 
@@ -664,7 +672,6 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
                 </div>
             </div>
 
-            {/* dot indicators */}
             <div className="flex justify-center gap-1.5 mt-2">
                 {tabs.map((tab) => {
                     const active = isTabActive(tab);
@@ -686,16 +693,11 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
     );
 }
 
-// ─── MOBILE ACTION SHEET ─────────────────────────────────────────────────
-// Reused by both the Categories and Nearby tabs — same picker experience
-// the header <select> used to give, just presented as a bottom sheet.
 function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onClose }) {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         if (open) {
-            // mount closed, then flip to open on the next frame so the
-            // transform/opacity transition actually plays
             setMounted(false);
             const raf = requestAnimationFrame(() => setMounted(true));
             return () => cancelAnimationFrame(raf);
@@ -703,9 +705,6 @@ function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onCl
         setMounted(false);
     }, [open]);
 
-    // Lock body scroll while the sheet is open — same technique as
-    // ProfileDrawer, so scrolling inside the list never leaks through to
-    // the page behind it (no background scroll / pull-to-refresh).
     useEffect(() => {
         if (open) {
             const scrollY = window.scrollY;
