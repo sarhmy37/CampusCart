@@ -66,12 +66,12 @@ const TAB_ICONS = {
 };
 
 // How many px of scroll it takes for the target to reach fully collapsed.
-const MOBILE_COLLAPSE_DISTANCE = 160;
+const MOBILE_COLLAPSE_DISTANCE = 140;
 
 // How quickly the *displayed* progress eases toward the scroll-driven
 // target every animation frame. Lower = silkier/slower catch-up,
 // higher = snappier/more mechanical. This is the main "smoothness" knob.
-const SPRING_SMOOTHING = 0.2;
+const SPRING_SMOOTHING = 0.3;
 
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
