@@ -207,7 +207,7 @@ export default function Browse() {
 
     return (
         <div className="relative min-h-screen">
-            {/* HEADER STRIP - RESTORED TO ORIGINAL HEIGHT */}
+            {/* HEADER STRIP - INCREASED HEIGHT */}
             <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
@@ -216,7 +216,7 @@ export default function Browse() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
-                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
                     <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-3">
                         <Link
                             to="/"
@@ -263,7 +263,7 @@ export default function Browse() {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 mt-3 sm:mt-5">
+                    <div className="flex items-center justify-between gap-3 mt-4 sm:mt-5">
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white">
                             {search ? `Results for "${search}"` : 'Browse listings'}
                         </h1>
@@ -273,7 +273,7 @@ export default function Browse() {
                     </div>
 
                     {/* ─── DESKTOP FILTER PILLS ────────────────────────── */}
-                    <div className="hidden sm:flex items-center gap-2 flex-wrap mt-4">
+                    <div className="hidden sm:flex items-center gap-2 flex-wrap mt-5">
                         <button
                             onClick={() => { setFilterType('all'); setVerifiedOnly(false); }}
                             className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
@@ -338,7 +338,7 @@ export default function Browse() {
             </section>
 
             {/* LISTINGS - with bottom padding for mobile tabs */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-28 sm:pb-10">
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-32 sm:pb-10">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
                     {/* Active filter indicators */}
                     {itemCategory && (
@@ -418,7 +418,7 @@ export default function Browse() {
             </section>
 
             {/* ─── MOBILE BOTTOM TABS ──────────────────────────────────── */}
-            <div className="block sm:hidden fixed bottom-3 left-0 right-0 z-40 px-4 pt-2">
+            <div className="block sm:hidden fixed bottom-6 left-0 right-0 z-40 px-4">
                 <BrowseTabRoll
                     tabs={['all', 'new', 'nearby', 'verified']}
                     activeTab={activeTab}
@@ -431,7 +431,7 @@ export default function Browse() {
     );
 }
 
-// ─── BROWSE SWIPEABLE TABS ROLL (MATCHES DASHBOARD HEIGHT) ─────────────
+// ─── BROWSE SWIPEABLE TABS ROLL (50px HEIGHT) ──────────────────────────
 function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
     const containerRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -560,7 +560,7 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
     };
 
     return (
-        <div className="relative">
+        <div className="relative w-full">
             {/* Floating shadow effect - top shadow for bottom position */}
             <div 
                 className="absolute -top-3 left-0 right-0 h-6 bg-gradient-to-t from-slate-200/40 via-slate-200/20 to-transparent dark:from-ink-600/20 dark:via-ink-600/10 dark:to-transparent blur-md rounded-full"
@@ -570,7 +570,7 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                 }}
             />
 
-            <div className="relative">
+            <div className="relative w-full">
                 <div
                     ref={containerRef}
                     onTouchStart={onTouchStart}
@@ -578,11 +578,11 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                     onTouchEnd={onTouchEnd}
                     onMouseDown={onMouseDown}
                     onScroll={checkChevrons}
-                    className="relative rounded-xl border border-slate-200/70 dark:border-ink-600/70 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-lg hover:shadow-xl transition-shadow duration-300 scrollbar-hide"
+                    className="relative rounded-xl border border-slate-200/70 dark:border-ink-600/70 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-lg hover:shadow-xl transition-shadow duration-300 scrollbar-hide w-full"
                     style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
-                        height: 56, // MATCHES DASHBOARD HEIGHT
+                        height: 50,
                         WebkitOverflowScrolling: 'touch',
                     }}
                 >
@@ -627,10 +627,10 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                                     <span className="whitespace-nowrap">{label}</span>
                                     {isActive && (
                                         <span 
-                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
+                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-1 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
                                             style={{
                                                 width: 'auto',
-                                                minWidth: '20px',
+                                                minWidth: '24px',
                                                 maxWidth: '70%',
                                                 paddingLeft: '4px',
                                                 paddingRight: '4px',
@@ -640,8 +640,8 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                                                 className="block"
                                                 style={{
                                                     width: 'auto',
-                                                    minWidth: '20px',
-                                                    height: '2px',
+                                                    minWidth: '24px',
+                                                    height: '3px',
                                                     background: 'currentColor',
                                                     borderRadius: '9999px',
                                                 }}
