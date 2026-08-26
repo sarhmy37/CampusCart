@@ -5,18 +5,20 @@ import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
-import { SlidersHorizontal, ArrowLeft, X, Wallet, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, ArrowLeft, X, Wallet, ChevronDown, Check } from 'lucide-react';
 import {
     AdjustmentsHorizontalIcon,
     SparklesIcon,
     MapPinIcon,
     CheckBadgeIcon,
+    Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import {
     AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
     SparklesIcon as SparklesIconSolid,
     MapPinIcon as MapPinIconSolid,
     CheckBadgeIcon as CheckBadgeIconSolid,
+    Squares2X2Icon as Squares2X2IconSolid,
 } from '@heroicons/react/24/solid';
 
 const ITEM_TYPES = ['Clothes', 'Phone accessories', 'Stationery', 'Laptops', 'Perfumes', 'Food', 'Sneakers', 'Other'];
@@ -44,10 +46,14 @@ const PRICE_RANGES = [
     { label: 'Above 1000', min: 1000, max: Infinity },
 ];
 
-// ─── TAB CONFIG ────────────────────────────────────────────────────────────
+// ─── TAB CONFIG (mobile bottom bar) ────────────────────────────────────────
+// Order matters: Categories sits in the middle of the five tabs.
+const MOBILE_TABS = ['all', 'new', 'categories', 'nearby', 'verified'];
+
 const BROWSE_TAB_LABELS = {
     all: 'All',
     new: 'New',
+    categories: 'Categories',
     nearby: 'Nearby',
     verified: 'Verified',
 };
@@ -56,6 +62,7 @@ const BROWSE_TAB_LABELS = {
 const TAB_ICONS = {
     all: { outline: AdjustmentsHorizontalIcon, solid: AdjustmentsHorizontalIconSolid },
     new: { outline: SparklesIcon, solid: SparklesIconSolid },
+    categories: { outline: Squares2X2Icon, solid: Squares2X2IconSolid },
     nearby: { outline: MapPinIcon, solid: MapPinIconSolid },
     verified: { outline: CheckBadgeIcon, solid: CheckBadgeIconSolid },
 };
@@ -73,6 +80,8 @@ export default function Browse() {
     const [budgetInput, setBudgetInput] = useState('');
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('all');
+    // Which mobile action-sheet is open: null | 'category' | 'school'
+    const [openSheet, setOpenSheet] = useState(null);
     const search = searchParams.get('search') || '';
 
     useEffect(() => {
@@ -200,30 +209,91 @@ export default function Browse() {
         </div>
     );
 
-    // Handle tab changes. `verified` is an independent toggle that can be
-    // combined with any of `all` / `new` / `nearby`, so it never resets filterType
-    // and selecting a filterType tab never clears verifiedOnly.
-    const handleTabChange = (tab) => {
+    // The mobile version of the budget field lives in the listings section
+    // now (dark text on a light background instead of white-on-glass).
+    const budgetInputFieldMobile = (
+        <div className="relative shrink-0">
+            <Wallet className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/50" />
+            <input
+                type="number"
+                min="1"
+                value={budgetInput}
+                onChange={(e) => setBudgetInput(e.target.value)}
+                onKeyDown={applyBudget}
+                placeholder="My budget (GHS)…"
+                className="bg-slate-100 dark:bg-ink-800 text-slate-700 dark:text-gold-100 placeholder-slate-400 dark:placeholder-gold-200/40 text-xs font-medium pl-7 pr-2.5 py-1.5 rounded-full border border-slate-200 dark:border-ink-600 focus:outline-none focus:border-brand-400 dark:focus:border-gold-500 w-32"
+            />
+        </div>
+    );
+
+    // ── DESKTOP tab-pill behavior (unchanged from before) ──────────────────
+    const handleDesktopTabChange = (tab) => {
         if (tab === 'verified') {
             setVerifiedOnly(!verifiedOnly);
         } else if (tab === 'nearby') {
             setFilterType('nearby');
             if (!school) {
-                const event = { target: { value: 'nearby' } };
-                handleSchoolChange(event);
+                handleSchoolChange({ target: { value: 'nearby' } });
             }
         } else {
             setFilterType(tab);
         }
     };
 
+    // ── MOBILE tab behavior: Categories / Nearby open an action sheet ─────
+    const handleMobileTabChange = (tab) => {
+        if (tab === 'verified') {
+            setVerifiedOnly(!verifiedOnly);
+        } else if (tab === 'categories') {
+            setOpenSheet('category');
+        } else if (tab === 'nearby') {
+            setOpenSheet('school');
+        } else {
+            setFilterType(tab);
+        }
+    };
+
+    const selectCategory = (value) => {
+        setItemCategory(value);
+        setOpenSheet(null);
+    };
+
+    const selectSchool = (value) => {
+        if (value === '') {
+            setSchool('');
+            setFilterType('all');
+        } else if (value === 'nearby') {
+            handleSchoolChange({ target: { value: 'nearby' } });
+            setFilterType('nearby');
+        } else {
+            setSchool(value);
+            setFilterType('nearby');
+        }
+        setOpenSheet(null);
+    };
+
     // A tab is "active" independently of the others — this is what lets
     // e.g. "New" + "Verified" both show as active at the same time.
-    const isTabActive = (tab) => (tab === 'verified' ? verifiedOnly : filterType === tab);
+    const isTabActive = (tab) => {
+        if (tab === 'verified') return verifiedOnly;
+        if (tab === 'categories') return !!itemCategory;
+        return filterType === tab;
+    };
+
+    const categoryOptions = [
+        { value: '', label: 'All categories' },
+        ...ITEM_TYPES.map((t) => ({ value: t, label: t })),
+    ];
+
+    const schoolOptions = [
+        { value: '', label: 'All schools' },
+        { value: 'nearby', label: locating ? 'Locating…' : '📍 Near me' },
+        ...SCHOOLS.map((s) => ({ value: s.name, label: s.name })),
+    ];
 
     return (
         <div className="relative min-h-screen">
-            {/* HEADER STRIP - INCREASED HEIGHT */}
+            {/* HEADER STRIP */}
             <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
@@ -243,26 +313,29 @@ export default function Browse() {
                             <span className="hidden sm:inline">Back to home</span>
                         </Link>
 
-                        <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
+                        {/* Category / school selects — desktop only now.
+                            On mobile, this job moves to the Categories and
+                            Nearby tabs at the bottom of the screen. */}
+                        <div className="hidden sm:flex items-center gap-3 flex-wrap">
                             <div className="relative inline-flex items-center">
                                 <select
                                     value={itemCategory}
                                     onChange={(e) => setItemCategory(e.target.value)}
-                                    className="appearance-none bg-white/10 text-white text-xs sm:text-sm font-semibold pl-2.5 sm:pl-4 pr-5 sm:pr-6 py-1 sm:py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
+                                    className="appearance-none bg-white/10 text-white text-sm font-semibold pl-4 pr-6 py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
                                 >
                                     <option value="" className="text-slate-900">All categories</option>
                                     {ITEM_TYPES.map((t) => (
                                         <option key={t} value={t} className="text-slate-900">{t}</option>
                                     ))}
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-1.5 sm:right-2 w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/70" />
+                                <ChevronDown className="pointer-events-none absolute right-2 w-3.5 h-3.5 text-white/70" />
                             </div>
 
                             <div className="relative inline-flex items-center">
                                 <select
                                     value={school}
                                     onChange={handleSchoolChange}
-                                    className="appearance-none bg-white/10 text-white text-xs sm:text-sm font-semibold pl-2.5 sm:pl-4 pr-5 sm:pr-6 py-1 sm:py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
+                                    className="appearance-none bg-white/10 text-white text-sm font-semibold pl-4 pr-6 py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
                                 >
                                     <option value="" className="text-slate-900">All schools</option>
                                     <option value="nearby" className="text-slate-900">{locating ? 'Locating…' : '📍 Near me'}</option>
@@ -270,11 +343,7 @@ export default function Browse() {
                                         <option key={s.name} value={s.name} className="text-slate-900">{s.name}</option>
                                     ))}
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-1.5 sm:right-2 w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/70" />
-                            </div>
-
-                            <div className="sm:hidden">
-                                {budgetInputField}
+                                <ChevronDown className="pointer-events-none absolute right-2 w-3.5 h-3.5 text-white/70" />
                             </div>
                         </div>
                     </div>
@@ -288,7 +357,7 @@ export default function Browse() {
                         </div>
                     </div>
 
-                    {/* ─── DESKTOP FILTER PILLS ────────────────────────── */}
+                    {/* ─── DESKTOP FILTER PILLS (unchanged) ─────────────── */}
                     <div className="hidden sm:flex items-center gap-2 flex-wrap mt-5">
                         {['all', 'new', 'nearby', 'verified'].map((tab) => {
                             const active = isTabActive(tab);
@@ -299,7 +368,7 @@ export default function Browse() {
                             return (
                                 <button
                                     key={tab}
-                                    onClick={() => handleTabChange(tab)}
+                                    onClick={() => handleDesktopTabChange(tab)}
                                     className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 rounded-full border backdrop-blur transition-all ${
                                         active
                                             ? 'bg-white text-brand-700 border-white font-bold'
@@ -330,46 +399,53 @@ export default function Browse() {
 
             {/* LISTINGS - with bottom padding for mobile tabs */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-32 sm:pb-10">
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
-                    {/* Active filter indicators */}
-                    {itemCategory && (
-                        <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
-                            {itemCategory}
-                            <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={12} />
-                            </button>
-                        </span>
-                    )}
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap flex-1 min-w-0">
+                        {/* Active filter indicators */}
+                        {itemCategory && (
+                            <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
+                                {itemCategory}
+                                <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        )}
 
-                    {school && filterType !== 'nearby' && (
-                        <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
-                            📍 {school}
-                            <button onClick={() => setSchool('')} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={12} />
-                            </button>
-                        </span>
-                    )}
+                        {school && filterType !== 'nearby' && (
+                            <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
+                                📍 {school}
+                                <button onClick={() => setSchool('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        )}
 
-                    {verifiedOnly && (
-                        <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                            <CheckBadgeIconSolid className="w-3 h-3" /> Verified
-                        </span>
-                    )}
+                        {verifiedOnly && (
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                <CheckBadgeIconSolid className="w-3 h-3" /> Verified
+                            </span>
+                        )}
 
-                    {priceRange && (
-                        <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-3 py-1 rounded-full text-xs font-semibold">
-                            {priceRange.label}
-                            <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={12} />
-                            </button>
-                        </span>
-                    )}
+                        {priceRange && (
+                            <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-3 py-1 rounded-full text-xs font-semibold">
+                                {priceRange.label}
+                                <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        )}
 
-                    {filterType === 'new' && !verifiedOnly && (
-                        <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                            ✨ Newly posted
-                        </span>
-                    )}
+                        {filterType === 'new' && !verifiedOnly && (
+                            <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                ✨ Newly posted
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Mobile budget field — same row, far right */}
+                    <div className="sm:hidden shrink-0">
+                        {budgetInputFieldMobile}
+                    </div>
                 </div>
 
                 {verifiedOnly && (
@@ -411,12 +487,31 @@ export default function Browse() {
             {/* ─── MOBILE BOTTOM TABS ──────────────────────────────────── */}
             <div className="block sm:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-2">
                 <BrowseGlassTabs
-                    tabs={['all', 'new', 'nearby', 'verified']}
+                    tabs={MOBILE_TABS}
                     isTabActive={isTabActive}
-                    onTabChange={handleTabChange}
+                    onTabChange={handleMobileTabChange}
                     school={school}
+                    itemCategory={itemCategory}
                 />
             </div>
+
+            {/* ─── MOBILE ACTION SHEETS (Categories / Nearby) ───────────── */}
+            <MobileFilterSheet
+                open={openSheet === 'category'}
+                title="Categories"
+                options={categoryOptions}
+                selectedValue={itemCategory}
+                onSelect={selectCategory}
+                onClose={() => setOpenSheet(null)}
+            />
+            <MobileFilterSheet
+                open={openSheet === 'school'}
+                title="School"
+                options={schoolOptions}
+                selectedValue={school}
+                onSelect={selectSchool}
+                onClose={() => setOpenSheet(null)}
+            />
         </div>
     );
 }
@@ -424,90 +519,160 @@ export default function Browse() {
 // ─── MOBILE GLASS TAB BAR ───────────────────────────────────────────────
 // A fixed, full-width, evenly spaced segmented bar (no horizontal scroll,
 // so it can never drift left/right). Each tab lights up independently, so
-// "Verified" plus any of "All / New / Nearby" can be active together.
-function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school }) {
+// e.g. "New" plus "Verified" can be active together. The outer container
+// and each active tab's chip share the same corner radius so the shape
+// reads as one cohesive piece of glass rather than two mismatched ones.
+function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory }) {
     const getTabLabel = (tab) => {
         if (tab === 'nearby') return school || 'Nearby';
+        if (tab === 'categories') return itemCategory || 'Categories';
         return BROWSE_TAB_LABELS[tab] || tab;
     };
 
     return (
         <>
-        <div
-            className="relative w-full rounded-[28px] border border-white/50 dark:border-white/10 bg-white/65 dark:bg-ink-900/55 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.35)] overflow-hidden"
-            style={{
-                backdropFilter: 'blur(24px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-            }}
-        >
-            {/* soft top gloss to sell the "glass" look */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent dark:from-white/10" />
-            <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/40 dark:ring-white/5" />
+            <div
+                className="relative w-full rounded-2xl border border-white/50 dark:border-white/10 bg-white/65 dark:bg-ink-900/55 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.35)] overflow-hidden"
+                style={{
+                    backdropFilter: 'blur(24px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                }}
+            >
+                {/* soft top gloss to sell the "glass" look */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent dark:from-white/10" />
+                <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/40 dark:ring-white/5" />
 
-            <div className="relative flex items-stretch h-[50px] px-1.5">
+                <div className="relative flex items-stretch h-[50px] px-1.5">
+                    {tabs.map((tab) => {
+                        const active = isTabActive(tab);
+                        const Icon = active ? TAB_ICONS[tab].solid : TAB_ICONS[tab].outline;
+                        const label = getTabLabel(tab);
+
+                        return (
+                            <button
+                                key={tab}
+                                onClick={() => onTabChange(tab)}
+                                className="relative flex-1 min-w-0 my-1 mx-0.5"
+                            >
+                                <span
+                                    className={`flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-2xl transition-all duration-300 ease-out active:scale-[0.94] ${
+                                        active
+                                            ? 'bg-white/40 dark:bg-white/10 shadow-[0_1px_4px_rgba(15,23,42,0.06)]'
+                                            : 'bg-transparent'
+                                    }`}
+                                >
+                                    <Icon
+                                        className={`w-[17px] h-[17px] transition-colors duration-300 ${
+                                            active
+                                                ? 'text-brand-700 dark:text-gold-400'
+                                                : 'text-slate-500 dark:text-gold-200/50'
+                                        }`}
+                                    />
+                                    <span
+                                        className={`text-[9.5px] leading-none truncate max-w-full px-0.5 transition-all duration-300 ${
+                                            active
+                                                ? 'font-bold text-brand-700 dark:text-gold-400'
+                                                : 'font-medium text-slate-500 dark:text-gold-200/50'
+                                        }`}
+                                    >
+                                        {label}
+                                    </span>
+                                </span>
+
+                                {active && (
+                                    <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-[3.5px] w-6 rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-300" />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* dot indicators */}
+            <div className="flex justify-center gap-1.5 mt-2">
                 {tabs.map((tab) => {
                     const active = isTabActive(tab);
-                    const Icon = active ? TAB_ICONS[tab].solid : TAB_ICONS[tab].outline;
-                    const label = getTabLabel(tab);
-
                     return (
                         <button
                             key={tab}
                             onClick={() => onTabChange(tab)}
-                            className="relative flex-1 min-w-0 my-1 mx-0.5"
-                        >
-                            <span
-                                className={`flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-300 ease-out active:scale-[0.94] ${
-                                    active
-                                        ? 'bg-white/40 dark:bg-white/10 shadow-[0_1px_4px_rgba(15,23,42,0.06)]'
-                                        : 'bg-transparent'
-                                }`}
-                            >
-                                <Icon
-                                    className={`w-[18px] h-[18px] transition-colors duration-300 ${
-                                        active
-                                            ? 'text-brand-700 dark:text-gold-400'
-                                            : 'text-slate-500 dark:text-gold-200/50'
-                                    }`}
-                                />
-                                <span
-                                    className={`text-[10px] leading-none truncate max-w-full px-1 transition-all duration-300 ${
-                                        active
-                                            ? 'font-bold text-brand-700 dark:text-gold-400'
-                                            : 'font-medium text-slate-500 dark:text-gold-200/50'
-                                    }`}
-                                >
-                                    {label}
-                                </span>
-                            </span>
-
-                            {active && (
-                                <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-[3.5px] w-7 rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-300" />
-                            )}
-                        </button>
+                            aria-label={`Go to ${BROWSE_TAB_LABELS[tab] || tab}`}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                                active
+                                    ? 'w-4 bg-brand-600 dark:bg-gold-500'
+                                    : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
+                            }`}
+                        />
                     );
                 })}
             </div>
-        </div>
-
-        {/* dot indicators */}
-        <div className="flex justify-center gap-1.5 mt-2">
-            {tabs.map((tab) => {
-                const active = isTabActive(tab);
-                return (
-                    <button
-                        key={tab}
-                        onClick={() => onTabChange(tab)}
-                        aria-label={`Go to ${BROWSE_TAB_LABELS[tab] || tab}`}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                            active
-                                ? 'w-4 bg-brand-600 dark:bg-gold-500'
-                                : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
-                        }`}
-                    />
-                );
-            })}
-        </div>
         </>
+    );
+}
+
+// ─── MOBILE ACTION SHEET ─────────────────────────────────────────────────
+// Reused by both the Categories and Nearby tabs — same picker experience
+// the header <select> used to give, just presented as a bottom sheet.
+function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onClose }) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        if (open) {
+            // mount closed, then flip to open on the next frame so the
+            // transform/opacity transition actually plays
+            setMounted(false);
+            const raf = requestAnimationFrame(() => setMounted(true));
+            return () => cancelAnimationFrame(raf);
+        }
+        setMounted(false);
+    }, [open]);
+
+    if (!open) return null;
+
+    return (
+        <div className="sm:hidden fixed inset-0 z-50">
+            <div
+                className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${mounted ? 'opacity-100' : 'opacity-0'}`}
+                onClick={onClose}
+            />
+            <div
+                className={`absolute bottom-0 left-0 right-0 max-h-[70vh] flex flex-col rounded-t-3xl bg-white dark:bg-ink-800 shadow-2xl transition-transform duration-300 ease-out ${
+                    mounted ? 'translate-y-0' : 'translate-y-full'
+                }`}
+            >
+                <div className="flex items-center justify-center pt-2.5 pb-1 shrink-0">
+                    <span className="h-1 w-10 rounded-full bg-slate-300 dark:bg-ink-600" />
+                </div>
+                <div className="flex items-center justify-between px-5 pb-3 shrink-0">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-gold-100">{title}</h3>
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-full bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/60"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+                <div className="overflow-y-auto px-2 pb-[max(16px,env(safe-area-inset-bottom))]">
+                    {options.map((opt) => {
+                        const isSelected = opt.value === selectedValue
+                            || (opt.value === 'nearby' && selectedValue !== '' && selectedValue === opt.value);
+                        return (
+                            <button
+                                key={opt.value || 'all'}
+                                onClick={() => onSelect(opt.value)}
+                                className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl text-sm transition ${
+                                    isSelected
+                                        ? 'bg-brand-50 dark:bg-gold-900/30 text-brand-700 dark:text-gold-300 font-bold'
+                                        : 'text-slate-700 dark:text-gold-100 font-medium hover:bg-slate-50 dark:hover:bg-ink-700'
+                                }`}
+                            >
+                                {opt.label}
+                                {isSelected && <Check size={16} className="text-brand-600 dark:text-gold-400" />}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
     );
 }
