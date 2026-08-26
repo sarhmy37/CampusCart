@@ -177,9 +177,11 @@ export default function Dashboard() {
 
 // ─── SWIPEABLE TABS ROLL ──────────────────────────────────────────────────
 // Shows 4 tabs at a time with the same visual style as AuthRollBall
+// ─── SWIPEABLE TABS ROLL ──────────────────────────────────────────────────
+// Shows multiple tabs with underline that fits each tab's text length
+// WITH FLOATING SHADOW EFFECT
 function TabRoll({ tabs, activeTab, onTabChange }) {
     const containerRef = useRef(null);
-    const [scrollLeft, setScrollLeft] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollStart, setScrollStart] = useState(0);
@@ -195,9 +197,14 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
     useEffect(() => {
         if (containerRef.current && activeIndex >= 0) {
             const container = containerRef.current;
-            const tabWidth = 100; // approximate width per tab
-            const targetScroll = activeIndex * tabWidth - container.clientWidth / 2 + tabWidth / 2;
-            container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+            const tabElements = container.querySelectorAll('.tab-item');
+            if (tabElements[activeIndex]) {
+                const tab = tabElements[activeIndex];
+                const containerRect = container.getBoundingClientRect();
+                const tabRect = tab.getBoundingClientRect();
+                const scrollTo = tab.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+                container.scrollTo({ left: scrollTo, behavior: 'smooth' });
+            }
         }
     }, [activeIndex]);
 
@@ -238,12 +245,25 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
         draggingRef.current = false;
         setIsDragging(false);
         if (movedRef.current) {
-            // Snap to nearest tab
             if (containerRef.current) {
                 const container = containerRef.current;
-                const tabWidth = 100;
-                const snapIndex = Math.round(container.scrollLeft / tabWidth);
-                container.scrollTo({ left: snapIndex * tabWidth, behavior: 'smooth' });
+                const tabElements = container.querySelectorAll('.tab-item');
+                let closestIndex = 0;
+                let closestDistance = Infinity;
+                const containerCenter = container.scrollLeft + container.clientWidth / 2;
+                
+                tabElements.forEach((tab, i) => {
+                    const tabCenter = tab.offsetLeft + tab.offsetWidth / 2;
+                    const distance = Math.abs(tabCenter - containerCenter);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestIndex = i;
+                    }
+                });
+                
+                if (closestIndex !== activeIndex) {
+                    onTabChange(tabs[closestIndex]);
+                }
             }
         }
         checkChevrons();
@@ -269,16 +289,40 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
         const index = tabs.indexOf(tab);
         if (index >= 0 && containerRef.current) {
             const container = containerRef.current;
-            const tabWidth = 100;
-            container.scrollTo({ left: index * tabWidth - container.clientWidth / 2 + tabWidth / 2, behavior: 'smooth' });
+            const tabElements = container.querySelectorAll('.tab-item');
+            if (tabElements[index]) {
+                const tab = tabElements[index];
+                const containerRect = container.getBoundingClientRect();
+                const tabRect = tab.getBoundingClientRect();
+                const scrollTo = tab.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+                container.scrollTo({ left: scrollTo, behavior: 'smooth' });
+            }
         }
         onTabChange(tab);
     };
 
     return (
-        <div className="mb-6">
-            <div className="relative">
-                {/* Main container - same styling as AuthRollBall */}
+        <div className="mb-8 relative">
+            {/* Floating shadow effect - placed behind the tabs container */}
+            <div 
+                className="absolute -bottom-4 left-0 right-0 h-8 bg-gradient-to-b from-slate-200/50 via-slate-200/30 to-transparent dark:from-ink-600/30 dark:via-ink-600/20 dark:to-transparent blur-md rounded-full"
+                style={{
+                    transform: 'scaleX(0.85)',
+                    filter: 'blur(8px)',
+                }}
+            />
+            
+            {/* Second shadow layer for more depth */}
+            <div 
+                className="absolute -bottom-6 left-1/4 right-1/4 h-6 bg-gradient-to-b from-slate-300/30 to-transparent dark:from-ink-500/20 dark:to-transparent blur-xl"
+                style={{
+                    transform: 'scaleX(0.7)',
+                    filter: 'blur(12px)',
+                }}
+            />
+
+            {/* Main tabs container with a subtle lift effect */}
+            <div className="relative transform transition-all duration-300 hover:scale-[1.002]">
                 <div
                     ref={containerRef}
                     onTouchStart={onTouchStart}
@@ -286,11 +330,11 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                     onTouchEnd={onTouchEnd}
                     onMouseDown={onMouseDown}
                     onScroll={checkChevrons}
-                    className="relative rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-sm scrollbar-hide"
+                    className="relative rounded-xl border border-slate-200 dark:border-ink-600 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-lg hover:shadow-xl transition-shadow duration-300 scrollbar-hide"
                     style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
-                        height: 44,
+                        height: 56,
                         WebkitOverflowScrolling: 'touch',
                     }}
                 >
@@ -303,8 +347,11 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                         `}
                     </style>
 
+                    {/* Subtle top highlight for glass effect */}
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
+
                     {/* Tabs container */}
-                    <div className="flex h-full" style={{ minWidth: 'max-content' }}>
+                    <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 12px', gap: '4px' }}>
                         {tabs.map((tab, index) => {
                             const isActive = tab === activeTab;
                             const Icon = TAB_ICONS[tab];
@@ -312,18 +359,44 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                             return (
                                 <button
                                     key={tab}
+                                    ref={(el) => {
+                                        if (el) {
+                                            el.dataset.index = index;
+                                        }
+                                    }}
                                     onClick={() => scrollToTab(tab)}
-                                    className={`shrink-0 h-full flex items-center justify-center gap-1.5 px-4 text-xs font-semibold transition ${
+                                    className={`tab-item relative shrink-0 h-full flex flex-col items-center justify-center gap-0.5 px-4 text-xs font-semibold transition-all duration-200 ${
                                         isActive
-                                            ? 'text-brand-700 dark:text-gold-400 bg-white/60 dark:bg-ink-700/60'
+                                            ? 'text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
                                     }`}
-                                    style={{ minWidth: 90 }}
+                                    style={{ minWidth: 70 }}
                                 >
-                                    {Icon && <Icon size={14} />}
-                                    <span>{label}</span>
+                                    {Icon && <Icon size={16} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
+                                    <span className="whitespace-nowrap">{label}</span>
+                                    {/* UNDERLINE - dynamically fits the text width */}
                                     {isActive && (
-                                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full" />
+                                        <span 
+                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
+                                            style={{
+                                                width: 'auto',
+                                                minWidth: '24px',
+                                                maxWidth: '80%',
+                                                paddingLeft: '4px',
+                                                paddingRight: '4px',
+                                            }}
+                                        >
+                                            <span 
+                                                className="block"
+                                                style={{
+                                                    width: 'auto',
+                                                    minWidth: '24px',
+                                                    height: '2px',
+                                                    background: 'currentColor',
+                                                    borderRadius: '9999px',
+                                                }}
+                                            />
+                                        </span>
                                     )}
                                 </button>
                             );
@@ -331,31 +404,31 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                     </div>
                 </div>
 
-                {/* Left fade + chevron - same as AuthRollBall */}
+                {/* Left fade + chevron */}
                 {showLeftChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-50 dark:from-ink-800 to-transparent flex items-center">
-                        <ChevronLeft size={14} className="text-slate-300 dark:text-gold-300/30 ml-1" />
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
+                        <ChevronLeft size={14} className="text-slate-400 dark:text-gold-300/40 ml-1" />
                     </div>
                 )}
 
-                {/* Right fade + chevron - same as AuthRollBall */}
+                {/* Right fade + chevron */}
                 {showRightChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-50 dark:from-ink-800 to-transparent flex items-center justify-end">
-                        <ChevronRight size={14} className="text-slate-300 dark:text-gold-300/30 mr-1" />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
+                        <ChevronRight size={14} className="text-slate-400 dark:text-gold-300/40 mr-1" />
                     </div>
                 )}
             </div>
 
-            {/* Dot indicators - same as AuthRollBall */}
-            <div className="flex justify-center gap-1.5 mt-2.5">
+            {/* Dot indicators */}
+            <div className="flex justify-center gap-1.5 mt-4">
                 {tabs.map((t, i) => (
                     <button
                         key={t}
                         onClick={() => scrollToTab(t)}
-                        className={`h-1.5 rounded-full transition-all ${
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
                             t === activeTab
                                 ? 'w-4 bg-brand-600 dark:bg-gold-500'
-                                : 'w-1.5 bg-slate-300 dark:bg-ink-600'
+                                : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
                         }`}
                         aria-label={`Go to ${TAB_LABELS[t] || t}`}
                     />
