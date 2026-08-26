@@ -66,8 +66,14 @@ const TAB_ICONS = {
 };
 
 // How many px of scroll it takes to go from fully expanded (0) to fully
-// collapsed (1) on mobile. Lower = shrinks faster. Tweak freely.
-const MOBILE_COLLAPSE_DISTANCE = 130;
+// collapsed (1) on mobile. Higher = more gradual.
+const MOBILE_COLLAPSE_DISTANCE = 160;
+
+// A short easing transition applied to every scroll-driven value below.
+// This is what makes the shrink feel fluid instead of stepped — each new
+// scroll-derived value is approached smoothly rather than snapped to.
+const SMOOTH_TRANSITION = 'padding 140ms ease-out, gap 140ms ease-out, max-width 140ms ease-out, ' +
+    'opacity 140ms ease-out, font-size 140ms ease-out, max-height 140ms ease-out, margin 140ms ease-out';
 
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
@@ -88,9 +94,7 @@ export default function Browse() {
     const [openSheet, setOpenSheet] = useState(null);
     const search = searchParams.get('search') || '';
 
-    // Continuous 0→1 scroll progress, mobile only. This drives every
-    // header measurement directly — no CSS transition, no threshold
-    // snap — so the shrink tracks the scrollbar 1:1.
+    // Continuous 0→1 scroll progress, mobile only.
     const [progress, setProgress] = useState(0);
     const [isMobileViewport, setIsMobileViewport] = useState(
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
@@ -326,20 +330,35 @@ export default function Browse() {
 
     const headerTitle = search ? `Results for "${search}"` : 'Browse listings';
 
-    // ── Mobile header measurements, all derived from `progress` (0→1) ──
-    const mobileHeaderPadding = isMobileViewport
-        ? { paddingTop: lerp(28, 12, progress), paddingBottom: lerp(28, 12, progress) }
+    // ── Mobile header measurements, all derived from `progress` (0→1).
+    // Every "expanded" value below is chosen to exactly equal what the
+    // original Tailwind classes rendered (px-2.5=10px, py-1=4px, py-8=32px,
+    // mt-4=16px, gap-1=4px, text-xs icon w-3=12px) — so at progress 0 this
+    // renders pixel-identical to the header you had before.
+    const sectionPadding = isMobileViewport
+        ? { paddingTop: lerp(32, 14, progress), paddingBottom: lerp(32, 14, progress), transition: SMOOTH_TRANSITION }
         : undefined;
 
-    const backBtnWidth = lerp(96, 32, progress);
-    const backBtnPad = lerp(12, 0, progress);
-    const homeLabelOpacity = 1 - clamp01(progress * 1.8);
-    const homeLabelMaxWidth = lerp(40, 0, progress);
-    const titleFontSize = lerp(21, 16, progress);
-    const budgetFade = clamp01(progress * 1.8);
-    const budgetMaxWidth = lerp(150, 0, budgetFade);
-    const budgetOpacity = 1 - budgetFade;
-    const budgetMarginLeft = lerp(10, 0, budgetFade);
+    // Back button: pill → circle, purely via padding (equal padX/padY at
+    // full collapse = perfect circle, no explicit width/height needed).
+    const btnPadX = lerp(10, 9, progress);
+    const btnPadY = lerp(4, 9, progress);
+    const btnIconSize = lerp(12, 14, progress);
+    const btnInnerGap = lerp(4, 0, progress);
+    const labelMaxWidth = lerp(40, 0, progress);
+    const labelOpacity = 1 - progress;
+
+    // Gap between the button and the title that fades in beside it —
+    // 0 at rest, so at progress 0 the title takes zero space and sits
+    // invisibly, not shifting the button at all.
+    const rowAGap = lerp(0, 8, progress);
+    const rowATitleOpacity = progress;
+    const rowATitleFontSize = lerp(0, 16, progress);
+
+    // The original title + budget row collapses away as we scroll.
+    const rowBMaxHeight = lerp(56, 0, progress);
+    const rowBOpacity = 1 - progress;
+    const rowBMarginTop = lerp(16, 0, progress);
 
     return (
         <div className="relative min-h-screen">
@@ -354,61 +373,72 @@ export default function Browse() {
 
                 <div
                     className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
-                    style={mobileHeaderPadding}
+                    style={sectionPadding}
                 >
-                    {/* ── MOBILE: one persistent row, always mounted.
-                        Nothing here mounts/unmounts or swaps — every
-                        measurement is a direct function of `progress`,
-                        which is a direct function of window.scrollY.
-                        Scroll a pixel, the header moves a pixel. ── */}
-                    <div className="sm:hidden flex items-center" style={{ gap: 10 }}>
+                    {/* ── MOBILE Row A: back button, same as your original
+                        pill at rest. The title span next to it has zero
+                        width/opacity at progress 0, so it's invisible and
+                        doesn't affect the button's position at all. ── */}
+                    <div className="sm:hidden flex items-center" style={{ gap: `${rowAGap}px` }}>
                         <Link
                             to="/"
                             aria-label="Back to home"
-                            className="inline-flex items-center justify-center gap-1.5 bg-white/10 text-white font-semibold border border-white/30 hover:bg-white/20 active:scale-95 backdrop-blur shrink-0 rounded-full overflow-hidden"
+                            className="inline-flex items-center bg-white/10 text-white font-semibold rounded-full border border-white/30 hover:bg-white/20 active:scale-95 backdrop-blur shrink-0"
                             style={{
-                                height: 32,
-                                width: backBtnWidth,
-                                paddingLeft: backBtnPad,
-                                paddingRight: backBtnPad,
-                                transition: 'none',
+                                paddingLeft: btnPadX,
+                                paddingRight: btnPadX,
+                                paddingTop: btnPadY,
+                                paddingBottom: btnPadY,
+                                gap: `${btnInnerGap}px`,
+                                transition: SMOOTH_TRANSITION + ', background-color 200ms',
                             }}
                         >
-                            <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                            <ArrowLeft
+                                className="shrink-0"
+                                style={{ width: btnIconSize, height: btnIconSize, transition: SMOOTH_TRANSITION }}
+                            />
                             <span
-                                className="text-xs whitespace-nowrap overflow-hidden"
-                                style={{
-                                    opacity: homeLabelOpacity,
-                                    maxWidth: homeLabelMaxWidth,
-                                    transition: 'none',
-                                }}
+                                className="text-xs whitespace-nowrap overflow-hidden inline-block"
+                                style={{ maxWidth: labelMaxWidth, opacity: labelOpacity, transition: SMOOTH_TRANSITION }}
                             >
                                 Home
                             </span>
                         </Link>
 
                         <span
-                            className="font-extrabold text-white truncate flex-1 min-w-0"
-                            style={{ fontSize: titleFontSize, transition: 'none' }}
+                            className="font-extrabold text-white truncate"
+                            style={{
+                                opacity: rowATitleOpacity,
+                                fontSize: `${rowATitleFontSize}px`,
+                                transition: SMOOTH_TRANSITION,
+                            }}
                         >
                             {headerTitle}
                         </span>
+                    </div>
 
-                        <div
-                            className="shrink-0 overflow-hidden"
-                            style={{
-                                maxWidth: budgetMaxWidth,
-                                opacity: budgetOpacity,
-                                marginLeft: budgetMarginLeft,
-                                pointerEvents: budgetFade > 0.6 ? 'none' : 'auto',
-                                transition: 'none',
-                            }}
-                        >
+                    {/* ── MOBILE Row B: your original title + budget row.
+                        Untouched markup — just wrapped so it can collapse
+                        smoothly as Row A's title takes over. ── */}
+                    <div
+                        className="sm:hidden overflow-hidden"
+                        style={{
+                            maxHeight: rowBMaxHeight,
+                            opacity: rowBOpacity,
+                            marginTop: rowBMarginTop,
+                            pointerEvents: progress > 0.6 ? 'none' : 'auto',
+                            transition: SMOOTH_TRANSITION,
+                        }}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <h1 className="text-xl font-extrabold text-white truncate">
+                                {headerTitle}
+                            </h1>
                             {budgetInputField}
                         </div>
                     </div>
 
-                    {/* ── DESKTOP top row (unchanged, no scroll behavior) ── */}
+                    {/* ── DESKTOP (unchanged, no scroll behavior) ──────── */}
                     <div className="hidden sm:flex items-center justify-between flex-wrap gap-2 sm:gap-3">
                         <Link
                             to="/"
