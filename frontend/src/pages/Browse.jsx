@@ -65,15 +65,13 @@ const TAB_ICONS = {
     verified: { outline: CheckBadgeIcon, solid: CheckBadgeIconSolid },
 };
 
-// How many px of scroll it takes to go from fully expanded (0) to fully
-// collapsed (1) on mobile. Higher = more gradual.
+// How many px of scroll it takes for the target to reach fully collapsed.
 const MOBILE_COLLAPSE_DISTANCE = 160;
 
-// A short easing transition applied to every scroll-driven value below.
-// This is what makes the shrink feel fluid instead of stepped — each new
-// scroll-derived value is approached smoothly rather than snapped to.
-const SMOOTH_TRANSITION = 'padding 140ms ease-out, gap 140ms ease-out, max-width 140ms ease-out, ' +
-    'opacity 140ms ease-out, font-size 140ms ease-out, max-height 140ms ease-out, margin 140ms ease-out';
+// How quickly the *displayed* progress eases toward the scroll-driven
+// target every animation frame. Lower = silkier/slower catch-up,
+// higher = snappier/more mechanical. This is the main "smoothness" knob.
+const SPRING_SMOOTHING = 0.09;
 
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
@@ -94,30 +92,34 @@ export default function Browse() {
     const [openSheet, setOpenSheet] = useState(null);
     const search = searchParams.get('search') || '';
 
-    // Continuous 0→1 scroll progress, mobile only.
+    // `progress` is the smoothed, displayed 0→1 value driving every header
+    // measurement. `targetProgressRef` is the raw scroll-derived value.
+    // A continuous rAF loop eases `progress` toward the target every
+    // frame — that's what produces the buttery, momentum-like glide
+    // instead of a mechanical step-by-step follow.
     const [progress, setProgress] = useState(0);
     const [isMobileViewport, setIsMobileViewport] = useState(
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
     );
-    const tickingRef = useRef(false);
+    const targetProgressRef = useRef(0);
+    const scrollTickingRef = useRef(false);
 
+    // Track scroll → update the target only (no state write here, so
+    // scrolling itself never causes a render; the rAF loop below is the
+    // only thing that calls setProgress).
     useEffect(() => {
         const evaluate = () => {
             const mobile = window.innerWidth < 640;
             setIsMobileViewport(mobile);
-            if (!mobile) {
-                setProgress(0);
-                return;
-            }
-            setProgress(clamp01(window.scrollY / MOBILE_COLLAPSE_DISTANCE));
+            targetProgressRef.current = mobile ? clamp01(window.scrollY / MOBILE_COLLAPSE_DISTANCE) : 0;
         };
 
         const onScrollOrResize = () => {
-            if (tickingRef.current) return;
-            tickingRef.current = true;
+            if (scrollTickingRef.current) return;
+            scrollTickingRef.current = true;
             window.requestAnimationFrame(() => {
                 evaluate();
-                tickingRef.current = false;
+                scrollTickingRef.current = false;
             });
         };
 
@@ -128,6 +130,24 @@ export default function Browse() {
             window.removeEventListener('scroll', onScrollOrResize);
             window.removeEventListener('resize', onScrollOrResize);
         };
+    }, []);
+
+    // The spring/easing loop. Runs continuously (cheap — one float compare
+    // per frame) so the header keeps gliding toward the target even after
+    // scrolling has stopped, then settles.
+    useEffect(() => {
+        let rafId;
+        const loop = () => {
+            setProgress((prev) => {
+                const target = targetProgressRef.current;
+                const diff = target - prev;
+                if (Math.abs(diff) < 0.0006) return target;
+                return prev + diff * SPRING_SMOOTHING;
+            });
+            rafId = window.requestAnimationFrame(loop);
+        };
+        rafId = window.requestAnimationFrame(loop);
+        return () => window.cancelAnimationFrame(rafId);
     }, []);
 
     useEffect(() => {
@@ -330,17 +350,18 @@ export default function Browse() {
 
     const headerTitle = search ? `Results for "${search}"` : 'Browse listings';
 
-    // ── Mobile header measurements, all derived from `progress` (0→1).
-    // Every "expanded" value below is chosen to exactly equal what the
-    // original Tailwind classes rendered (px-2.5=10px, py-1=4px, py-8=32px,
-    // mt-4=16px, gap-1=4px, text-xs icon w-3=12px) — so at progress 0 this
-    // renders pixel-identical to the header you had before.
+    // ── Mobile header measurements, all derived from the smoothed
+    // `progress` (0→1). Expanded values match your original Tailwind
+    // classes exactly (px-2.5=10px, py-1=4px, py-8=32px, mt-4=16px) so
+    // at progress 0 this is pixel-identical to your original header.
     const sectionPadding = isMobileViewport
-        ? { paddingTop: lerp(32, 14, progress), paddingBottom: lerp(32, 14, progress), transition: SMOOTH_TRANSITION }
+        ? { paddingTop: lerp(32, 14, progress), paddingBottom: lerp(32, 14, progress) }
         : undefined;
 
-    // Back button: pill → circle, purely via padding (equal padX/padY at
-    // full collapse = perfect circle, no explicit width/height needed).
+    // Background photo fades out completely by the time the header is
+    // fully collapsed, leaving just the section's own gradient behind it.
+    const imageOpacity = isMobileViewport ? 1 - progress : 1;
+
     const btnPadX = lerp(10, 9, progress);
     const btnPadY = lerp(4, 9, progress);
     const btnIconSize = lerp(12, 14, progress);
@@ -348,14 +369,10 @@ export default function Browse() {
     const labelMaxWidth = lerp(40, 0, progress);
     const labelOpacity = 1 - progress;
 
-    // Gap between the button and the title that fades in beside it —
-    // 0 at rest, so at progress 0 the title takes zero space and sits
-    // invisibly, not shifting the button at all.
     const rowAGap = lerp(0, 8, progress);
     const rowATitleOpacity = progress;
     const rowATitleFontSize = lerp(0, 16, progress);
 
-    // The original title + budget row collapses away as we scroll.
     const rowBMaxHeight = lerp(56, 0, progress);
     const rowBOpacity = 1 - progress;
     const rowBMarginTop = lerp(16, 0, progress);
@@ -364,42 +381,40 @@ export default function Browse() {
         <div className="relative min-h-screen">
             {/* HEADER STRIP */}
             <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
-                <div className="absolute inset-0">
+                <div className="absolute inset-0" style={{ opacity: imageOpacity }}>
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
                 </div>
-                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
+                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" style={{ opacity: imageOpacity }} />
+                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" style={{ opacity: imageOpacity }} />
 
                 <div
                     className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
                     style={sectionPadding}
                 >
-                    {/* ── MOBILE Row A: back button, same as your original
-                        pill at rest. The title span next to it has zero
-                        width/opacity at progress 0, so it's invisible and
-                        doesn't affect the button's position at all. ── */}
+                    {/* ── MOBILE Row A: back button. The title span next to
+                        it has zero width/opacity at rest, so it never
+                        shifts the button's position at progress 0. ── */}
                     <div className="sm:hidden flex items-center" style={{ gap: `${rowAGap}px` }}>
                         <Link
                             to="/"
                             aria-label="Back to home"
-                            className="inline-flex items-center bg-white/10 text-white font-semibold rounded-full border border-white/30 hover:bg-white/20 active:scale-95 backdrop-blur shrink-0"
+                            className="inline-flex items-center bg-white/10 text-white font-semibold rounded-full border border-white/30 hover:bg-white/20 active:scale-95 backdrop-blur shrink-0 transition-colors duration-200"
                             style={{
                                 paddingLeft: btnPadX,
                                 paddingRight: btnPadX,
                                 paddingTop: btnPadY,
                                 paddingBottom: btnPadY,
                                 gap: `${btnInnerGap}px`,
-                                transition: SMOOTH_TRANSITION + ', background-color 200ms',
                             }}
                         >
                             <ArrowLeft
                                 className="shrink-0"
-                                style={{ width: btnIconSize, height: btnIconSize, transition: SMOOTH_TRANSITION }}
+                                style={{ width: btnIconSize, height: btnIconSize }}
                             />
                             <span
                                 className="text-xs whitespace-nowrap overflow-hidden inline-block"
-                                style={{ maxWidth: labelMaxWidth, opacity: labelOpacity, transition: SMOOTH_TRANSITION }}
+                                style={{ maxWidth: labelMaxWidth, opacity: labelOpacity }}
                             >
                                 Home
                             </span>
@@ -407,19 +422,14 @@ export default function Browse() {
 
                         <span
                             className="font-extrabold text-white truncate"
-                            style={{
-                                opacity: rowATitleOpacity,
-                                fontSize: `${rowATitleFontSize}px`,
-                                transition: SMOOTH_TRANSITION,
-                            }}
+                            style={{ opacity: rowATitleOpacity, fontSize: `${rowATitleFontSize}px` }}
                         >
                             {headerTitle}
                         </span>
                     </div>
 
-                    {/* ── MOBILE Row B: your original title + budget row.
-                        Untouched markup — just wrapped so it can collapse
-                        smoothly as Row A's title takes over. ── */}
+                    {/* ── MOBILE Row B: original title + budget row,
+                        collapsing away as Row A's title takes over. ── */}
                     <div
                         className="sm:hidden overflow-hidden"
                         style={{
@@ -427,7 +437,6 @@ export default function Browse() {
                             opacity: rowBOpacity,
                             marginTop: rowBMarginTop,
                             pointerEvents: progress > 0.6 ? 'none' : 'auto',
-                            transition: SMOOTH_TRANSITION,
                         }}
                     >
                         <div className="flex items-center justify-between gap-3">
