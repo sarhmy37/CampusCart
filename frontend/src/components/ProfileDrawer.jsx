@@ -364,7 +364,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* DASHBOARD */}
                     <button
                         onClick={() => { onClose(); navigate('/dashboard'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-300 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-200 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
@@ -372,7 +372,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* CHAT / MESSAGING */}
                     <button
                         onClick={() => { onClose(); navigate('/chat'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-300 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-200 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <MessageCircle size={17} /> Chat / Messaging
                         {conversations.length > 0 && (
@@ -383,7 +383,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     </button>
 
                     {/* SUPPORT & ABOUT - DROPDOWN */}
-                    <div className="rounded-xl bg-slate-300 dark:bg-ink-700 overflow-hidden">
+                    <div className="rounded-xl bg-slate-200 dark:bg-ink-700 overflow-hidden">
                         <button
                             onClick={() => setSupportOpen(!supportOpen)}
                             className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-gold-100 transition hover:bg-slate-100 dark:hover:bg-ink-600"
@@ -456,7 +456,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* SETTINGS */}
                     <button
                         onClick={() => { onClose(); navigate('/settings'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-300 dark:bg-ink-700 hover:bg-slate-400 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-200 dark:bg-ink-700 hover:bg-slate-400 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <Settings size={17} /> Settings
                     </button>
