@@ -113,7 +113,7 @@ export default function Browse() {
         if (activeCategory) params.category = activeCategory;
         if (itemCategory) params.itemCategory = itemCategory;
         if (school) params.school = school;
-        
+
         api.get('/products', { params })
             .then((res) => setProducts(res.data))
             .catch(() => setProducts([]))
@@ -232,7 +232,7 @@ export default function Browse() {
                     <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-3">
                         <Link
                             to="/"
-                            className="inline-flex items-center gap-1 sm:gap-2 bg-white/10 text-white font-semibold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-sm shrink-0"
+                            className="inline-flex items-center gap-1 sm:gap-2 bg-white/10 text-white font-semibold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-sm shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70"
                         >
                             <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span className="sm:hidden">Home</span>
@@ -244,7 +244,7 @@ export default function Browse() {
                                 <select
                                     value={itemCategory}
                                     onChange={(e) => setItemCategory(e.target.value)}
-                                    className="appearance-none bg-white/10 text-white text-xs sm:text-sm font-semibold pl-2.5 sm:pl-4 pr-5 sm:pr-6 py-1 sm:py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
+                                    className="appearance-none bg-white/10 text-white text-xs sm:text-sm font-semibold pl-2.5 sm:pl-4 pr-5 sm:pr-6 py-1 sm:py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none focus-visible:border-white/60 cursor-pointer"
                                 >
                                     <option value="" className="text-slate-900">All categories</option>
                                     {ITEM_TYPES.map((t) => (
@@ -258,7 +258,7 @@ export default function Browse() {
                                 <select
                                     value={school}
                                     onChange={handleSchoolChange}
-                                    className="appearance-none bg-white/10 text-white text-xs sm:text-sm font-semibold pl-2.5 sm:pl-4 pr-5 sm:pr-6 py-1 sm:py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
+                                    className="appearance-none bg-white/10 text-white text-xs sm:text-sm font-semibold pl-2.5 sm:pl-4 pr-5 sm:pr-6 py-1 sm:py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none focus-visible:border-white/60 cursor-pointer"
                                 >
                                     <option value="" className="text-slate-900">All schools</option>
                                     <option value="nearby" className="text-slate-900">{locating ? 'Locating…' : '📍 Near me'}</option>
@@ -285,7 +285,7 @@ export default function Browse() {
                     </div>
 
                     {/* ─── SWIPEABLE TABS (MOBILE) ────────────────────── */}
-                    <div className="block sm:hidden mt-3">
+                    <div className="block sm:hidden mt-4">
                         <BrowseTabRoll
                             tabs={['all', 'new', 'nearby', 'verified']}
                             activeTab={activeTab}
@@ -299,7 +299,7 @@ export default function Browse() {
                     <div className="hidden sm:flex items-center gap-2 flex-wrap mt-4">
                         <button
                             onClick={() => { setFilterType('all'); setVerifiedOnly(false); }}
-                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70 ${
                                 filterType === 'all' && !verifiedOnly
                                     ? 'bg-white text-brand-700 border-white'
                                     : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
@@ -309,7 +309,7 @@ export default function Browse() {
                         </button>
                         <button
                             onClick={() => setFilterType('new')}
-                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70 ${
                                 filterType === 'new'
                                     ? 'bg-white text-brand-700 border-white'
                                     : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
@@ -325,7 +325,7 @@ export default function Browse() {
                                     handleSchoolChange(event);
                                 }
                             }}
-                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70 ${
                                 filterType === 'nearby'
                                     ? 'bg-white text-brand-700 border-white'
                                     : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
@@ -335,19 +335,22 @@ export default function Browse() {
                         </button>
                         <button
                             onClick={() => setVerifiedOnly(!verifiedOnly)}
-                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70 ${
                                 verifiedOnly
-                                    ? 'bg-white text-brand-700 border-white'
+                                    ? 'bg-emerald-500 text-white border-emerald-400'
                                     : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
                             }`}
                         >
                             <BadgeCheck className="inline w-4 h-4 mr-1" /> Verified
                         </button>
+
+                        <div className="w-px h-5 bg-white/25 mx-1" aria-hidden="true" />
+
                         {PRICE_RANGES.map((r) => (
                             <button
                                 key={r.label}
                                 onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
-                                className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                                className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70 ${
                                     priceRange?.label === r.label
                                         ? 'bg-white text-brand-700 border-white'
                                         : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
@@ -443,18 +446,40 @@ export default function Browse() {
     );
 }
 
-// ─── BROWSE SWIPEABLE TABS ROLL (REDUCED HEIGHT) ──────────────────────
+// ─── BROWSE SWIPEABLE TABS ROLL ────────────────────────────────────────
+// A frosted-glass segmented control that matches the desktop filter pills.
+// A single sliding pill tracks the active tab instead of an underline, and
+// "Verified" gets its own emerald tint since it's a trust toggle, not a
+// view mode like All / New / Nearby.
 function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
     const containerRef = useRef(null);
-    const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollStart, setScrollStart] = useState(0);
     const [showLeftChevron, setShowLeftChevron] = useState(false);
     const [showRightChevron, setShowRightChevron] = useState(true);
+    const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
     const draggingRef = useRef(false);
     const movedRef = useRef(false);
 
     const activeIndex = tabs.indexOf(activeTab);
+
+    const measurePill = () => {
+        const container = containerRef.current;
+        if (!container) return;
+        const items = container.querySelectorAll('.browse-tab-item');
+        const el = items[activeIndex];
+        if (el) {
+            setPillStyle({ left: el.offsetLeft, width: el.offsetWidth });
+        }
+    };
+
+    const checkChevrons = () => {
+        if (containerRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
+            setShowLeftChevron(scrollLeft > 10);
+            setShowRightChevron(scrollLeft < scrollWidth - clientWidth - 10);
+        }
+    };
 
     useEffect(() => {
         if (containerRef.current && activeIndex >= 0) {
@@ -468,21 +493,17 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                 container.scrollTo({ left: scrollTo, behavior: 'smooth' });
             }
         }
+        measurePill();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeIndex]);
-
-    const checkChevrons = () => {
-        if (containerRef.current) {
-            const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
-            setShowLeftChevron(scrollLeft > 10);
-            setShowRightChevron(scrollLeft < scrollWidth - clientWidth - 10);
-        }
-    };
 
     useEffect(() => {
         checkChevrons();
-        const handleResize = () => checkChevrons();
+        measurePill();
+        const handleResize = () => { checkChevrons(); measurePill(); };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tabs]);
 
     const handleStart = (clientX) => {
@@ -490,7 +511,6 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
         setScrollStart(containerRef.current?.scrollLeft || 0);
         draggingRef.current = true;
         movedRef.current = false;
-        setIsDragging(true);
     };
 
     const handleMove = (clientX) => {
@@ -503,7 +523,6 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
 
     const handleEnd = () => {
         draggingRef.current = false;
-        setIsDragging(false);
         if (movedRef.current) {
             if (containerRef.current) {
                 const container = containerRef.current;
@@ -511,7 +530,7 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                 let closestIndex = 0;
                 let closestDistance = Infinity;
                 const containerCenter = container.scrollLeft + container.clientWidth / 2;
-                
+
                 tabElements.forEach((tab, i) => {
                     const tabCenter = tab.offsetLeft + tab.offsetWidth / 2;
                     const distance = Math.abs(tabCenter - containerCenter);
@@ -520,7 +539,7 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                         closestIndex = i;
                     }
                 });
-                
+
                 if (closestIndex !== activeIndex) {
                     onTabChange(tabs[closestIndex]);
                 }
@@ -551,17 +570,16 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
             const container = containerRef.current;
             const tabElements = container.querySelectorAll('.browse-tab-item');
             if (tabElements[index]) {
-                const tab = tabElements[index];
+                const el = tabElements[index];
                 const containerRect = container.getBoundingClientRect();
-                const tabRect = tab.getBoundingClientRect();
-                const scrollTo = tab.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+                const tabRect = el.getBoundingClientRect();
+                const scrollTo = el.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
                 container.scrollTo({ left: scrollTo, behavior: 'smooth' });
             }
         }
         onTabChange(tab);
     };
 
-    // Get label for tab
     const getTabLabel = (tab) => {
         if (tab === 'verified') {
             return verifiedOnly ? '✓ Verified' : 'Verified';
@@ -572,129 +590,73 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
         return BROWSE_TAB_LABELS[tab] || tab;
     };
 
+    const isVerifiedActive = activeTab === 'verified';
+
     return (
-        <div className="relative">
-            {/* Floating shadow effect - reduced */}
-            <div 
-                className="absolute -bottom-3 left-0 right-0 h-6 bg-gradient-to-b from-slate-200/40 via-slate-200/20 to-transparent dark:from-ink-600/20 dark:via-ink-600/10 dark:to-transparent blur-md rounded-full"
-                style={{
-                    transform: 'scaleX(0.85)',
-                    filter: 'blur(6px)',
-                }}
+        <div
+            ref={containerRef}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onMouseDown={onMouseDown}
+            onScroll={checkChevrons}
+            className="relative rounded-full border border-white/25 dark:border-white/10 bg-white/10 dark:bg-black/20 backdrop-blur-md overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing scrollbar-hide"
+            style={{
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                height: 40,
+                WebkitOverflowScrolling: 'touch',
+            }}
+        >
+            <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+
+            {/* Sliding active pill — emerald for the Verified trust toggle, white otherwise */}
+            <div
+                className={`absolute top-1 bottom-1 rounded-full shadow-sm transition-all duration-300 ease-out pointer-events-none ${
+                    isVerifiedActive ? 'bg-emerald-500' : 'bg-white dark:bg-gold-400'
+                }`}
+                style={{ left: pillStyle.left, width: pillStyle.width }}
             />
 
-            <div className="relative">
-                <div
-                    ref={containerRef}
-                    onTouchStart={onTouchStart}
-                    onTouchMove={onTouchMove}
-                    onTouchEnd={onTouchEnd}
-                    onMouseDown={onMouseDown}
-                    onScroll={checkChevrons}
-                    className="relative rounded-xl border border-slate-200/70 dark:border-ink-600/70 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-md hover:shadow-lg transition-shadow duration-300 scrollbar-hide"
-                    style={{
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
-                        height: 40, // Reduced height
-                        WebkitOverflowScrolling: 'touch',
-                    }}
-                >
-                    <style>
-                        {`
-                            .scrollbar-hide::-webkit-scrollbar {
-                                display: none;
-                            }
-                        `}
-                    </style>
+            <div className="relative flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 6px', gap: '2px' }}>
+                {tabs.map((tab) => {
+                    const isActive = tab === activeTab;
+                    const label = getTabLabel(tab);
+                    const isVerifiedTab = tab === 'verified';
+                    const isNearbyTab = tab === 'nearby';
 
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
+                    return (
+                        <button
+                            key={tab}
+                            onClick={() => scrollToTab(tab)}
+                            className={`browse-tab-item relative z-10 shrink-0 h-full flex items-center justify-center gap-1 px-3.5 text-xs font-semibold rounded-full transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/70 ${
+                                isActive
+                                    ? isVerifiedTab ? 'text-white' : 'text-brand-700 dark:text-ink-900'
+                                    : 'text-white/75 hover:text-white'
+                            }`}
+                            style={{ minWidth: 56 }}
+                        >
+                            {isVerifiedTab && <BadgeCheck size={13} />}
+                            {isNearbyTab && <span className="text-sm leading-none">📍</span>}
+                            {tab === 'new' && <span className="text-sm leading-none">✨</span>}
+                            {tab === 'all' && <SlidersHorizontal size={13} />}
+                            <span className="whitespace-nowrap">{label}</span>
+                        </button>
+                    );
+                })}
+            </div>
 
-                    <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 8px', gap: '2px' }}>
-                        {tabs.map((tab, index) => {
-                            const isActive = tab === activeTab;
-                            const label = getTabLabel(tab);
-                            const isVerifiedTab = tab === 'verified';
-                            const isNearbyTab = tab === 'nearby';
-                            
-                            return (
-                                <button
-                                    key={tab}
-                                    ref={(el) => {
-                                        if (el) {
-                                            el.dataset.index = index;
-                                        }
-                                    }}
-                                    onClick={() => scrollToTab(tab)}
-                                    className={`browse-tab-item relative shrink-0 h-full flex items-center justify-center gap-1 px-3 text-xs font-semibold transition-all duration-200 ${
-                                        isActive
-                                            ? 'text-brand-700 dark:text-gold-400'
-                                            : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
-                                    }`}
-                                    style={{ minWidth: 60 }}
-                                >
-                                    {isVerifiedTab && <BadgeCheck size={13} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
-                                    {isNearbyTab && !school && <span className="text-base">📍</span>}
-                                    {isNearbyTab && school && <span className="text-base">📍</span>}
-                                    {tab === 'new' && <span className="text-base">✨</span>}
-                                    {tab === 'all' && <SlidersHorizontal size={13} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
-                                    <span className="whitespace-nowrap">{label}</span>
-                                    {isActive && (
-                                        <span 
-                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
-                                            style={{
-                                                width: 'auto',
-                                                minWidth: '16px',
-                                                maxWidth: '70%',
-                                                paddingLeft: '2px',
-                                                paddingRight: '2px',
-                                            }}
-                                        >
-                                            <span 
-                                                className="block"
-                                                style={{
-                                                    width: 'auto',
-                                                    minWidth: '16px',
-                                                    height: '2px',
-                                                    background: 'currentColor',
-                                                    borderRadius: '9999px',
-                                                }}
-                                            />
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
+            {showLeftChevron && (
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-black/15 to-transparent rounded-l-full flex items-center">
+                    <ChevronLeft size={12} className="text-white/70 ml-1" />
                 </div>
+            )}
 
-                {showLeftChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
-                        <ChevronLeft size={12} className="text-slate-400 dark:text-gold-300/40 ml-1" />
-                    </div>
-                )}
-
-                {showRightChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
-                        <ChevronRight size={12} className="text-slate-400 dark:text-gold-300/40 mr-1" />
-                    </div>
-                )}
-            </div>
-
-            {/* Dot indicators - reduced size */}
-            <div className="flex justify-center gap-1.5 mt-2">
-                {tabs.map((t, i) => (
-                    <button
-                        key={t}
-                        onClick={() => scrollToTab(t)}
-                        className={`h-1 rounded-full transition-all duration-300 ${
-                            t === activeTab
-                                ? 'w-3 bg-brand-600 dark:bg-gold-500'
-                                : 'w-1 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
-                        }`}
-                        aria-label={`Go to ${BROWSE_TAB_LABELS[t] || t}`}
-                    />
-                ))}
-            </div>
+            {showRightChevron && (
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-black/15 to-transparent rounded-r-full flex items-center justify-end">
+                    <ChevronRight size={12} className="text-white/70 mr-1" />
+                </div>
+            )}
         </div>
     );
 }
