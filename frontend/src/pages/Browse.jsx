@@ -432,6 +432,7 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school }) {
     };
 
     return (
+        <>
         <div
             className="relative w-full rounded-[28px] border border-white/50 dark:border-white/10 bg-white/65 dark:bg-ink-900/55 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.35)] overflow-hidden"
             style={{
@@ -443,7 +444,7 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school }) {
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent dark:from-white/10" />
             <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/40 dark:ring-white/5" />
 
-            <div className="relative flex items-stretch h-[62px] px-1.5">
+            <div className="relative flex items-stretch h-[50px] px-1.5">
                 {tabs.map((tab) => {
                     const active = isTabActive(tab);
                     const Icon = active ? TAB_ICONS[tab].solid : TAB_ICONS[tab].outline;
@@ -453,24 +454,24 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school }) {
                         <button
                             key={tab}
                             onClick={() => onTabChange(tab)}
-                            className="relative flex-1 min-w-0 my-1.5 mx-0.5"
+                            className="relative flex-1 min-w-0 my-1 mx-0.5"
                         >
                             <span
-                                className={`flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-2xl transition-all duration-300 ease-out active:scale-[0.94] ${
+                                className={`flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-300 ease-out active:scale-[0.94] ${
                                     active
-                                        ? 'bg-white/95 dark:bg-ink-700/90 shadow-[0_2px_10px_rgba(15,23,42,0.15)]'
+                                        ? 'bg-white/40 dark:bg-white/10 shadow-[0_1px_4px_rgba(15,23,42,0.06)]'
                                         : 'bg-transparent'
                                 }`}
                             >
                                 <Icon
-                                    className={`w-5 h-5 transition-colors duration-300 ${
+                                    className={`w-[18px] h-[18px] transition-colors duration-300 ${
                                         active
                                             ? 'text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50'
                                     }`}
                                 />
                                 <span
-                                    className={`text-[10.5px] leading-none truncate max-w-full px-1 transition-all duration-300 ${
+                                    className={`text-[10px] leading-none truncate max-w-full px-1 transition-all duration-300 ${
                                         active
                                             ? 'font-bold text-brand-700 dark:text-gold-400'
                                             : 'font-medium text-slate-500 dark:text-gold-200/50'
@@ -488,5 +489,25 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school }) {
                 })}
             </div>
         </div>
+
+        {/* dot indicators */}
+        <div className="flex justify-center gap-1.5 mt-2">
+            {tabs.map((tab) => {
+                const active = isTabActive(tab);
+                return (
+                    <button
+                        key={tab}
+                        onClick={() => onTabChange(tab)}
+                        aria-label={`Go to ${BROWSE_TAB_LABELS[tab] || tab}`}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                            active
+                                ? 'w-4 bg-brand-600 dark:bg-gold-500'
+                                : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
+                        }`}
+                    />
+                );
+            })}
+        </div>
+        </>
     );
 }
