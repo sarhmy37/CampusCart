@@ -266,7 +266,7 @@ export default function ProfileDrawer({ open, onClose }) {
                 <div className="px-6 mt-6 pb-8 space-y-2">
 
                     {/* PERSONAL DETAILS - DROPDOWN */}
-                    <div className="pb-4 border-b border-slate-100 dark:border-ink-600">
+                    <div className="pb-4 border-b border-slate-50 dark:border-ink-600">
                         <button
                             onClick={() => setPersonalOpen(!personalOpen)}
                             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
@@ -364,7 +364,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* DASHBOARD */}
                     <button
                         onClick={() => { onClose(); navigate('/dashboard'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-300 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
@@ -372,7 +372,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* CHAT / MESSAGING */}
                     <button
                         onClick={() => { onClose(); navigate('/chat'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-300 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <MessageCircle size={17} /> Chat / Messaging
                         {conversations.length > 0 && (
@@ -383,7 +383,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     </button>
 
                     {/* SUPPORT & ABOUT - DROPDOWN */}
-                    <div className="rounded-xl bg-slate-50 dark:bg-ink-700 overflow-hidden">
+                    <div className="rounded-xl bg-slate-300 dark:bg-ink-700 overflow-hidden">
                         <button
                             onClick={() => setSupportOpen(!supportOpen)}
                             className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-gold-100 transition hover:bg-slate-100 dark:hover:bg-ink-600"
@@ -456,13 +456,13 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* SETTINGS */}
                     <button
                         onClick={() => { onClose(); navigate('/settings'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700 hover:bg-slate-100 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-300 dark:bg-ink-700 hover:bg-slate-400 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
                     >
                         <Settings size={17} /> Settings
                     </button>
 
                     {/* LOGOUT */}
-                    <div className="pt-4 border-t border-slate-100 dark:border-ink-600">
+                    <div className="pt-4 border-t border-slate-300 dark:border-ink-600">
                         <button
                             onClick={() => setConfirmLogout(true)}
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-semibold text-red-600 dark:text-red-400 transition"

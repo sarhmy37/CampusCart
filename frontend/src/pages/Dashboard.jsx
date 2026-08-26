@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
@@ -20,6 +20,31 @@ const PERIODS = [
     { value: 'year', label: 'This year' },
     { value: 'all', label: 'All time' },
 ];
+
+// ─── SWIPEABLE TABS CONFIG ────────────────────────────────────────────────
+const TAB_LABELS = {
+    overview: 'Overview',
+    listings: 'Listings',
+    orders: 'Orders',
+    deliveries: 'Deliveries',
+    sales: 'Sales',
+    payouts: 'Payouts',
+    reports: 'Reports',
+};
+
+const TAB_ICONS = {
+    overview: Store,
+    listings: Tag,
+    orders: ShoppingBag,
+    deliveries: Truck,
+    sales: TrendingUp,
+    payouts: Wallet,
+    reports: Flag,
+};
+
+// Same constants as Navbar's AuthRollBall
+const ROLL_THRESHOLD = 28;
+const ITEM_W = 80; // slightly wider for tab labels
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -60,30 +85,24 @@ export default function Dashboard() {
         <div>
             {/* HEADER — with video background */}
             <section className="relative overflow-hidden">
-                {/* VIDEO BACKGROUND */}
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
-                {/* OVERLAYS */}
                 <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
-                {/* CONTENT */}
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                     <div className="flex items-center justify-between flex-wrap gap-4">
-                        
-                        {/* LEFT SIDE: PRODUCT-DETAIL STYLE BUTTON + NAME */}
                         <div className="flex items-center gap-4 sm:gap-5">
-                            {/* ✅ EXACT COPY OF PRODUCT DETAIL CHEVRON STYLE */}
                             <button
-    onClick={() => {
-        navigate('/', { state: { openProfile: true } });
-    }}
-    className="w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
->
-    <ChevronLeft size={20} />
-</button>
+                                onClick={() => {
+                                    navigate('/', { state: { openProfile: true } });
+                                }}
+                                className="w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
 
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
@@ -93,7 +112,6 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* RIGHT SIDE: PERIOD SELECTOR & NEW LISTING BUTTON */}
                         <div className="flex items-center gap-2">
                             <select
                                 value={period}
@@ -134,22 +152,13 @@ export default function Dashboard() {
             </section>
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
+                {/* ─── SWIPEABLE TABS ────────────────────────────────────── */}
                 {tabs.length > 1 && (
-                    <div className="flex gap-1 mb-6 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-full sm:w-fit mx-auto overflow-x-auto">
-                        {tabs.map((t) => (
-                            <button
-                                key={t}
-                                onClick={() => setTab(t)}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${
-                                    tab === t
-                                        ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
-                                        : 'text-slate-500 dark:text-gold-200/50'
-                                }`}
-                            >
-                                {t}
-                            </button>
-                        ))}
-                    </div>
+                    <TabRoll
+                        tabs={tabs}
+                        activeTab={tab}
+                        onTabChange={setTab}
+                    />
                 )}
 
                 {tab === 'overview' && <SellerOverview period={period} />}
@@ -159,14 +168,204 @@ export default function Dashboard() {
                 {tab === 'sales' && <MySales />}
                 {tab === 'payouts' && <PayoutSettings />}
                 {tab === 'reports' && <MyReports />}
-                
             </div>
 
-            {/* PROFILE DRAWER RENDERED AT THE BOTTOM INSIDE THE MAIN DIV */}
             <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
         </div>
     );
 }
+
+// ─── SWIPEABLE TABS ROLL ──────────────────────────────────────────────────
+// Shows 4 tabs at a time with the same visual style as AuthRollBall
+function TabRoll({ tabs, activeTab, onTabChange }) {
+    const containerRef = useRef(null);
+    const [scrollLeft, setScrollLeft] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollStart, setScrollStart] = useState(0);
+    const [showLeftChevron, setShowLeftChevron] = useState(false);
+    const [showRightChevron, setShowRightChevron] = useState(true);
+    const draggingRef = useRef(false);
+    const movedRef = useRef(false);
+
+    // Find the index of the active tab
+    const activeIndex = tabs.indexOf(activeTab);
+
+    // Scroll to active tab when it changes
+    useEffect(() => {
+        if (containerRef.current && activeIndex >= 0) {
+            const container = containerRef.current;
+            const tabWidth = 100; // approximate width per tab
+            const targetScroll = activeIndex * tabWidth - container.clientWidth / 2 + tabWidth / 2;
+            container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+        }
+    }, [activeIndex]);
+
+    // Check chevron visibility
+    const checkChevrons = () => {
+        if (containerRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
+            setShowLeftChevron(scrollLeft > 10);
+            setShowRightChevron(scrollLeft < scrollWidth - clientWidth - 10);
+        }
+    };
+
+    useEffect(() => {
+        checkChevrons();
+        const handleResize = () => checkChevrons();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [tabs]);
+
+    // Mouse/Touch drag handlers
+    const handleStart = (clientX) => {
+        setStartX(clientX);
+        setScrollStart(containerRef.current?.scrollLeft || 0);
+        draggingRef.current = true;
+        movedRef.current = false;
+        setIsDragging(true);
+    };
+
+    const handleMove = (clientX) => {
+        if (!draggingRef.current || !containerRef.current) return;
+        const diff = clientX - startX;
+        if (Math.abs(diff) > 5) movedRef.current = true;
+        containerRef.current.scrollLeft = scrollStart - diff;
+        checkChevrons();
+    };
+
+    const handleEnd = () => {
+        draggingRef.current = false;
+        setIsDragging(false);
+        if (movedRef.current) {
+            // Snap to nearest tab
+            if (containerRef.current) {
+                const container = containerRef.current;
+                const tabWidth = 100;
+                const snapIndex = Math.round(container.scrollLeft / tabWidth);
+                container.scrollTo({ left: snapIndex * tabWidth, behavior: 'smooth' });
+            }
+        }
+        checkChevrons();
+    };
+
+    const onTouchStart = (e) => handleStart(e.touches[0].clientX);
+    const onTouchMove = (e) => handleMove(e.touches[0].clientX);
+    const onTouchEnd = () => handleEnd();
+
+    const onMouseDown = (e) => {
+        handleStart(e.clientX);
+        const onMouseMove = (ev) => handleMove(ev.clientX);
+        const onMouseUp = () => {
+            handleEnd();
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const scrollToTab = (tab) => {
+        const index = tabs.indexOf(tab);
+        if (index >= 0 && containerRef.current) {
+            const container = containerRef.current;
+            const tabWidth = 100;
+            container.scrollTo({ left: index * tabWidth - container.clientWidth / 2 + tabWidth / 2, behavior: 'smooth' });
+        }
+        onTabChange(tab);
+    };
+
+    return (
+        <div className="mb-6">
+            <div className="relative">
+                {/* Main container - same styling as AuthRollBall */}
+                <div
+                    ref={containerRef}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                    onMouseDown={onMouseDown}
+                    onScroll={checkChevrons}
+                    className="relative rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-sm scrollbar-hide"
+                    style={{
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        height: 44,
+                        WebkitOverflowScrolling: 'touch',
+                    }}
+                >
+                    {/* Hide scrollbar */}
+                    <style>
+                        {`
+                            .scrollbar-hide::-webkit-scrollbar {
+                                display: none;
+                            }
+                        `}
+                    </style>
+
+                    {/* Tabs container */}
+                    <div className="flex h-full" style={{ minWidth: 'max-content' }}>
+                        {tabs.map((tab, index) => {
+                            const isActive = tab === activeTab;
+                            const Icon = TAB_ICONS[tab];
+                            const label = TAB_LABELS[tab] || tab;
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => scrollToTab(tab)}
+                                    className={`shrink-0 h-full flex items-center justify-center gap-1.5 px-4 text-xs font-semibold transition ${
+                                        isActive
+                                            ? 'text-brand-700 dark:text-gold-400 bg-white/60 dark:bg-ink-700/60'
+                                            : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
+                                    }`}
+                                    style={{ minWidth: 90 }}
+                                >
+                                    {Icon && <Icon size={14} />}
+                                    <span>{label}</span>
+                                    {isActive && (
+                                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full" />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Left fade + chevron - same as AuthRollBall */}
+                {showLeftChevron && (
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-50 dark:from-ink-800 to-transparent flex items-center">
+                        <ChevronLeft size={14} className="text-slate-300 dark:text-gold-300/30 ml-1" />
+                    </div>
+                )}
+
+                {/* Right fade + chevron - same as AuthRollBall */}
+                {showRightChevron && (
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-50 dark:from-ink-800 to-transparent flex items-center justify-end">
+                        <ChevronRight size={14} className="text-slate-300 dark:text-gold-300/30 mr-1" />
+                    </div>
+                )}
+            </div>
+
+            {/* Dot indicators - same as AuthRollBall */}
+            <div className="flex justify-center gap-1.5 mt-2.5">
+                {tabs.map((t, i) => (
+                    <button
+                        key={t}
+                        onClick={() => scrollToTab(t)}
+                        className={`h-1.5 rounded-full transition-all ${
+                            t === activeTab
+                                ? 'w-4 bg-brand-600 dark:bg-gold-500'
+                                : 'w-1.5 bg-slate-300 dark:bg-ink-600'
+                        }`}
+                        aria-label={`Go to ${TAB_LABELS[t] || t}`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ─── REST OF YOUR COMPONENTS (unchanged) ────────────────────────────────
 
 function StatCard({ icon: Icon, label, value }) {
     return (
@@ -287,7 +486,6 @@ function Deliveries() {
     );
 }
 
-// --- UPDATED PAYOUT SETTINGS COMPONENT ---
 function PayoutSettings() {
     const { user } = useAuth();
     const [accounts, setAccounts] = useState([]);
@@ -300,13 +498,11 @@ function PayoutSettings() {
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [selectedAccountId, setSelectedAccountId] = useState('');
 
-    // Form state for adding new account
     const [method, setMethod] = useState('bank');
     const [banks, setBanks] = useState([]);
     const [form, setForm] = useState({ bank_code: '', account_number: '', account_name: '' });
     const [resolving, setResolving] = useState(false);
 
-    // Fetch accounts and balance
     const loadData = () => {
         setLoading(true);
         Promise.all([
@@ -316,7 +512,6 @@ function PayoutSettings() {
             .then(([accRes, balRes]) => {
                 setAccounts(accRes.data);
                 setBalance(balRes.data.availableBalance);
-                // Auto-select the default account
                 const defaultAcc = accRes.data.find(a => a.is_default);
                 if (defaultAcc) setSelectedAccountId(defaultAcc.id);
             })
@@ -331,7 +526,6 @@ function PayoutSettings() {
             .catch(() => {});
     }, []);
 
-    // Resolve account name
     useEffect(() => {
         if (!form.bank_code || form.account_number.length < 9) return;
         setResolving(true);
@@ -344,7 +538,6 @@ function PayoutSettings() {
         return () => clearTimeout(t);
     }, [form.bank_code, form.account_number]);
 
-    // Set default account
     const setDefault = async (accountId) => {
         setSettingDefault(accountId);
         try {
@@ -358,7 +551,6 @@ function PayoutSettings() {
         }
     };
 
-    // Add new account
     const handleAddAccount = async () => {
         if (!form.bank_code || !form.account_number || !form.account_name) {
             toast.error('Please fill in all fields');
@@ -378,7 +570,6 @@ function PayoutSettings() {
         }
     };
 
-    // Withdraw funds
     const handleWithdraw = async () => {
         if (!selectedAccountId) {
             toast.error('Please select a payout account');
@@ -414,14 +605,12 @@ function PayoutSettings() {
 
     return (
         <div className="max-w-xl mx-auto space-y-4">
-            {/* BALANCE CARD */}
             <div className="bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 rounded-2xl p-6 text-white dark:text-ink-900 shadow-md">
                 <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">Available Balance</p>
                 <p className="text-3xl font-extrabold mt-1">GHS {balance.toFixed(2)}</p>
                 <p className="text-xs opacity-80 mt-0.5">98.5% of your completed sales</p>
             </div>
 
-            {/* WITHDRAW SECTION */}
             <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
                 <div className="flex items-center gap-2.5 mb-3">
                     <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
@@ -476,7 +665,6 @@ function PayoutSettings() {
                 </div>
             </div>
 
-            {/* ACCOUNT LIST */}
             <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
                 <div className="flex items-center gap-2.5 mb-1">
                     <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
@@ -539,7 +727,6 @@ function PayoutSettings() {
                 )}
             </div>
 
-            {/* Add Account Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
@@ -558,22 +745,22 @@ function PayoutSettings() {
                                 <button
                                     type="button"
                                     onClick={() => setMethod('bank')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${((
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                                         method === 'bank'
                                             ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50'
-                                    ))}`}
+                                    }`}
                                 >
                                     Bank
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setMethod('mobile_money')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${((
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                                         method === 'mobile_money'
                                             ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50'
-                                    ))}`}
+                                    }`}
                                 >
                                     Mobile Money
                                 </button>
@@ -1051,6 +1238,3 @@ function MyReports() {
         </div>
     );
 }
-
-
-//,,,
