@@ -209,23 +209,6 @@ export default function Browse() {
         </div>
     );
 
-    // The mobile version of the budget field lives in the listings section
-    // now (dark text on a light background instead of white-on-glass).
-    const budgetInputFieldMobile = (
-        <div className="relative shrink-0">
-            <Wallet className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/50" />
-            <input
-                type="number"
-                min="1"
-                value={budgetInput}
-                onChange={(e) => setBudgetInput(e.target.value)}
-                onKeyDown={applyBudget}
-                placeholder="My budget (GHS)…"
-                className="bg-slate-100 dark:bg-ink-800 text-slate-700 dark:text-gold-100 placeholder-slate-400 dark:placeholder-gold-200/40 text-xs font-medium pl-7 pr-2.5 py-1.5 rounded-full border border-slate-200 dark:border-ink-600 focus:outline-none focus:border-brand-400 dark:focus:border-gold-500 w-32"
-            />
-        </div>
-    );
-
     // ── DESKTOP tab-pill behavior (unchanged from before) ──────────────────
     const handleDesktopTabChange = (tab) => {
         if (tab === 'verified') {
@@ -352,9 +335,7 @@ export default function Browse() {
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white">
                             {search ? `Results for "${search}"` : 'Browse listings'}
                         </h1>
-                        <div className="hidden sm:block">
-                            {budgetInputField}
-                        </div>
+                        {budgetInputField}
                     </div>
 
                     {/* ─── DESKTOP FILTER PILLS (unchanged) ─────────────── */}
@@ -399,53 +380,46 @@ export default function Browse() {
 
             {/* LISTINGS - with bottom padding for mobile tabs */}
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-32 sm:pb-10">
-                <div className="flex items-center gap-2 mb-2">
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap flex-1 min-w-0">
-                        {/* Active filter indicators */}
-                        {itemCategory && (
-                            <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
-                                {itemCategory}
-                                <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
-                                    <X size={12} />
-                                </button>
-                            </span>
-                        )}
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
+                    {/* Active filter indicators */}
+                    {itemCategory && (
+                        <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
+                            {itemCategory}
+                            <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                <X size={12} />
+                            </button>
+                        </span>
+                    )}
 
-                        {school && filterType !== 'nearby' && (
-                            <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
-                                📍 {school}
-                                <button onClick={() => setSchool('')} className="hover:bg-white/20 rounded-full p-0.5">
-                                    <X size={12} />
-                                </button>
-                            </span>
-                        )}
+                    {school && filterType !== 'nearby' && (
+                        <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
+                            📍 {school}
+                            <button onClick={() => setSchool('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                <X size={12} />
+                            </button>
+                        </span>
+                    )}
 
-                        {verifiedOnly && (
-                            <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                                <CheckBadgeIconSolid className="w-3 h-3" /> Verified
-                            </span>
-                        )}
+                    {verifiedOnly && (
+                        <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                            <CheckBadgeIconSolid className="w-3 h-3" /> Verified
+                        </span>
+                    )}
 
-                        {priceRange && (
-                            <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-3 py-1 rounded-full text-xs font-semibold">
-                                {priceRange.label}
-                                <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
-                                    <X size={12} />
-                                </button>
-                            </span>
-                        )}
+                    {priceRange && (
+                        <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-3 py-1 rounded-full text-xs font-semibold">
+                            {priceRange.label}
+                            <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
+                                <X size={12} />
+                            </button>
+                        </span>
+                    )}
 
-                        {filterType === 'new' && !verifiedOnly && (
-                            <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                                ✨ Newly posted
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Mobile budget field — same row, far right */}
-                    <div className="sm:hidden shrink-0">
-                        {budgetInputFieldMobile}
-                    </div>
+                    {filterType === 'new' && !verifiedOnly && (
+                        <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                            ✨ Newly posted
+                        </span>
+                    )}
                 </div>
 
                 {verifiedOnly && (
@@ -627,6 +601,32 @@ function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onCl
         setMounted(false);
     }, [open]);
 
+    // Lock body scroll while the sheet is open — same technique as
+    // ProfileDrawer, so scrolling inside the list never leaks through to
+    // the page behind it (no background scroll / pull-to-refresh).
+    useEffect(() => {
+        if (open) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY, 10) * -1);
+        }
+    }, [open]);
+
     if (!open) return null;
 
     return (
@@ -639,6 +639,7 @@ function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onCl
                 className={`absolute bottom-0 left-0 right-0 max-h-[70vh] flex flex-col rounded-t-3xl bg-white dark:bg-ink-800 shadow-2xl transition-transform duration-300 ease-out ${
                     mounted ? 'translate-y-0' : 'translate-y-full'
                 }`}
+                style={{ overscrollBehavior: 'contain' }}
             >
                 <div className="flex items-center justify-center pt-2.5 pb-1 shrink-0">
                     <span className="h-1 w-10 rounded-full bg-slate-300 dark:bg-ink-600" />
@@ -652,7 +653,7 @@ function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onCl
                         <X size={16} />
                     </button>
                 </div>
-                <div className="overflow-y-auto px-2 pb-[max(16px,env(safe-area-inset-bottom))]">
+                <div className="overflow-y-auto no-scrollbar px-2 pb-[max(16px,env(safe-area-inset-bottom))]">
                     {options.map((opt) => {
                         const isSelected = opt.value === selectedValue
                             || (opt.value === 'nearby' && selectedValue !== '' && selectedValue === opt.value);
