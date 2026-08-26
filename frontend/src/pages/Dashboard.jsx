@@ -42,10 +42,6 @@ const TAB_ICONS = {
     reports: Flag,
 };
 
-// Same constants as Navbar's AuthRollBall
-const ROLL_THRESHOLD = 28;
-const ITEM_W = 80; // slightly wider for tab labels
-
 export default function Dashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -152,13 +148,42 @@ export default function Dashboard() {
             </section>
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
-                {/* ─── SWIPEABLE TABS ────────────────────────────────────── */}
+                {/* ─── TABS SECTION ────────────────────────────────────── */}
                 {tabs.length > 1 && (
-                    <TabRoll
-                        tabs={tabs}
-                        activeTab={tab}
-                        onTabChange={setTab}
-                    />
+                    <>
+                        {/* MOBILE: Swipeable tabs with floating shadow */}
+                        <div className="block sm:hidden">
+                            <MobileTabRoll
+                                tabs={tabs}
+                                activeTab={tab}
+                                onTabChange={setTab}
+                            />
+                        </div>
+
+                        {/* DESKTOP: Centered button-style tabs */}
+                        <div className="hidden sm:flex justify-center mb-6">
+                            <div className="flex gap-1 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+                                {tabs.map((t) => {
+                                    const Icon = TAB_ICONS[t];
+                                    const label = TAB_LABELS[t] || t;
+                                    return (
+                                        <button
+                                            key={t}
+                                            onClick={() => setTab(t)}
+                                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${
+                                                tab === t
+                                                    ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
+                                                    : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
+                                            }`}
+                                        >
+                                            {Icon && <Icon size={15} />}
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
                 )}
 
                 {tab === 'overview' && <SellerOverview period={period} />}
@@ -175,12 +200,8 @@ export default function Dashboard() {
     );
 }
 
-// ─── SWIPEABLE TABS ROLL ──────────────────────────────────────────────────
-// Shows 4 tabs at a time with the same visual style as AuthRollBall
-// ─── SWIPEABLE TABS ROLL ──────────────────────────────────────────────────
-// Shows multiple tabs with underline that fits each tab's text length
-// WITH FLOATING SHADOW EFFECT
-function TabRoll({ tabs, activeTab, onTabChange }) {
+// ─── MOBILE SWIPEABLE TABS ROLL ──────────────────────────────────────────
+function MobileTabRoll({ tabs, activeTab, onTabChange }) {
     const containerRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
@@ -190,10 +211,8 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
     const draggingRef = useRef(false);
     const movedRef = useRef(false);
 
-    // Find the index of the active tab
     const activeIndex = tabs.indexOf(activeTab);
 
-    // Scroll to active tab when it changes
     useEffect(() => {
         if (containerRef.current && activeIndex >= 0) {
             const container = containerRef.current;
@@ -208,7 +227,6 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
         }
     }, [activeIndex]);
 
-    // Check chevron visibility
     const checkChevrons = () => {
         if (containerRef.current) {
             const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
@@ -224,7 +242,6 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
         return () => window.removeEventListener('resize', handleResize);
     }, [tabs]);
 
-    // Mouse/Touch drag handlers
     const handleStart = (clientX) => {
         setStartX(clientX);
         setScrollStart(containerRef.current?.scrollLeft || 0);
@@ -303,7 +320,7 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
 
     return (
         <div className="mb-8 relative">
-            {/* Floating shadow effect - placed behind the tabs container */}
+            {/* Floating shadow effect */}
             <div 
                 className="absolute -bottom-4 left-0 right-0 h-8 bg-gradient-to-b from-slate-200/50 via-slate-200/30 to-transparent dark:from-ink-600/30 dark:via-ink-600/20 dark:to-transparent blur-md rounded-full"
                 style={{
@@ -312,7 +329,6 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                 }}
             />
             
-            {/* Second shadow layer for more depth */}
             <div 
                 className="absolute -bottom-6 left-1/4 right-1/4 h-6 bg-gradient-to-b from-slate-300/30 to-transparent dark:from-ink-500/20 dark:to-transparent blur-xl"
                 style={{
@@ -321,7 +337,6 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                 }}
             />
 
-            {/* Main tabs container with a subtle lift effect */}
             <div className="relative transform transition-all duration-300 hover:scale-[1.002]">
                 <div
                     ref={containerRef}
@@ -338,7 +353,6 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                         WebkitOverflowScrolling: 'touch',
                     }}
                 >
-                    {/* Hide scrollbar */}
                     <style>
                         {`
                             .scrollbar-hide::-webkit-scrollbar {
@@ -347,10 +361,8 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                         `}
                     </style>
 
-                    {/* Subtle top highlight for glass effect */}
                     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
 
-                    {/* Tabs container */}
                     <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 12px', gap: '4px' }}>
                         {tabs.map((tab, index) => {
                             const isActive = tab === activeTab;
@@ -374,7 +386,6 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                                 >
                                     {Icon && <Icon size={16} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
                                     <span className="whitespace-nowrap">{label}</span>
-                                    {/* UNDERLINE - dynamically fits the text width */}
                                     {isActive && (
                                         <span 
                                             className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
@@ -404,14 +415,12 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
                     </div>
                 </div>
 
-                {/* Left fade + chevron */}
                 {showLeftChevron && (
                     <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
                         <ChevronLeft size={14} className="text-slate-400 dark:text-gold-300/40 ml-1" />
                     </div>
                 )}
 
-                {/* Right fade + chevron */}
                 {showRightChevron && (
                     <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
                         <ChevronRight size={14} className="text-slate-400 dark:text-gold-300/40 mr-1" />
@@ -438,8 +447,7 @@ function TabRoll({ tabs, activeTab, onTabChange }) {
     );
 }
 
-// ─── REST OF YOUR COMPONENTS (unchanged) ────────────────────────────────
-
+// ─── STAT CARD ─────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value }) {
     return (
         <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
@@ -450,6 +458,7 @@ function StatCard({ icon: Icon, label, value }) {
     );
 }
 
+// ─── DELIVERIES ────────────────────────────────────────────────────────────
 function Deliveries() {
     const [deliveries, setDeliveries] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -559,6 +568,7 @@ function Deliveries() {
     );
 }
 
+// ─── PAYOUT SETTINGS ──────────────────────────────────────────────────────
 function PayoutSettings() {
     const { user } = useAuth();
     const [accounts, setAccounts] = useState([]);
@@ -903,6 +913,7 @@ function PayoutSettings() {
     );
 }
 
+// ─── SELLER OVERVIEW ──────────────────────────────────────────────────────
 function SellerOverview({ period }) {
     const [overview, setOverview] = useState(null);
     const [rewards, setRewards] = useState(null);
@@ -1006,6 +1017,7 @@ function MetricCard({ icon: Icon, label, value, highlight }) {
     );
 }
 
+// ─── MY LISTINGS ──────────────────────────────────────────────────────────
 function MyListings() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -1062,6 +1074,7 @@ function MyListings() {
     );
 }
 
+// ─── MY ORDERS ────────────────────────────────────────────────────────────
 function MyOrders({ period, isSeller }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -1155,6 +1168,7 @@ const STATUS_STYLES = {
     refunded: 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400',
 };
 
+// ─── MY SALES ─────────────────────────────────────────────────────────────
 function MySales() {
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -1209,6 +1223,7 @@ function MySales() {
     );
 }
 
+// ─── SKELETON & EMPTY STATE ──────────────────────────────────────────────
 function SkeletonList() {
     return (
         <div className="space-y-2">
@@ -1235,6 +1250,7 @@ function EmptyState({ icon: Icon, text, cta, ctaLink }) {
     );
 }
 
+// ─── REPORTS ──────────────────────────────────────────────────────────────
 const REASON_LABELS = {
     scam: 'Scam or fraud',
     fake_listing: 'Fake or misleading listing',
