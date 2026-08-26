@@ -207,7 +207,7 @@ export default function Browse() {
 
     return (
         <div className="relative min-h-screen">
-            {/* HEADER STRIP */}
+            {/* HEADER STRIP - RESTORED TO ORIGINAL HEIGHT */}
             <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
@@ -216,7 +216,7 @@ export default function Browse() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
-                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                     <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-3">
                         <Link
                             to="/"
@@ -338,7 +338,7 @@ export default function Browse() {
             </section>
 
             {/* LISTINGS - with bottom padding for mobile tabs */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-24 sm:pb-10">
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-28 sm:pb-10">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
                     {/* Active filter indicators */}
                     {itemCategory && (
@@ -418,7 +418,7 @@ export default function Browse() {
             </section>
 
             {/* ─── MOBILE BOTTOM TABS ──────────────────────────────────── */}
-            <div className="block sm:hidden fixed bottom-0 left-0 right-0 z-40 px-4 pb-3 pt-2 bg-gradient-to-t from-white/95 via-white/80 to-transparent dark:from-ink-900/95 dark:via-ink-900/80 dark:to-transparent">
+            <div className="block sm:hidden fixed bottom-3 left-0 right-0 z-40 px-4 pt-2">
                 <BrowseTabRoll
                     tabs={['all', 'new', 'nearby', 'verified']}
                     activeTab={activeTab}
@@ -431,7 +431,7 @@ export default function Browse() {
     );
 }
 
-// ─── BROWSE SWIPEABLE TABS ROLL (REDUCED HEIGHT) ──────────────────────
+// ─── BROWSE SWIPEABLE TABS ROLL (MATCHES DASHBOARD HEIGHT) ─────────────
 function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
     const containerRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -582,7 +582,7 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                     style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
-                        height: 40,
+                        height: 56, // MATCHES DASHBOARD HEIGHT
                         WebkitOverflowScrolling: 'touch',
                     }}
                 >
@@ -596,7 +596,7 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
 
                     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
 
-                    <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 8px', gap: '2px' }}>
+                    <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 12px', gap: '4px' }}>
                         {tabs.map((tab, index) => {
                             const isActive = tab === activeTab;
                             const label = getTabLabel(tab);
@@ -612,35 +612,35 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                                         }
                                     }}
                                     onClick={() => scrollToTab(tab)}
-                                    className={`browse-tab-item relative shrink-0 h-full flex items-center justify-center gap-1 px-3 text-xs font-semibold transition-all duration-200 ${
+                                    className={`browse-tab-item relative shrink-0 h-full flex items-center justify-center gap-1.5 px-4 text-xs font-semibold transition-all duration-200 ${
                                         isActive
                                             ? 'text-brand-700 dark:text-gold-400'
                                             : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
                                     }`}
-                                    style={{ minWidth: 60 }}
+                                    style={{ minWidth: 70 }}
                                 >
-                                    {isVerifiedTab && <BadgeCheck size={13} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
+                                    {isVerifiedTab && <BadgeCheck size={14} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
                                     {isNearbyTab && !school && <span className="text-base">📍</span>}
                                     {isNearbyTab && school && <span className="text-base">📍</span>}
                                     {tab === 'new' && <span className="text-base">✨</span>}
-                                    {tab === 'all' && <SlidersHorizontal size={13} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
+                                    {tab === 'all' && <SlidersHorizontal size={14} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
                                     <span className="whitespace-nowrap">{label}</span>
                                     {isActive && (
                                         <span 
                                             className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
                                             style={{
                                                 width: 'auto',
-                                                minWidth: '16px',
+                                                minWidth: '20px',
                                                 maxWidth: '70%',
-                                                paddingLeft: '2px',
-                                                paddingRight: '2px',
+                                                paddingLeft: '4px',
+                                                paddingRight: '4px',
                                             }}
                                         >
                                             <span 
                                                 className="block"
                                                 style={{
                                                     width: 'auto',
-                                                    minWidth: '16px',
+                                                    minWidth: '20px',
                                                     height: '2px',
                                                     background: 'currentColor',
                                                     borderRadius: '9999px',
@@ -655,28 +655,28 @@ function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
                 </div>
 
                 {showLeftChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
-                        <ChevronLeft size={12} className="text-slate-400 dark:text-gold-300/40 ml-1" />
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
+                        <ChevronLeft size={14} className="text-slate-400 dark:text-gold-300/40 ml-1" />
                     </div>
                 )}
 
                 {showRightChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
-                        <ChevronRight size={12} className="text-slate-400 dark:text-gold-300/40 mr-1" />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
+                        <ChevronRight size={14} className="text-slate-400 dark:text-gold-300/40 mr-1" />
                     </div>
                 )}
             </div>
 
             {/* Dot indicators */}
-            <div className="flex justify-center gap-1.5 mt-1.5">
+            <div className="flex justify-center gap-1.5 mt-2">
                 {tabs.map((t, i) => (
                     <button
                         key={t}
                         onClick={() => scrollToTab(t)}
-                        className={`h-1 rounded-full transition-all duration-300 ${
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
                             t === activeTab
-                                ? 'w-3 bg-brand-600 dark:bg-gold-500'
-                                : 'w-1 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
+                                ? 'w-4 bg-brand-600 dark:bg-gold-500'
+                                : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
                         }`}
                         aria-label={`Go to ${BROWSE_TAB_LABELS[t] || t}`}
                     />
