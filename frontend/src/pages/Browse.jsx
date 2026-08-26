@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
-import { SlidersHorizontal, ArrowLeft, X, BadgeCheck, Wallet, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, ArrowLeft, X, BadgeCheck, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ITEM_TYPES = ['Clothes', 'Phone accessories', 'Stationery', 'Laptops', 'Perfumes', 'Food', 'Sneakers', 'Other'];
 
@@ -31,6 +31,21 @@ const PRICE_RANGES = [
     { label: '500 - 1000', min: 500, max: 1000 },
     { label: 'Above 1000', min: 1000, max: Infinity },
 ];
+
+// ─── TAB CONFIG ────────────────────────────────────────────────────────────
+const BROWSE_TAB_LABELS = {
+    all: 'All',
+    new: 'New',
+    nearby: 'Nearby',
+    verified: 'Verified',
+};
+
+const BROWSE_TAB_ICONS = {
+    all: SlidersHorizontal,
+    new: '✨',
+    nearby: '📍',
+    verified: BadgeCheck,
+};
 
 export default function Browse() {
     const [searchParams] = useSearchParams();
@@ -132,6 +147,14 @@ export default function Browse() {
         if (isDemo) {
             filteredByType = verifiedFiltered.slice(0, 4);
         }
+    } else if (filterType === 'nearby') {
+        // If school is set, filter by that school
+        if (school) {
+            filteredByType = verifiedFiltered.filter(p => p.school === school);
+        } else {
+            // If no school set, try to detect
+            filteredByType = verifiedFiltered;
+        }
     } else if (filterType === 'special') {
         filteredByType = [];
     } else if (filterType === 'soldout') {
@@ -166,9 +189,37 @@ export default function Browse() {
         </div>
     );
 
+    // Handle tab changes
+    const handleTabChange = (tab) => {
+        if (tab === 'verified') {
+            setVerifiedOnly(!verifiedOnly);
+            setFilterType('all');
+        } else if (tab === 'nearby') {
+            setFilterType('nearby');
+            // If no school is set, trigger geolocation
+            if (!school) {
+                const event = { target: { value: 'nearby' } };
+                handleSchoolChange(event);
+            }
+        } else {
+            setFilterType(tab);
+            // If switching away from verified, maybe keep it? Let's keep it independent
+        }
+    };
+
+    // Get active tab for the roll
+    const getActiveTab = () => {
+        if (verifiedOnly) return 'verified';
+        if (filterType === 'nearby') return 'nearby';
+        if (filterType === 'new') return 'new';
+        return 'all';
+    };
+
+    const activeTab = getActiveTab();
+
     return (
         <div>
-            {/* HEADER STRIP - GAP FIX APPLIED HERE */}
+            {/* HEADER STRIP */}
             <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
@@ -177,7 +228,7 @@ export default function Browse() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
-                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
                     <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-3">
                         <Link
                             to="/"
@@ -218,27 +269,80 @@ export default function Browse() {
                                 <ChevronDown className="pointer-events-none absolute right-1.5 sm:right-2 w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/70" />
                             </div>
 
-                            <button
-                                onClick={() => setVerifiedOnly((v) => !v)}
-                                className={`inline-flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-semibold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border backdrop-blur transition ${
-                                    verifiedOnly
-                                        ? 'bg-white text-brand-700 border-white'
-                                        : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
-                                }`}
-                            >
-                                <BadgeCheck className="w-3 h-3 sm:w-[15px] sm:h-[15px]" /> Verified sellers only
-                            </button>
+                            <div className="sm:hidden">
+                                {budgetInputField}
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 mt-5">
+                    <div className="flex items-center justify-between gap-3 mt-3 sm:mt-5">
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white">
                             {search ? `Results for "${search}"` : 'Browse listings'}
                         </h1>
-                        <div className="sm:hidden">{budgetInputField}</div>
+                        <div className="hidden sm:block">
+                            {budgetInputField}
+                        </div>
                     </div>
 
-                    <div className="hidden sm:flex items-center gap-2 flex-wrap mt-5">
+                    {/* ─── SWIPEABLE TABS (MOBILE) ────────────────────── */}
+                    <div className="block sm:hidden mt-3">
+                        <BrowseTabRoll
+                            tabs={['all', 'new', 'nearby', 'verified']}
+                            activeTab={activeTab}
+                            onTabChange={handleTabChange}
+                            verifiedOnly={verifiedOnly}
+                            school={school}
+                        />
+                    </div>
+
+                    {/* ─── DESKTOP FILTER PILLS ────────────────────────── */}
+                    <div className="hidden sm:flex items-center gap-2 flex-wrap mt-4">
+                        <button
+                            onClick={() => { setFilterType('all'); setVerifiedOnly(false); }}
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                                filterType === 'all' && !verifiedOnly
+                                    ? 'bg-white text-brand-700 border-white'
+                                    : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
+                            }`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setFilterType('new')}
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                                filterType === 'new'
+                                    ? 'bg-white text-brand-700 border-white'
+                                    : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
+                            }`}
+                        >
+                            ✨ New
+                        </button>
+                        <button
+                            onClick={() => {
+                                setFilterType('nearby');
+                                if (!school) {
+                                    const event = { target: { value: 'nearby' } };
+                                    handleSchoolChange(event);
+                                }
+                            }}
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                                filterType === 'nearby'
+                                    ? 'bg-white text-brand-700 border-white'
+                                    : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
+                            }`}
+                        >
+                            📍 Nearby
+                        </button>
+                        <button
+                            onClick={() => setVerifiedOnly(!verifiedOnly)}
+                            className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                                verifiedOnly
+                                    ? 'bg-white text-brand-700 border-white'
+                                    : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
+                            }`}
+                        >
+                            <BadgeCheck className="inline w-4 h-4 mr-1" /> Verified
+                        </button>
                         {PRICE_RANGES.map((r) => (
                             <button
                                 key={r.label}
@@ -252,53 +356,50 @@ export default function Browse() {
                                 {r.label}
                             </button>
                         ))}
-                        {budgetInputField}
                     </div>
                 </div>
             </section>
 
             {/* LISTINGS */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 bg-white dark:bg-ink-900">
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
-                    <FilterPill
-                        label="All"
-                        active={filterType === 'all'}
-                        onClick={() => setFilterType('all')}
-                    />
-                    <FilterPill
-                        label="Newly Posted"
-                        active={filterType === 'new'}
-                        onClick={() => setFilterType('new')}
-                    />
-                    <FilterPill
-                        label="Sold Out"
-                        active={filterType === 'soldout'}
-                        onClick={() => setFilterType('soldout')}
-                    />
-                    <span className="shrink-0 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold border border-slate-300 dark:border-ink-600 bg-slate-100 dark:bg-ink-700 text-slate-400 dark:text-gold-200/40 cursor-default">
-                        Special Listings <span className="text-[10px] font-light ml-1">(coming soon)</span>
-                    </span>
-
+                    {/* Active filter indicators */}
                     {itemCategory && (
-                        <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-4 py-1.5 rounded-full text-sm font-semibold">
-                            Category: {itemCategory}
+                        <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
+                            {itemCategory}
                             <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={13} />
+                                <X size={12} />
+                            </button>
+                        </span>
+                    )}
+
+                    {school && filterType !== 'nearby' && (
+                        <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
+                            📍 {school}
+                            <button onClick={() => setSchool('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                <X size={12} />
                             </button>
                         </span>
                     )}
 
                     {verifiedOnly && (
-                        <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold">
-                            <BadgeCheck size={14} /> Verified sellers only
+                        <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                            <BadgeCheck size={12} /> Verified
                         </span>
                     )}
+
                     {priceRange && (
-                        <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-4 py-1.5 rounded-full text-sm font-semibold">
+                        <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-3 py-1 rounded-full text-xs font-semibold">
                             {priceRange.label}
                             <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={13} />
+                                <X size={12} />
                             </button>
+                        </span>
+                    )}
+
+                    {filterType === 'new' && !verifiedOnly && (
+                        <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                            ✨ Newly posted
                         </span>
                     )}
                 </div>
@@ -338,6 +439,262 @@ export default function Browse() {
                     </>
                 )}
             </section>
+        </div>
+    );
+}
+
+// ─── BROWSE SWIPEABLE TABS ROLL (REDUCED HEIGHT) ──────────────────────
+function BrowseTabRoll({ tabs, activeTab, onTabChange, verifiedOnly, school }) {
+    const containerRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollStart, setScrollStart] = useState(0);
+    const [showLeftChevron, setShowLeftChevron] = useState(false);
+    const [showRightChevron, setShowRightChevron] = useState(true);
+    const draggingRef = useRef(false);
+    const movedRef = useRef(false);
+
+    const activeIndex = tabs.indexOf(activeTab);
+
+    useEffect(() => {
+        if (containerRef.current && activeIndex >= 0) {
+            const container = containerRef.current;
+            const tabElements = container.querySelectorAll('.browse-tab-item');
+            if (tabElements[activeIndex]) {
+                const tab = tabElements[activeIndex];
+                const containerRect = container.getBoundingClientRect();
+                const tabRect = tab.getBoundingClientRect();
+                const scrollTo = tab.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+                container.scrollTo({ left: scrollTo, behavior: 'smooth' });
+            }
+        }
+    }, [activeIndex]);
+
+    const checkChevrons = () => {
+        if (containerRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
+            setShowLeftChevron(scrollLeft > 10);
+            setShowRightChevron(scrollLeft < scrollWidth - clientWidth - 10);
+        }
+    };
+
+    useEffect(() => {
+        checkChevrons();
+        const handleResize = () => checkChevrons();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [tabs]);
+
+    const handleStart = (clientX) => {
+        setStartX(clientX);
+        setScrollStart(containerRef.current?.scrollLeft || 0);
+        draggingRef.current = true;
+        movedRef.current = false;
+        setIsDragging(true);
+    };
+
+    const handleMove = (clientX) => {
+        if (!draggingRef.current || !containerRef.current) return;
+        const diff = clientX - startX;
+        if (Math.abs(diff) > 5) movedRef.current = true;
+        containerRef.current.scrollLeft = scrollStart - diff;
+        checkChevrons();
+    };
+
+    const handleEnd = () => {
+        draggingRef.current = false;
+        setIsDragging(false);
+        if (movedRef.current) {
+            if (containerRef.current) {
+                const container = containerRef.current;
+                const tabElements = container.querySelectorAll('.browse-tab-item');
+                let closestIndex = 0;
+                let closestDistance = Infinity;
+                const containerCenter = container.scrollLeft + container.clientWidth / 2;
+                
+                tabElements.forEach((tab, i) => {
+                    const tabCenter = tab.offsetLeft + tab.offsetWidth / 2;
+                    const distance = Math.abs(tabCenter - containerCenter);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestIndex = i;
+                    }
+                });
+                
+                if (closestIndex !== activeIndex) {
+                    onTabChange(tabs[closestIndex]);
+                }
+            }
+        }
+        checkChevrons();
+    };
+
+    const onTouchStart = (e) => handleStart(e.touches[0].clientX);
+    const onTouchMove = (e) => handleMove(e.touches[0].clientX);
+    const onTouchEnd = () => handleEnd();
+
+    const onMouseDown = (e) => {
+        handleStart(e.clientX);
+        const onMouseMove = (ev) => handleMove(ev.clientX);
+        const onMouseUp = () => {
+            handleEnd();
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const scrollToTab = (tab) => {
+        const index = tabs.indexOf(tab);
+        if (index >= 0 && containerRef.current) {
+            const container = containerRef.current;
+            const tabElements = container.querySelectorAll('.browse-tab-item');
+            if (tabElements[index]) {
+                const tab = tabElements[index];
+                const containerRect = container.getBoundingClientRect();
+                const tabRect = tab.getBoundingClientRect();
+                const scrollTo = tab.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+                container.scrollTo({ left: scrollTo, behavior: 'smooth' });
+            }
+        }
+        onTabChange(tab);
+    };
+
+    // Get label for tab
+    const getTabLabel = (tab) => {
+        if (tab === 'verified') {
+            return verifiedOnly ? '✓ Verified' : 'Verified';
+        }
+        if (tab === 'nearby') {
+            return school ? `📍 ${school}` : '📍 Nearby';
+        }
+        return BROWSE_TAB_LABELS[tab] || tab;
+    };
+
+    return (
+        <div className="relative">
+            {/* Floating shadow effect - reduced */}
+            <div 
+                className="absolute -bottom-3 left-0 right-0 h-6 bg-gradient-to-b from-slate-200/40 via-slate-200/20 to-transparent dark:from-ink-600/20 dark:via-ink-600/10 dark:to-transparent blur-md rounded-full"
+                style={{
+                    transform: 'scaleX(0.85)',
+                    filter: 'blur(6px)',
+                }}
+            />
+
+            <div className="relative">
+                <div
+                    ref={containerRef}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                    onMouseDown={onMouseDown}
+                    onScroll={checkChevrons}
+                    className="relative rounded-xl border border-slate-200/70 dark:border-ink-600/70 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-md hover:shadow-lg transition-shadow duration-300 scrollbar-hide"
+                    style={{
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        height: 40, // Reduced height
+                        WebkitOverflowScrolling: 'touch',
+                    }}
+                >
+                    <style>
+                        {`
+                            .scrollbar-hide::-webkit-scrollbar {
+                                display: none;
+                            }
+                        `}
+                    </style>
+
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
+
+                    <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 8px', gap: '2px' }}>
+                        {tabs.map((tab, index) => {
+                            const isActive = tab === activeTab;
+                            const label = getTabLabel(tab);
+                            const isVerifiedTab = tab === 'verified';
+                            const isNearbyTab = tab === 'nearby';
+                            
+                            return (
+                                <button
+                                    key={tab}
+                                    ref={(el) => {
+                                        if (el) {
+                                            el.dataset.index = index;
+                                        }
+                                    }}
+                                    onClick={() => scrollToTab(tab)}
+                                    className={`browse-tab-item relative shrink-0 h-full flex items-center justify-center gap-1 px-3 text-xs font-semibold transition-all duration-200 ${
+                                        isActive
+                                            ? 'text-brand-700 dark:text-gold-400'
+                                            : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
+                                    }`}
+                                    style={{ minWidth: 60 }}
+                                >
+                                    {isVerifiedTab && <BadgeCheck size={13} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
+                                    {isNearbyTab && !school && <span className="text-base">📍</span>}
+                                    {isNearbyTab && school && <span className="text-base">📍</span>}
+                                    {tab === 'new' && <span className="text-base">✨</span>}
+                                    {tab === 'all' && <SlidersHorizontal size={13} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
+                                    <span className="whitespace-nowrap">{label}</span>
+                                    {isActive && (
+                                        <span 
+                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
+                                            style={{
+                                                width: 'auto',
+                                                minWidth: '16px',
+                                                maxWidth: '70%',
+                                                paddingLeft: '2px',
+                                                paddingRight: '2px',
+                                            }}
+                                        >
+                                            <span 
+                                                className="block"
+                                                style={{
+                                                    width: 'auto',
+                                                    minWidth: '16px',
+                                                    height: '2px',
+                                                    background: 'currentColor',
+                                                    borderRadius: '9999px',
+                                                }}
+                                            />
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {showLeftChevron && (
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
+                        <ChevronLeft size={12} className="text-slate-400 dark:text-gold-300/40 ml-1" />
+                    </div>
+                )}
+
+                {showRightChevron && (
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
+                        <ChevronRight size={12} className="text-slate-400 dark:text-gold-300/40 mr-1" />
+                    </div>
+                )}
+            </div>
+
+            {/* Dot indicators - reduced size */}
+            <div className="flex justify-center gap-1.5 mt-2">
+                {tabs.map((t, i) => (
+                    <button
+                        key={t}
+                        onClick={() => scrollToTab(t)}
+                        className={`h-1 rounded-full transition-all duration-300 ${
+                            t === activeTab
+                                ? 'w-3 bg-brand-600 dark:bg-gold-500'
+                                : 'w-1 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
+                        }`}
+                        aria-label={`Go to ${BROWSE_TAB_LABELS[t] || t}`}
+                    />
+                ))}
+            </div>
         </div>
     );
 }
