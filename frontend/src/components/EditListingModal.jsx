@@ -6,14 +6,13 @@ import { X } from 'lucide-react';
 const CONDITIONS = ['new', 'good', 'fair'];
 
 export default function EditListingModal({ product, open, onClose, onSaved }) {
-    const [form, setForm] = useState({ 
-        title: '', 
-        description: '', 
-        price: '', 
-        old_price: '', 
-        condition: 'good', 
-        stock: 1, 
-        category: '' 
+    const [form, setForm] = useState({
+        title: '',
+        description: '',
+        price: '',
+        condition: 'good',
+        stock: 1,
+        category: '',
     });
     const [categories, setCategories] = useState([]);
     const [saving, setSaving] = useState(false);
@@ -28,7 +27,6 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                 title: product.title || '',
                 description: product.description || '',
                 price: product.price || '',
-                old_price: product.old_price || '',
                 condition: product.condition || 'good',
                 stock: product.stock ?? 1,
                 category: product.category || '',
@@ -36,13 +34,17 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
         }
     }, [product]);
 
-    // Calculate discount percentage
+    // The "old price" shown here is the item's CURRENT saved price — the
+    // number that will become old_price once the seller saves a lower price.
+    // This is purely a preview; the backend decides what actually gets saved.
+    const currentSavedPrice = product ? parseFloat(product.price) : null;
+
     const calculateDiscount = () => {
-        const oldPrice = parseFloat(form.old_price);
         const newPrice = parseFloat(form.price);
-        if (!oldPrice || !newPrice || oldPrice <= newPrice || oldPrice <= 0 || newPrice <= 0) return null;
-        const discount = ((oldPrice - newPrice) / oldPrice) * 100;
-        return Math.round(discount);
+        if (!currentSavedPrice || !newPrice || currentSavedPrice <= newPrice || currentSavedPrice <= 0 || newPrice <= 0) {
+            return null;
+        }
+        return Math.round(((currentSavedPrice - newPrice) / currentSavedPrice) * 100);
     };
 
     const discount = calculateDiscount();
@@ -53,11 +55,10 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
         e.preventDefault();
         setSaving(true);
         try {
-            // Only send old_price if it's different from current price
+            // old_price is never sent from the client — the backend works out
+            // whether this counts as a discount by comparing to what's already
+            // saved, and manages old_price entirely on its own.
             const payload = { ...form };
-            if (!payload.old_price || parseFloat(payload.old_price) === parseFloat(payload.price)) {
-                delete payload.old_price;
-            }
             await api.patch(`/products/${product.id}`, payload);
             toast.success('Listing updated');
             onSaved();
@@ -103,15 +104,16 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                     {/* ─── PRICE SECTION ─── */}
                     <div className="bg-slate-50 dark:bg-ink-700/50 rounded-xl p-3 border border-slate-200/50 dark:border-ink-600/50">
                         <p className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-2">Price</p>
-                        
-                        {/* Old Price (read-only) */}
+
+                        {/* Old Price (read-only) — shows the CURRENT saved price, since
+                            that's what becomes "old" the moment a lower price is saved. */}
                         <div className="mb-2">
-                            <label className="text-[10px] font-medium text-slate-400 dark:text-gold-200/50">Previous Price (read-only)</label>
+                            <label className="text-[10px] font-medium text-slate-400 dark:text-gold-200/50">Current Price (read-only)</label>
                             <div className="relative mt-0.5">
                                 <input
                                     type="number"
                                     step="0.01"
-                                    value={form.old_price}
+                                    value={currentSavedPrice ?? ''}
                                     readOnly
                                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-100 dark:bg-ink-700/50 text-slate-400 dark:text-gold-200/40 cursor-not-allowed text-sm"
                                 />
@@ -120,7 +122,7 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                                 </span>
                             </div>
                             <p className="text-[10px] text-slate-400 dark:text-gold-200/40 mt-0.5">
-                                This is the price the item was listed at. It cannot be edited.
+                                This is the item's price right now. Lowering it below this will show as a sale to buyers.
                             </p>
                         </div>
 
@@ -143,14 +145,15 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                             </div>
                         </div>
 
-                        {/* Discount Display */}
+                        {/* Discount Preview — only shown if the new price is actually lower.
+                            A price increase never shows anything here, matching the backend. */}
                         {discount !== null && (
                             <div className="mt-2 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50">
                                 <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                    🎉 Discount: {discount}% off
+                                    🎉 This will show as -{discount}% off
                                 </p>
                                 <p className="text-[10px] text-emerald-600 dark:text-emerald-400/70">
-                                    Old price: GHS {parseFloat(form.old_price).toFixed(2)} → New price: GHS {parseFloat(form.price).toFixed(2)}
+                                    Old price: GHS {currentSavedPrice.toFixed(2)} → New price: GHS {parseFloat(form.price).toFixed(2)}
                                 </p>
                             </div>
                         )}

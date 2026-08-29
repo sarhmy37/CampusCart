@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
+            `SELECT p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
                     p.rating, p.review_count,
                     p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                     c.name AS category
@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT
-                p.id, p.title, p.price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
+                p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
                 p.rating, p.review_count,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
@@ -76,7 +76,7 @@ router.get('/:id', async (req, res) => {
     try {
         const productResult = await pool.query(
             `SELECT
-                p.id, p.title, p.description, p.price, p.condition, p.stock, p.video_url, p.created_at,
+                p.id, p.title, p.description, p.price, p.old_price, p.condition, p.stock, p.video_url, p.created_at,
                 p.rating, p.review_count,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
@@ -147,6 +147,8 @@ router.post('/', requireAuth, async (req, res) => {
         const primaryImage = images[0];
         const videoUrl = video || null;
 
+        // New listings never start with a discount — old_price stays NULL
+        // until the seller drops the price via a later edit.
         const productResult = await client.query(
             `INSERT INTO products
                 (seller_id, title, description, price, condition, category_id, stock, primary_image, video_url,
@@ -185,7 +187,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
     } = req.body;
 
     try {
-        const existing = await pool.query('SELECT seller_id FROM products WHERE id = $1', [req.params.id]);
+        // Need the CURRENT price (before this edit) to compare against the
+        // incoming new price — this is what becomes old_price if it's a discount.
+        const existing = await pool.query('SELECT seller_id, price FROM products WHERE id = $1', [req.params.id]);
         const product = existing.rows[0];
         if (!product) return res.status(404).json({ error: 'Listing not found' });
         if (product.seller_id !== req.userId) {
@@ -202,20 +206,50 @@ router.patch('/:id', requireAuth, async (req, res) => {
         const feeNearCampus = delivery_fee_near_campus !== undefined ? clampFee(delivery_fee_near_campus) : undefined;
         const feeFarCampus = delivery_fee_far_campus !== undefined ? clampFee(delivery_fee_far_campus) : undefined;
 
+        // ============ SALE PRICE LOGIC ============
+        // old_price is fully backend-managed — the client only ever sends the
+        // new `price`, never old_price directly.
+        //
+        // - If price isn't being changed at all → oldPriceUpdate stays
+        //   undefined, so COALESCE below leaves old_price untouched.
+        // - If the new price is LOWER than what's currently saved → this is
+        //   a discount. Capture the price-right-before-this-edit into
+        //   old_price, so the frontend can show it crossed out.
+        // - If the new price is the SAME or HIGHER → any existing sale is
+        //   cleared (old_price → NULL). We never show a "price went up" badge.
+        let oldPriceUpdate; // undefined = leave column alone
+        let clearOldPrice = false;
+
+        if (price !== undefined && price !== null && price !== '') {
+            const newPriceNum = parseFloat(price);
+            const currentPriceNum = parseFloat(product.price);
+
+            if (!isNaN(newPriceNum) && !isNaN(currentPriceNum)) {
+                if (newPriceNum < currentPriceNum) {
+                    oldPriceUpdate = currentPriceNum; // lock in the price right before this edit
+                } else {
+                    clearOldPrice = true; // price held steady or went up — no sale badge
+                }
+            }
+        }
+        // ============================================
+
         const result = await pool.query(
             `UPDATE products SET
                 title = COALESCE($1, title),
                 description = COALESCE($2, description),
                 price = COALESCE($3, price),
-                condition = COALESCE($4, condition),
-                stock = COALESCE($5, stock),
-                category_id = COALESCE($6, category_id),
-                delivery_fee_on_campus = COALESCE($7, delivery_fee_on_campus),
-                delivery_fee_near_campus = COALESCE($8, delivery_fee_near_campus),
-                delivery_fee_far_campus = COALESCE($9, delivery_fee_far_campus)
-             WHERE id = $10
+                old_price = CASE WHEN $11 THEN NULL ELSE COALESCE($4, old_price) END,
+                condition = COALESCE($5, condition),
+                stock = COALESCE($6, stock),
+                category_id = COALESCE($7, category_id),
+                delivery_fee_on_campus = COALESCE($8, delivery_fee_on_campus),
+                delivery_fee_near_campus = COALESCE($9, delivery_fee_near_campus),
+                delivery_fee_far_campus = COALESCE($10, delivery_fee_far_campus)
+             WHERE id = $12
              RETURNING *`,
-            [title, description, price, condition, stock, categoryId, feeOnCampus, feeNearCampus, feeFarCampus, req.params.id]
+            [title, description, price, oldPriceUpdate, condition, stock, categoryId,
+             feeOnCampus, feeNearCampus, feeFarCampus, clearOldPrice, req.params.id]
         );
 
         res.json(result.rows[0]);
