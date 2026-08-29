@@ -279,7 +279,7 @@ export default function CreateListing() {
             </div>
 
             {/* RIGHT — form (mobile: sits below the 1/3-height video, in a card like Login) */}
-            <div className="relative z-10 flex items-center justify-center px-4 pt-[28vh] pb-16 lg:pt-16 lg:pb-16 bg-transparent lg:bg-slate-50 dark:lg:bg-ink-900">                <div className="w-full max-w-sm">
+            <div className="relative z-10 flex items-center justify-center px-4 pt-[24vh] pb-16 lg:pt-16 lg:pb-16 bg-transparent lg:bg-slate-50 dark:lg:bg-ink-900">                <div className="w-full max-w-sm">
                     <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
                         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">New Listing</h1>
                         <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">Add the details buyers will see.</p>
