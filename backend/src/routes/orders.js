@@ -40,13 +40,16 @@ router.post('/', requireAuth, async (req, res) => {
 
         let subtotal = 0;
         const lineItems = [];
-        const sellerSchools = {};
+        // Stores { school, delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus }
+        // per seller, taking the MAX of each tier across that seller's items in the cart.
+        const sellerDeliveryInfo = {};
 
         for (const { product_id, quantity } of items) {
             const qty = Number(quantity) || 1;
 
             const productResult = await client.query(
-                `SELECT p.id, p.title, p.price, p.stock, p.seller_id, u.school
+                `SELECT p.id, p.title, p.price, p.stock, p.seller_id, u.school,
+                        p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus
                  FROM products p JOIN users u ON u.id = p.seller_id
                  WHERE p.id = $1 FOR UPDATE OF p`,
                 [product_id]
@@ -55,7 +58,20 @@ router.post('/', requireAuth, async (req, res) => {
             if (!product) throw { status: 404, message: 'A product in your cart no longer exists' };
             if (product.stock < qty) throw { status: 400, message: `Not enough stock for "${product.title}"` };
 
-            sellerSchools[product.seller_id] = product.school;
+            if (!sellerDeliveryInfo[product.seller_id]) {
+                sellerDeliveryInfo[product.seller_id] = {
+                    school: product.school,
+                    delivery_fee_on_campus: product.delivery_fee_on_campus || 0,
+                    delivery_fee_near_campus: product.delivery_fee_near_campus || 0,
+                    delivery_fee_far_campus: product.delivery_fee_far_campus || 0,
+                };
+            } else {
+                // Same seller, different item — use the higher of the two set fees per tier
+                const existing = sellerDeliveryInfo[product.seller_id];
+                existing.delivery_fee_on_campus = Math.max(existing.delivery_fee_on_campus, product.delivery_fee_on_campus || 0);
+                existing.delivery_fee_near_campus = Math.max(existing.delivery_fee_near_campus, product.delivery_fee_near_campus || 0);
+                existing.delivery_fee_far_campus = Math.max(existing.delivery_fee_far_campus, product.delivery_fee_far_campus || 0);
+            }
 
             const lineTotal = parseFloat(product.price) * qty;
             const sellerFee = Math.round(lineTotal * SELLER_FEE_RATE * 100) / 100;
@@ -73,11 +89,12 @@ router.post('/', requireAuth, async (req, res) => {
             });
         }
 
+        // ============ ONE DELIVERY FEE PER SELLER (not per item) ============
         let deliveryFee = 0;
         const deliveryFeeBySeller = {};
         if (delivery_method === 'delivery') {
-            for (const [sellerId, school] of Object.entries(sellerSchools)) {
-                const { fee } = calcDeliveryFee(buyer_lat, buyer_lng, school);
+            for (const [sellerId, info] of Object.entries(sellerDeliveryInfo)) {
+                const { fee } = calcDeliveryFee(buyer_lat, buyer_lng, info.school, info);
                 deliveryFee += fee;
                 deliveryFeeBySeller[sellerId] = fee;
             }
