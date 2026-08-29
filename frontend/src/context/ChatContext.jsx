@@ -138,6 +138,20 @@ export function ChatProvider({ children }) {
         setLoading(false);
     }, [fetchMessages, fetchWallpaper]);
 
+    // Like openConversation, but takes an already-normalized { id, otherUserId, otherUserName,
+    // otherUserAvatar } object (rather than the snake_case shape the Navbar inbox returns).
+    // Used after broadcastToSellers, since we already have that exact shape at hand and don't
+    // want to re-key it just to reuse openConversation.
+    const openConversationDirect = useCallback(async (convo) => {
+        setIsOpen(true);
+        setLoading(true);
+        setMessages([]);
+        setWallpaper(null);
+        setConversation(convo);
+        await Promise.all([fetchMessages(convo.id), fetchWallpaper(convo.id)]);
+        setLoading(false);
+    }, [fetchMessages, fetchWallpaper]);
+
     const closeChat = useCallback(() => {
         setIsOpen(false);
     }, []);
@@ -169,6 +183,37 @@ export function ChatProvider({ children }) {
             setUploading(false);
         }
     }, [conversation, fetchMessages]);
+
+    // Used from Cart.jsx checkout — sends the SAME message to a list of sellers, creating
+    // (or finding) a conversation with each one first. Used when a cart has items from
+    // multiple sellers, so the buyer only has to type the message once.
+    // `sellers` is an array of { sellerId, sellerName, productId }.
+    // Returns the list of resulting conversations (normalized, ready for openConversationDirect).
+    const broadcastToSellers = useCallback(async (sellers, content) => {
+        const trimmed = content.trim();
+        if (!sellers?.length || !trimmed) return [];
+
+        const results = [];
+        for (const s of sellers) {
+            try {
+                const startRes = await api.post('/chat/start', { sellerId: s.sellerId, productId: s.productId });
+                await api.post(`/chat/${startRes.data.id}/messages`, { content: trimmed });
+                results.push({
+                    id: startRes.data.id,
+                    otherUserId: s.sellerId,
+                    otherUserName: startRes.data.seller_name || s.sellerName,
+                    otherUserAvatar: startRes.data.seller_avatar || null,
+                });
+            } catch (err) {
+                toast.error(
+                    err.response?.data?.error || `Could not message ${s.sellerName || 'a seller'}`
+                );
+            }
+        }
+
+        fetchConversations();
+        return results;
+    }, [fetchConversations]);
 
     const showMoreConversations = useCallback(() => {
         setVisibleCount((c) => c + INBOX_PAGE_SIZE);
@@ -223,6 +268,8 @@ export function ChatProvider({ children }) {
                 otherUserLastActive,
                 openChat,
                 openConversation,
+                openConversationDirect,
+                broadcastToSellers,
                 closeChat,
                 sendMessage,
                 sendMedia,

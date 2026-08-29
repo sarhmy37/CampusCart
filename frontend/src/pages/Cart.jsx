@@ -7,7 +7,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { openWhatsAppChats } from '../utils/whatsapp';
 import { calcDeliveryFee, SCHOOL_COORDS, haversineKm } from '../utils/distance';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck, Loader2 } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck, Loader2, Send, X, MessageCircle } from 'lucide-react';
 import { CART_VIDEO } from '../data/media';
 
 const SERVICE_FEE_RATE = 0.02;
@@ -47,7 +47,7 @@ function WhatsAppIcon(props) {
 export default function Cart() {
     const { items, removeItem, updateQuantity, total, clearCart } = useCart();
     const { user } = useAuth();
-    const { openChat } = useChat();
+    const { openChat, broadcastToSellers, openConversationDirect } = useChat();
     const navigate = useNavigate();
     const [deliveryMethod, setDeliveryMethod] = useState('pickup');
     const [paying, setPaying] = useState(false);
@@ -58,6 +58,11 @@ export default function Cart() {
     const [verifyingCampus, setVerifyingCampus] = useState(false);
     const [confirmedOnCampus, setConfirmedOnCampus] = useState(null);
 
+    // Broadcast-to-multiple-sellers compose modal (pickup, cart spans >1 seller)
+    const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+    const [broadcastMessage, setBroadcastMessage] = useState('');
+    const [sendingBroadcast, setSendingBroadcast] = useState(false);
+
     const sellerGroups = items.reduce((groups, item) => {
         const key = item.seller_whatsapp || item.seller_name || 'unknown';
         if (!groups[key]) {
@@ -66,6 +71,15 @@ export default function Cart() {
         groups[key].items.push(item);
         return groups;
     }, {});
+
+    // Normalized seller list for chat purposes — one entry per distinct seller in the cart
+    const sellersForChat = Object.values(sellerGroups)
+        .map((group) => ({
+            sellerId: group.items[0]?.seller_id,
+            sellerName: group.sellerName,
+            productId: group.items[0]?.product_id,
+        }))
+        .filter((s) => s.sellerId);
 
     useEffect(() => {
         if (deliveryMethod !== 'delivery' || buyerCoords || locationDenied) return;
@@ -123,6 +137,37 @@ export default function Cart() {
         );
     };
 
+    // Opens the broadcast compose modal for a multi-seller cart, and immediately
+    // surfaces a toast telling the buyer their message will go to every seller.
+    const openBroadcastModal = () => {
+        const sellerCount = sellersForChat.length;
+        toast(
+            `You're purchasing from ${sellerCount} different sellers — this message will be sent to all of them`,
+            { icon: '💬', duration: 4500 }
+        );
+        setShowBroadcastModal(true);
+    };
+
+    const handleSendBroadcast = async () => {
+        if (!broadcastMessage.trim() || sendingBroadcast) return;
+        setSendingBroadcast(true);
+        try {
+            const conversations = await broadcastToSellers(sellersForChat, broadcastMessage);
+            if (conversations.length > 0) {
+                toast.success(
+                    `Message sent to ${conversations.length} seller${conversations.length > 1 ? 's' : ''}`
+                );
+                setShowBroadcastModal(false);
+                setBroadcastMessage('');
+                // Open the first seller's conversation so the buyer can keep chatting —
+                // the rest are reachable from the inbox in the Navbar.
+                openConversationDirect(conversations[0]);
+            }
+        } finally {
+            setSendingBroadcast(false);
+        }
+    };
+
     if (items.length === 0) {
         return (
             <div className="dark:bg-ink-900 min-h-screen flex flex-col">
@@ -172,7 +217,13 @@ export default function Cart() {
         if (!user) return navigate('/login');
 
         if (deliveryMethod === 'pickup') {
-            openWhatsAppChats(items, user.location, 'pickup');
+            if (sellersForChat.length === 0) return;
+
+            if (sellersForChat.length === 1) {
+                openChat(sellersForChat[0]);
+            } else {
+                openBroadcastModal();
+            }
             return;
         }
 
@@ -389,7 +440,6 @@ export default function Cart() {
                                     <span>Delivery</span>
                                     <span>{deliveryFee > 0 ? `GHS ${deliveryFee.toFixed(2)}` : 'Free'}</span>
                                 </div>
-                                
                             </div>
 
                             <div className="border-t border-slate-100 dark:border-ink-600 mt-4 pt-4 flex items-center justify-between mb-6">
@@ -413,6 +463,74 @@ export default function Cart() {
                     </div>
                 </div>
             </div>
+
+            {/* BROADCAST COMPOSE MODAL — one message, sent to every seller in the cart */}
+            {showBroadcastModal && (
+                <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                        onClick={() => !sendingBroadcast && setShowBroadcastModal(false)}
+                    />
+                    <div className="relative w-full sm:max-w-md bg-white dark:bg-ink-800 rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 sm:p-6">
+                        <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                                <div className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-gold-900/40 flex items-center justify-center">
+                                    <MessageCircle size={17} className="text-brand-600 dark:text-gold-400" />
+                                </div>
+                                <h3 className="font-bold text-slate-900 dark:text-gold-50 text-base">
+                                    Message all sellers
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => !sendingBroadcast && setShowBroadcastModal(false)}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-200/50 transition"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                            This will start (or continue) a chat with each of the {sellersForChat.length} sellers below and send them the same message.
+                        </p>
+
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                            {sellersForChat.map((s) => (
+                                <span
+                                    key={s.sellerId}
+                                    className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-gold-200"
+                                >
+                                    {s.sellerName}
+                                </span>
+                            ))}
+                        </div>
+
+                        <textarea
+                            value={broadcastMessage}
+                            onChange={(e) => setBroadcastMessage(e.target.value)}
+                            placeholder="Hi, I'd like to arrange pickup for my order..."
+                            rows={4}
+                            autoFocus
+                            disabled={sendingBroadcast}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition resize-none disabled:opacity-60"
+                        />
+
+                        <button
+                            onClick={handleSendBroadcast}
+                            disabled={!broadcastMessage.trim() || sendingBroadcast}
+                            className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60"
+                        >
+                            {sendingBroadcast ? (
+                                <>
+                                    <Loader2 size={16} className="animate-spin" /> Sending…
+                                </>
+                            ) : (
+                                <>
+                                    <Send size={16} /> Send to {sellersForChat.length} sellers
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
