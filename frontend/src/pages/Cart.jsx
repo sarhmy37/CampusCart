@@ -389,10 +389,7 @@ export default function Cart() {
                                     <span>Delivery</span>
                                     <span>{deliveryFee > 0 ? `GHS ${deliveryFee.toFixed(2)}` : 'Free'}</span>
                                 </div>
-                                <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
-                                    <span>Service fee</span>
-                                    <span>GHS {serviceFee.toFixed(2)}</span>
-                                </div>
+                                
                             </div>
 
                             <div className="border-t border-slate-100 dark:border-ink-600 mt-4 pt-4 flex items-center justify-between mb-6">

@@ -11,6 +11,7 @@ const BUYER_FEE_RATE = 0.02;
 const SELLER_FEE_RATE = 0.015;
 const ADMIN_DELIVERY_SHARE = 0.20; // 20% of delivery fee goes to Admin
 const SELLER_DELIVERY_SHARE = 0.80; // 80% of delivery fee goes to Seller
+const PAYSTACK_MARKUP_RATE = 0.02; // flat 2% added at Paystack checkout (Paystack's real cut is 1.95%, the extra 0.05% stays with admin)
 
 // Helper: insert a notification
 async function insertNotification(userId, type, message, relatedId = null, link = null) {
@@ -90,7 +91,7 @@ router.post('/', requireAuth, async (req, res) => {
                 // Seller gets 80%
                 const sellerDeliveryShare = Math.round(totalDeliveryFee * SELLER_DELIVERY_SHARE * 100) / 100;
                 item.seller_earnings = Math.round((item.seller_earnings + sellerDeliveryShare) * 100) / 100;
-                
+
                 creditedDeliveryFor.add(item.seller_id);
             }
         }
@@ -131,7 +132,7 @@ router.post('/', requireAuth, async (req, res) => {
         const reference = `cc_${orderId}`;
         await client.query('UPDATE orders SET payment_reference = $1 WHERE id = $2', [reference, orderId]);
 
-        // Fully covered by credit — leave pending until buyer confirms.
+        // Fully covered by credit — leave pending until buyer confirms. No Paystack charge at all.
         if (totalAmount <= 0) {
             for (const item of lineItems) {
                 await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);
@@ -149,11 +150,18 @@ router.post('/', requireAuth, async (req, res) => {
             });
         }
 
+        // 👇 The amount actually charged on Paystack includes a flat 2% markup on top of
+        // totalAmount. Paystack's real cut is 1.95%, so the extra 0.05% stays with admin.
+        // The buyer only ever sees `totalAmount` on our own site — this markup only shows
+        // up on Paystack's own checkout page.
+        const paystackAmount = Math.round(totalAmount * (1 + PAYSTACK_MARKUP_RATE) * 100) / 100;
+        await client.query('UPDATE orders SET paystack_amount = $1 WHERE id = $2', [paystackAmount, orderId]);
+
         await client.query('COMMIT');
 
         const paystackRes = await initializeTransaction({
             email: buyerEmail,
-            amountGHS: totalAmount,
+            amountGHS: paystackAmount,
             reference,
             callback_url: `${process.env.CORS_ORIGIN}/orders/${orderId}`,
             metadata: { order_id: orderId, buyer_id: req.userId },
@@ -195,6 +203,27 @@ router.post('/webhook', async (req, res) => {
         const order = orderResult.rows[0];
         // Guard against Paystack's duplicate webhook retries — only process a 'pending' order once.
         if (!order || order.status !== 'pending') return;
+
+        // 👇 Amount check: Paystack sends the amount actually charged, in kobo/pesewas (subunit).
+        // Compare it against the paystack_amount we stored when the order was created, so a
+        // mismatch (fee changes, tampering, a stale/replayed reference) gets flagged instead of
+        // silently marking the order paid.
+        const amountPaidGHS = Math.round((event.data.amount / 100) * 100) / 100;
+        const expectedGHS = parseFloat(order.paystack_amount);
+
+        if (Math.abs(amountPaidGHS - expectedGHS) > 0.05) {
+            console.error(
+                `[WEBHOOK AMOUNT MISMATCH] Order ${order.id}: expected GHS ${expectedGHS}, Paystack reported GHS ${amountPaidGHS}. Not marking as paid.`
+            );
+            await insertNotification(
+                order.buyer_id,
+                'payment_flagged',
+                `We noticed a mismatch with your recent payment (Order #${order.id}). Our team has been notified and will review it shortly.`,
+                order.id,
+                `/orders/${order.id}`
+            );
+            return;
+        }
 
         const itemsResult = await pool.query(
             'SELECT product_id, quantity, seller_id, title FROM order_items WHERE order_id = $1',
@@ -423,34 +452,31 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
              WHERE oi.id = $1`,
             [itemId]
         );
-        
+
         if (itemResult.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
-        
+
         const item = itemResult.rows[0];
-        
+
         if (item.buyer_id !== req.userId) {
             return res.status(403).json({ error: 'You are not the buyer of this item' });
         }
 
         await pool.query(
-    `UPDATE order_items SET buyer_confirmed_at = now(), status = 'completed' WHERE id = $1`,
-    [itemId]
-);
+            `UPDATE order_items SET buyer_confirmed_at = now(), status = 'completed' WHERE id = $1`,
+            [itemId]
+        );
 
         // ============ ADMIN NET PROFIT CALCULATION ============
         // 1. Base product price
         const basePrice = parseFloat(item.price_at_purchase);
-        
+
         // 2. Buyer 2% fee
         const buyerFee = basePrice * 0.02;
-        
+
         // 3. Seller 1.5% fee
         const sellerFee = basePrice * 0.015;
-        
+
         // 4. Admin's 20% share of the delivery fee
-        // Note: We stored the total delivery fee paid by the buyer in the 'orders' table.
-        // We need to calculate 20% of that specific seller's delivery fee.
-        // We will dynamically calculate this using a subquery.
         const deliveryShareResult = await pool.query(
             `SELECT o.delivery_fee, oi.seller_id
              FROM orders o
@@ -461,25 +487,20 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         const orderDeliveryFee = parseFloat(deliveryShareResult.rows[0]?.delivery_fee || 0);
         const adminDeliveryShare = Math.round(orderDeliveryFee * ADMIN_DELIVERY_SHARE * 100) / 100;
 
-        // 5. Total Revenue processed by Paystack (Product Price + Buyer Fee + Delivery Fee)
-        const totalRevenue = basePrice + buyerFee + orderDeliveryFee;
-        
-        // 6. Paystack's 1.95% cut
-        const paystackCut = totalRevenue * 0.0195;
-        
-        // 7. Gross Admin Profit = Buyer Fee + Seller Fee + Admin Delivery Share
+        // 5. Gross admin profit = buyer fee + seller fee + admin's delivery share.
+        //    Paystack's cut is NO LONGER subtracted here — it's now covered upfront by the
+        //    2% markup added to the buyer's Paystack payment (see paystackAmount in POST /).
+        //    The extra 0.05% (2% markup vs Paystack's real 1.95% cut) stays with admin as a buffer.
         const grossAdminProfit = buyerFee + sellerFee + adminDeliveryShare;
-        
-        // 8. Net Admin Profit (After Paystack)
-        const adminNetProfit = Math.round((grossAdminProfit - paystackCut) * 100) / 100;
+        const adminNetProfit = Math.round(grossAdminProfit * 100) / 100;
 
-        // 9. Save to database
+        // 6. Save to database
         await pool.query(
             `UPDATE order_items SET admin_net_profit = $1 WHERE id = $2`,
             [adminNetProfit, itemId]
         );
 
-        // 10. Seller earnings (98.5% of base price + 80% of delivery fee)
+        // 7. Seller earnings (98.5% of base price + 80% of delivery fee) — unchanged
         const sellerEarningsProduct = Math.round((basePrice - sellerFee) * 100) / 100;
         const sellerDeliveryShare = Math.round(orderDeliveryFee * SELLER_DELIVERY_SHARE * 100) / 100;
         const sellerEarnings = Math.round((sellerEarningsProduct + sellerDeliveryShare) * 100) / 100;
@@ -490,7 +511,6 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         console.log(`  - Buyer Fee (2%): GHS ${buyerFee.toFixed(2)}`);
         console.log(`  - Seller Fee (1.5%): GHS ${sellerFee.toFixed(2)}`);
         console.log(`  - Admin Delivery Share (20%): GHS ${adminDeliveryShare.toFixed(2)}`);
-        console.log(`  - Paystack Cut (1.95%): GHS ${paystackCut.toFixed(2)}`);
         console.log(`  - Admin Net Profit: GHS ${adminNetProfit.toFixed(2)}`);
         console.log(`  - Seller Available: GHS ${sellerEarnings.toFixed(2)}`);
         // ======================================================
@@ -503,9 +523,9 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             '/dashboard?tab=payouts'
         );
 
-        res.json({ 
-            success: true, 
-            message: 'Item confirmed! Funds are now available for the seller to withdraw.' 
+        res.json({
+            success: true,
+            message: 'Item confirmed! Funds are now available for the seller to withdraw.'
         });
 
     } catch (err) {
