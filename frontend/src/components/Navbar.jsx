@@ -55,13 +55,15 @@ export default function Navbar() {
     const navigate = useNavigate();
     const location = useLocation();
     const isHome = location.pathname === '/';
+    const isAdminPage = location.pathname.startsWith('/admin');
+    const isAdminLoginPage = location.pathname === '/admin/login';
     const isAdmin = user?.role === 'admin';
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [mobileExpanded, setMobileExpanded] = useState(false);
     const { theme } = useTheme();
 
-    // 👇 Logo click counter for admin logout (5 taps)
+    // 👇 Logo click counter (5 taps)
     const [logoClickCount, setLogoClickCount] = useState(0);
     const [logoClickTimeout, setLogoClickTimeout] = useState(null);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -77,26 +79,58 @@ export default function Navbar() {
         }
     }, [location]);
 
-    // 👇 Handle logo clicks for admin logout (5 taps)
+    // 👇 Handle logo clicks
     const handleLogoClick = (e) => {
-        if (!isAdmin) return;
-        
         e.preventDefault();
-        const newCount = logoClickCount + 1;
-        setLogoClickCount(newCount);
-        
-        if (newCount === 5) {
-            setShowLogoutConfirm(true);
-            setLogoClickCount(0);
+
+        // CASE 1: On Admin Login page → go to Home
+        if (isAdminLoginPage) {
+            navigate('/');
             return;
         }
-        
-        // Reset counter after 3 seconds of inactivity
-        if (logoClickTimeout) clearTimeout(logoClickTimeout);
-        const timeout = setTimeout(() => {
-            setLogoClickCount(0);
-        }, 3000);
-        setLogoClickTimeout(timeout);
+
+        // CASE 2: On Admin Dashboard page → 5 clicks = logout
+        if (isAdminPage && isAdmin) {
+            const newCount = logoClickCount + 1;
+            setLogoClickCount(newCount);
+            
+            if (newCount === 5) {
+                setShowLogoutConfirm(true);
+                setLogoClickCount(0);
+                return;
+            }
+            
+            // Reset counter after 3 seconds of inactivity
+            if (logoClickTimeout) clearTimeout(logoClickTimeout);
+            const timeout = setTimeout(() => {
+                setLogoClickCount(0);
+            }, 3000);
+            setLogoClickTimeout(timeout);
+            return;
+        }
+
+        // CASE 3: Regular user OR on Home page → 5 clicks = go to Admin Login
+        if (!isAdminPage) {
+            const newCount = logoClickCount + 1;
+            setLogoClickCount(newCount);
+            
+            if (newCount === 5) {
+                navigate('/admin/login');
+                setLogoClickCount(0);
+                return;
+            }
+            
+            // Reset counter after 3 seconds of inactivity
+            if (logoClickTimeout) clearTimeout(logoClickTimeout);
+            const timeout = setTimeout(() => {
+                setLogoClickCount(0);
+            }, 3000);
+            setLogoClickTimeout(timeout);
+            return;
+        }
+
+        // Default: go to home
+        navigate('/');
     };
 
     // 👇 Handle admin logout
@@ -149,6 +183,20 @@ export default function Navbar() {
         }
     };
 
+    // Determine what to show on the logo
+    let logoTitle = 'Go to home';
+    let showCounter = false;
+    
+    if (isAdminLoginPage) {
+        logoTitle = 'Go to home';
+    } else if (isAdminPage && isAdmin) {
+        logoTitle = 'Tap 5 times to logout';
+        showCounter = true;
+    } else if (!isAdminPage) {
+        logoTitle = 'Tap 5 times for admin';
+        showCounter = true;
+    }
+
     return (
         <>
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
@@ -166,53 +214,36 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                    {/* Logo - clicks 5x for admin logout */}
-                    {isAdmin ? (
-                        <span 
-                            onClick={handleLogoClick}
-                            className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
-                            title="Tap 5 times to logout"
-                        >
-                            <img 
-                                src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
-                                alt="TreX" 
-                                className="h-7 sm:h-9 w-auto object-contain"
-                            />
-                            <div className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap">
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">-</span>
-                                <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">X</span>
-                            </div>
-                            {logoClickCount > 0 && (
-                                <span className="text-xs text-slate-400 dark:text-gold-300/50 ml-1">
-                                    {logoClickCount}/5
-                                </span>
-                            )}
-                        </span>
-                    ) : (
-                        <Link 
-                            to="/" 
-                            className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
-                        >
-                            <img 
-                                src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
-                                alt="TreX" 
-                                className="h-7 sm:h-9 w-auto object-contain"
-                            />
-                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">-</span>
-                                <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">X</span>
-                            </div>
-                        </Link>
-                    )}
+                    {/* Logo */}
+                    <span 
+                        onClick={handleLogoClick}
+                        className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
+                        title={logoTitle}
+                    >
+                        <img 
+                            src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
+                            alt="TreX" 
+                            className="h-7 sm:h-9 w-auto object-contain"
+                        />
+                        <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                            <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
+                            <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">-</span>
+                            <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">X</span>
+                        </div>
+                        {showCounter && logoClickCount > 0 && (
+                            <span className="text-xs text-slate-400 dark:text-gold-300/50 ml-1">
+                                {logoClickCount}/5
+                            </span>
+                        )}
+                    </span>
                 </div>
 
-                {!isAdmin && (
-    <div className="flex-1 min-w-0 mx-2 sm:mx-4">
-        <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
-    </div>
-)}
+                {/* Search Bar - hidden on admin pages */}
+                {!isAdminPage && (
+                    <div className="flex-1 min-w-0 mx-2 sm:mx-4">
+                        <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
+                    </div>
+                )}
 
                 <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
                     {/* Mobile expand button - HIDDEN for admin */}

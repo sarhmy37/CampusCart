@@ -5,13 +5,14 @@ import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
-import { SlidersHorizontal, ArrowLeft, X, Wallet, ChevronDown, Check, Search } from 'lucide-react';
+import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search } from 'lucide-react';
 import {
     AdjustmentsHorizontalIcon,
     SparklesIcon,
     MapPinIcon,
     CheckBadgeIcon,
     Squares2X2Icon,
+    WalletIcon,
 } from '@heroicons/react/24/outline';
 import {
     AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
@@ -266,7 +267,7 @@ export default function Browse() {
 
     const budgetInputField = (
         <div className="relative shrink-0">
-            <Wallet className="w-3 h-3 sm:w-[14px] sm:h-[14px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
+            <WalletIcon className="w-3 h-3 sm:w-[14px] sm:h-[14px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
                 type="number"
                 min="1"
@@ -523,11 +524,11 @@ export default function Browse() {
                             <button
                                 key={r.label}
                                 onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
-                                className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
+                                className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${(
                                     priceRange?.label === r.label
                                         ? 'bg-white text-brand-700 border-white'
                                         : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
-                                }`}
+                                )}`}
                             >
                                 {r.label}
                             </button>
@@ -692,7 +693,7 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
                                         }`}
                                     />
                                     <span
-                                        className={`text-[9.5px] leading-none truncate max-w-full px-0.5 transition-all duration-300 ${
+                                        className={`text-[9.5px] leading-none truncate max-full px-0.5 transition-all duration-300 ${
                                             active
                                                 ? 'font-bold text-brand-700 dark:text-gold-400'
                                                 : 'font-medium text-slate-500 dark:text-gold-200/50'
