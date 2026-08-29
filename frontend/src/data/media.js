@@ -6,11 +6,11 @@ const CLOUD_NAME = 'b7fch4rp';
 export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
 export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
 
-// Helper to generate Cloudinary Image URLs (UPDATED TO V2)
+// Helper to generate Cloudinary Image URLs (v2)
 function cloudinaryImage(filename) {
-    // Using v2 forces Cloudinary to fetch the freshly uploaded file instead of the cached v1
-    // Adding ?t=${Date.now()} also forces the browser to ignore its own cache
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v2/${filename}?t=${Date.now()}`;
+    // No cache-busting param — letting the URL stay stable lets the browser
+    // actually cache these between visits instead of re-downloading every load.
+    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v2/${filename}`;
 }
 
 // Helper to generate Cloudinary Video URLs
