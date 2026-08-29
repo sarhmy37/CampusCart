@@ -4,7 +4,9 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import {
     Users, Package, ShoppingBag, DollarSign, ShieldCheck, ShieldAlert,
-    Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X
+    Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
+    Filter, X as XClose, Calendar, User, Tag, Layers, ArrowUpDown,
+    Search, Mail, School, UserCheck, UserX, Users as UsersIcon
 } from 'lucide-react';
 
 export default function Admin() {
@@ -138,11 +140,27 @@ function StatCard({ icon: Icon, label, value, highlight }) {
     );
 }
 
-// ---------- UsersTab ----------
+// ---------- UsersTab (with Advanced Search) ----------
 function UsersTab({ filter, initialUsers, loading }) {
     const [users, setUsers] = useState(initialUsers || []);
+    const [filteredUsers, setFilteredUsers] = useState([]);
     const [localLoading, setLocalLoading] = useState(loading);
     const [selectedUser, setSelectedUser] = useState(null);
+    
+    // Search states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchField, setSearchField] = useState('all');
+    const [accountTypeFilter, setAccountTypeFilter] = useState('all');
+    const [roleFilter, setRoleFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [schoolFilter, setSchoolFilter] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [sortBy, setSortBy] = useState('newest');
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Get unique schools from users
+    const schools = [...new Set(users.map(u => u.school).filter(Boolean))];
 
     useEffect(() => {
         if (initialUsers && initialUsers.length > 0) {
@@ -156,12 +174,79 @@ function UsersTab({ filter, initialUsers, loading }) {
         }
     }, [initialUsers, filter]);
 
-    const filteredUsers = filter
-        ? users.filter(u =>
-            u.name.toLowerCase().includes(filter.toLowerCase()) ||
-            u.university_email.toLowerCase().includes(filter.toLowerCase())
-          )
-        : users;
+    // Apply all filters
+    useEffect(() => {
+        let result = [...users];
+
+        // Search query
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(u => {
+                if (searchField === 'name') {
+                    return u.name.toLowerCase().includes(q);
+                } else if (searchField === 'email') {
+                    return u.university_email.toLowerCase().includes(q);
+                } else if (searchField === 'school') {
+                    return (u.school || '').toLowerCase().includes(q);
+                } else {
+                    return u.name.toLowerCase().includes(q) ||
+                           u.university_email.toLowerCase().includes(q) ||
+                           (u.school || '').toLowerCase().includes(q);
+                }
+            });
+        }
+
+        // Account type filter
+        if (accountTypeFilter !== 'all') {
+            result = result.filter(u => u.account_type === accountTypeFilter);
+        }
+
+        // Role filter
+        if (roleFilter !== 'all') {
+            result = result.filter(u => u.role === roleFilter);
+        }
+
+        // Status filter
+        if (statusFilter === 'verified') {
+            result = result.filter(u => u.verified === true);
+        } else if (statusFilter === 'unverified') {
+            result = result.filter(u => u.verified === false);
+        } else if (statusFilter === 'banned') {
+            result = result.filter(u => u.banned === true);
+        } else if (statusFilter === 'active') {
+            result = result.filter(u => u.banned === false && u.verified === true);
+        }
+
+        // School filter
+        if (schoolFilter) {
+            result = result.filter(u => (u.school || '') === schoolFilter);
+        }
+
+        // Date range
+        if (dateFrom) {
+            result = result.filter(u => new Date(u.created_at) >= new Date(dateFrom));
+        }
+        if (dateTo) {
+            const endDate = new Date(dateTo);
+            endDate.setHours(23, 59, 59, 999);
+            result = result.filter(u => new Date(u.created_at) <= endDate);
+        }
+
+        // Sort
+        if (sortBy === 'newest') {
+            result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        } else if (sortBy === 'oldest') {
+            result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        } else if (sortBy === 'name') {
+            result.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (sortBy === 'email') {
+            result.sort((a, b) => a.university_email.localeCompare(b.university_email));
+        } else if (sortBy === 'school') {
+            result.sort((a, b) => (a.school || '').localeCompare(b.school || ''));
+        }
+
+        setFilteredUsers(result);
+    }, [users, searchQuery, searchField, accountTypeFilter, roleFilter, statusFilter, schoolFilter, dateFrom, dateTo, sortBy]);
 
     const updateUser = async (id, payload) => {
         try {
@@ -186,68 +271,279 @@ function UsersTab({ filter, initialUsers, loading }) {
         }
     };
 
+    const clearAllFilters = () => {
+        setSearchQuery('');
+        setSearchField('all');
+        setAccountTypeFilter('all');
+        setRoleFilter('all');
+        setStatusFilter('all');
+        setSchoolFilter('');
+        setDateFrom('');
+        setDateTo('');
+        setSortBy('newest');
+    };
+
+    const activeFilterCount = [
+        searchQuery, accountTypeFilter !== 'all', roleFilter !== 'all', 
+        statusFilter !== 'all', schoolFilter, dateFrom, dateTo
+    ].filter(Boolean).length;
+
     if (localLoading) return <SkeletonList />;
 
     return (
-        <div className="max-w-3xl mx-auto space-y-2">
-            {filter && <p className="text-sm text-slate-400 dark:text-gold-200/50">Showing results for "{filter}"</p>}
-            {filteredUsers.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">No users found.</div>
-            ) : (
-                filteredUsers.map((u) => (
-                    <div key={u.id} className="flex items-center justify-between gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 flex-wrap">
-                        <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">{u.name}</p>
-                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{u.university_email}</p>
-                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                <Tag color={u.role === 'admin' ? 'gold' : 'slate'}>{u.role}</Tag>
-                                <Tag color={u.account_type === 'seller' ? 'red' : 'blue'}>{u.account_type}</Tag>
-                                <Tag color={u.verified ? 'emerald' : 'amber'}>{u.verified ? 'Verified' : 'Unverified'}</Tag>
-                                {u.banned && <Tag color="red">Banned</Tag>}
-                            </div>
+        <div className="max-w-4xl mx-auto">
+            {/* Search Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+                <div className="flex-1 flex items-center bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl overflow-hidden focus-within:border-brand-500 dark:focus-within:border-gold-500 focus-within:ring-2 focus-within:ring-brand-100 dark:focus-within:ring-gold-900 transition">
+                    <Search size={18} className="ml-3 text-slate-400 dark:text-gold-300/40 shrink-0" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search users by name, email, or school..."
+                        className="w-full px-2 py-2.5 bg-transparent text-sm text-slate-800 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-300/40 focus:outline-none"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="px-2 text-slate-400 dark:text-gold-300/40 hover:text-slate-600 dark:hover:text-gold-200"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+                
+                <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap ${
+                        showFilters || activeFilterCount > 0
+                            ? 'bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-400 border border-brand-200 dark:border-gold-800'
+                            : 'bg-slate-100 dark:bg-ink-800 text-slate-600 dark:text-gold-200/60 hover:bg-slate-200 dark:hover:bg-ink-700'
+                    }`}
+                >
+                    <Filter size={16} />
+                    Filters
+                    {activeFilterCount > 0 && (
+                        <span className="ml-1 px-2 py-0.5 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 text-xs">
+                            {activeFilterCount}
+                        </span>
+                    )}
+                </button>
+                {activeFilterCount > 0 && (
+                    <button
+                        onClick={clearAllFilters}
+                        className="text-xs text-slate-400 dark:text-gold-200/50 hover:text-red-500 dark:hover:text-red-400 transition flex items-center gap-1 whitespace-nowrap"
+                    >
+                        <XClose size={14} /> Clear all
+                    </button>
+                )}
+            </div>
+
+            {/* Filter Panel */}
+            {showFilters && (
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 mb-4 shadow-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Search Field */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Search size={14} /> Search In
+                            </label>
+                            <select
+                                value={searchField}
+                                onChange={(e) => setSearchField(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            >
+                                <option value="all">All Fields</option>
+                                <option value="name">Name</option>
+                                <option value="email">Email</option>
+                                <option value="school">School</option>
+                            </select>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                            <IconButton
-                                onClick={() => updateUser(u.id, { verified: !u.verified })}
-                                title={u.verified ? 'Unverify' : 'Verify'}
-                                active={u.verified}
+                        {/* Account Type */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <User size={14} /> Account Type
+                            </label>
+                            <select
+                                value={accountTypeFilter}
+                                onChange={(e) => setAccountTypeFilter(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
                             >
-                                {u.verified ? <ShieldCheck size={15} /> : <ShieldAlert size={15} />}
-                            </IconButton>
-                            <IconButton
-                                onClick={() => updateUser(u.id, { banned: !u.banned })}
-                                title={u.banned ? 'Unban' : 'Ban'}
-                                active={u.banned}
-                                danger
+                                <option value="all">All Types</option>
+                                <option value="buyer">Buyer</option>
+                                <option value="seller">Seller</option>
+                            </select>
+                        </div>
+
+                        {/* Role */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Crown size={14} /> Role
+                            </label>
+                            <select
+                                value={roleFilter}
+                                onChange={(e) => setRoleFilter(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
                             >
-                                {u.banned ? <CheckCircle size={15} /> : <Ban size={15} />}
-                            </IconButton>
-                            <IconButton
-                                onClick={() => updateUser(u.id, { role: u.role === 'admin' ? 'user' : 'admin' })}
-                                title={u.role === 'admin' ? 'Remove admin' : 'Make admin'}
-                                active={u.role === 'admin'}
+                                <option value="all">All Roles</option>
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+
+                        {/* Status */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <ShieldCheck size={14} /> Status
+                            </label>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
                             >
-                                <Crown size={15} />
-                            </IconButton>
-                            <IconButton
-                                onClick={() => setSelectedUser(u)}
-                                title="Investigate"
-                                className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                <option value="all">All Status</option>
+                                <option value="verified">Verified</option>
+                                <option value="unverified">Unverified</option>
+                                <option value="active">Active</option>
+                                <option value="banned">Banned</option>
+                            </select>
+                        </div>
+
+                        {/* School */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <School size={14} /> School
+                            </label>
+                            <select
+                                value={schoolFilter}
+                                onChange={(e) => setSchoolFilter(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
                             >
-                                <Eye size={15} />
-                            </IconButton>
-                            <IconButton
-                                onClick={() => deleteUser(u.id)}
-                                title="Delete account"
-                                danger
-                                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                <option value="">All Schools</option>
+                                {schools.map((s) => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Sort By */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <ArrowUpDown size={14} /> Sort By
+                            </label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
                             >
-                                <Trash2 size={15} />
-                            </IconButton>
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="name">Name (A-Z)</option>
+                                <option value="email">Email (A-Z)</option>
+                                <option value="school">School (A-Z)</option>
+                            </select>
+                        </div>
+
+                        {/* Date From */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Calendar size={14} /> From Date
+                            </label>
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            />
+                        </div>
+
+                        {/* Date To */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Calendar size={14} /> To Date
+                            </label>
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            />
                         </div>
                     </div>
-                ))
+                </div>
+            )}
+
+            {/* Results Count */}
+            <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-slate-400 dark:text-gold-200/50">
+                    {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
+                </p>
+            </div>
+
+            {/* Users List */}
+            {filteredUsers.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">No users found matching your filters.</div>
+            ) : (
+                <div className="space-y-2">
+                    {filteredUsers.map((u) => (
+                        <div key={u.id} className="flex items-center justify-between gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 flex-wrap">
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">{u.name}</p>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{u.university_email}</p>
+                                {u.school && (
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">🏫 {u.school}</p>
+                                )}
+                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                    <Tag color={u.role === 'admin' ? 'gold' : 'slate'}>{u.role}</Tag>
+                                    <Tag color={u.account_type === 'seller' ? 'red' : 'blue'}>{u.account_type}</Tag>
+                                    <Tag color={u.verified ? 'emerald' : 'amber'}>{u.verified ? 'Verified' : 'Unverified'}</Tag>
+                                    {u.banned && <Tag color="red">Banned</Tag>}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                                <IconButton
+                                    onClick={() => updateUser(u.id, { verified: !u.verified })}
+                                    title={u.verified ? 'Unverify' : 'Verify'}
+                                    active={u.verified}
+                                >
+                                    {u.verified ? <ShieldCheck size={15} /> : <ShieldAlert size={15} />}
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => updateUser(u.id, { banned: !u.banned })}
+                                    title={u.banned ? 'Unban' : 'Ban'}
+                                    active={u.banned}
+                                    danger
+                                >
+                                    {u.banned ? <CheckCircle size={15} /> : <Ban size={15} />}
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => updateUser(u.id, { role: u.role === 'admin' ? 'user' : 'admin' })}
+                                    title={u.role === 'admin' ? 'Remove admin' : 'Make admin'}
+                                    active={u.role === 'admin'}
+                                >
+                                    <Crown size={15} />
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => setSelectedUser(u)}
+                                    title="Investigate"
+                                    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                >
+                                    <Eye size={15} />
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => deleteUser(u.id)}
+                                    title="Delete account"
+                                    danger
+                                    className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                >
+                                    <Trash2 size={15} />
+                                </IconButton>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             )}
 
             <InvestigateModal
@@ -259,7 +555,7 @@ function UsersTab({ filter, initialUsers, loading }) {
     );
 }
 
-// ---------- InvestigateModal ----------
+// ---------- InvestigateModal (same as before) ----------
 function InvestigateModal({ user, open, onClose }) {
     const [orders, setOrders] = useState([]);
     const [listings, setListings] = useState([]);
@@ -348,68 +644,282 @@ function InvestigateModal({ user, open, onClose }) {
     );
 }
 
-// ---------- ListingsTab ----------
+// ---------- ListingsTab (same as before) ----------
 function ListingsTab({ filter, initialListings, loading }) {
-    const [listings, setListings] = useState(initialListings || []);
+    const [allListings, setAllListings] = useState([]);
+    const [filteredListings, setFilteredListings] = useState([]);
     const [localLoading, setLocalLoading] = useState(loading);
+    const [categories, setCategories] = useState([]);
+    const [users, setUsers] = useState([]);
+
+    const [selectedUser, setSelectedUser] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedStockSort, setSelectedStockSort] = useState('');
+    const [selectedDateSort, setSelectedDateSort] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
 
     useEffect(() => {
         if (initialListings && initialListings.length > 0) {
-            setListings(initialListings);
+            setAllListings(initialListings);
+            setFilteredListings(initialListings);
             setLocalLoading(false);
         } else if (!filter) {
             setLocalLoading(true);
-            api.get('/admin/listings').then((res) => {
-                setListings(res.data);
+            Promise.all([
+                api.get('/admin/listings').then(res => res.data),
+                api.get('/categories').then(res => res.data).catch(() => []),
+                api.get('/admin/users').then(res => res.data).catch(() => []),
+            ]).then(([listings, cats, usersData]) => {
+                setAllListings(listings);
+                setFilteredListings(listings);
+                setCategories(cats || []);
+                setUsers(usersData || []);
             }).finally(() => setLocalLoading(false));
         }
     }, [initialListings, filter]);
 
-    const filteredListings = filter
-        ? listings.filter(p => p.title.toLowerCase().includes(filter.toLowerCase()))
-        : listings;
+    useEffect(() => {
+        let result = [...allListings];
+
+        if (filter) {
+            result = result.filter(p => p.title.toLowerCase().includes(filter.toLowerCase()));
+        }
+
+        if (selectedUser) {
+            result = result.filter(p => p.seller_id === selectedUser || p.seller_name?.toLowerCase().includes(selectedUser.toLowerCase()));
+        }
+
+        if (selectedCategory) {
+            result = result.filter(p => p.category?.toLowerCase().includes(selectedCategory.toLowerCase()));
+        }
+
+        if (dateFrom) {
+            result = result.filter(p => new Date(p.created_at) >= new Date(dateFrom));
+        }
+        if (dateTo) {
+            const endDate = new Date(dateTo);
+            endDate.setHours(23, 59, 59, 999);
+            result = result.filter(p => new Date(p.created_at) <= endDate);
+        }
+
+        if (selectedStockSort === 'highest') {
+            result.sort((a, b) => (b.stock || 0) - (a.stock || 0));
+        } else if (selectedStockSort === 'lowest') {
+            result.sort((a, b) => (a.stock || 0) - (b.stock || 0));
+        }
+
+        if (selectedDateSort === 'newest') {
+            result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        } else if (selectedDateSort === 'oldest') {
+            result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        }
+
+        setFilteredListings(result);
+    }, [allListings, filter, selectedUser, selectedCategory, selectedStockSort, selectedDateSort, dateFrom, dateTo]);
 
     const remove = async (id) => {
         try {
             await api.delete(`/admin/listings/${id}`);
             toast.success('Listing removed');
             const res = await api.get('/admin/listings');
-            setListings(res.data);
+            setAllListings(res.data);
         } catch {
             toast.error('Failed to remove listing');
         }
     };
 
+    const clearAllFilters = () => {
+        setSelectedUser('');
+        setSelectedCategory('');
+        setSelectedStockSort('');
+        setSelectedDateSort('');
+        setDateFrom('');
+        setDateTo('');
+    };
+
+    const activeFilterCount = [selectedUser, selectedCategory, selectedStockSort, selectedDateSort, dateFrom, dateTo].filter(Boolean).length;
+
     if (localLoading) return <SkeletonList />;
 
     return (
-        <div className="max-w-3xl mx-auto space-y-2">
-            {filter && <p className="text-sm text-slate-400 dark:text-gold-200/50">Showing results for "{filter}"</p>}
-            {filteredListings.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">No listings found.</div>
-            ) : (
-                filteredListings.map((p) => (
-                    <div key={p.id} className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3">
-                        <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
-                            {p.primary_image && <img src={p.primary_image} className="w-full h-full object-cover" alt={p.title} />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate">{p.title}</p>
-                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
-                                {p.seller_name} · GHS {parseFloat(p.price).toFixed(2)} · Stock {p.stock}
-                            </p>
-                        </div>
-                        <button onClick={() => remove(p.id)} className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition shrink-0">
-                            <Trash2 size={18} />
+        <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+                            showFilters || activeFilterCount > 0
+                                ? 'bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-400 border border-brand-200 dark:border-gold-800'
+                                : 'bg-slate-100 dark:bg-ink-800 text-slate-600 dark:text-gold-200/60 hover:bg-slate-200 dark:hover:bg-ink-700'
+                        }`}
+                    >
+                        <Filter size={16} />
+                        Filters
+                        {activeFilterCount > 0 && (
+                            <span className="ml-1 px-2 py-0.5 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 text-xs">
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </button>
+                    {activeFilterCount > 0 && (
+                        <button
+                            onClick={clearAllFilters}
+                            className="text-xs text-slate-400 dark:text-gold-200/50 hover:text-red-500 dark:hover:text-red-400 transition flex items-center gap-1"
+                        >
+                            <XClose size={14} /> Clear all
                         </button>
+                    )}
+                </div>
+                <p className="text-sm text-slate-400 dark:text-gold-200/50">
+                    {filteredListings.length} listing{filteredListings.length !== 1 ? 's' : ''}
+                </p>
+            </div>
+
+            {showFilters && (
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 mb-4 shadow-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <User size={14} /> Seller
+                            </label>
+                            <select
+                                value={selectedUser}
+                                onChange={(e) => setSelectedUser(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            >
+                                <option value="">All Sellers</option>
+                                {users.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.name} ({u.university_email})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Tag size={14} /> Category
+                            </label>
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            >
+                                <option value="">All Categories</option>
+                                {categories.map((c) => (
+                                    <option key={c.id} value={c.name}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Layers size={14} /> Stock
+                            </label>
+                            <select
+                                value={selectedStockSort}
+                                onChange={(e) => setSelectedStockSort(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            >
+                                <option value="">Default</option>
+                                <option value="highest">Highest Stock</option>
+                                <option value="lowest">Lowest Stock</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Calendar size={14} /> From Date
+                            </label>
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <Calendar size={14} /> To Date
+                            </label>
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+                                <ArrowUpDown size={14} /> Date Sort
+                            </label>
+                            <select
+                                value={selectedDateSort}
+                                onChange={(e) => setSelectedDateSort(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none transition"
+                            >
+                                <option value="">Default</option>
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                            </select>
+                        </div>
                     </div>
-                ))
+                </div>
+            )}
+
+            {filteredListings.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
+                    No listings found matching your filters.
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {filteredListings.map((p) => (
+                        <div key={p.id} className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 hover:border-brand-300 dark:hover:border-gold-500 transition">
+                            <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
+                                {p.primary_image && <img src={p.primary_image} className="w-full h-full object-cover" alt={p.title} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate">{p.title}</p>
+                                <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-gold-200/50 flex-wrap">
+                                    <span>{p.seller_name}</span>
+                                    <span>·</span>
+                                    <span className="font-medium text-slate-600 dark:text-gold-200/70">GHS {parseFloat(p.price).toFixed(2)}</span>
+                                    <span>·</span>
+                                    <span className="font-medium text-slate-600 dark:text-gold-200/70">Stock: {p.stock}</span>
+                                    {p.category && (
+                                        <>
+                                            <span>·</span>
+                                            <Tag color="slate">{p.category}</Tag>
+                                        </>
+                                    )}
+                                    <span>·</span>
+                                    <span className="text-slate-400 dark:text-gold-200/40">
+                                        {new Date(p.created_at).toLocaleDateString()}
+                                    </span>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => remove(p.id)} 
+                                className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition shrink-0"
+                                title="Delete listing"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
             )}
         </div>
     );
 }
 
-// ---------- OrdersTab ----------
+// ---------- OrdersTab (same as before) ----------
 function OrdersTab() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -630,7 +1140,7 @@ function DetailBlock({ title, children }) {
     );
 }
 
-// ---------- ReportsTab ----------
+// ---------- ReportsTab (same as before) ----------
 const REPORT_STATUS_FILTERS = ['pending', 'reviewed', 'dismissed', 'actioned'];
 
 const REASON_LABELS = {

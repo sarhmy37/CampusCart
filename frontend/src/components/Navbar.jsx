@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft, MessageCircle } from 'lucide-react';
+import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft, MessageCircle, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -39,7 +39,7 @@ function formatRelativeTime(dateString) {
 const badgeClass = "absolute -top-1 -right-1 bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center";
 
 export default function Navbar() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const { count } = useCart();
     const { items: wishlistItems, count: wishlistCount, removeItem: removeWishlistItem } = useWishlist();
     const [showWishlist, setShowWishlist] = useState(false);
@@ -61,9 +61,10 @@ export default function Navbar() {
     const [mobileExpanded, setMobileExpanded] = useState(false);
     const { theme } = useTheme();
 
-    // 👇 Logo click counter for admin access (5 taps)
+    // 👇 Logo click counter for admin logout (5 taps)
     const [logoClickCount, setLogoClickCount] = useState(0);
     const [logoClickTimeout, setLogoClickTimeout] = useState(null);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const notificationsRef = useRef(null);
     const wishlistRef = useRef(null);
@@ -76,17 +77,16 @@ export default function Navbar() {
         }
     }, [location]);
 
-    // 👇 Handle logo clicks for admin access
+    // 👇 Handle logo clicks for admin logout (5 taps)
     const handleLogoClick = (e) => {
-        // If already on admin page, no need
-        if (isAdmin) return;
+        if (!isAdmin) return;
         
         e.preventDefault();
         const newCount = logoClickCount + 1;
         setLogoClickCount(newCount);
         
         if (newCount === 5) {
-            navigate('/admin/login');
+            setShowLogoutConfirm(true);
             setLogoClickCount(0);
             return;
         }
@@ -97,6 +97,13 @@ export default function Navbar() {
             setLogoClickCount(0);
         }, 3000);
         setLogoClickTimeout(timeout);
+    };
+
+    // 👇 Handle admin logout
+    const handleAdminLogout = async () => {
+        setShowLogoutConfirm(false);
+        await logout();
+        navigate('/login');
     };
 
     useEffect(() => {
@@ -148,7 +155,8 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    {user && (
+                    {/* Menu button - ONLY for non-admin users */}
+                    {user && !isAdmin && (
                         <button
                             onClick={() => setShowProfile(true)}
                             className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
@@ -158,29 +166,32 @@ export default function Navbar() {
                         </button>
                     )}
                     
+                    {/* Logo - clicks 5x for admin logout */}
                     {isAdmin ? (
-                        <span className="flex items-center gap-1.5 sm:gap-2 cursor-default shrink-0">
+                        <span 
+                            onClick={handleLogoClick}
+                            className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
+                            title="Tap 5 times to logout"
+                        >
                             <img 
                                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
                                 alt="TreX" 
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
-                           <div className={`items-center font-serif font-black italic tracking-tight whitespace-nowrap ${mobileExpanded ? 'hidden sm:flex' : 'flex'}`}>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">
-                                    Tre
-                                </span>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">
-                                    -
-                                </span>
-                                <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">
-                                    X
-                                </span>
+                            <div className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">-</span>
+                                <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none">X</span>
                             </div>
+                            {logoClickCount > 0 && (
+                                <span className="text-xs text-slate-400 dark:text-gold-300/50 ml-1">
+                                    {logoClickCount}/5
+                                </span>
+                            )}
                         </span>
                     ) : (
                         <Link 
                             to="/" 
-                            onClick={handleLogoClick}
                             className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
                         >
                             <img 
@@ -188,27 +199,24 @@ export default function Navbar() {
                                 alt="TreX" 
                                 className="h-7 sm:h-9 w-auto object-contain"
                             />
-                            <div className={`items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0 ${mobileExpanded ? 'hidden sm:flex' : 'flex'}`}>
-                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">
-                                    Tre
-                                </span>
-                                <span className="text-base  sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">
-                                    -
-                                </span>
-                                <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
-                                    X
-                                </span>
+                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
+                                <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">-</span>
+                                <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">X</span>
                             </div>
                         </Link>
                     )}
                 </div>
 
-                <div className="flex-1 min-w-0 mx-2 sm:mx-4">
-                    <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
-                </div>
+                {!isAdmin && (
+    <div className="flex-1 min-w-0 mx-2 sm:mx-4">
+        <SearchBar isAdmin={isAdmin} onSubmit={handleSearch} />
+    </div>
+)}
 
                 <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
-                    {user && (
+                    {/* Mobile expand button - HIDDEN for admin */}
+                    {user && !isAdmin && (
                         <button
                             onClick={() => setMobileExpanded((e) => !e)}
                             className="sm:hidden p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
@@ -222,18 +230,22 @@ export default function Navbar() {
                         </button>
                     )}
 
-                    {!isHome && !isAdmin && (
+                    {/* Home - ONLY for non-admin, non-home users */}
+                    {user && !isAdmin && !isHome && (
                         <Link to="/" className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition" title="Home">
                             <Home className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                         </Link>
                     )}
+                    
+                    {/* Sell button - ONLY for non-admin sellers */}
                     {user && user.account_type === 'seller' && !isAdmin && (
                         <Link to="/sell/new" className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-red-700 dark:text-gold-400 hover:bg-brand-50 dark:hover:bg-ink-700 transition">
                             <PlusCircle size={18} /> Sell
                         </Link>
                     )}
 
-                    {user && (
+                    {/* Messages - HIDDEN for admin */}
+                    {user && !isAdmin && (
                         <div ref={messagesRef} className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
                             <button
                                 onClick={() => setShowMessages((s) => !s)}
@@ -316,118 +328,134 @@ export default function Navbar() {
                         </div>
                     )}
 
-                    <div ref={notificationsRef} className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
-                        <button
-                            onClick={toggleNotifications}
-                            className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
-                            title="Notifications"
-                        >
-                            <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
-                            {unreadCount > 0 && (
-                                <span className={badgeClass}>{formatBadgeCount(unreadCount)}</span>
-                            )}
-                        </button>
-
-                        {showNotifications && (
-                            <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
-                                <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
-                                    Notifications
-                                </div>
-                                {notifications.length === 0 ? (
-                                    <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
-                                        Nothing yet. We check every minute.
-                                    </p>
-                                ) : (
-                                    <>
-                                        {notifications.map((n) => (
-                                            <SwipeableNotification
-                                                key={n.id}
-                                                notification={n}
-                                                onDelete={() => removeNotification(n.id)}
-                                                onNavigate={() => setShowNotifications(false)}
-                                            />
-                                        ))}
-                                        <div className="px-4 py-2 border-t border-slate-100 dark:border-ink-600">
-                                            <button
-                                                onClick={clearAllNotifications}
-                                                className="text-xs text-slate-400 dark:text-gold-200/50 hover:text-red-500 dark:hover:text-red-400 transition font-semibold w-full text-center"
-                                            >
-                                                Clear all
-                                            </button>
-                                        </div>
-                                    </>
+                    {/* Notifications - Visible for EVERYONE (including admin) */}
+                    {user && (
+                        <div ref={notificationsRef} className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
+                            <button
+                                onClick={toggleNotifications}
+                                className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                                title="Notifications"
+                            >
+                                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
+                                {unreadCount > 0 && (
+                                    <span className={badgeClass}>{formatBadgeCount(unreadCount)}</span>
                                 )}
-                            </div>
-                        )}
-                    </div>
+                            </button>
 
-                    <Link to="/cart" className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
-                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
-                        {count > 0 && (
-                            <span className={badgeClass}>{formatBadgeCount(count)}</span>
-                        )}
-                    </Link>
+                            {showNotifications && (
+                                <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
+                                        Notifications
+                                    </div>
+                                    {notifications.length === 0 ? (
+                                        <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
+                                            Nothing yet. We check every minute.
+                                        </p>
+                                    ) : (
+                                        <>
+                                            {notifications.map((n) => (
+                                                <SwipeableNotification
+                                                    key={n.id}
+                                                    notification={n}
+                                                    onDelete={() => removeNotification(n.id)}
+                                                    onNavigate={() => setShowNotifications(false)}
+                                                />
+                                            ))}
+                                            <div className="px-4 py-2 border-t border-slate-100 dark:border-ink-600">
+                                                <button
+                                                    onClick={clearAllNotifications}
+                                                    className="text-xs text-slate-400 dark:text-gold-200/50 hover:text-red-500 dark:hover:text-red-400 transition font-semibold w-full text-center"
+                                                >
+                                                    Clear all
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Cart - HIDDEN for admin */}
+                    {user && !isAdmin && (
+                        <Link to="/cart" className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+                            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
+                            {count > 0 && (
+                                <span className={badgeClass}>{formatBadgeCount(count)}</span>
+                            )}
+                        </Link>
+                    )}
+                    
                     {user ? (
                         <>
-                            <div ref={wishlistRef} className={`relative ${mobileExpanded ? 'block' : 'hidden'} sm:block`}>
-                                <button
-                                    onClick={() => setShowWishlist((s) => !s)}
-                                    className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
-                                    title="Wishlist"
-                                >
-                                    <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
-                                    {wishlistCount > 0 && (
-                                        <span className={badgeClass}>{formatBadgeCount(wishlistCount)}</span>
-                                    )}
-                                </button>
-
-                                {showWishlist && (
-                                    <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
-                                        <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
-                                            Wishlist
-                                        </div>
-                                        {wishlistItems.length === 0 ? (
-                                            <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
-                                                Nothing saved yet. Tap the heart on any listing to add it here.
-                                            </p>
-                                        ) : (
-                                            wishlistItems.map((p) => (
-                                                <div
-                                                    key={p.id}
-                                                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
-                                                >
-                                                    <Link
-                                                        to={`/product/${p.id}`}
-                                                        onClick={() => setShowWishlist(false)}
-                                                        className="flex items-center gap-3 flex-1 min-w-0"
-                                                    >
-                                                        {p.primary_image && (
-                                                            <img src={p.primary_image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                                                        )}
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">{p.title}</p>
-                                                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
-                                                                GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
-                                                            </p>
-                                                            <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{p.seller_name}</p>
-                                                        </div>
-                                                    </Link>
-                                                    <button
-                                                        onClick={() => removeWishlistItem(p.id)}
-                                                        className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition shrink-0"
-                                                        title="Remove from wishlist"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            ))
+                            {/* Wishlist - HIDDEN for admin */}
+                            {!isAdmin && (
+                                <div ref={wishlistRef} className={`relative ${mobileExpanded ? 'block' : 'hidden'} sm:block`}>
+                                    <button
+                                        onClick={() => setShowWishlist((s) => !s)}
+                                        className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                                        title="Wishlist"
+                                    >
+                                        <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
+                                        {wishlistCount > 0 && (
+                                            <span className={badgeClass}>{formatBadgeCount(wishlistCount)}</span>
                                         )}
-                                    </div>
-                                )}
-                            </div>
-                            {user.role === 'admin' && (
-                                <Link to="/admin" className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
-                                    <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
+                                    </button>
+
+                                    {showWishlist && (
+                                        <div className="absolute right-0 mt-2 w-72 sm:w-80 max-h-96 overflow-y-auto bg-white dark:bg-ink-800 rounded-2xl shadow-xl border border-slate-200 dark:border-ink-600 z-50">
+                                            <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-600 font-semibold text-sm text-slate-900 dark:text-gold-100">
+                                                Wishlist
+                                            </div>
+                                            {wishlistItems.length === 0 ? (
+                                                <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gold-200/50">
+                                                    Nothing saved yet. Tap the heart on any listing to add it here.
+                                                </p>
+                                            ) : (
+                                                wishlistItems.map((p) => (
+                                                    <div
+                                                        key={p.id}
+                                                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-ink-700 border-b border-slate-50 dark:border-ink-700 last:border-0 transition"
+                                                    >
+                                                        <Link
+                                                            to={`/product/${p.id}`}
+                                                            onClick={() => setShowWishlist(false)}
+                                                            className="flex items-center gap-3 flex-1 min-w-0"
+                                                        >
+                                                            {p.primary_image && (
+                                                                <img src={p.primary_image} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">{p.title}</p>
+                                                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">
+                                                                    GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
+                                                                </p>
+                                                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{p.seller_name}</p>
+                                                            </div>
+                                                        </Link>
+                                                        <button
+                                                            onClick={() => removeWishlistItem(p.id)}
+                                                            className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition shrink-0"
+                                                            title="Remove from wishlist"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {/* Admin Dashboard link - ONLY for admin */}
+                            {isAdmin && (
+                                <Link 
+                                    to="/admin" 
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-400 text-sm font-semibold hover:bg-brand-100 dark:hover:bg-gold-900/60 transition"
+                                >
+                                    <LayoutDashboard size={18} />
+                                    <span className="hidden sm:inline">Admin</span>
                                 </Link>
                             )}
                         </>
@@ -445,9 +473,41 @@ export default function Navbar() {
                     )}
                 </nav>
             </div>
-            {/* 👇 REMOVED the hidden admin link (thin vertical bar) */}
         </header>
-        <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
+        {/* ProfileDrawer - ONLY for non-admin users */}
+        {!isAdmin && <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />}
+
+        {/* Admin Logout Confirm Modal */}
+        {showLogoutConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
+                <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-ink-600">
+                    <div className="text-center">
+                        <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center mb-4">
+                            <LogOut size={24} className="text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <h3 className="font-extrabold text-slate-900 dark:text-gold-50 text-lg">Logout of Admin?</h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1.5">
+                            You'll be redirected to the regular login page.
+                        </p>
+                    </div>
+                    <div className="flex gap-2 mt-5">
+                        <button
+                            onClick={() => setShowLogoutConfirm(false)}
+                            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleAdminLogout}
+                            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         </>
     );
 }
