@@ -63,7 +63,7 @@ export default function Navbar() {
     const [mobileExpanded, setMobileExpanded] = useState(false);
     const { theme } = useTheme();
 
-    // 👇 Logo click counter (5 taps)
+    // 👇 Logo click counter (hidden — no visual indicator!)
     const [logoClickCount, setLogoClickCount] = useState(0);
     const [logoClickTimeout, setLogoClickTimeout] = useState(null);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -79,7 +79,7 @@ export default function Navbar() {
         }
     }, [location]);
 
-    // 👇 Handle logo clicks
+    // 👇 Handle logo clicks — NO VISUAL COUNTER!
     const handleLogoClick = (e) => {
         e.preventDefault();
 
@@ -183,18 +183,15 @@ export default function Navbar() {
         }
     };
 
-    // Determine what to show on the logo
+    // Determine what to show on the logo (no counter text!)
     let logoTitle = 'Go to home';
-    let showCounter = false;
     
     if (isAdminLoginPage) {
         logoTitle = 'Go to home';
     } else if (isAdminPage && isAdmin) {
         logoTitle = 'Tap 5 times to logout';
-        showCounter = true;
     } else if (!isAdminPage) {
-        logoTitle = 'Tap 5 times for admin';
-        showCounter = true;
+        logoTitle = 'Go to home';
     }
 
     return (
@@ -214,7 +211,7 @@ export default function Navbar() {
                         </button>
                     )}
                     
-                    {/* Logo */}
+                    {/* Logo - NO VISIBLE COUNTER! (hidden secret tap) */}
                     <span 
                         onClick={handleLogoClick}
                         className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
@@ -230,11 +227,7 @@ export default function Navbar() {
                             <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">-</span>
                             <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">X</span>
                         </div>
-                        {showCounter && logoClickCount > 0 && (
-                            <span className="text-xs text-slate-400 dark:text-gold-300/50 ml-1">
-                                {logoClickCount}/5
-                            </span>
-                        )}
+                        {/* 👇 COUNTER IS COMPLETELY REMOVED - NO VISUAL INDICATOR! */}
                     </span>
                 </div>
 

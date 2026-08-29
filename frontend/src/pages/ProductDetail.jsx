@@ -122,6 +122,15 @@ export default function ProductDetail() {
     const isOutOfStock = stock <= 0;
     const isOwner = user && user.id === product.seller_id;
 
+    // ====== DISCOUNT CALCULATION ======
+    const oldPrice = product.old_price ? parseFloat(product.old_price) : null;
+    const currentPrice = parseFloat(product.price);
+    let discountPercent = null;
+
+    if (oldPrice && oldPrice > currentPrice && oldPrice > 0 && currentPrice > 0) {
+        discountPercent = Math.round(((oldPrice - currentPrice) / oldPrice) * 100);
+    }
+
     const handleAddToCart = () => {
         if (isOutOfStock) {
             toast.error('Sorry, this item is out of stock.');
@@ -303,7 +312,29 @@ export default function ProductDetail() {
                     <span className="text-slate-400 dark:text-gold-200/50">({reviews.total} reviews)</span>
                 </div>
             )}
-            <p className="text-3xl font-extrabold text-brand-700 dark:text-gold-400 mt-2">GHS {parseFloat(product.price).toFixed(2)}</p>
+
+            {/* ─── PRICE SECTION ─── */}
+            <div className="mt-2">
+                {discountPercent !== null ? (
+                    <>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-400 dark:text-gold-200/50 line-through">
+                                GHS {oldPrice.toFixed(2)}
+                            </span>
+                            <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded">
+                                -{discountPercent}%
+                            </span>
+                        </div>
+                        <p className="text-3xl font-extrabold text-brand-700 dark:text-gold-400">
+                            GHS {currentPrice.toFixed(2)}
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-3xl font-extrabold text-brand-700 dark:text-gold-400">
+                        GHS {currentPrice.toFixed(2)}
+                    </p>
+                )}
+            </div>
 
             {isOwner && (
                 <div className="mt-2 p-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/30 backdrop-blur-sm border border-amber-200/50 dark:border-amber-800/50 text-xs text-amber-700 dark:text-amber-400">

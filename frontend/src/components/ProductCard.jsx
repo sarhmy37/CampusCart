@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react'; // <--- IMPORTED useRef AND useState
+import { useState, useEffect, useRef } from 'react';
 import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -10,13 +10,13 @@ export default function ProductCard({ product }) {
     const reviewCount = product.review_count || 0;
     const stock = product.stock !== undefined ? product.stock : null;
 
-    // ====== NEW: VIDEO VIEWPORT LOGIC STARTS HERE ======
+    // ====== VIDEO VIEWPORT LOGIC ======
     const [isVisible, setIsVisible] = useState(false);
     const cardRef = useRef(null);
 
     useEffect(() => {
         if (!product.video_url) {
-            setIsVisible(true); // If no video, just show the image normally
+            setIsVisible(true);
             return;
         }
 
@@ -25,13 +25,13 @@ export default function ProductCard({ product }) {
                 if (entry.isIntersecting) {
                     setIsVisible(true);
                 } else {
-                    setIsVisible(false); // Pause video when it leaves the screen
+                    setIsVisible(false);
                 }
             },
             {
                 root: null,
                 rootMargin: '0px',
-                threshold: 0.3, // Play when 30% of the card is visible
+                threshold: 0.3,
             }
         );
 
@@ -45,7 +45,15 @@ export default function ProductCard({ product }) {
             }
         };
     }, [product.video_url]);
-    // ====== NEW: VIDEO VIEWPORT LOGIC ENDS HERE ======
+
+    // ====== DISCOUNT CALCULATION ======
+    const oldPrice = product.old_price ? parseFloat(product.old_price) : null;
+    const currentPrice = parseFloat(product.price);
+    let discountPercent = null;
+
+    if (oldPrice && oldPrice > currentPrice && oldPrice > 0 && currentPrice > 0) {
+        discountPercent = Math.round(((oldPrice - currentPrice) / oldPrice) * 100);
+    }
 
     const handleWishlistClick = (e) => {
         e.preventDefault();
@@ -89,12 +97,12 @@ export default function ProductCard({ product }) {
 
     const CardInner = (
         <div 
-            ref={cardRef} // <--- ATTACHED THE REF HERE
+            ref={cardRef}
             className="group relative bg-white dark:bg-ink-800 rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden hover:shadow-lg dark:hover:shadow-gold-900/20 hover:-translate-y-0.5 transition-all duration-300"
         >
             <div className="aspect-square bg-slate-100 dark:bg-ink-700 overflow-hidden relative">
                 
-                {/* 1. STATIC IMAGE (Always underneath) */}
+                {/* STATIC IMAGE */}
                 {product.primary_image ? (
                     <img
                         src={product.primary_image}
@@ -107,7 +115,7 @@ export default function ProductCard({ product }) {
                     </div>
                 )}
 
-                {/* 2. VIDEO (Only plays when isVisible is true) */}
+                {/* VIDEO */}
                 {product.video_url && (
                     <>
                         <video
@@ -116,13 +124,11 @@ export default function ProductCard({ product }) {
                             loop
                             playsInline
                             preload="metadata"
-                            // autoPlay is now controlled by the isVisible state
                             autoPlay={isVisible}
                             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
                                 isVisible ? 'opacity-100' : 'opacity-0'
                             }`}
                         />
-                        {/* Small Play icon badge */}
                         <span className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 backdrop-blur flex items-center justify-center pointer-events-none">
                             <PlayCircle size={13} className="text-white" />
                         </span>
@@ -135,10 +141,17 @@ export default function ProductCard({ product }) {
 
                 {renderStockBadge()}
 
+                {/* DISCOUNT BADGE */}
+                {discountPercent !== null && (
+                    <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
+                        -{discountPercent}%
+                    </span>
+                )}
+
                 <button
                     type="button"
                     onClick={handleWishlistClick}
-                    className={`absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 dark:bg-ink-900/80 backdrop-blur flex items-center justify-center shadow-sm transition ${
+                    className={`absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 dark:bg-ink-900/80 backdrop-blur flex items-center justify-center shadow-sm transition ${
                         wishlisted ? 'text-red-500' : 'text-slate-400 dark:text-gold-200/60 hover:text-red-500'
                     }`}
                 >
@@ -157,8 +170,29 @@ export default function ProductCard({ product }) {
                     )}
                 </div>
 
-                <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-brand-700 dark:text-gold-400 font-extrabold text-sm">GHS {parseFloat(product.price).toFixed(2)}</span>
+                {/* ─── PRICE SECTION ─── */}
+                <div className="mt-1.5">
+                    {discountPercent !== null ? (
+                        <>
+                            {/* Old price - crossed out */}
+                            <p className="text-[11px] text-slate-400 dark:text-gold-200/50 line-through">
+                                GHS {oldPrice.toFixed(2)}
+                            </p>
+                            {/* New price with discount badge */}
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-brand-700 dark:text-gold-400 font-extrabold text-sm">
+                                    GHS {currentPrice.toFixed(2)}
+                                </span>
+                                <span className="text-[10px] font-bold text-red-500">
+                                    -{discountPercent}%
+                                </span>
+                            </div>
+                        </>
+                    ) : (
+                        <span className="text-brand-700 dark:text-gold-400 font-extrabold text-sm">
+                            GHS {currentPrice.toFixed(2)}
+                        </span>
+                    )}
                 </div>
 
                 <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5 truncate flex items-center gap-1">
