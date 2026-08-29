@@ -12,7 +12,6 @@ import { CART_VIDEO } from '../data/media';
 
 const SERVICE_FEE_RATE = 0.02;
 const FALLBACK_DELIVERY_FEE = 15;
-const sellerSchoolsInCart = [...new Set(items.map((i) => i.seller_school).filter(Boolean))];
 
 function formatWhatsAppNumber(raw) {
     if (!raw) return null;
