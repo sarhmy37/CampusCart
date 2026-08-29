@@ -4,6 +4,7 @@ import api from '../api/client';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+    // Initialize user from localStorage immediately
     const [user, setUser] = useState(() => {
         const stored = localStorage.getItem('cc_user');
         return stored ? JSON.parse(stored) : null;
@@ -12,10 +13,30 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         const token = localStorage.getItem('cc_token');
-        if (token) {
+        if (token && user) {
+            // User is already set from localStorage, just verify with backend
             api.get('/auth/me')
-                .then((res) => setUser(res.data))
+                .then((res) => {
+                    // Update user with fresh data if needed
+                    setUser(res.data);
+                    localStorage.setItem('cc_user', JSON.stringify(res.data));
+                })
                 .catch(() => {
+                    // Only clear if API explicitly rejects the token
+                    // But don't clear on network errors or cold starts
+                    console.error('Auth verification failed, but keeping user from localStorage');
+                    // We keep the user from localStorage rather than logging out
+                })
+                .finally(() => setLoading(false));
+        } else if (token) {
+            // We have a token but no user in state - fetch user
+            api.get('/auth/me')
+                .then((res) => {
+                    setUser(res.data);
+                    localStorage.setItem('cc_user', JSON.stringify(res.data));
+                })
+                .catch(() => {
+                    // Only clear if API explicitly rejects
                     localStorage.removeItem('cc_token');
                     localStorage.removeItem('cc_user');
                     setUser(null);
@@ -43,14 +64,13 @@ export function AuthProvider({ children }) {
     };
 
     const logout = () => {
-        api.post('/auth/logout').catch(() => {}); // best-effort — clear session regardless of outcome
+        api.post('/auth/logout').catch(() => {});
         localStorage.removeItem('cc_token');
         localStorage.removeItem('cc_user');
         setUser(null);
     };
 
     const updateProfile = async (payload) => {
-        // Assumes PATCH /auth/me — adjust the endpoint if yours differs
         const res = await api.patch('/auth/me', payload);
         localStorage.setItem('cc_user', JSON.stringify(res.data));
         setUser(res.data);
@@ -58,34 +78,43 @@ export function AuthProvider({ children }) {
     };
 
     const uploadAvatar = async (file) => {
-    const CLOUD_NAME = 'b7fch4rp';
-    const UPLOAD_PRESET = 'campuscart_preset';
+        const CLOUD_NAME = 'b7fch4rp';
+        const UPLOAD_PRESET = 'campuscart_preset';
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', UPLOAD_PRESET);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', UPLOAD_PRESET);
 
-    const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-        method: 'POST',
-        body: formData,
-    });
+        const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: 'POST',
+            body: formData,
+        });
 
-    if (!cloudRes.ok) {
-        const error = await cloudRes.json();
-        throw new Error(error.error?.message || 'Avatar upload failed');
-    }
+        if (!cloudRes.ok) {
+            const error = await cloudRes.json();
+            throw new Error(error.error?.message || 'Avatar upload failed');
+        }
 
-    const cloudData = await cloudRes.json();
-    const avatarUrl = cloudData.secure_url;
+        const cloudData = await cloudRes.json();
+        const avatarUrl = cloudData.secure_url;
 
-    const res = await api.patch('/auth/me', { avatar_url: avatarUrl });
-    localStorage.setItem('cc_user', JSON.stringify(res.data));
-    setUser(res.data);
-    return res.data;
-};
+        const res = await api.patch('/auth/me', { avatar_url: avatarUrl });
+        localStorage.setItem('cc_user', JSON.stringify(res.data));
+        setUser(res.data);
+        return res.data;
+    };
 
     return (
-        <AuthContext.Provider value={{ user, login, setUser, register, logout, loading, updateProfile, uploadAvatar }}>
+        <AuthContext.Provider value={{ 
+            user, 
+            setUser, 
+            login, 
+            register, 
+            logout, 
+            loading, 
+            updateProfile, 
+            uploadAvatar 
+        }}>
             {children}
         </AuthContext.Provider>
     );
