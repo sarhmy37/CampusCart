@@ -234,12 +234,17 @@ export default function CreateListing() {
 
     return (
         <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2 relative overflow-hidden">
-            {/* MOBILE-ONLY background video, fills top 1/3 of screen */}
-            <div className="absolute top-0 left-0 right-0 h-[33vh] lg:hidden overflow-hidden">
+                        {/* MOBILE-ONLY background video, fills top 1/3 of screen.
+                bg-gradient-to-br sits on the SECTION itself (not just an overlay div),
+                so it shows immediately even before the video file has loaded — same
+                pattern as CartHeader in Cart.jsx. */}
+            <div className="absolute top-0 left-0 right-0 h-[38vh] lg:hidden overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600 dark:from-ink-900 dark:via-ink-900 dark:to-gold-900">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={CREATE_LISTING_VIDEO} type="video/mp4" />
                 </video>
-                <div className="absolute inset-0 bg-gradient-to-b from-brand-900/60 via-brand-800/50 to-slate-50 dark:from-ink-900/75 dark:via-ink-900/70 dark:to-ink-900" />
+                {/* Fades the bottom of the video into the form's background color,
+                    so there's no hard seam — the form overlaps the last bit of video. */}
+                <div className="absolute inset-0 bg-gradient-to-b from-brand-900/50 via-transparent to-slate-50 dark:from-ink-900/60 dark:via-transparent dark:to-ink-900" />
                 <button
                     onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
                     className="absolute top-6 left-4 z-20 inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
@@ -274,8 +279,7 @@ export default function CreateListing() {
             </div>
 
             {/* RIGHT — form (mobile: sits below the 1/3-height video, in a card like Login) */}
-            <div className="relative z-10 flex items-center justify-center px-4 pt-[calc(33vh+1.5rem)] pb-16 lg:pt-16 lg:pb-16 bg-slate-50 dark:bg-ink-900">
-                <div className="w-full max-w-sm">
+            <div className="relative z-10 flex items-center justify-center px-4 pt-[28vh] pb-16 lg:pt-16 lg:pb-16 bg-transparent lg:bg-slate-50 dark:lg:bg-ink-900">                <div className="w-full max-w-sm">
                     <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
                         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">New Listing</h1>
                         <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">Add the details buyers will see.</p>
