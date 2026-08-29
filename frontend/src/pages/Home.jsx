@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Reveal from '../components/Reveal';
 import { HERO_IMAGES, GALLERY } from '../data/media';
 import HeroSlideshow from '../components/HeroSlideshow';
@@ -100,13 +100,47 @@ const VALUES = [
 
 export default function Home() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [showSellerModal, setShowSellerModal] = useState(false);
 
-    const handleStartSelling = (e) => {
-        if (user && user.account_type === 'buyer') {
-            e.preventDefault();
-            setShowSellerModal(true);
+    // ── NEW: Navigate with auth check ──
+    const handleNavigate = (path, requireSeller = false) => {
+        if (!user) {
+            // Not logged in → go to register
+            navigate(requireSeller ? '/register?tab=seller' : '/register');
+            return;
         }
+
+        if (requireSeller && user.account_type === 'buyer') {
+            // Logged in as buyer, trying to sell → show seller modal
+            setShowSellerModal(true);
+            return;
+        }
+
+        // Logged in and eligible → go to the target page
+        navigate(path);
+    };
+
+    const handleBrowseClick = () => {
+        if (user) {
+            navigate('/browse');
+        } else {
+            navigate('/register');
+        }
+    };
+
+    const handleStartSellingClick = () => {
+        if (!user) {
+            navigate('/register?tab=seller');
+            return;
+        }
+
+        if (user.account_type === 'buyer') {
+            setShowSellerModal(true);
+            return;
+        }
+
+        navigate('/sell/new');
     };
 
     return (
@@ -151,21 +185,22 @@ export default function Home() {
                     <Reveal delay={300}>
                         <div className="mt-8 flex flex-nowrap gap-2 sm:gap-3">
 
-                            <Link
-                                to={user ? '/sell/new' : '/register'}
-                                onClick={handleStartSelling}
+                            {/* ── START SELLING ── */}
+                            <button
+                                onClick={handleStartSellingClick}
                                 className="inline-flex items-center gap-1.5 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
                             >
                                 Start selling
                                 <ArrowRight className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" />
-                            </Link>
+                            </button>
 
-                            <Link
-                                to="/browse"
+                            {/* ── BROWSE LISTINGS ── */}
+                            <button
+                                onClick={handleBrowseClick}
                                 className="inline-flex items-center gap-1.5 sm:gap-2 bg-white/10 text-white font-semibold px-4 py-2 sm:px-6 sm:py-3 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-base whitespace-nowrap"
                             >
                                 Browse listings
-                            </Link>
+                            </button>
 
                         </div>
                     </Reveal>
@@ -340,13 +375,13 @@ export default function Home() {
                         Browse live listings from verified students near you.
                     </p>
 
-                    <Link
-                        to="/browse"
+                    <button
+                        onClick={handleBrowseClick}
                         className="inline-flex items-center gap-2 mt-6 bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 font-bold px-6 py-3 rounded-full hover:bg-brand-700 dark:hover:bg-gold-400 transition"
                     >
                         Browse listings
                         <ArrowRight size={18} />
-                    </Link>
+                    </button>
 
                 </Reveal>
 

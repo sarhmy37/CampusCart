@@ -79,7 +79,11 @@ export default function Register() {
     const { register, user } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const [accountType, setAccountType] = useState(searchParams.get('role') === 'seller' ? 'seller' : 'buyer');
+
+    // ── NEW: Check for ?tab=seller in URL ──
+    const initialTab = searchParams.get('tab') === 'seller' ? 'seller' : 'buyer';
+    const [accountType, setAccountType] = useState(initialTab);
+
     const [form, setForm] = useState({
         name: '',
         university_email: '',
@@ -368,8 +372,7 @@ export default function Register() {
                     <div className="absolute left-1/4 -bottom-24 w-64 h-64 bg-accent-500/20 dark:bg-gold-500/15 rounded-full blur-3xl" />
 
                     <div className="relative z-10 h-full flex flex-col justify-center px-12 xl:px-16">
-                        {/* Just the logo, sitting on a translucent pill */}
-                                                {/* Site name + graduation cap icon, sitting on a translucent pill — text only, no image */}
+                        {/* Site name + graduation cap icon, sitting on a translucent pill — text only, no image */}
                         <div className="inline-flex items-center gap-2 self-start bg-white/10 backdrop-blur-md border border-white/15 rounded-full pl-4 pr-5 py-2 w-fit">
                             <AcademicCapIcon className="h-6 w-6 text-white shrink-0" />
                             <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
