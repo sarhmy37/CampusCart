@@ -5,7 +5,7 @@ import api from '../api/client';
 import {
     Users, Package, ShoppingBag, DollarSign, ShieldCheck, ShieldAlert,
     Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
-    Filter, X as XClose, Calendar, User, Tag, Layers, ArrowUpDown,
+    Filter, X as XClose, Calendar, User, Tag as TagIcon, Layers, ArrowUpDown,
     Search, Mail, School, UserCheck, UserX, Users as UsersIcon
 } from 'lucide-react';
 
@@ -800,7 +800,7 @@ function ListingsTab({ filter, initialListings, loading }) {
 
                         <div>
                             <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
-                                <Tag size={14} /> Category
+                                <TagIcon size={14} /> Category
                             </label>
                             <select
                                 value={selectedCategory}
