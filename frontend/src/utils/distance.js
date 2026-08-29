@@ -11,6 +11,10 @@ export const SCHOOL_COORDS = {
     CU: { lat: 5.5663, lng: -0.2410 },
 };
 
+export const MAX_DELIVERY_FEE = 40;
+const ON_CAMPUS_MAX_KM = 2;
+const NEAR_CAMPUS_MAX_KM = 8;
+
 export function haversineKm(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -21,17 +25,37 @@ export function haversineKm(lat1, lon1, lat2, lon2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export function feeForDistance(km) {
-    if (km <= 0.5) return 0;      // on campus — free
-    if (km <= 2) return 15;
-    if (km <= 5) return 25;
-    return 35;
+export function clampFee(value) {
+    const n = parseFloat(value);
+    if (isNaN(n) || n < 0) return 0;
+    return Math.min(n, MAX_DELIVERY_FEE);
 }
 
-// Returns { fee, distanceKm } for a single seller's school vs buyer coords
-export function calcDeliveryFee(buyerLat, buyerLng, sellerSchool) {
+export function getDistanceTier(buyerLat, buyerLng, sellerSchool) {
     const coords = SCHOOL_COORDS[sellerSchool];
-    if (!coords) return { fee: 15, distanceKm: null }; // unknown school — fallback flat fee
+    if (!coords || buyerLat == null || buyerLng == null) {
+        return { tier: 'far_campus', distanceKm: null };
+    }
     const km = haversineKm(buyerLat, buyerLng, coords.lat, coords.lng);
-    return { fee: feeForDistance(km), distanceKm: km };
+    if (km <= ON_CAMPUS_MAX_KM) return { tier: 'on_campus', distanceKm: km };
+    if (km <= NEAR_CAMPUS_MAX_KM) return { tier: 'near_campus', distanceKm: km };
+    return { tier: 'far_campus', distanceKm: km };
+}
+
+/**
+ * @param {number} buyerLat
+ * @param {number} buyerLng
+ * @param {string} sellerSchool
+ * @param {{ delivery_fee_on_campus:number, delivery_fee_near_campus:number, delivery_fee_far_campus:number }} sellerDeliveryPrices
+ */
+export function calcDeliveryFee(buyerLat, buyerLng, sellerSchool, sellerDeliveryPrices = {}) {
+    const { tier, distanceKm } = getDistanceTier(buyerLat, buyerLng, sellerSchool);
+
+    const priceMap = {
+        on_campus: clampFee(sellerDeliveryPrices.delivery_fee_on_campus),
+        near_campus: clampFee(sellerDeliveryPrices.delivery_fee_near_campus),
+        far_campus: clampFee(sellerDeliveryPrices.delivery_fee_far_campus),
+    };
+
+    return { fee: priceMap[tier], tier, distanceKm };
 }

@@ -12,6 +12,7 @@ import { CART_VIDEO } from '../data/media';
 
 const SERVICE_FEE_RATE = 0.02;
 const FALLBACK_DELIVERY_FEE = 15;
+const sellerSchoolsInCart = [...new Set(items.map((i) => i.seller_school).filter(Boolean))];
 
 function formatWhatsAppNumber(raw) {
     if (!raw) return null;
@@ -196,18 +197,28 @@ export default function Cart() {
     const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
     const subtotal = total;
 
+        // Each seller in the cart contributes exactly ONE delivery fee for the whole
+    // trip (not one per item), using the highest per-tier price among that
+    // seller's items in the cart (mirrors backend order-creation logic).
     let deliveryFee = 0;
     if (deliveryMethod === 'delivery') {
-        if (confirmedOnCampus === true) {
-            deliveryFee = 10 * Object.keys(sellerGroups).length;
-        } else if (buyerCoords) {
-            Object.values(sellerGroups).forEach((group) => {
-                const { fee } = calcDeliveryFee(buyerCoords.lat, buyerCoords.lng, group.school);
+        Object.values(sellerGroups).forEach((group) => {
+            const sellerPrices = {
+                delivery_fee_on_campus: Math.max(...group.items.map((i) => i.delivery_fee_on_campus || 0)),
+                delivery_fee_near_campus: Math.max(...group.items.map((i) => i.delivery_fee_near_campus || 0)),
+                delivery_fee_far_campus: Math.max(...group.items.map((i) => i.delivery_fee_far_campus || 0)),
+            };
+
+            if (confirmedOnCampus === true) {
+                deliveryFee += sellerPrices.delivery_fee_on_campus;
+            } else if (buyerCoords) {
+                const { fee } = calcDeliveryFee(buyerCoords.lat, buyerCoords.lng, group.school, sellerPrices);
                 deliveryFee += fee;
-            });
-        } else {
-            deliveryFee = FALLBACK_DELIVERY_FEE * Object.keys(sellerGroups).length;
-        }
+            } else {
+                // No location yet — fall back to the seller's "far" price as the safe default
+                deliveryFee += sellerPrices.delivery_fee_far_campus || FALLBACK_DELIVERY_FEE;
+            }
+        });
     }
 
     const serviceFee = subtotal * SERVICE_FEE_RATE;
@@ -413,11 +424,11 @@ export default function Cart() {
                                                 <Loader2 size={12} className="animate-spin" /> Checking your location…
                                             </p>
                                         )}
-                                        {!verifyingCampus && confirmedOnCampus === true && (
-                                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-                                                ✓ You're on campus — delivery is GHS 10.
-                                            </p>
-                                        )}
+                                                                {!verifyingCampus && confirmedOnCampus === true && (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                                ✓ You're on campus — delivery fee applied.
+                            </p>
+                        )}
                                         {!verifyingCampus && confirmedOnCampus === false && (
                                             <p className="text-xs text-red-500 mt-2">
                                                 You are not on campus. Standard delivery rates apply based on your distance.

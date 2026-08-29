@@ -18,7 +18,6 @@ export function CartProvider({ children }) {
             const existing = prev.find((i) => i.product_id === product.id);
             const newQuantity = existing ? existing.quantity + 1 : 1;
 
-            // 👇 Check against stock
             if (product.stock !== undefined && newQuantity > product.stock) {
                 toast.error(`Only ${product.stock} available in stock.`);
                 return prev;
@@ -40,6 +39,11 @@ export function CartProvider({ children }) {
                 seller_whatsapp: product.seller_whatsapp || product.whatsapp || null,
                 seller_school: product.seller_school || null,
                 stock: product.stock || 0,
+                // Seller-set delivery prices for this listing (used to compute the
+                // per-seller delivery fee in the cart — see Cart.jsx)
+                delivery_fee_on_campus: product.delivery_fee_on_campus || 0,
+                delivery_fee_near_campus: product.delivery_fee_near_campus || 0,
+                delivery_fee_far_campus: product.delivery_fee_far_campus || 0,
             }];
         });
     };
@@ -54,7 +58,6 @@ export function CartProvider({ children }) {
             const item = prev.find((i) => i.product_id === productId);
             if (!item) return prev;
 
-            // 👇 Check against stock
             if (item.stock !== undefined && quantity > item.stock) {
                 toast.error(`Only ${item.stock} available in stock.`);
                 return prev;
