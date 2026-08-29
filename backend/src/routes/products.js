@@ -227,9 +227,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
             if (!isNaN(newPriceNum) && !isNaN(currentPriceNum)) {
                 if (newPriceNum < currentPriceNum) {
                     oldPriceUpdate = currentPriceNum; // lock in the price right before this edit
-                } else {
-                    clearOldPrice = true; // price held steady or went up — no sale badge
+                } else if (newPriceNum > currentPriceNum) {
+                    clearOldPrice = true; // price genuinely went up — no sale badge
                 }
+                // newPriceNum === currentPriceNum: price wasn't actually changed on
+                // this save (e.g. seller only edited stock/description) — leave
+                // old_price exactly as it was, don't touch it either way.
             }
         }
         // ============================================
