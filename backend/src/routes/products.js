@@ -6,6 +6,7 @@ const { clampFee } = require('../utils/distance');
 
 const router = express.Router();
 
+// GET /api/products/mine — your own listings
 router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
@@ -26,6 +27,7 @@ router.get('/mine', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/products — browse all listings
 router.get('/', async (req, res) => {
     const { search, category, itemCategory, school } = req.query;
     const categoryFilter = category || itemCategory;
@@ -72,6 +74,7 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET /api/products/:id — single product
 router.get('/:id', async (req, res) => {
     try {
         const productResult = await pool.query(
@@ -129,7 +132,6 @@ router.post('/', requireAuth, async (req, res) => {
         return res.status(500).json({ error: 'Something went wrong checking your seller status' });
     }
 
-    // Clamp delivery fees server-side too — never trust the client's max
     const feeOnCampus = clampFee(delivery_fee_on_campus);
     const feeNearCampus = clampFee(delivery_fee_near_campus);
     const feeFarCampus = clampFee(delivery_fee_far_campus);
@@ -147,8 +149,6 @@ router.post('/', requireAuth, async (req, res) => {
         const primaryImage = images[0];
         const videoUrl = video || null;
 
-        // New listings never start with a discount — old_price stays NULL
-        // until the seller drops the price via a later edit.
         const productResult = await client.query(
             `INSERT INTO products
                 (seller_id, title, description, price, condition, category_id, stock, primary_image, video_url,
@@ -179,7 +179,7 @@ router.post('/', requireAuth, async (req, res) => {
     }
 });
 
-// PATCH /api/products/:id
+// PATCH /api/products/:id — edit a listing
 router.patch('/:id', requireAuth, async (req, res) => {
     const {
         title, description, price, condition, category, stock,
@@ -187,8 +187,6 @@ router.patch('/:id', requireAuth, async (req, res) => {
     } = req.body;
 
     try {
-        // Need the CURRENT price (before this edit) to compare against the
-        // incoming new price — this is what becomes old_price if it's a discount.
         const existing = await pool.query('SELECT seller_id, price FROM products WHERE id = $1', [req.params.id]);
         const product = existing.rows[0];
         if (!product) return res.status(404).json({ error: 'Listing not found' });
@@ -207,17 +205,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
         const feeFarCampus = delivery_fee_far_campus !== undefined ? clampFee(delivery_fee_far_campus) : undefined;
 
         // ============ SALE PRICE LOGIC ============
-        // old_price is fully backend-managed — the client only ever sends the
-        // new `price`, never old_price directly.
-        //
-        // - If price isn't being changed at all → oldPriceUpdate stays
-        //   undefined, so COALESCE below leaves old_price untouched.
-        // - If the new price is LOWER than what's currently saved → this is
-        //   a discount. Capture the price-right-before-this-edit into
-        //   old_price, so the frontend can show it crossed out.
-        // - If the new price is the SAME or HIGHER → any existing sale is
-        //   cleared (old_price → NULL). We never show a "price went up" badge.
-        let oldPriceUpdate; // undefined = leave column alone
+        let oldPriceUpdate = null;
         let clearOldPrice = false;
 
         if (price !== undefined && price !== null && price !== '') {
@@ -226,13 +214,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
             if (!isNaN(newPriceNum) && !isNaN(currentPriceNum)) {
                 if (newPriceNum < currentPriceNum) {
-                    oldPriceUpdate = currentPriceNum; // lock in the price right before this edit
+                    oldPriceUpdate = currentPriceNum;
                 } else if (newPriceNum > currentPriceNum) {
-                    clearOldPrice = true; // price genuinely went up — no sale badge
+                    clearOldPrice = true;
                 }
-                // newPriceNum === currentPriceNum: price wasn't actually changed on
-                // this save (e.g. seller only edited stock/description) — leave
-                // old_price exactly as it was, don't touch it either way.
             }
         }
         // ============================================
@@ -242,7 +227,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
                 title = COALESCE($1, title),
                 description = COALESCE($2, description),
                 price = COALESCE($3, price),
-                old_price = CASE WHEN $11 THEN NULL ELSE COALESCE($4, old_price) END,
+                old_price = CASE 
+                    WHEN $11 THEN NULL 
+                    ELSE COALESCE($4, old_price) 
+                END,
                 condition = COALESCE($5, condition),
                 stock = COALESCE($6, stock),
                 category_id = COALESCE($7, category_id),
@@ -262,6 +250,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     }
 });
 
+// DELETE /api/products/:id
 router.delete('/:id', requireAuth, async (req, res) => {
     try {
         const result = await pool.query('SELECT seller_id FROM products WHERE id = $1', [req.params.id]);
