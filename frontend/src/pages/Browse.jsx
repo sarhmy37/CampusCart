@@ -267,7 +267,7 @@ export default function Browse() {
 
     const budgetInputField = (
         <div className="relative shrink-0">
-            <WalletIcon className="w-3 h-3 sm:w-[14px] sm:h-[14px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
+            <WalletIcon className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
                 type="number"
                 min="1"
