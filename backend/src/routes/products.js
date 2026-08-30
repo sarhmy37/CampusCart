@@ -220,6 +220,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
                 }
             }
         }
+        console.log('DEBUG', { currentPriceNum: parseFloat(product.price), newPriceNum: parseFloat(price), oldPriceUpdate, clearOldPrice });
         // ============================================
 
         const result = await pool.query(

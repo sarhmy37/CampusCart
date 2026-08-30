@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { LOGIN_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { AcademicCapIcon } from '@heroicons/react/24/outline';
 
 const LOGO_FULL = 'Tre-X';
@@ -271,18 +271,17 @@ export default function Login() {
                                     Don't have an account? <Link to="/register" className="text-brand-600 dark:text-gold-400 font-semibold">Sign up</Link>
                                 </p>
                             </div>
-
-                            <div className="mt-4 flex items-center justify-center">
-                                <Link
-                                    to="/"
-                                    className="text-xs font-medium text-slate-400 dark:text-gold-200/40 hover:text-slate-600 dark:hover:text-gold-200 transition"
-                                >
-                                    ← Back to home
-                                </Link>
-                            </div>
                         </div>
                     </div>
                 </div>
+
+                <Link
+                    to="/"
+                    aria-label="Back to home"
+                    className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 w-9 h-9 rounded-full bg-white/80 dark:bg-ink-800/80 backdrop-blur border border-slate-200 dark:border-ink-600 flex items-center justify-center text-slate-500 dark:text-gold-200/60 shadow-sm hover:bg-white dark:hover:bg-ink-700 transition"
+                >
+                    <ArrowLeft size={15} />
+                </Link>
             </div>
         </>
     );
