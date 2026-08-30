@@ -12,7 +12,8 @@ export default function ProductCard({ product }) {
     const stock = product.stock !== undefined ? product.stock : null;
 
     // ====== VIDEO VIEWPORT LOGIC ======
-    const [isVisible, setIsVisible] = useState(false);
+        const [isVisible, setIsVisible] = useState(false);
+    const [videoReady, setVideoReady] = useState(false);
     const cardRef = useRef(null);
 
     useEffect(() => {
@@ -116,7 +117,7 @@ export default function ProductCard({ product }) {
                     </div>
                 )}
 
-                {/* VIDEO */}
+                                {/* VIDEO */}
                 {product.video_url && (
                     <>
                         <video
@@ -126,13 +127,16 @@ export default function ProductCard({ product }) {
                             playsInline
                             preload="metadata"
                             autoPlay={isVisible}
+                            onCanPlay={() => setVideoReady(true)}
                             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-                                isVisible ? 'opacity-100' : 'opacity-0'
+                                isVisible && videoReady ? 'opacity-100' : 'opacity-0'
                             }`}
                         />
-                        <span className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 backdrop-blur flex items-center justify-center pointer-events-none">
-                            <PlayCircle size={13} className="text-white" />
-                        </span>
+                        {videoReady && (
+                            <span className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 backdrop-blur flex items-center justify-center pointer-events-none">
+                                <PlayCircle size={13} className="text-white" />
+                            </span>
+                        )}
                     </>
                 )}
 

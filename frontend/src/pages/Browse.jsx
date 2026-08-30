@@ -272,7 +272,7 @@ export default function Browse() {
         })
         : filteredByType;
 
-    const budgetInputField = (
+       const renderBudgetInput = () => (
         <div className="relative shrink-0">
             <WalletIcon className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
@@ -294,7 +294,7 @@ export default function Browse() {
             </button>
         </div>
     );
-
+    
     const handleDesktopTabChange = (tab) => {
         if (tab === 'verified') {
             setVerifiedOnly(!verifiedOnly);
@@ -451,7 +451,7 @@ export default function Browse() {
                             <h1 className="text-xl font-extrabold text-white truncate">
                                 {headerTitle}
                             </h1>
-                            {budgetInputField}
+                                                        {renderBudgetInput()}
                         </div>
                     </div>
 
@@ -501,7 +501,7 @@ export default function Browse() {
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white truncate">
                             {headerTitle}
                         </h1>
-                        {budgetInputField}
+                                                {renderBudgetInput()}
                     </div>
 
                     {/* ─── DESKTOP FILTER PILLS (unchanged) ─────────────── */}

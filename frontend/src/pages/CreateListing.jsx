@@ -52,6 +52,10 @@ export default function CreateListing() {
     const imageGalleryInputRef = useRef(null);
     const videoGalleryInputRef = useRef(null);
 
+        const [mobileVideoReady, setMobileVideoReady] = useState(false);
+    const [desktopVideoReady, setDesktopVideoReady] = useState(false);
+
+
     useEffect(() => {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
     }, []);
@@ -238,8 +242,15 @@ export default function CreateListing() {
                 bg-gradient-to-br sits on the SECTION itself (not just an overlay div),
                 so it shows immediately even before the video file has loaded — same
                 pattern as CartHeader in Cart.jsx. */}
-            <div className="absolute top-0 left-0 right-0 h-[38vh] lg:hidden overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600 dark:from-ink-900 dark:via-ink-900 dark:to-gold-900">
-                <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                        <div className="absolute top-0 left-0 right-0 h-[38vh] lg:hidden overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600 dark:from-ink-900 dark:via-ink-900 dark:to-gold-900">
+                <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    onCanPlay={() => setMobileVideoReady(true)}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${mobileVideoReady ? 'opacity-100' : 'opacity-0'}`}
+                >
                     <source src={CREATE_LISTING_VIDEO} type="video/mp4" />
                 </video>
                 {/* Fades the bottom of the video into the form's background color,
@@ -254,8 +265,15 @@ export default function CreateListing() {
             </div>
 
             {/* LEFT — video panel, DESKTOP ONLY */}
-            <div className="relative hidden lg:block overflow-hidden">
-                <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                        <div className="relative hidden lg:block overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600 dark:from-ink-900 dark:via-ink-900 dark:to-gold-900">
+                <video
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    onCanPlay={() => setDesktopVideoReady(true)}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${desktopVideoReady ? 'opacity-100' : 'opacity-0'}`}
+                >
                     <source src={CREATE_LISTING_VIDEO} type="video/mp4" />
                 </video>
                 <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
