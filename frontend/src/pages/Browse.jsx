@@ -21,8 +21,9 @@ import {
     CheckBadgeIcon as CheckBadgeIconSolid,
     Squares2X2Icon as Squares2X2IconSolid,
 } from '@heroicons/react/24/solid';
+import CategoryRequestModal from '../components/CategoryRequestModal';
 
-const ITEM_TYPES = ['Clothes', 'Phone accessories', 'Stationery', 'Laptops', 'Perfumes', 'Food', 'Sneakers', 'Other'];
+const ITEM_TYPES = ['Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sneakers', 'Other'];
 
 const SCHOOLS = [
     { name: 'KNUST', lat: 6.6732, lng: -1.5654 },
@@ -74,6 +75,7 @@ const MOBILE_COLLAPSE_DISTANCE = 100;
 // higher = snappier/more mechanical. This is the main "smoothness" knob.
 const SPRING_SMOOTHING = 1;
 
+
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
 
@@ -92,6 +94,7 @@ export default function Browse() {
     const [filterType, setFilterType] = useState('all');
     const [openSheet, setOpenSheet] = useState(null);
     const search = searchParams.get('search') || '';
+    const [showCategoryRequest, setShowCategoryRequest] = useState(false);
 
     // `progress` is the smoothed, displayed 0→1 value driving every header
     // measurement. `targetProgressRef` is the raw scroll-derived value.
@@ -524,7 +527,7 @@ export default function Browse() {
                                 </button>
                             );
                         })}
-                        {PRICE_RANGES.map((r) => (
+                                               {PRICE_RANGES.map((r) => (
                             <button
                                 key={r.label}
                                 onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
@@ -537,6 +540,12 @@ export default function Browse() {
                                 {r.label}
                             </button>
                         ))}
+                        <button
+                            onClick={() => setShowCategoryRequest(true)}
+                            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/40 text-white/80 hover:bg-white/10 hover:text-white transition ml-auto"
+                        >
+                            Can't find category? Contact admin
+                        </button>
                     </div>
                 </div>
             </section>
@@ -639,13 +648,17 @@ export default function Browse() {
                 onSelect={selectCategory}
                 onClose={() => setOpenSheet(null)}
             />
-            <MobileFilterSheet
+                        <MobileFilterSheet
                 open={openSheet === 'school'}
                 title="School"
                 options={schoolOptions}
                 selectedValue={school}
                 onSelect={selectSchool}
                 onClose={() => setOpenSheet(null)}
+            />
+            <CategoryRequestModal
+                open={showCategoryRequest}
+                onClose={() => setShowCategoryRequest(false)}
             />
         </div>
     );

@@ -32,6 +32,27 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
     }
 });
 
+// POST /api/reports — submit a report (listing, user, or general request)
+router.post('/', requireAuth, async (req, res) => {
+    const { product_id, reported_user_id, reason, details } = req.body;
+
+    if (!reason) {
+        return res.status(400).json({ error: 'Reason is required' });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO reports (id, reporter_id, reported_user_id, product_id, reason, details)
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5) RETURNING *`,
+            [req.userId, reported_user_id || null, product_id || null, reason, details || null]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Create report error:', err);
+        res.status(500).json({ error: 'Something went wrong submitting your report' });
+    }
+});
+
 // GET /api/reviews/seller/:sellerId — reviews for a seller, with like/comment data
 router.get('/seller/:sellerId', async (req, res) => {
     const { sellerId } = req.params;
