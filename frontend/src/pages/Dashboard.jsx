@@ -73,9 +73,80 @@ export default function Dashboard() {
         }
     }, [isSeller]);
 
-    const tabs = isSeller
+            const tabs = isSeller
         ? ['overview', 'listings', 'orders', 'deliveries', 'sales', 'payouts', 'reports']
         : ['orders', 'reports'];
+
+    // ─── SWIPEABLE SLIDING TAB CONTENT (mobile only) ────────────────────
+    // `visitedTabs` lazy-mounts each panel only once you've actually been
+    // to it, so switching tabs doesn't fire every tab's API calls on
+    // first load — but once visited, a panel stays mounted (and its data
+    // stays loaded) so flipping back to it is instant, no refetch.
+    const [visitedTabs, setVisitedTabs] = useState(() => new Set([isSeller ? 'overview' : 'orders']));
+    const [dragOffset, setDragOffset] = useState(0);
+    const [isDraggingTab, setIsDraggingTab] = useState(false);
+    const contentTouchRef = useRef({ startX: 0, startY: 0, tracking: false, containerWidth: 0 });
+    const tabViewportRef = useRef(null);
+
+    const changeTab = (nextTab) => {
+        setVisitedTabs((prev) => (prev.has(nextTab) ? prev : new Set(prev).add(nextTab)));
+        setTab(nextTab);
+    };
+
+    const handleContentTouchStart = (e) => {
+        const t = e.touches[0];
+        const width = tabViewportRef.current?.clientWidth || window.innerWidth;
+        contentTouchRef.current = { startX: t.clientX, startY: t.clientY, tracking: true, containerWidth: width };
+        setIsDraggingTab(true);
+    };
+
+    const handleContentTouchMove = (e) => {
+        if (!contentTouchRef.current.tracking) return;
+        const t = e.touches[0];
+        const dx = t.clientX - contentTouchRef.current.startX;
+        const dy = t.clientY - contentTouchRef.current.startY;
+        // Mostly-vertical drags are a normal page scroll — don't hijack them
+        if (Math.abs(dy) > Math.abs(dx) * 1.5) return;
+        setDragOffset(dx);
+    };
+
+    const handleContentTouchEnd = () => {
+        if (!contentTouchRef.current.tracking) { setIsDraggingTab(false); return; }
+        contentTouchRef.current.tracking = false;
+        setIsDraggingTab(false);
+
+        const width = contentTouchRef.current.containerWidth || window.innerWidth;
+        const dx = dragOffset;
+        const SWIPE_FRACTION = 0.25; // must drag past 25% of screen width to switch
+        const currentIndex = tabs.indexOf(tab);
+
+        if (Math.abs(dx) > width * SWIPE_FRACTION) {
+            if (dx < 0 && currentIndex < tabs.length - 1) {
+                changeTab(tabs[currentIndex + 1]); // swiped left → next tab
+            } else if (dx > 0 && currentIndex > 0) {
+                changeTab(tabs[currentIndex - 1]); // swiped right → previous tab
+            }
+        }
+        setDragOffset(0); // snap back to resting position either way
+    };
+
+    const activeTabIndex = tabs.indexOf(tab);
+    const baseTranslatePercent = -(activeTabIndex * (100 / tabs.length));
+    const dragPercent = isDraggingTab
+        ? (dragOffset / (contentTouchRef.current.containerWidth || window.innerWidth)) * (100 / tabs.length)
+        : 0;
+    const stripTransform = `translateX(${baseTranslatePercent + dragPercent}%)`;
+
+    const renderTabPanel = (t) => {
+        if (t === 'overview') return <SellerOverview period={period} />;
+        if (t === 'listings') return <MyListings />;
+        if (t === 'orders') return <MyOrders period={period} isSeller={isSeller} />;
+        if (t === 'deliveries') return <Deliveries />;
+        if (t === 'sales') return <MySales />;
+        if (t === 'payouts') return <PayoutSettings />;
+        if (t === 'reports') return <MyReports />;
+        return null;
+    };
 
     return (
         <div>
@@ -151,12 +222,12 @@ export default function Dashboard() {
                 {/* ─── TABS SECTION ────────────────────────────────────── */}
                 {tabs.length > 1 && (
                     <>
-                        {/* MOBILE: Swipeable tabs with floating shadow */}
+                                                {/* MOBILE: Swipeable tabs with floating shadow */}
                         <div className="block sm:hidden">
                             <MobileTabRoll
                                 tabs={tabs}
                                 activeTab={tab}
-                                onTabChange={setTab}
+                                onTabChange={changeTab}
                             />
                         </div>
 
@@ -186,13 +257,36 @@ export default function Dashboard() {
                     </>
                 )}
 
-                {tab === 'overview' && <SellerOverview period={period} />}
-                {tab === 'listings' && <MyListings />}
-                {tab === 'orders' && <MyOrders period={period} isSeller={isSeller} />}
-                {tab === 'deliveries' && <Deliveries />}
-                {tab === 'sales' && <MySales />}
-                {tab === 'payouts' && <PayoutSettings />}
-                {tab === 'reports' && <MyReports />}
+                                 {/* MOBILE: all panels sit side-by-side in one strip; we slide
+                    the whole strip via transform instead of swapping content,
+                    which is what actually produces the visible slide motion. */}
+                <div
+                    ref={tabViewportRef}
+                    className="sm:hidden overflow-hidden"
+                    onTouchStart={handleContentTouchStart}
+                    onTouchMove={handleContentTouchMove}
+                    onTouchEnd={handleContentTouchEnd}
+                >
+                    <div
+                        className="flex"
+                        style={{
+                            width: `${tabs.length * 100}%`,
+                            transform: stripTransform,
+                            transition: isDraggingTab ? 'none' : 'transform 300ms ease-out',
+                        }}
+                    >
+                        {tabs.map((t) => (
+                            <div key={t} style={{ width: `${100 / tabs.length}%` }} className="shrink-0 px-0.5">
+                                {visitedTabs.has(t) ? renderTabPanel(t) : null}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* DESKTOP: unchanged — no swipe/slide, just renders the active tab */}
+                <div className="hidden sm:block">
+                    {renderTabPanel(tab)}
+                </div>
             </div>
 
             <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
