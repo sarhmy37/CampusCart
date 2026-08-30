@@ -346,10 +346,10 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                     onMouseDown={onMouseDown}
                     onScroll={checkChevrons}
                     className="relative rounded-xl border border-slate-200 dark:border-ink-600 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-lg hover:shadow-xl transition-shadow duration-300 scrollbar-hide"
-                    style={{
+                                        style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
-                        height: 56,
+                        height: 44,
                         WebkitOverflowScrolling: 'touch',
                     }}
                 >
@@ -377,21 +377,21 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                                         }
                                     }}
                                     onClick={() => scrollToTab(tab)}
-                                    className={`tab-item relative shrink-0 h-full flex flex-col items-center justify-center gap-0.5 px-4 text-xs font-semibold transition-all duration-200 ${
+                                                                        className={`tab-item relative shrink-0 h-full flex flex-col items-center justify-center gap-0.5 px-4 text-xs transition-all duration-200 ${
                                         isActive
-                                            ? 'text-brand-700 dark:text-gold-400'
-                                            : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
+                                            ? 'text-brand-700 dark:text-gold-400 font-bold'
+                                            : 'text-slate-500 dark:text-gold-200/50 font-semibold hover:text-slate-700 dark:hover:text-gold-300'
                                     }`}
                                     style={{ minWidth: 70 }}
                                 >
                                     {Icon && <Icon size={16} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
                                     <span className="whitespace-nowrap">{label}</span>
-                                    {isActive && (
+                                                                        {isActive && (
                                         <span 
-                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-0.5 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
+                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-1 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
                                             style={{
                                                 width: 'auto',
-                                                minWidth: '24px',
+                                                minWidth: '28px',
                                                 maxWidth: '80%',
                                                 paddingLeft: '4px',
                                                 paddingRight: '4px',
@@ -401,8 +401,8 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                                                 className="block"
                                                 style={{
                                                     width: 'auto',
-                                                    minWidth: '24px',
-                                                    height: '2px',
+                                                    minWidth: '28px',
+                                                    height: '4px',
                                                     background: 'currentColor',
                                                     borderRadius: '9999px',
                                                 }}
@@ -415,14 +415,14 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                     </div>
                 </div>
 
-                {showLeftChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
+                                {showLeftChevron && (
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-xl bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
                         <ChevronLeft size={14} className="text-slate-400 dark:text-gold-300/40 ml-1" />
                     </div>
                 )}
 
                 {showRightChevron && (
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-xl bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
                         <ChevronRight size={14} className="text-slate-400 dark:text-gold-300/40 mr-1" />
                     </div>
                 )}

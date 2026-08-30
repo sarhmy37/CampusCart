@@ -72,7 +72,7 @@ const MOBILE_COLLAPSE_DISTANCE = 100;
 // How quickly the *displayed* progress eases toward the scroll-driven
 // target every animation frame. Lower = silkier/slower catch-up,
 // higher = snappier/more mechanical. This is the main "smoothness" knob.
-const SPRING_SMOOTHING = 0.8;
+const SPRING_SMOOTHING = 1;
 
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
