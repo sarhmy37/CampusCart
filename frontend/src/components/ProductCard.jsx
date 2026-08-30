@@ -172,21 +172,21 @@ export default function ProductCard({ product }) {
 
                 {/* ─── PRICE SECTION ─── */}
                 <div className="mt-1.5">
-                    {discountPercent !== null ? (
+                                        {discountPercent !== null ? (
                         <>
-                            {/* Old price - crossed out */}
-                            <p className="text-[11px] text-slate-400 dark:text-gold-200/50 line-through">
-                                GHS {oldPrice.toFixed(2)}
-                            </p>
-                            {/* New price with discount badge */}
+                            {/* Old price - crossed out, with discount badge beside it */}
                             <div className="flex items-center gap-1.5">
-                                <span className="text-brand-700 dark:text-gold-400 font-extrabold text-sm">
-                                    GHS {currentPrice.toFixed(2)}
-                                </span>
+                                <p className="text-[11px] text-slate-400 dark:text-gold-200/50 line-through">
+                                    GHS {oldPrice.toFixed(2)}
+                                </p>
                                 <span className="text-[10px] font-bold text-red-500">
                                     -{discountPercent}%
                                 </span>
                             </div>
+                            {/* New (main) price — smaller only when a discount is shown */}
+                            <span className="text-brand-700 dark:text-gold-400 font-extrabold text-xs">
+                                GHS {currentPrice.toFixed(2)}
+                            </span>
                         </>
                     ) : (
                         <span className="text-brand-700 dark:text-gold-400 font-extrabold text-sm">
