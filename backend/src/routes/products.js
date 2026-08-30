@@ -149,11 +149,11 @@ router.post('/', requireAuth, async (req, res) => {
         const primaryImage = images[0];
         const videoUrl = video || null;
 
-        const productResult = await client.query(
+                const productResult = await client.query(
             `INSERT INTO products
-                (seller_id, title, description, price, condition, category_id, stock, primary_image, video_url,
+                (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url,
                  delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING id`,
             [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl,
              feeOnCampus, feeNearCampus, feeFarCampus]
@@ -204,44 +204,24 @@ router.patch('/:id', requireAuth, async (req, res) => {
         const feeNearCampus = delivery_fee_near_campus !== undefined ? clampFee(delivery_fee_near_campus) : undefined;
         const feeFarCampus = delivery_fee_far_campus !== undefined ? clampFee(delivery_fee_far_campus) : undefined;
 
-        // ============ SALE PRICE LOGIC ============
-        let oldPriceUpdate = null;
-        let clearOldPrice = false;
+                // old_price is locked in at listing creation and never changes on edit —
+        // every future discount is measured against that original price.
 
-        if (price !== undefined && price !== null && price !== '') {
-            const newPriceNum = parseFloat(price);
-            const currentPriceNum = parseFloat(product.price);
-
-            if (!isNaN(newPriceNum) && !isNaN(currentPriceNum)) {
-                if (newPriceNum < currentPriceNum) {
-                    oldPriceUpdate = currentPriceNum;
-                } else if (newPriceNum > currentPriceNum) {
-                    clearOldPrice = true;
-                }
-            }
-        }
-        console.log('DEBUG', { currentPriceNum: parseFloat(product.price), newPriceNum: parseFloat(price), oldPriceUpdate, clearOldPrice });
-        // ============================================
-
-        const result = await pool.query(
+               const result = await pool.query(
             `UPDATE products SET
                 title = COALESCE($1, title),
                 description = COALESCE($2, description),
                 price = COALESCE($3, price),
-                old_price = CASE 
-                    WHEN $11 THEN NULL 
-                    ELSE COALESCE($4, old_price) 
-                END,
-                condition = COALESCE($5, condition),
-                stock = COALESCE($6, stock),
-                category_id = COALESCE($7, category_id),
-                delivery_fee_on_campus = COALESCE($8, delivery_fee_on_campus),
-                delivery_fee_near_campus = COALESCE($9, delivery_fee_near_campus),
-                delivery_fee_far_campus = COALESCE($10, delivery_fee_far_campus)
-             WHERE id = $12
+                condition = COALESCE($4, condition),
+                stock = COALESCE($5, stock),
+                category_id = COALESCE($6, category_id),
+                delivery_fee_on_campus = COALESCE($7, delivery_fee_on_campus),
+                delivery_fee_near_campus = COALESCE($8, delivery_fee_near_campus),
+                delivery_fee_far_campus = COALESCE($9, delivery_fee_far_campus)
+             WHERE id = $10
              RETURNING *`,
-            [title, description, price, oldPriceUpdate, condition, stock, categoryId,
-             feeOnCampus, feeNearCampus, feeFarCampus, clearOldPrice, req.params.id]
+            [title, description, price, condition, stock, categoryId,
+             feeOnCampus, feeNearCampus, feeFarCampus, req.params.id]
         );
 
         res.json(result.rows[0]);
