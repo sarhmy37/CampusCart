@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import EditListingModal from '../components/EditListingModal';
 import ProfileDrawer from '../components/ProfileDrawer';
+import { createPortal } from 'react-dom';
 
 const PERIODS = [
     { value: 'week', label: 'This week' },
@@ -903,7 +904,7 @@ function PayoutSettings() {
                 )}
             </div>
 
-            {showAddModal && (
+                        {showAddModal && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
                         <button
@@ -999,8 +1000,9 @@ function PayoutSettings() {
                                 {saving ? 'Adding…' : 'Add account'}
                             </button>
                         </div>
-                    </div>
-                </div>
+                                        </div>
+                </div>,
+                document.body
             )}
         </div>
     );

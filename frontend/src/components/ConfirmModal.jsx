@@ -1,9 +1,10 @@
 import { AlertTriangle } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 export default function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', onConfirm, onCancel }) {
     if (!open) return null;
 
-    return (
+        return createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm" onClick={onCancel} />
             <div className="relative bg-white dark:bg-ink-800 border border-transparent dark:border-ink-600 rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-150">
@@ -26,8 +27,9 @@ export default function ConfirmModal({ open, title, message, confirmLabel = 'Con
                     >
                         {confirmLabel}
                     </button>
-                </div>
+                                </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

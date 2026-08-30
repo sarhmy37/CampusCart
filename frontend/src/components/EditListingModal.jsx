@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { X } from 'lucide-react';
@@ -69,7 +70,7 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
         }
     };
 
-    return (
+        return createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
             <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
@@ -211,8 +212,9 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                             {saving ? 'Saving…' : 'Save changes'}
                         </button>
                     </div>
-                </form>
+                                </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
