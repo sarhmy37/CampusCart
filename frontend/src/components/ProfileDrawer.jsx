@@ -160,13 +160,16 @@ export default function ProfileDrawer({ open, onClose }) {
             />
 
             {/* Drawer */}
-            <div
-                ref={drawerRef}
-                className={`fixed top-0 left-0 h-full w-3/4 max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 overflow-y-auto no-scrollbar ${
+                        <div
+                className={`fixed top-0 left-0 h-full w-3/4 max-w-sm bg-white dark:bg-ink-800 z-50 shadow-2xl transition-transform duration-300 flex flex-col ${
                     open ? 'translate-x-0' : '-translate-x-full'
                 }`}
-                style={{ overscrollBehavior: 'contain' }}
             >
+                <div
+                    ref={drawerRef}
+                    className="flex-1 overflow-y-auto no-scrollbar"
+                    style={{ overscrollBehavior: 'contain' }}
+                >
                 {/* Header */}
                 <div className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-accent-500 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 px-6 pt-6 pb-16">
                     <button
@@ -471,11 +474,11 @@ export default function ProfileDrawer({ open, onClose }) {
                         </button>
                     </div>
 
-                    {/* APP VERSION - at the very bottom */}
-                    <div className="pt-20 pb-2 text-center">
-                        <span className="text-xs text-slate-400 dark:text-gold-300/40">App version v{APP_VERSION}</span>
-                    </div>
+                                    </div>
+                </div>
 
+                <div className="shrink-0 py-3 text-center border-t border-slate-100 dark:border-ink-700">
+                    <span className="text-xs text-slate-400 dark:text-gold-300/40">App version v{APP_VERSION}</span>
                 </div>
             </div>
 
