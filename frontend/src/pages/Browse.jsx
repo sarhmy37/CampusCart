@@ -241,8 +241,12 @@ export default function Browse() {
             filteredByType = verifiedFiltered.slice(0, 4);
         }
     } else if (filterType === 'nearby') {
+        // NOTE: filter by `seller_school` — that's the field name the
+        // /products API actually returns (aliased from users.school).
+        // A plain `p.school` doesn't exist on the product object, which
+        // was silently wiping out results whenever this branch ran.
         if (school) {
-            filteredByType = verifiedFiltered.filter(p => p.school === school);
+            filteredByType = verifiedFiltered.filter(p => p.seller_school === school);
         } else {
             filteredByType = verifiedFiltered;
         }
@@ -524,11 +528,11 @@ export default function Browse() {
                             <button
                                 key={r.label}
                                 onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
-                                className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${(
+                                className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
                                     priceRange?.label === r.label
                                         ? 'bg-white text-brand-700 border-white'
                                         : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
-                                )}`}
+                                }`}
                             >
                                 {r.label}
                             </button>
@@ -693,7 +697,7 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
                                         }`}
                                     />
                                     <span
-                                        className={`text-[9.5px] leading-none truncate max-full px-0.5 transition-all duration-300 ${
+                                        className={`text-[9.5px] leading-none truncate max-w-full px-0.5 transition-all duration-300 ${
                                             active
                                                 ? 'font-bold text-brand-700 dark:text-gold-400'
                                                 : 'font-medium text-slate-500 dark:text-gold-200/50'
