@@ -197,8 +197,7 @@ export default function ProductCard({ product }) {
 
                 <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5 truncate flex items-center gap-1">
                     {product.seller_name}
-                    {product.seller_verified && <BadgeCheck size={10} className="text-brand-500 dark:text-gold-500 shrink-0" />}
-                </p>
+                    {product.seller_verified && <BadgeCheck size={10} className="text-emerald-500 fill-emerald-500 shrink-0" strokeWidth={1.5} />}                </p>
 
                 {stockLabel && (
                     <div className={`text-[11px] font-medium ${stockColor} mt-0.5 flex items-center gap-1`}>
