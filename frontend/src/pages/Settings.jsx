@@ -148,11 +148,11 @@ export default function Settings() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-500/10 rounded-full blur-3xl" />
                 <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10">
-                    <button
+                                        <button
                         onClick={() => navigate('/', { state: { openProfile: true } })}
-                        className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
+                        className="inline-flex items-center gap-1 sm:gap-2 bg-white/10 text-white font-semibold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-sm"
                     >
-                        <ArrowLeft size={16} /> Back
+                        <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" /> Back
                     </button>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-5">Settings</h1>
                     <p className="text-white/70 text-sm mt-1">Manage your account and preferences</p>

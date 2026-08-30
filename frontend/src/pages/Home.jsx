@@ -252,7 +252,7 @@ export default function Home() {
                 </Reveal>
 
 
-                <div className="mt-10 grid sm:grid-cols-3 gap-8 sm:gap-12 relative">
+                                <div className="mt-10 grid grid-cols-3 sm:grid-cols-3 gap-3 sm:gap-12 relative">
                     
                     {/* Subtle vertical dividing lines on desktop */}
                     <div className="hidden sm:block absolute top-10 left-1/3 w-px h-32 bg-slate-200 dark:bg-ink-700 -translate-x-1/2" />
@@ -263,20 +263,20 @@ export default function Home() {
                             key={step.title}
                             delay={i * 120}
                         >
-                            <div className="relative flex flex-col items-start sm:items-center text-left sm:text-center">
+                            <div className="relative flex flex-col items-center text-center sm:items-center sm:text-center">
                                 
                                 {/* Step Number */}
-                                <span className="text-5xl sm:text-6xl font-black text-brand-200 dark:text-ink-700 select-none leading-none mb-2">
+                                <span className="text-3xl sm:text-6xl font-black text-brand-200 dark:text-ink-700 select-none leading-none mb-1 sm:mb-2">
                                     {i + 1}
                                 </span>
 
                                 {/* Title */}
-                                <h3 className="font-bold text-lg text-slate-900 dark:text-gold-50 mt-1">
+                                <h3 className="font-bold text-xs sm:text-lg text-slate-900 dark:text-gold-50 mt-1">
                                     {step.title}
                                 </h3>
 
                                 {/* Description */}
-                                <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-2 leading-relaxed max-w-xs">
+                                <p className="text-[10px] sm:text-sm text-slate-500 dark:text-gold-200/50 mt-1 sm:mt-2 leading-snug sm:leading-relaxed max-w-[110px] sm:max-w-xs">
                                     {step.desc}
                                 </p>
 
