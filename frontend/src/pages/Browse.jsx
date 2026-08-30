@@ -562,13 +562,54 @@ export default function Browse() {
                 </div>
             </section>
 
-            {/* LISTINGS — a soft warm off-white instead of stark white, a
-                quiet paper-grain texture matching the header, and a gentle
-                fade at the seam where the dark header meets this section
-                instead of a hard, flat cut between the two backgrounds. */}
-            <section className="relative overflow-hidden bg-[#FAF8F4] dark:bg-ink-900">
-                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink-900/15 dark:from-black/30 to-transparent pointer-events-none" />
-                <svg className="absolute inset-0 w-full h-full opacity-[0.025] dark:opacity-[0.04] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+            {/* LISTINGS — layered, subject-grounded background instead of a
+                flat color:
+                  1. warm parchment base
+                  2. a faint blueprint/campus-map grid of gold hairlines —
+                     literally a nod to what this section is (browsing a
+                     campus), not decoration for its own sake
+                  3. one deliberate diagonal light wash from the top-right,
+                     like sunlight through a window, instead of a generic
+                     centered blurred circle
+                  4. a soft vignette for depth + grain for texture
+                  5. a gentle fade at the seam under the dark header */}
+            <section className="relative overflow-hidden bg-gradient-to-b from-[#F7F1E3] via-[#FBF7EE] to-[#F2EADB] dark:from-ink-900 dark:via-ink-950 dark:to-ink-900">
+                {/* Blueprint grid — thin gold hairlines every 56px, like a
+                    campus map or architectural plan. This is the signature
+                    element; everything else stays quiet around it. */}
+                <div
+                    className="absolute inset-0 pointer-events-none opacity-[0.5] dark:opacity-[0.35]"
+                    style={{
+                        backgroundImage: `
+                            repeating-linear-gradient(0deg, rgba(180,140,60,0.10) 0px, rgba(180,140,60,0.10) 1px, transparent 1px, transparent 56px),
+                            repeating-linear-gradient(90deg, rgba(180,140,60,0.10) 0px, rgba(180,140,60,0.10) 1px, transparent 1px, transparent 56px)
+                        `,
+                    }}
+                />
+                {/* Directional light — a diagonal wash from the top-right,
+                    like light falling across a desk, not a centered glow */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        background: 'linear-gradient(135deg, rgba(212,175,90,0.14) 0%, transparent 42%)',
+                    }}
+                />
+                <div
+                    className="absolute inset-0 pointer-events-none hidden dark:block"
+                    style={{
+                        background: 'linear-gradient(135deg, rgba(212,175,90,0.10) 0%, transparent 45%)',
+                    }}
+                />
+                {/* Seam under the dark header */}
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink-900/20 dark:from-black/40 to-transparent pointer-events-none" />
+                {/* Vignette — corners read a touch deeper than the center */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        background: 'radial-gradient(120% 100% at 50% 0%, transparent 50%, rgba(15,12,8,0.08) 100%)',
+                    }}
+                />
+                <svg className="absolute inset-0 w-full h-full opacity-[0.05] dark:opacity-[0.07] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
                     <filter id="listingsGrain">
                         <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
                     </filter>
