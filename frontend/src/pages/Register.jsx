@@ -751,6 +751,15 @@ export default function Register() {
                             <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-6 text-center">
                                 Already have an account? <Link to="/login" className="text-brand-600 dark:text-gold-400 font-semibold">Log in</Link>
                             </p>
+
+                            <div className="mt-4 flex items-center justify-center">
+                                <Link
+                                    to="/"
+                                    className="text-xs font-medium text-slate-400 dark:text-gold-200/40 hover:text-slate-600 dark:hover:text-gold-200 transition"
+                                >
+                                    ← Back to home
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>

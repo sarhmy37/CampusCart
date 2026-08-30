@@ -271,6 +271,15 @@ export default function Login() {
                                     Don't have an account? <Link to="/register" className="text-brand-600 dark:text-gold-400 font-semibold">Sign up</Link>
                                 </p>
                             </div>
+
+                            <div className="mt-4 flex items-center justify-center">
+                                <Link
+                                    to="/"
+                                    className="text-xs font-medium text-slate-400 dark:text-gold-200/40 hover:text-slate-600 dark:hover:text-gold-200 transition"
+                                >
+                                    ← Back to home
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>
