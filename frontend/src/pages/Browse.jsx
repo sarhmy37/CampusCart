@@ -562,83 +562,96 @@ export default function Browse() {
                 </div>
             </section>
 
-            {/* LISTINGS */}
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 bg-white dark:bg-ink-900 pb-32 sm:pb-10">
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
-                    {itemCategory && (
-                        <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
-                            {itemCategory}
-                            <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={12} />
-                            </button>
-                        </span>
-                    )}
+            {/* LISTINGS — a soft warm off-white instead of stark white, a
+                quiet paper-grain texture matching the header, and a gentle
+                fade at the seam where the dark header meets this section
+                instead of a hard, flat cut between the two backgrounds. */}
+            <section className="relative overflow-hidden bg-[#FAF8F4] dark:bg-ink-900">
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink-900/15 dark:from-black/30 to-transparent pointer-events-none" />
+                <svg className="absolute inset-0 w-full h-full opacity-[0.025] dark:opacity-[0.04] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                    <filter id="listingsGrain">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
+                    </filter>
+                    <rect width="100%" height="100%" filter="url(#listingsGrain)" />
+                </svg>
 
-                    {school && filterType !== 'nearby' && (
-                        <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
-                            📍 {school}
-                            <button onClick={() => setSchool('')} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={12} />
-                            </button>
-                        </span>
-                    )}
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-32 sm:pb-10">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
+                        {itemCategory && (
+                            <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
+                                {itemCategory}
+                                <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        )}
+
+                        {school && filterType !== 'nearby' && (
+                            <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
+                                📍 {school}
+                                <button onClick={() => setSchool('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        )}
+
+                        {verifiedOnly && (
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                <CheckBadgeIconSolid className="w-3 h-3" /> Verified
+                            </span>
+                        )}
+
+                        {priceRange && (
+                            <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-3 py-1 rounded-full text-xs font-semibold">
+                                {priceRange.label}
+                                <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        )}
+
+                        {filterType === 'new' && !verifiedOnly && (
+                            <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                ✨ Newly posted
+                            </span>
+                        )}
+                    </div>
 
                     {verifiedOnly && (
-                        <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                            <CheckBadgeIconSolid className="w-3 h-3" /> Verified
-                        </span>
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                            Verified sellers are recommended — their university email has been confirmed.
+                        </p>
                     )}
 
-                    {priceRange && (
-                        <span className="inline-flex items-center gap-1.5 bg-slate-800 dark:bg-gold-900 text-white dark:text-gold-100 px-3 py-1 rounded-full text-xs font-semibold">
-                            {priceRange.label}
-                            <button onClick={() => { setPriceRange(null); setBudgetInput(''); }} className="hover:bg-white/20 rounded-full p-0.5">
-                                <X size={12} />
-                            </button>
-                        </span>
+                    {filterType === 'special' && (
+                        <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
+                            <p className="text-lg font-semibold">🚀 Special Listings</p>
+                            <p className="text-sm mt-1">This feature is coming soon! Stay tuned for curated deals and top-rated items.</p>
+                        </div>
                     )}
 
-                    {filterType === 'new' && !verifiedOnly && (
-                        <span className="inline-flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                            ✨ Newly posted
-                        </span>
+                    {loading ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                            {Array.from({ length: 8 }).map((_, i) => (
+                                <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : visibleProducts.length === 0 && filterType !== 'special' ? (
+                        <div className="text-center py-20 text-slate-400 dark:text-gold-200/40">
+                            <SlidersHorizontal className="mx-auto mb-3" size={32} />
+                            <p>No listings found. Try a different category, price range, or filter.</p>
+                        </div>
+                    ) : (
+                        <>
+                            {isDemo && (
+                                <p className="text-sm text-slate-400 dark:text-gold-200/40 mb-4">No live listings yet — here's a preview of how they'll look:</p>
+                            )}
+                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                                {visibleProducts.map((p) => <ProductCard key={p.id} product={p} />)}
+                            </div>
+                        </>
                     )}
                 </div>
-
-                {verifiedOnly && (
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
-                        Verified sellers are recommended — their university email has been confirmed.
-                    </p>
-                )}
-
-                {filterType === 'special' && (
-                    <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
-                        <p className="text-lg font-semibold">🚀 Special Listings</p>
-                        <p className="text-sm mt-1">This feature is coming soon! Stay tuned for curated deals and top-rated items.</p>
-                    </div>
-                )}
-
-                {loading ? (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                        {Array.from({ length: 8 }).map((_, i) => (
-                            <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
-                        ))}
-                    </div>
-                ) : visibleProducts.length === 0 && filterType !== 'special' ? (
-                    <div className="text-center py-20 text-slate-400 dark:text-gold-200/40">
-                        <SlidersHorizontal className="mx-auto mb-3" size={32} />
-                        <p>No listings found. Try a different category, price range, or filter.</p>
-                    </div>
-                ) : (
-                    <>
-                        {isDemo && (
-                            <p className="text-sm text-slate-400 dark:text-gold-200/40 mb-4">No live listings yet — here's a preview of how they'll look:</p>
-                        )}
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                            {visibleProducts.map((p) => <ProductCard key={p.id} product={p} />)}
-                        </div>
-                    </>
-                )}
             </section>
 
             {/* ─── MOBILE BOTTOM TABS ──────────────────────────────────── */}
