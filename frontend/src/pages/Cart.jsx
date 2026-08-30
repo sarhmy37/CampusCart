@@ -564,11 +564,11 @@ function CartHeader({ count }) {
             <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
             <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                 <Link
-                    to="/browse"
-                    className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
-                >
-                    <ArrowLeft size={16} /> Continue browsing
-                </Link>
+    to="/browse"
+    className="inline-flex items-center gap-1 sm:gap-2 bg-white/10 text-white font-semibold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-sm"
+>
+    <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" /> Continue browsing
+</Link>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-5">Your Cart</h1>
                 <p className="text-white/70 text-sm mt-1">
                     {count > 0 ? `${count} item${count > 1 ? 's' : ''} ready for checkout` : 'Nothing here yet'}

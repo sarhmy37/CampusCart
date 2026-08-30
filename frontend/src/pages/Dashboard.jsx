@@ -163,13 +163,13 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center gap-4 sm:gap-5">
                             <button
-                                onClick={() => {
-                                    navigate('/', { state: { openProfile: true } });
-                                }}
-                                className="w-8 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
+    onClick={() => {
+        navigate('/', { state: { openProfile: true } });
+    }}
+    className="w-6 h-12 sm:w-8 sm:h-16 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
+>
+    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+</button>
 
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
@@ -183,19 +183,18 @@ export default function Dashboard() {
                             <select
                                 value={period}
                                 onChange={(e) => setPeriod(e.target.value)}
-                                className="bg-white/10 text-white text-sm font-semibold px-4 py-2.5 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
-                            >
+className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"                            >
                                 {PERIODS.map((p) => (
                                     <option key={p.value} value={p.value} className="text-slate-900">{p.label}</option>
                                 ))}
                             </select>
                             {isSeller && (
                                 <Link
-                                    to="/sell/new"
-                                    className="inline-flex items-center gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-5 py-2.5 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-sm text-sm"
-                                >
-                                    <Plus size={16} /> New Listing
-                                </Link>
+    to="/sell/new"
+    className="inline-flex items-center gap-1 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-sm text-xs sm:text-sm"
+>
+    <Plus className="w-3 h-3 sm:w-4 sm:h-4" /> New Listing
+</Link>
                             )}
                         </div>
                     </div>
@@ -544,10 +543,10 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
 // ─── STAT CARD ─────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value }) {
     return (
-        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4">
-            <Icon size={18} className="text-white/80 mb-2" />
-            <p className="text-2xl font-extrabold text-white">{value}</p>
-            <p className="text-xs text-white/70">{label}</p>
+        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl sm:rounded-2xl p-2.5 sm:p-4">
+            <Icon className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] text-white/80 mb-1 sm:mb-2" />
+            <p className="text-lg sm:text-2xl font-extrabold text-white">{value}</p>
+            <p className="text-[10px] sm:text-xs text-white/70">{label}</p>
         </div>
     );
 }
