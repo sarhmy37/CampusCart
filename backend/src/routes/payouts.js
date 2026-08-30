@@ -195,16 +195,26 @@ router.get('/balance', requireAuth, async (req, res) => {
 // rather than flagging order items as paid. This is what actually fixes the bug
 // where withdrawing part of your balance wiped out the whole thing.
 router.post('/withdraw', requireAuth, async (req, res) => {
-    const { accountId, amountGHS } = req.body;
+    const { accountId, amountGHS, password } = req.body;
 
     if (!accountId || !amountGHS || amountGHS <= 0) {
         return res.status(400).json({ error: 'Invalid request' });
     }
+    if (!password) {
+        return res.status(400).json({ error: 'Password is required to confirm withdrawal' });
+    }
 
     try {
-        const userResult = await pool.query('SELECT verified FROM users WHERE id = $1', [req.userId]);
-        if (!userResult.rows[0]?.verified) {
+        const userResult = await pool.query('SELECT verified, password_hash FROM users WHERE id = $1', [req.userId]);
+        const currentUser = userResult.rows[0];
+        if (!currentUser?.verified) {
             return res.status(403).json({ error: 'You must verify your account before withdrawing funds' });
+        }
+
+        const bcrypt = require('bcryptjs');
+        const passwordMatch = await bcrypt.compare(password, currentUser.password_hash);
+        if (!passwordMatch) {
+            return res.status(401).json({ error: 'Incorrect password' });
         }
 
         const accResult = await pool.query(

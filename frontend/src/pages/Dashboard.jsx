@@ -672,8 +672,10 @@ function PayoutSettings() {
     const [settingDefault, setSettingDefault] = useState(null);
     const [withdrawing, setWithdrawing] = useState(false);
     const [balance, setBalance] = useState(0);
-    const [withdrawAmount, setWithdrawAmount] = useState('');
+        const [withdrawAmount, setWithdrawAmount] = useState('');
     const [selectedAccountId, setSelectedAccountId] = useState('');
+    const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+    const [withdrawPassword, setWithdrawPassword] = useState('');
 
     const [method, setMethod] = useState('bank');
     const [banks, setBanks] = useState([]);
@@ -747,7 +749,7 @@ function PayoutSettings() {
         }
     };
 
-    const handleWithdraw = async () => {
+        const handleWithdrawClick = () => {
         if (!selectedAccountId) {
             toast.error('Please select a payout account');
             return;
@@ -761,15 +763,27 @@ function PayoutSettings() {
             toast.error('Amount exceeds available balance');
             return;
         }
+        setShowWithdrawConfirm(true);
+    };
+
+    const handleConfirmWithdraw = async () => {
+        if (!withdrawPassword) {
+            toast.error('Enter your password to confirm');
+            return;
+        }
+        const amount = parseFloat(withdrawAmount);
 
         setWithdrawing(true);
         try {
             await api.post('/payouts/withdraw', {
                 accountId: selectedAccountId,
-                amountGHS: amount
+                amountGHS: amount,
+                password: withdrawPassword,
             });
             toast.success(`Successfully requested withdrawal of GHS ${amount.toFixed(2)}!`);
             setWithdrawAmount('');
+            setWithdrawPassword('');
+            setShowWithdrawConfirm(false);
             loadData();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Withdrawal failed');
@@ -827,8 +841,8 @@ function PayoutSettings() {
                         />
                     </div>
 
-                    <button
-                        onClick={handleWithdraw}
+                                        <button
+                        onClick={handleWithdrawClick}
                         disabled={withdrawing || balance <= 0 || !selectedAccountId}
                         className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm"
                     >
@@ -904,7 +918,47 @@ function PayoutSettings() {
                 )}
             </div>
 
-                        {showAddModal && createPortal(
+                                               {showWithdrawConfirm && createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative">
+                        <button
+                            onClick={() => { setShowWithdrawConfirm(false); setWithdrawPassword(''); }}
+                            className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">Confirm withdrawal</h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">
+                            Enter your password to confirm withdrawing GHS {parseFloat(withdrawAmount || 0).toFixed(2)}.
+                        </p>
+
+                        <div className="mt-4">
+                            <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">Password</label>
+                            <input
+                                type="password"
+                                value={withdrawPassword}
+                                onChange={(e) => setWithdrawPassword(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleConfirmWithdraw()}
+                                placeholder="••••••••"
+                                autoFocus
+                                className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleConfirmWithdraw}
+                            disabled={withdrawing}
+                            className="w-full mt-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60"
+                        >
+                            {withdrawing ? 'Processing…' : 'Confirm withdrawal'}
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {showAddModal && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
                         <button
