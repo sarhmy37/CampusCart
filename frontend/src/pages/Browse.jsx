@@ -388,13 +388,24 @@ export default function Browse() {
     return (
         <div className="relative min-h-screen">
             {/* HEADER STRIP */}
-            <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+                        <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-ink-900">
                 <div className="absolute inset-0" style={{ opacity: imageOpacity }}>
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
+                    {/* Duotone wash — one deep ink tone over the photography with
+                        a whisper of gold at the edges, instead of a bright
+                        multi-hue gradient. Reads as an archival campus photo
+                        rather than a SaaS hero banner. */}
+                    <div className="absolute inset-0 bg-ink-900/75 mix-blend-multiply" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-ink-950/40 via-transparent to-gold-900/25" />
+                    {/* Fine grain — a tactile, printed quality, felt more than seen */}
+                    <svg className="absolute inset-0 w-full h-full opacity-[0.05] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                        <filter id="browseGrain">
+                            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
+                        </filter>
+                        <rect width="100%" height="100%" filter="url(#browseGrain)" />
+                    </svg>
                 </div>
-                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" style={{ opacity: imageOpacity }} />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" style={{ opacity: imageOpacity }} />
+
 
                 <div
                     className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
@@ -497,12 +508,13 @@ export default function Browse() {
                         </div>
                     </div>
 
-                    <div className="hidden sm:flex items-center justify-between gap-3 mt-4 sm:mt-5">
+                                        <div className="hidden sm:flex items-center justify-between gap-3 mt-4 sm:mt-5">
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white truncate">
                             {headerTitle}
                         </h1>
                                                 {renderBudgetInput()}
                     </div>
+                    <div className="hidden sm:block h-px bg-gradient-to-r from-gold-400/40 via-white/10 to-transparent mt-4" />
 
                     {/* ─── DESKTOP FILTER PILLS (unchanged) ─────────────── */}
                     <div className="hidden sm:flex items-center gap-2 flex-wrap mt-5">
