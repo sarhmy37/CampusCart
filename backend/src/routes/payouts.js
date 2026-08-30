@@ -94,11 +94,14 @@ router.post('/accounts', requireAuth, async (req, res) => {
         );
         const isFirst = parseInt(countResult.rows[0].count, 10) === 0;
 
+                const bankResult = await client.query('SELECT name FROM banks WHERE code = $1', [bank_code]);
+        const bankName = bankResult.rows[0]?.name || null;
+
         const result = await client.query(
-            `INSERT INTO seller_payout_accounts (seller_id, bank_code, account_number, account_name, method, is_default)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO seller_payout_accounts (seller_id, bank_code, bank_name, account_number, account_name, method, is_default)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
-            [req.userId, bank_code, account_number, account_name, method || 'bank', isFirst]
+            [req.userId, bank_code, bankName, account_number, account_name, method || 'bank', isFirst]
         );
 
         await client.query('COMMIT');
