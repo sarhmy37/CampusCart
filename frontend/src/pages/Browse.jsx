@@ -25,6 +25,12 @@ import CategoryRequestModal from '../components/CategoryRequestModal';
 
 const ITEM_TYPES = ['Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sneakers', 'Other'];
 
+const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their university email has been confirmed.';
+
+const VERIFIED_NOTE_TYPE_SPEED_MS = 20;
+
+const VERIFIED_NOTE_DELAY_MS = 500;
+
 const SCHOOLS = [
     { name: 'KNUST', lat: 6.6732, lng: -1.5654 },
     { name: 'UG', lat: 5.6505, lng: -0.1895 },
@@ -107,6 +113,32 @@ export default function Browse() {
     );
     const targetProgressRef = useRef(0);
     const scrollTickingRef = useRef(false);
+
+    const [verifiedNoteText, setVerifiedNoteText] = useState('');
+
+useEffect(() => {
+    if (!verifiedOnly) {
+        setVerifiedNoteText('');
+        return;
+    }
+    setVerifiedNoteText('');
+    let typeInterval;
+    const delayTimer = setTimeout(() => {
+        let i = 0;
+        typeInterval = setInterval(() => {
+            i++;
+            setVerifiedNoteText(VERIFIED_NOTE_FULL.slice(0, i));
+            if (i >= VERIFIED_NOTE_FULL.length) {
+                clearInterval(typeInterval);
+            }
+        }, VERIFIED_NOTE_TYPE_SPEED_MS);
+    }, VERIFIED_NOTE_DELAY_MS);
+
+    return () => {
+        clearTimeout(delayTimer);
+        if (typeInterval) clearInterval(typeInterval);
+    };
+}, [verifiedOnly]);
 
     // Track scroll → update the target only (no state write here, so
     // scrolling itself never causes a render; the rAF loop below is the
@@ -648,10 +680,10 @@ export default function Browse() {
                     </div>
 
                     {verifiedOnly && (
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
-                            Verified sellers are recommended — their university email has been confirmed.
-                        </p>
-                    )}
+    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+        {verifiedNoteText}
+    </p>
+)}
 
                     {filterType === 'special' && (
                         <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
