@@ -438,7 +438,7 @@ export default function ChatPanel() {
                 </div>
             </div>
 
-            <WallpaperPicker open={showWallpaperPicker} onClose={() => setShowWallpaperPicker(false)} />
+            <WallpaperPicker open={showWallpaperPicker} onClose={() => setShowWallpaperPicker(false)} currentUserId={user.id} />
         </div>
     );
 }

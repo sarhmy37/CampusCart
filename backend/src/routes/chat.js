@@ -138,7 +138,6 @@ router.get('/presence/:userId', requireAuth, async (req, res) => {
     }
 });
 
-// GET /api/chat/:id/wallpaper — this user's wallpaper choice for this conversation
 router.get('/:id/wallpaper', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
@@ -146,16 +145,31 @@ router.get('/:id/wallpaper', requireAuth, async (req, res) => {
         if (!convo) return;
 
         const result = await pool.query(
-            `SELECT wallpaper_type AS type, wallpaper_value AS value
+            `SELECT wallpaper_type AS type, wallpaper_value AS value, set_by
              FROM chat_wallpapers
+             WHERE conversation_id = $1`,
+            [id]
+        );
+
+        const shared = result.rows.length > 0
+            ? result.rows[0]
+            : { type: 'none', value: null, set_by: null };
+
+        const overrideResult = await pool.query(
+            `SELECT hidden FROM chat_wallpaper_overrides
              WHERE conversation_id = $1 AND user_id = $2`,
             [id, req.userId]
         );
+        const hiddenForMe = overrideResult.rows.length > 0 && overrideResult.rows[0].hidden;
 
-        if (result.rows.length === 0) {
-            return res.json({ type: 'none', value: null });
-        }
-        res.json(result.rows[0]);
+        res.json({
+            type: shared.type,
+            value: shared.value,
+            set_by: shared.set_by,
+            hidden_for_me: hiddenForMe,
+            effective_type: hiddenForMe ? 'none' : shared.type,
+            effective_value: hiddenForMe ? null : shared.value,
+        });
     } catch (err) {
         console.error('Get wallpaper error:', err);
         res.status(500).json({ error: 'Failed to load wallpaper' });
@@ -176,13 +190,15 @@ router.put('/:id/wallpaper', requireAuth, async (req, res) => {
         if (!convo) return;
 
         const result = await pool.query(
-            `INSERT INTO chat_wallpapers (conversation_id, user_id, wallpaper_type, wallpaper_value, updated_at)
+            `INSERT INTO chat_wallpapers (conversation_id, wallpaper_type, wallpaper_value, set_by, updated_at)
              VALUES ($1, $2, $3, $4, now())
-             ON CONFLICT (conversation_id, user_id)
-             DO UPDATE SET wallpaper_type = $3, wallpaper_value = $4, updated_at = now()
-             RETURNING wallpaper_type AS type, wallpaper_value AS value`,
-            [id, req.userId, type, value || null]
+             ON CONFLICT (conversation_id)
+             DO UPDATE SET wallpaper_type = $2, wallpaper_value = $3, set_by = $4, updated_at = now()
+             RETURNING wallpaper_type AS type, wallpaper_value AS value, set_by`,
+            [id, type, value || null, req.userId]
         );
+        // Changing the shared wallpaper clears any personal "hide for me" overrides
+        await pool.query(`DELETE FROM chat_wallpaper_overrides WHERE conversation_id = $1`, [id]);
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Set wallpaper error:', err);
@@ -207,14 +223,16 @@ router.post('/:id/wallpaper/upload', requireAuth, uploadWallpaper.single('wallpa
         const imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
 
         const result = await pool.query(
-            `INSERT INTO chat_wallpapers (conversation_id, user_id, wallpaper_type, wallpaper_value, updated_at)
-             VALUES ($1, $2, 'custom', $3, now())
-             ON CONFLICT (conversation_id, user_id)
-             DO UPDATE SET wallpaper_type = 'custom', wallpaper_value = $3, updated_at = now()
-             RETURNING wallpaper_type AS type, wallpaper_value AS value`,
-            [id, req.userId, imageUrl]
+            `INSERT INTO chat_wallpapers (conversation_id, wallpaper_type, wallpaper_value, set_by, updated_at)
+             VALUES ($1, 'custom', $2, $3, now())
+             ON CONFLICT (conversation_id)
+             DO UPDATE SET wallpaper_type = 'custom', wallpaper_value = $2, set_by = $3, updated_at = now()
+             RETURNING wallpaper_type AS type, wallpaper_value AS value, set_by`,
+            [id, imageUrl, req.userId]
         );
+        await pool.query(`DELETE FROM chat_wallpaper_overrides WHERE conversation_id = $1`, [id]);
         res.json(result.rows[0]);
+
     } catch (err) {
         console.error('Upload wallpaper error:', err);
         res.status(500).json({ error: 'Something went wrong uploading your wallpaper' });
@@ -324,6 +342,36 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Send message error:', err);
         res.status(500).json({ error: 'Failed to send message' });
+    }
+});
+
+// PUT /api/chat/:id/wallpaper/hide — toggle "hide wallpaper for me" (personal, doesn't affect the other person)
+router.put('/:id/wallpaper/hide', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { hidden } = req.body;
+
+    try {
+        const convo = await getConversationOrForbid(id, req.userId, res);
+        if (!convo) return;
+
+        if (hidden) {
+            await pool.query(
+                `INSERT INTO chat_wallpaper_overrides (conversation_id, user_id, hidden, updated_at)
+                 VALUES ($1, $2, true, now())
+                 ON CONFLICT (conversation_id, user_id)
+                 DO UPDATE SET hidden = true, updated_at = now()`,
+                [id, req.userId]
+            );
+        } else {
+            await pool.query(
+                `DELETE FROM chat_wallpaper_overrides WHERE conversation_id = $1 AND user_id = $2`,
+                [id, req.userId]
+            );
+        }
+        res.json({ hidden_for_me: !!hidden });
+    } catch (err) {
+        console.error('Toggle wallpaper hide error:', err);
+        res.status(500).json({ error: 'Failed to update wallpaper visibility' });
     }
 });
 

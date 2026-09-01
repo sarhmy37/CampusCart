@@ -76,6 +76,16 @@ export function ChatProvider({ children }) {
         }
     }, [conversation, wallpaper]);
 
+        const hideWallpaperForMe = useCallback(async (hidden) => {
+        if (!conversation) return;
+        try {
+            await api.put(`/chat/${conversation.id}/wallpaper/hide`, { hidden });
+            await fetchWallpaper(conversation.id);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Could not update wallpaper visibility');
+        }
+    }, [conversation, fetchWallpaper]);
+
     const uploadWallpaper = useCallback(async (file) => {
         if (!conversation) return;
         setUploadingWallpaper(true);
@@ -281,6 +291,7 @@ export function ChatProvider({ children }) {
                 uploadingWallpaper,
                 setWallpaperPreset,
                 uploadWallpaper,
+                hideWallpaperForMe,
             }}
         >
             {children}
