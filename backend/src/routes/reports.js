@@ -32,6 +32,30 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
     }
 });
 
+// GET /api/reports/mine — reports submitted by the logged-in user
+// (This was missing, which is why submitted reports — including category
+// requests from CategoryRequestModal — never showed up in the dashboard's
+// Reports tab: the frontend called this exact path and got a 404.)
+router.get('/mine', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT r.*,
+                    p.title AS product_title,
+                    reported.name AS reported_user_name
+             FROM reports r
+             LEFT JOIN products p ON p.id = r.product_id
+             LEFT JOIN users reported ON reported.id = r.reported_user_id
+             WHERE r.reporter_id = $1
+             ORDER BY r.created_at DESC`,
+            [req.userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get my reports error:', err);
+        res.status(500).json({ error: 'Failed to fetch your reports' });
+    }
+});
+
 // POST /api/reports — submit a report (listing, user, or general request)
 router.post('/', requireAuth, async (req, res) => {
     const { product_id, reported_user_id, reason, details } = req.body;

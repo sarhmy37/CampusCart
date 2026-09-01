@@ -1446,6 +1446,7 @@ const REASON_LABELS = {
     fake_listing: 'Fake or misleading listing',
     inappropriate: 'Inappropriate content',
     harassment: 'Harassment or unsafe behavior',
+    category_request: 'Category request',
     other: 'Something else',
 };
 
@@ -1466,12 +1467,38 @@ const REPORT_STATUS_DESC = {
 function MyReports() {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
-    useEffect(() => {
-        api.get('/reports/mine').then((res) => setReports(res.data)).finally(() => setLoading(false));
-    }, []);
+    const load = () => {
+        setLoading(true);
+        setLoadError(false);
+        api.get('/reports/mine')
+            .then((res) => setReports(res.data))
+            .catch(() => setLoadError(true))
+            .finally(() => setLoading(false));
+    };
+
+    useEffect(load, []);
 
     if (loading) return <SkeletonList />;
+
+    if (loadError) {
+        return (
+            <div className="text-center py-16">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center mb-4">
+                    <Flag className="text-red-400" size={24} />
+                </div>
+                <p className="text-sm text-slate-400 dark:text-gold-200/50">Couldn't load your reports right now.</p>
+                <button
+                    onClick={load}
+                    className="inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition"
+                >
+                    Try again
+                </button>
+            </div>
+        );
+    }
+
     if (reports.length === 0) return <EmptyState icon={Flag} text="You haven't reported anything." />;
 
     return (
