@@ -178,6 +178,26 @@ export function ChatProvider({ children }) {
         }
     }, [conversation, fetchConversations]);
 
+        const deleteMessageForMe = useCallback(async (messageId) => {
+        if (!conversation) return;
+        try {
+            await api.post(`/chat/messages/${messageId}/delete-for-me`);
+            await fetchMessages(conversation.id);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete message');
+        }
+    }, [conversation, fetchMessages]);
+
+    const deleteMessageForEveryone = useCallback(async (messageId) => {
+        if (!conversation) return;
+        try {
+            await api.post(`/chat/messages/${messageId}/delete-for-everyone`);
+            await fetchMessages(conversation.id);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete message');
+        }
+    }, [conversation, fetchMessages]);
+
     const deleteForEveryone = useCallback(async () => {
         if (!conversation) return;
         try {
@@ -307,6 +327,8 @@ export function ChatProvider({ children }) {
                 closeChat,
                 deleteForMe,
                 deleteForEveryone,
+                deleteMessageForMe,
+                deleteMessageForEveryone,
                 sendMessage,
                 sendMedia,
                 conversations,

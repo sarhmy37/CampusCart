@@ -34,8 +34,7 @@ function formatDuration(seconds) {
 }
 
 export default function ChatPanel() {
-    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone } = useChat();    const { user } = useAuth();
-    const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
+    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone } = useChat();    const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
     const [dragY, setDragY] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
@@ -45,6 +44,21 @@ export default function ChatPanel() {
     const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [messageMenu, setMessageMenu] = useState(null); // { id, isMine, x, y }
+    const longPressTimerRef = useRef(null);
+
+    const handleBubblePressStart = (m, isMine, e) => {
+        const point = e.touches ? e.touches[0] : e;
+        const x = point.clientX;
+        const y = point.clientY;
+        longPressTimerRef.current = setTimeout(() => {
+            setMessageMenu({ id: m.id, isMine, x, y });
+        }, 500);
+    };
+
+    const handleBubblePressEnd = () => {
+        clearTimeout(longPressTimerRef.current);
+    };
 
     const startY = useRef(null);
     const dragging = useRef(false);
@@ -358,11 +372,28 @@ export default function ChatPanel() {
         </span>
     );
 
+    if (m.deleted_for_everyone) {
+        return (
+            <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                    <div className="px-3.5 py-2 rounded-2xl text-sm italic text-slate-400 dark:text-gold-200/40 bg-slate-50 dark:bg-ink-700/50 border border-dashed border-slate-200 dark:border-ink-600">
+                        This message was deleted
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                 <div
-                    className={`relative rounded-2xl text-sm leading-relaxed overflow-hidden ${
+                    onTouchStart={(e) => handleBubblePressStart(m, isMine, e)}
+                    onTouchEnd={handleBubblePressEnd}
+                    onMouseDown={(e) => handleBubblePressStart(m, isMine, e)}
+                    onMouseUp={handleBubblePressEnd}
+                    onMouseLeave={handleBubblePressEnd}
+                    className={`relative rounded-2xl text-sm leading-relaxed overflow-hidden select-none ${
                         isImage ? 'pb-1' : 'px-3.5 pt-2.5 pb-1.5'
                     } ${
                         isMine
@@ -370,6 +401,7 @@ export default function ChatPanel() {
                             : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
                     }`}
                 >
+
                     {isImage && (
                         <div className="relative">
                             <img src={m.media_url} alt="" className="max-w-full rounded-t-2xl block" />
@@ -399,6 +431,31 @@ export default function ChatPanel() {
 })
                     )}
                     <div ref={messagesEndRef} />
+
+                    {messageMenu && (
+                        <>
+                            <div className="fixed inset-0 z-[120]" onClick={() => setMessageMenu(null)} />
+                            <div
+                                className="fixed z-[121] bg-white dark:bg-ink-800 rounded-xl shadow-2xl border border-slate-200 dark:border-ink-600 overflow-hidden min-w-[160px]"
+                                style={{ left: Math.min(messageMenu.x, window.innerWidth - 180), top: messageMenu.y }}
+                            >
+                                <button
+                                    onClick={() => { deleteMessageForMe(messageMenu.id); setMessageMenu(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-gold-100 hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                                >
+                                    Delete for me
+                                </button>
+                                {messageMenu.isMine && (
+                                    <button
+                                        onClick={() => { deleteMessageForEveryone(messageMenu.id); setMessageMenu(null); }}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition border-t border-slate-100 dark:border-ink-600"
+                                    >
+                                        Delete for everyone
+                                    </button>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Composer */}

@@ -271,19 +271,20 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
         );
         const cutoff = convoRow.rows[0]?.deleted_for_everyone_at;
 
-        const messages = cutoff
-            ? await pool.query(
-                `SELECT id, sender_id, content, media_url, media_type, read, created_at
-                 FROM messages WHERE conversation_id = $1 AND created_at > $2
-                 ORDER BY created_at ASC`,
-                [id, cutoff]
+        const baseQuery = `
+            SELECT m.id, m.sender_id, m.content, m.media_url, m.media_type, m.read, m.created_at, m.deleted_for_everyone
+            FROM messages m
+            WHERE m.conversation_id = $1
+              AND NOT EXISTS (
+                  SELECT 1 FROM message_deletions md
+                  WHERE md.message_id = m.id AND md.user_id = $2
               )
-            : await pool.query(
-                `SELECT id, sender_id, content, media_url, media_type, read, created_at
-                 FROM messages WHERE conversation_id = $1
-                 ORDER BY created_at ASC`,
-                [id]
-              );
+              ${cutoff ? 'AND m.created_at > $3' : ''}
+            ORDER BY m.created_at ASC
+        `;
+        const messages = cutoff
+            ? await pool.query(baseQuery, [id, req.userId, cutoff])
+            : await pool.query(baseQuery, [id, req.userId]);
         res.json(messages.rows);
 
     } catch (err) {
@@ -432,6 +433,58 @@ router.post('/:id/delete-for-everyone', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Delete for everyone error:', err);
         res.status(500).json({ error: 'Failed to delete chat for everyone' });
+    }
+});
+
+// POST /api/chat/messages/:messageId/delete-for-me
+router.post('/messages/:messageId/delete-for-me', requireAuth, async (req, res) => {
+    const { messageId } = req.params;
+    try {
+        const msg = await pool.query(
+            `SELECT conversation_id FROM messages WHERE id = $1`,
+            [messageId]
+        );
+        if (msg.rows.length === 0) return res.status(404).json({ error: 'Message not found' });
+
+        const convo = await getConversationOrForbid(msg.rows[0].conversation_id, req.userId, res);
+        if (!convo) return;
+
+        await pool.query(
+            `INSERT INTO message_deletions (message_id, user_id, deleted_at)
+             VALUES ($1, $2, now())
+             ON CONFLICT (message_id, user_id) DO NOTHING`,
+            [messageId, req.userId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete message for me error:', err);
+        res.status(500).json({ error: 'Failed to delete message' });
+    }
+});
+
+// POST /api/chat/messages/:messageId/delete-for-everyone — sender only
+router.post('/messages/:messageId/delete-for-everyone', requireAuth, async (req, res) => {
+    const { messageId } = req.params;
+    try {
+        const msg = await pool.query(
+            `SELECT conversation_id, sender_id FROM messages WHERE id = $1`,
+            [messageId]
+        );
+        if (msg.rows.length === 0) return res.status(404).json({ error: 'Message not found' });
+        if (msg.rows[0].sender_id !== req.userId) {
+            return res.status(403).json({ error: 'You can only delete your own messages for everyone' });
+        }
+
+        await pool.query(
+            `UPDATE messages
+             SET deleted_for_everyone = true, content = NULL, media_url = NULL
+             WHERE id = $1`,
+            [messageId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete message for everyone error:', err);
+        res.status(500).json({ error: 'Failed to delete message' });
     }
 });
 
