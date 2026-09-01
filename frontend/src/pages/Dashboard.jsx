@@ -1062,8 +1062,7 @@ function PayoutSettings() {
     );
 }
 
-// ─── SELLER OVERVIEW ──────────────────────────────────────────────────────
-// ─── SELLER OVERVIEW (Redesigned) ──────────────────────────────────────
+// ─── SELLER OVERVIEW (Binance-style, dense, data-first) ──────────────
 function SellerOverview({ period }) {
     const [overview, setOverview] = useState(null);
     const [rewards, setRewards] = useState(null);
@@ -1083,7 +1082,7 @@ function SellerOverview({ period }) {
     if (loading) return <SkeletonList />;
     if (!overview) return <EmptyState icon={Store} text="Couldn't load your overview right now." />;
 
-    // Derived metrics
+    // ─── DERIVED METRICS ──────────────────────────────────────────────
     const gross = parseFloat(overview.gross_sales) || 0;
     const net = parseFloat(overview.net_earnings) || 0;
     const rewardsTotal = parseFloat(overview.total_rewards) || 0;
@@ -1091,134 +1090,101 @@ function SellerOverview({ period }) {
     const avgOrderValue = salesCount > 0 ? gross / salesCount : 0;
     const rewardProgress = rewards ? (rewards.progress / rewards.next_milestone) * 100 : 0;
 
+    // ─── TODO: Replace this with real data from your API ─────────────
+    // Your backend should return a field like `overview.net_change_percentage`
+    // Example: { net_change_percentage: 2.5 }  (positive = green, negative = red)
+    const changePercentage = 2.5; // <-- Replace this with overview.net_change_percentage || 0
+    const isPositive = changePercentage >= 0;
+
     return (
-        <div className="space-y-5">
-            {/* ─── RESTRICTED BANNER (kept unchanged) ─── */}
+        <div className="space-y-3">
+            {/* ─── RESTRICTED BANNER (kept as-is) ──────────────────── */}
             {overview.restricted && (
-                <div className="flex items-start gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-4">
-                    <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-lg p-3">
+                    <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
                     <div>
                         <p className="text-sm font-bold text-red-800 dark:text-red-300">Your listings are hidden</p>
                         <p className="text-xs text-red-600 dark:text-red-400/70 mt-0.5">
-                            You have an overdue platform fee balance of GHS {parseFloat(overview.pending_payment_due).toFixed(2)}.
-                            Pay it in Settings to restore your listings and start selling again.
+                            You have an overdue platform fee of GHS {parseFloat(overview.pending_payment_due).toFixed(2)}.
+                            <Link to="/settings" className="ml-2 font-bold underline">Pay in Settings</Link>
                         </p>
-                        <Link to="/settings" className="inline-block mt-2 text-xs font-bold text-red-700 dark:text-red-300 underline">
-                            Go to Settings
-                        </Link>
                     </div>
                 </div>
             )}
 
-            {/* ─── HERO CARD: Net Earnings + Key Metrics ─── */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-accent-600 dark:from-gold-700 dark:via-gold-600 dark:to-amber-600 rounded-2xl p-6 text-white shadow-xl shadow-brand-500/10 dark:shadow-gold-500/10 border border-white/10">
-                {/* Background Orbs */}
-                <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-                <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-white/5 rounded-full blur-2xl" />
-                
-                <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                    <div>
-                        <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-1">
-                            Net Earnings <span className="font-normal lowercase">({PERIODS.find(p => p.value === period)?.label || 'This period'})</span>
-                        </p>
-                        <p className="text-4xl sm:text-5xl font-extrabold tracking-tight">GHS {net.toFixed(2)}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                            <span className="flex items-center gap-1 text-xs font-medium text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full">
-                                <TrendingUp size={12} /> +0.5%
+            {/* ─── TOP ROW: Net Earnings + Change % ──────────────────── */}
+            <div className="flex flex-wrap items-end justify-between gap-2 pb-1 border-b border-slate-100 dark:border-ink-600">
+                <div>
+                    <div className="flex items-baseline gap-3 flex-wrap">
+                        <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-gold-50">
+                            GHS {net.toFixed(2)}
+                        </span>
+                        
+                        {/* Percentage change badge — Binance style */}
+                        {changePercentage !== 0 && (
+                            <span className={`inline-flex items-center gap-0.5 text-sm font-bold px-1.5 py-0.5 rounded-md ${
+                                isPositive 
+                                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' 
+                                    : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30'
+                            }`}>
+                                {isPositive ? '▲' : '▼'} {Math.abs(changePercentage).toFixed(1)}%
                             </span>
-                            <span className="text-xs text-white/50">vs previous period</span>
-                        </div>
+                        )}
                     </div>
-                    
-                    {/* Glassmorphic badge with sales & avg */}
-                    <div className="flex items-center gap-6 bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 shadow-inner shadow-white/5">
-                        <div>
-                            <p className="text-[10px] font-medium text-white/60 uppercase tracking-wider">Sales</p>
-                            <p className="text-2xl font-bold">{salesCount}</p>
-                        </div>
-                        <div className="w-px h-10 bg-white/20" />
-                        <div>
-                            <p className="text-[10px] font-medium text-white/60 uppercase tracking-wider">Avg. Value</p>
-                            <p className="text-2xl font-bold">GHS {avgOrderValue.toFixed(2)}</p>
-                        </div>
-                    </div>
+                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                        Net earnings · {PERIODS.find(p => p.value === period)?.label || 'This period'}
+                    </p>
+                </div>
+
+                {/* Period context chip */}
+                <div className="text-xs text-slate-400 dark:text-gold-200/50 bg-slate-50 dark:bg-ink-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-ink-600">
+                    {salesCount} {salesCount === 1 ? 'sale' : 'sales'}
                 </div>
             </div>
 
-            {/* ─── STATS GRID (No Platform Fees, No Active Listings) ─── */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {/* Gross Sales */}
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 hover:shadow-md hover:border-brand-200 dark:hover:border-gold-700 transition-all duration-200 group">
-                    <div className="flex items-center gap-2 text-slate-400 dark:text-gold-300/50 mb-2 group-hover:text-brand-600 dark:group-hover:text-gold-400 transition">
-                        <TrendingUp size={16} />
-                        <span className="text-xs font-medium uppercase tracking-wide">Gross Sales</span>
-                    </div>
-                    <p className="text-xl font-extrabold text-slate-900 dark:text-gold-50">GHS {gross.toFixed(2)}</p>
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">Total revenue generated</p>
+            {/* ─── DENSE 3‑COLUMN STAT GRID ────────────────────────────── */}
+            <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-2.5">
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-gold-300/50 uppercase tracking-wider">Gross Sales</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-gold-50">GHS {gross.toFixed(2)}</p>
                 </div>
-
-                {/* Rewards Earned */}
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 hover:shadow-md hover:border-amber-200 dark:hover:border-gold-700 transition-all duration-200 group">
-                    <div className="flex items-center gap-2 text-slate-400 dark:text-gold-300/50 mb-2 group-hover:text-amber-600 dark:group-hover:text-gold-400 transition">
-                        <Award size={16} />
-                        <span className="text-xs font-medium uppercase tracking-wide">Rewards Earned</span>
-                    </div>
-                    <p className="text-xl font-extrabold text-amber-600 dark:text-gold-400">+GHS {rewardsTotal.toFixed(2)}</p>
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">Bonus from milestones</p>
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-2.5">
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-gold-300/50 uppercase tracking-wider">Completed</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-gold-50">{salesCount}</p>
                 </div>
-
-                {/* Completed Orders */}
-                <div className="col-span-2 lg:col-span-1 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 hover:shadow-md hover:border-emerald-200 dark:hover:border-gold-700 transition-all duration-200 group">
-                    <div className="flex items-center gap-2 text-slate-400 dark:text-gold-300/50 mb-2 group-hover:text-emerald-600 dark:group-hover:text-gold-400 transition">
-                        <ShoppingBag size={16} />
-                        <span className="text-xs font-medium uppercase tracking-wide">Completed Orders</span>
-                    </div>
-                    <p className="text-xl font-extrabold text-slate-900 dark:text-gold-50">{salesCount}</p>
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">Successful transactions</p>
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-2.5">
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-gold-300/50 uppercase tracking-wider">Avg. Value</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-gold-50">GHS {avgOrderValue.toFixed(2)}</p>
                 </div>
             </div>
 
-            {/* ─── ENHANCED REWARDS PROGRESS ─── */}
+            {/* ─── REWARDS (compact progress) ───────────────────────────── */}
             {rewards && (
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-gold-900/50 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                                <Award size={18} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-900 dark:text-gold-50 text-sm">Milestone Progress</h3>
-                                <p className="text-xs text-slate-400 dark:text-gold-200/50">Earn 0.5% cashback every 30 sales</p>
-                            </div>
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                            <Award size={14} className="text-brand-600 dark:text-gold-400" />
+                            <span className="font-semibold text-slate-700 dark:text-gold-100">Milestone progress</span>
+                            <span className="text-slate-400 dark:text-gold-200/50">· 0.5% back every 30 sales</span>
                         </div>
-                        <span className="text-sm font-bold text-brand-600 dark:text-gold-400 bg-brand-50 dark:bg-gold-900/20 px-3 py-1 rounded-full">
+                        <span className="font-bold text-brand-600 dark:text-gold-400">
                             {rewards.progress} / {rewards.next_milestone}
                         </span>
                     </div>
-                    
-                    {/* Progress Bar */}
-                    <div className="relative h-2.5 bg-slate-100 dark:bg-ink-700 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-slate-100 dark:bg-ink-700 rounded-full overflow-hidden">
                         <div 
-                            className="absolute inset-y-0 left-0 h-full bg-gradient-to-r from-brand-500 to-brand-600 dark:from-gold-500 dark:to-amber-500 rounded-full transition-all duration-1000 ease-out shadow-lg shadow-brand-500/20"
+                            className="h-full bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(rewardProgress, 100)}%` }}
                         />
                     </div>
 
-                    {/* Recent Achievements */}
+                    {/* Latest reward (if any) */}
                     {rewards.rewards.length > 0 && (
-                        <div className="pt-4 border-t border-slate-100 dark:border-ink-600">
-                            <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                <span>Recent Achievements</span>
-                                <span className="h-px flex-1 bg-slate-200 dark:bg-ink-600" />
-                            </p>
-                            <div className="space-y-2">
-                                {rewards.rewards.slice(0, 3).map((r) => (
-                                    <div key={r.id} className="flex items-center justify-between text-sm bg-slate-50 dark:bg-ink-700/50 px-3 py-2 rounded-xl border border-slate-100 dark:border-ink-600">
-                                        <span className="text-slate-600 dark:text-gold-200/80">🏆 Milestone {r.milestone} sales</span>
-                                        <span className="font-bold text-emerald-600 dark:text-gold-400">+GHS {parseFloat(r.reward_amount).toFixed(2)}</span>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="pt-2 border-t border-slate-100 dark:border-ink-600 flex items-center justify-between text-xs">
+                            <span className="text-slate-400 dark:text-gold-200/50">Latest reward</span>
+                            <span className="font-semibold text-emerald-600 dark:text-gold-400">
+                                +GHS {parseFloat(rewards.rewards[0].reward_amount).toFixed(2)} · Milestone {rewards.rewards[0].milestone}
+                            </span>
                         </div>
                     )}
                 </div>
