@@ -4,6 +4,137 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// ... (reconcilePayments, getSuccessfulPurchaseCount, REWARD_* consts,
+//      checkAndCreditRewards, isSellerRestricted all stay exactly as they are) ...
+
+// Returns the % change from `previous` to `current`, rounded to 1 decimal.
+// Returns null when there's no meaningful baseline to compare against
+// (previous === 0 and current > 0 is "infinite" growth, not a real %).
+function computePercentChange(current, previous) {
+    if (previous === 0) {
+        return current === 0 ? 0 : null;
+    }
+    return Math.round(((current - previous) / previous) * 1000) / 10;
+}
+
+// GET /api/sellers/overview?period=week|month|6months|year|all
+router.get('/overview', requireAuth, async (req, res) => {
+    try {
+        await reconcilePayments(req.userId);
+
+        // Interval strings only — used both to build the current-period
+        // filter and (doubled) the previous-period filter below.
+        const periodIntervals = {
+            week: '7 days',
+            month: '1 month',
+            '6months': '6 months',
+            year: '1 year',
+        };
+        const intervalStr = periodIntervals[req.query.period];
+        const isAllTime = !intervalStr; // 'all' or unrecognized => no filter, same as before
+
+        const dateFilter = intervalStr
+            ? `created_at >= now() - interval '${intervalStr}'`
+            : '1=1';
+
+        const salesResult = await pool.query(
+            `SELECT
+                COUNT(*)::int AS successful_sales,
+                COALESCE(SUM(price_at_purchase * quantity), 0) AS gross_sales,
+                COALESCE(SUM(platform_fee), 0) AS platform_fees,
+                COALESCE(SUM(seller_earnings), 0) AS net_earnings
+             FROM order_items
+             WHERE seller_id = $1 AND buyer_confirmed_at IS NOT NULL AND ${dateFilter}`,
+            [req.userId]
+        );
+
+        // ─── PERIOD-OVER-PERIOD / ALL-TIME GROWTH ──────────────────────
+        let netChangePercentage = null;
+
+        if (!isAllTime) {
+            // Same-length window immediately before the current one.
+            // e.g. period=month → compare last 1 month vs the 1 month before that.
+            const prevResult = await pool.query(
+                `SELECT COALESCE(SUM(seller_earnings), 0) AS net_earnings
+                 FROM order_items
+                 WHERE seller_id = $1
+                   AND buyer_confirmed_at IS NOT NULL
+                   AND created_at >= now() - interval '${intervalStr}' * 2
+                   AND created_at < now() - interval '${intervalStr}'`,
+                [req.userId]
+            );
+            const currentNet = parseFloat(salesResult.rows[0].net_earnings);
+            const previousNet = parseFloat(prevResult.rows[0].net_earnings);
+            netChangePercentage = computePercentChange(currentNet, previousNet);
+        } else {
+            // "All time" growth: split the seller's whole selling history at
+            // its midpoint and compare the earlier half's net earnings to
+            // the later half's — an overall growth trend rather than a
+            // recent swing.
+            const rangeResult = await pool.query(
+                `SELECT MIN(created_at) AS min_date, MAX(created_at) AS max_date
+                 FROM order_items
+                 WHERE seller_id = $1 AND buyer_confirmed_at IS NOT NULL`,
+                [req.userId]
+            );
+            const { min_date, max_date } = rangeResult.rows[0];
+
+            if (min_date && max_date && min_date.getTime() !== max_date.getTime()) {
+                const midpoint = new Date(
+                    min_date.getTime() + (max_date.getTime() - min_date.getTime()) / 2
+                );
+                const halvesResult = await pool.query(
+                    `SELECT
+                        COALESCE(SUM(seller_earnings) FILTER (WHERE created_at < $2), 0) AS earlier_half,
+                        COALESCE(SUM(seller_earnings) FILTER (WHERE created_at >= $2), 0) AS later_half
+                     FROM order_items
+                     WHERE seller_id = $1 AND buyer_confirmed_at IS NOT NULL`,
+                    [req.userId, midpoint]
+                );
+                const earlier = parseFloat(halvesResult.rows[0].earlier_half);
+                const later = parseFloat(halvesResult.rows[0].later_half);
+                netChangePercentage = computePercentChange(later, earlier);
+            }
+            // If there's only one sale (or none), min_date === max_date or is
+            // null — leave netChangePercentage as null, nothing to compare.
+        }
+
+        const rewardsResult = await pool.query(
+            `SELECT COALESCE(SUM(reward_amount), 0) AS total_rewards
+             FROM seller_rewards WHERE seller_id = $1 AND credited = TRUE`,
+            [req.userId]
+        );
+
+        const listingsResult = await pool.query(
+            'SELECT COUNT(*)::int AS active_listings FROM products WHERE seller_id = $1',
+            [req.userId]
+        );
+
+        const paymentResult = await pool.query(
+            `SELECT COALESCE(SUM(amount_due - amount_paid), 0) AS pending_due
+             FROM seller_payments WHERE seller_id = $1 AND status != 'paid'`,
+            [req.userId]
+        );
+
+        const restrictedResult = await pool.query(
+            `SELECT 1 FROM seller_payments WHERE seller_id = $1 AND status = 'overdue' LIMIT 1`,
+            [req.userId]
+        );
+
+        res.json({
+            ...salesResult.rows[0],
+            net_change_percentage: netChangePercentage,
+            total_rewards: rewardsResult.rows[0].total_rewards,
+            active_listings: listingsResult.rows[0].active_listings,
+            pending_payment_due: paymentResult.rows[0].pending_due,
+            restricted: restrictedResult.rows.length > 0,
+        });
+    } catch (err) {
+        console.error('Get overview error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching your overview' });
+    }
+});
+
 // Ensures every past calendar month with confirmed sales has a
 // seller_payments row (created as 'pending' the first time it's checked).
 async function reconcilePayments(sellerId) {
@@ -258,6 +389,8 @@ router.post('/payment-status/:paymentId/pay', requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Something went wrong recording your payment' });
     }
 });
+
+// ... (all other routes — /rewards, /purchase-count, /payment-status, POST /pay — unchanged) ...
 
 module.exports = router;
 module.exports.isSellerRestricted = isSellerRestricted;

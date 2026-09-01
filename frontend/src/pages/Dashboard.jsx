@@ -257,16 +257,30 @@ className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5
                     </>
                 )}
 
-                                 {/* MOBILE: all panels sit side-by-side in one strip; we slide
+                {/* MOBILE: all panels sit side-by-side in one strip; we slide
                     the whole strip via transform instead of swapping content,
-                    which is what actually produces the visible slide motion. */}
+                    which is what actually produces the visible slide motion.
+                    The strip itself scrolls vertically inside a bounded box
+                    so an overflowing tab scrolls internally instead of
+                    pushing the whole page down — and the scrollbar is
+                    hidden while staying fully scrollable. */}
                 <div
                     ref={tabViewportRef}
-                    className="sm:hidden overflow-hidden"
+                    className="sm:hidden overflow-x-hidden overflow-y-auto no-scrollbar overscroll-contain"
+                    style={{
+                        // Adjust this to match your actual header + tab-roll height
+                        maxHeight: 'calc(100dvh - 300px)',
+                        WebkitOverflowScrolling: 'touch',
+                    }}
                     onTouchStart={handleContentTouchStart}
                     onTouchMove={handleContentTouchMove}
                     onTouchEnd={handleContentTouchEnd}
                 >
+                    <style>{`
+                        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+                        .no-scrollbar::-webkit-scrollbar { display: none; }
+                    `}</style>
+
                     <div
                         className="flex"
                         style={{
@@ -1066,6 +1080,9 @@ function PayoutSettings() {
 // Styled as an earnings statement — the format a campus reseller already
 // reads every time they check MoMo: a headline balance, a torn rule, and
 // itemized lines with dotted leaders instead of a generic stat-card grid.
+// Milestone progress now lives inside this same card (below a second
+// dashed rule) instead of its own separate padded box, so the whole
+// overview reads as one continuous statement.
 function SellerOverview({ period }) {
     const [overview, setOverview] = useState(null);
     const [rewards, setRewards] = useState(null);
@@ -1092,8 +1109,7 @@ function SellerOverview({ period }) {
     const avgOrderValue = salesCount > 0 ? gross / salesCount : 0;
     const platformFee = Math.max(gross - net, 0);
 
-    // Only show a trend badge when the backend actually sends one —
-    // no more hardcoded placeholder percentage.
+    // Only show a trend badge when the backend actually sends one.
     const changePct = typeof overview.net_change_percentage === 'number' ? overview.net_change_percentage : null;
     const isPositive = (changePct ?? 0) >= 0;
 
@@ -1118,7 +1134,7 @@ function SellerOverview({ period }) {
                 </div>
             )}
 
-            {/* ─── EARNINGS STATEMENT ─────────────────────────────────── */}
+            {/* ─── EARNINGS STATEMENT (+ milestone progress inline) ──── */}
             <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 sm:p-6">
                 <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-500 dark:text-gold-200/60">Earnings statement</p>
@@ -1141,6 +1157,9 @@ function SellerOverview({ period }) {
                 </div>
                 <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">
                     Net earnings after fees · {salesCount} {salesCount === 1 ? 'sale' : 'sales'}
+                    {changePct !== null && changePct !== 0 && (
+                        <> · {isPositive ? 'up' : 'down'} vs {period === 'all' ? 'earlier activity' : 'previous period'}</>
+                    )}
                 </p>
 
                 {/* Torn statement rule */}
@@ -1149,30 +1168,31 @@ function SellerOverview({ period }) {
                     <StatementRow label="Platform fee" value={`GHS ${platformFee.toFixed(2)}`} />
                     <StatementRow label="Average order" value={`GHS ${avgOrderValue.toFixed(2)}`} />
                 </div>
-            </div>
 
-            {/* ─── REWARDS (milestone ring) ───────────────────────────── */}
-            {rewards && (
-                <div className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
-                    <div className="relative shrink-0">
-                        <MilestoneRing progress={progressCount} total={nextMilestone} />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Award size={18} className="text-brand-600 dark:text-gold-400" />
+                {/* Milestone progress — inline, no separate box, just another
+                    torn-rule section of the same statement card. */}
+                {rewards && (
+                    <div className="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-ink-600 flex items-center gap-4">
+                        <div className="relative shrink-0">
+                            <MilestoneRing progress={progressCount} total={nextMilestone} />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Award size={18} className="text-brand-600 dark:text-gold-400" />
+                            </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">Milestone progress</p>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                {progressCount} of {nextMilestone} sales · 0.5% cashback at each milestone
+                            </p>
+                            {latestReward && (
+                                <p className="text-xs font-semibold text-emerald-600 dark:text-gold-400 mt-1.5">
+                                    Last reward: +GHS {parseFloat(latestReward.reward_amount).toFixed(2)} · Milestone {latestReward.milestone}
+                                </p>
+                            )}
                         </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">Milestone progress</p>
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
-                            {progressCount} of {nextMilestone} sales · 0.5% cashback at each milestone
-                        </p>
-                        {latestReward && (
-                            <p className="text-xs font-semibold text-emerald-600 dark:text-gold-400 mt-1.5">
-                                Last reward: +GHS {parseFloat(latestReward.reward_amount).toFixed(2)} · Milestone {latestReward.milestone}
-                            </p>
-                        )}
-                    </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
