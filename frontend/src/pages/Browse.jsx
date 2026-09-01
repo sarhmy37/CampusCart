@@ -27,7 +27,7 @@ const ITEM_TYPES = ['Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sne
 
 const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their university email has been confirmed.';
 
-const VERIFIED_NOTE_TYPE_SPEED_MS = 100;
+const VERIFIED_NOTE_TYPE_SPEED_MS = 50;
 
 const VERIFIED_NOTE_DELAY_MS = 500;
 

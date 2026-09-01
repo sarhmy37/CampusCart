@@ -376,7 +376,7 @@ export default function CreateListing() {
                                                 ) : (
                                                     <>
                                                         <Sparkles size={14} />
-                                                        ✨ Enhance All Photos
+                                                         Enhance All Photos
                                                     </>
                                                 )}
                                             </button>
