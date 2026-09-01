@@ -263,4 +263,51 @@ router.delete('/users/:id', async (req, res) => {
     }
 });
 
+// GET /api/admin/deleted-chats — every "delete for everyone" event, with participants
+router.get('/deleted-chats', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                c.id AS conversation_id,
+                c.deleted_for_everyone_at,
+                c.deleted_for_everyone_by,
+                deleter.name AS deleted_by_name,
+                deleter.university_email AS deleted_by_email,
+                bu.id AS buyer_id, bu.name AS buyer_name, bu.university_email AS buyer_email,
+                su.id AS seller_id, su.name AS seller_name, su.university_email AS seller_email,
+                p.title AS product_title
+             FROM conversations c
+             JOIN users bu ON bu.id = c.buyer_id
+             JOIN users su ON su.id = c.seller_id
+             LEFT JOIN users deleter ON deleter.id = c.deleted_for_everyone_by
+             LEFT JOIN products p ON p.id = c.product_id
+             WHERE c.deleted_for_everyone_at IS NOT NULL
+             ORDER BY c.deleted_for_everyone_at DESC
+             LIMIT 200`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin get deleted chats error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching deleted chats' });
+    }
+});
+
+// GET /api/admin/deleted-chats/:id/messages — the FULL untouched message history
+// for a deleted conversation, ignoring the deleted_for_everyone_at cutoff that
+// hides messages from the two participants.
+router.get('/deleted-chats/:id/messages', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, sender_id, content, media_url, media_type, read, created_at
+             FROM messages WHERE conversation_id = $1
+             ORDER BY created_at ASC`,
+            [req.params.id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin get deleted chat messages error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching messages' });
+    }
+});
+
 module.exports = router;

@@ -34,8 +34,7 @@ function formatDuration(seconds) {
 }
 
 export default function ChatPanel() {
-    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper } = useChat();
-    const { user } = useAuth();
+    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone } = useChat();    const { user } = useAuth();
     const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
     const [dragY, setDragY] = useState(0);
@@ -44,6 +43,8 @@ export default function ChatPanel() {
     const [recordingSeconds, setRecordingSeconds] = useState(0);
     const [showSettingsMenu, setShowSettingsMenu] = useState(false);
     const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const startY = useRef(null);
     const dragging = useRef(false);
@@ -92,14 +93,37 @@ export default function ChatPanel() {
     }, [conversation?.id]);
 
     const handleComingSoon = (key) => {
+        if (key === 'clear' || key === 'delete') {
+            setShowDeleteModal(true);
+            return;
+        }
         const labels = {
             mute: 'Muting conversations',
-            clear: 'Clearing chat history',
             report: 'Reporting a user from chat',
             block: 'Blocking a user',
         };
         // Placeholder until the matching backend route exists — see suggestions.
         console.info(`[chat settings] "${labels[key] || key}" is not wired up yet.`);
+    };
+
+    const handleDeleteForMe = async () => {
+        setDeleting(true);
+        try {
+            await deleteForMe();
+            setShowDeleteModal(false);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleDeleteForEveryone = async () => {
+        setDeleting(true);
+        try {
+            await deleteForEveryone();
+            setShowDeleteModal(false);
+        } finally {
+            setDeleting(false);
+        }
     };
 
     const handleSend = (e) => {
@@ -439,6 +463,42 @@ export default function ChatPanel() {
             </div>
 
             <WallpaperPicker open={showWallpaperPicker} onClose={() => setShowWallpaperPicker(false)} currentUserId={user.id} />
+
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !deleting && setShowDeleteModal(false)} />
+                    <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-ink-600">
+                        <h3 className="font-extrabold text-slate-900 dark:text-gold-50 text-lg">Delete chat</h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1.5">
+                            Choose how you'd like to delete this conversation with {conversation?.otherUserName}.
+                        </p>
+
+                        <div className="flex flex-col gap-2 mt-5">
+                            <button
+                                onClick={handleDeleteForMe}
+                                disabled={deleting}
+                                className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-700 dark:text-gold-100 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition disabled:opacity-60"
+                            >
+                                Delete for me
+                            </button>
+                            <button
+                                onClick={handleDeleteForEveryone}
+                                disabled={deleting}
+                                className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-60"
+                            >
+                                Delete for everyone
+                            </button>
+                            <button
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={deleting}
+                                className="w-full py-2 text-sm font-semibold text-slate-400 dark:text-gold-200/50 hover:text-slate-600 dark:hover:text-gold-200 transition"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

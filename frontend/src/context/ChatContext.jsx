@@ -166,6 +166,30 @@ export function ChatProvider({ children }) {
         setIsOpen(false);
     }, []);
 
+        const deleteForMe = useCallback(async () => {
+        if (!conversation) return;
+        try {
+            await api.post(`/chat/${conversation.id}/delete-for-me`);
+            toast.success('Chat deleted');
+            setIsOpen(false);
+            fetchConversations();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete chat');
+        }
+    }, [conversation, fetchConversations]);
+
+    const deleteForEveryone = useCallback(async () => {
+        if (!conversation) return;
+        try {
+            await api.post(`/chat/${conversation.id}/delete-for-everyone`);
+            toast.success('Chat deleted for everyone');
+            setMessages([]);
+            fetchConversations();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete chat for everyone');
+        }
+    }, [conversation, fetchConversations]);
+
     const sendMessage = useCallback(async (content) => {
         if (!conversation || !content.trim()) return;
         try {
@@ -281,6 +305,8 @@ export function ChatProvider({ children }) {
                 openConversationDirect,
                 broadcastToSellers,
                 closeChat,
+                deleteForMe,
+                deleteForEveryone,
                 sendMessage,
                 sendMedia,
                 conversations,

@@ -106,7 +106,7 @@ export default function Admin() {
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
                 <div className="flex gap-1 mb-6 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
-                    {['users', 'listings', 'orders', 'reports'].map((t) => (
+                    {['users', 'listings', 'orders', 'reports', 'deleted chats'].map((t) => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -125,6 +125,7 @@ export default function Admin() {
                 {tab === 'listings' && <ListingsTab filter={searchQuery} initialListings={allListings} loading={loadingListings} />}
                 {tab === 'orders' && <OrdersTab />}
                 {tab === 'reports' && <ReportsTab />}
+                {tab === 'deleted chats' && <DeletedChatsTab />}
             </div>
         </div>
     );
@@ -1257,6 +1258,151 @@ function ReportsTab() {
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ---------- DeletedChatsTab ----------
+function DeletedChatsTab() {
+    const [chats, setChats] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedChat, setSelectedChat] = useState(null);
+
+    useEffect(() => {
+        api.get('/admin/deleted-chats').then((res) => setChats(res.data)).finally(() => setLoading(false));
+    }, []);
+
+    if (loading) return <SkeletonList />;
+
+    if (chats.length === 0) {
+        return (
+            <div className="text-center py-16">
+                <Trash2 className="mx-auto text-slate-300 dark:text-gold-300/30 mb-3" size={28} />
+                <p className="text-sm text-slate-400 dark:text-gold-200/50">No chats have been deleted for everyone yet.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-3xl mx-auto">
+            <p className="text-sm text-slate-400 dark:text-gold-200/50 mb-4">
+                {chats.length} conversation{chats.length !== 1 ? 's' : ''} deleted for everyone
+            </p>
+            <div className="space-y-2">
+                {chats.map((c) => (
+                    <button
+                        key={c.conversation_id}
+                        onClick={() => setSelectedChat(c)}
+                        className="w-full flex items-center justify-between gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-brand-300 dark:hover:border-gold-500 rounded-2xl p-4 text-left transition"
+                    >
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">
+                                {c.buyer_name} ↔ {c.seller_name}
+                            </p>
+                            {c.product_title && (
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">Re: {c.product_title}</p>
+                            )}
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">
+                                Deleted by <span className="font-semibold text-slate-600 dark:text-gold-200/70">{c.deleted_by_name}</span> ({c.deleted_by_email})
+                            </p>
+                        </div>
+                        <span className="text-xs text-slate-400 dark:text-gold-200/50 shrink-0">
+                            {new Date(c.deleted_for_everyone_at).toLocaleString()}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            <DeletedChatDetailModal
+                chat={selectedChat}
+                open={!!selectedChat}
+                onClose={() => setSelectedChat(null)}
+            />
+        </div>
+    );
+}
+
+function DeletedChatDetailModal({ chat, open, onClose }) {
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (open && chat) {
+            setLoading(true);
+            api.get(`/admin/deleted-chats/${chat.conversation_id}/messages`)
+                .then((res) => setMessages(res.data))
+                .catch(() => setMessages([]))
+                .finally(() => setLoading(false));
+        }
+    }, [open, chat]);
+
+    if (!open || !chat) return null;
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 border border-slate-200 dark:border-ink-600">
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                >
+                    <X size={18} />
+                </button>
+
+                <h2 className="text-xl font-extrabold text-slate-900 dark:text-gold-50">Deleted conversation</h2>
+                <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">
+                    {chat.buyer_name} ({chat.buyer_email}) ↔ {chat.seller_name} ({chat.seller_email})
+                </p>
+
+                <div className="mt-4 bg-slate-50 dark:bg-ink-700 rounded-xl p-4 text-sm">
+                    <p className="text-slate-500 dark:text-gold-200/60">
+                        Deleted by <span className="font-semibold text-slate-800 dark:text-gold-100">{chat.deleted_by_name}</span> on{' '}
+                        {new Date(chat.deleted_for_everyone_at).toLocaleString()}
+                    </p>
+                </div>
+
+                <div className="mt-4">
+                    <h3 className="font-bold text-slate-800 dark:text-gold-100 mb-2">
+                        Full message history ({messages.length})
+                    </h3>
+                    {loading ? (
+                        <div className="space-y-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="h-14 rounded-xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : messages.length === 0 ? (
+                        <p className="text-sm text-slate-400 dark:text-gold-200/50">No messages found.</p>
+                    ) : (
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {messages.map((m) => {
+                                const isBuyer = m.sender_id === chat.buyer_id;
+                                return (
+                                    <div key={m.id} className="bg-slate-50 dark:bg-ink-700 rounded-xl p-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs font-semibold text-slate-600 dark:text-gold-200/70">
+                                                {isBuyer ? chat.buyer_name : chat.seller_name}
+                                            </span>
+                                            <span className="text-[11px] text-slate-400 dark:text-gold-200/50">
+                                                {new Date(m.created_at).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        {m.content && (
+                                            <p className="text-sm text-slate-700 dark:text-gold-100 mt-1">{m.content}</p>
+                                        )}
+                                        {m.media_type === 'image' && m.media_url && (
+                                            <img src={m.media_url} alt="" className="mt-2 max-w-[200px] rounded-lg" />
+                                        )}
+                                        {m.media_type === 'audio' && m.media_url && (
+                                            <audio controls src={m.media_url} className="mt-2 max-w-full" />
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

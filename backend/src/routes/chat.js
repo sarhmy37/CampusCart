@@ -115,7 +115,12 @@ router.get('/conversations', requireAuth, async (req, res) => {
                  SELECT COUNT(*) AS unread_count FROM messages m
                  WHERE m.conversation_id = c.id AND m.sender_id != $1 AND m.read = FALSE
              ) uc ON true
-             WHERE c.buyer_id = $1 OR c.seller_id = $1
+             WHERE (c.buyer_id = $1 OR c.seller_id = $1)
+               AND NOT EXISTS (
+                   SELECT 1 FROM conversation_deletions cd
+                   WHERE cd.conversation_id = c.id AND cd.user_id = $1
+                     AND (lm.created_at IS NULL OR lm.created_at <= cd.deleted_at)
+               )
              ORDER BY lm.created_at DESC NULLS LAST`,
             [req.userId]
         );
@@ -260,13 +265,27 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
             [id, req.userId]
         );
 
-        const messages = await pool.query(
-            `SELECT id, sender_id, content, media_url, media_type, read, created_at
-             FROM messages WHERE conversation_id = $1
-             ORDER BY created_at ASC`,
+        const convoRow = await pool.query(
+            `SELECT deleted_for_everyone_at FROM conversations WHERE id = $1`,
             [id]
         );
+        const cutoff = convoRow.rows[0]?.deleted_for_everyone_at;
+
+        const messages = cutoff
+            ? await pool.query(
+                `SELECT id, sender_id, content, media_url, media_type, read, created_at
+                 FROM messages WHERE conversation_id = $1 AND created_at > $2
+                 ORDER BY created_at ASC`,
+                [id, cutoff]
+              )
+            : await pool.query(
+                `SELECT id, sender_id, content, media_url, media_type, read, created_at
+                 FROM messages WHERE conversation_id = $1
+                 ORDER BY created_at ASC`,
+                [id]
+              );
         res.json(messages.rows);
+
     } catch (err) {
         console.error('Get messages error:', err);
         res.status(500).json({ error: 'Failed to fetch messages' });
@@ -372,6 +391,47 @@ router.put('/:id/wallpaper/hide', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Toggle wallpaper hide error:', err);
         res.status(500).json({ error: 'Failed to update wallpaper visibility' });
+    }
+});
+
+// POST /api/chat/:id/delete-for-me — hides this conversation from my inbox only
+router.post('/:id/delete-for-me', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const convo = await getConversationOrForbid(id, req.userId, res);
+        if (!convo) return;
+
+        await pool.query(
+            `INSERT INTO conversation_deletions (conversation_id, user_id, deleted_at)
+             VALUES ($1, $2, now())
+             ON CONFLICT (conversation_id, user_id)
+             DO UPDATE SET deleted_at = now()`,
+            [id, req.userId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete for me error:', err);
+        res.status(500).json({ error: 'Failed to delete chat' });
+    }
+});
+
+// POST /api/chat/:id/delete-for-everyone — hides all messages up to now for BOTH users
+router.post('/:id/delete-for-everyone', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const convo = await getConversationOrForbid(id, req.userId, res);
+        if (!convo) return;
+
+        await pool.query(
+            `UPDATE conversations
+             SET deleted_for_everyone_at = now(), deleted_for_everyone_by = $2
+             WHERE id = $1`,
+            [id, req.userId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete for everyone error:', err);
+        res.status(500).json({ error: 'Failed to delete chat for everyone' });
     }
 });
 
