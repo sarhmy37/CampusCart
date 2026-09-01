@@ -594,8 +594,8 @@ useEffect(() => {
                      centered blurred circle
                   4. a soft vignette for depth + grain for texture
                   5. a gentle fade at the seam under the dark header */}
-<section className="relative overflow-hidden bg-slate-50 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">                {/* Blueprint grid — thin gold hairlines every 56px, like a
-                    campus map or architectural plan. This is the signature
+                <section className="relative overflow-hidden bg-slate-100 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">
+                      {/*  campus map or architectural plan. This is the signature
                     element; everything else stays quiet around it. */}
                 <div
                     className="absolute inset-0 pointer-events-none opacity-[0.5] dark:opacity-[0.35]"
