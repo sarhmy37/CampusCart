@@ -1062,7 +1062,10 @@ function PayoutSettings() {
     );
 }
 
-// ─── SELLER OVERVIEW (Binance-style, dense, data-first) ──────────────
+// ─── SELLER OVERVIEW ──────────────────────────────────────────────────
+// Styled as an earnings statement — the format a campus reseller already
+// reads every time they check MoMo: a headline balance, a torn rule, and
+// itemized lines with dotted leaders instead of a generic stat-card grid.
 function SellerOverview({ period }) {
     const [overview, setOverview] = useState(null);
     const [rewards, setRewards] = useState(null);
@@ -1085,16 +1088,19 @@ function SellerOverview({ period }) {
     // ─── DERIVED METRICS ──────────────────────────────────────────────
     const gross = parseFloat(overview.gross_sales) || 0;
     const net = parseFloat(overview.net_earnings) || 0;
-    const rewardsTotal = parseFloat(overview.total_rewards) || 0;
     const salesCount = overview.successful_sales || 0;
     const avgOrderValue = salesCount > 0 ? gross / salesCount : 0;
-    const rewardProgress = rewards ? (rewards.progress / rewards.next_milestone) * 100 : 0;
+    const platformFee = Math.max(gross - net, 0);
 
-    // ─── TODO: Replace this with real data from your API ─────────────
-    // Your backend should return a field like `overview.net_change_percentage`
-    // Example: { net_change_percentage: 2.5 }  (positive = green, negative = red)
-    const changePercentage = 2.5; // <-- Replace this with overview.net_change_percentage || 0
-    const isPositive = changePercentage >= 0;
+    // Only show a trend badge when the backend actually sends one —
+    // no more hardcoded placeholder percentage.
+    const changePct = typeof overview.net_change_percentage === 'number' ? overview.net_change_percentage : null;
+    const isPositive = (changePct ?? 0) >= 0;
+
+    const periodLabel = PERIODS.find((p) => p.value === period)?.label || 'This period';
+    const progressCount = rewards?.progress || 0;
+    const nextMilestone = rewards?.next_milestone || 0;
+    const latestReward = rewards?.rewards?.[0];
 
     return (
         <div className="space-y-3">
@@ -1112,84 +1118,95 @@ function SellerOverview({ period }) {
                 </div>
             )}
 
-            {/* ─── TOP ROW: Net Earnings + Change % ──────────────────── */}
-            <div className="flex flex-wrap items-end justify-between gap-2 pb-1 border-b border-slate-100 dark:border-ink-600">
-                <div>
-                    <div className="flex items-baseline gap-3 flex-wrap">
-                        <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-gold-50">
-                            GHS {net.toFixed(2)}
+            {/* ─── EARNINGS STATEMENT ─────────────────────────────────── */}
+            <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 sm:p-6">
+                <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-slate-500 dark:text-gold-200/60">Earnings statement</p>
+                    <p className="text-xs text-slate-400 dark:text-gold-200/50">{periodLabel}</p>
+                </div>
+
+                <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                    <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-gold-50 tabular-nums">
+                        GHS {net.toFixed(2)}
+                    </span>
+                    {changePct !== null && changePct !== 0 && (
+                        <span className={`inline-flex items-center gap-0.5 text-sm font-bold px-1.5 py-0.5 rounded-md ${
+                            isPositive
+                                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
+                                : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30'
+                        }`}>
+                            {isPositive ? '▲' : '▼'} {Math.abs(changePct).toFixed(1)}%
                         </span>
-                        
-                        {/* Percentage change badge — Binance style */}
-                        {changePercentage !== 0 && (
-                            <span className={`inline-flex items-center gap-0.5 text-sm font-bold px-1.5 py-0.5 rounded-md ${
-                                isPositive 
-                                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' 
-                                    : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30'
-                            }`}>
-                                {isPositive ? '▲' : '▼'} {Math.abs(changePercentage).toFixed(1)}%
-                            </span>
+                    )}
+                </div>
+                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">
+                    Net earnings after fees · {salesCount} {salesCount === 1 ? 'sale' : 'sales'}
+                </p>
+
+                {/* Torn statement rule */}
+                <div className="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-ink-600 space-y-0.5">
+                    <StatementRow label="Gross sales" value={`GHS ${gross.toFixed(2)}`} />
+                    <StatementRow label="Platform fee" value={`GHS ${platformFee.toFixed(2)}`} />
+                    <StatementRow label="Average order" value={`GHS ${avgOrderValue.toFixed(2)}`} />
+                </div>
+            </div>
+
+            {/* ─── REWARDS (milestone ring) ───────────────────────────── */}
+            {rewards && (
+                <div className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                    <div className="relative shrink-0">
+                        <MilestoneRing progress={progressCount} total={nextMilestone} />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Award size={18} className="text-brand-600 dark:text-gold-400" />
+                        </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">Milestone progress</p>
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                            {progressCount} of {nextMilestone} sales · 0.5% cashback at each milestone
+                        </p>
+                        {latestReward && (
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-gold-400 mt-1.5">
+                                Last reward: +GHS {parseFloat(latestReward.reward_amount).toFixed(2)} · Milestone {latestReward.milestone}
+                            </p>
                         )}
                     </div>
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
-                        Net earnings · {PERIODS.find(p => p.value === period)?.label || 'This period'}
-                    </p>
-                </div>
-
-                {/* Period context chip */}
-                <div className="text-xs text-slate-400 dark:text-gold-200/50 bg-slate-50 dark:bg-ink-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-ink-600">
-                    {salesCount} {salesCount === 1 ? 'sale' : 'sales'}
-                </div>
-            </div>
-
-            {/* ─── DENSE 3‑COLUMN STAT GRID ────────────────────────────── */}
-            <div className="grid grid-cols-3 gap-2">
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-2.5">
-                    <p className="text-[10px] font-medium text-slate-400 dark:text-gold-300/50 uppercase tracking-wider">Gross Sales</p>
-                    <p className="text-base font-bold text-slate-900 dark:text-gold-50">GHS {gross.toFixed(2)}</p>
-                </div>
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-2.5">
-                    <p className="text-[10px] font-medium text-slate-400 dark:text-gold-300/50 uppercase tracking-wider">Completed</p>
-                    <p className="text-base font-bold text-slate-900 dark:text-gold-50">{salesCount}</p>
-                </div>
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-2.5">
-                    <p className="text-[10px] font-medium text-slate-400 dark:text-gold-300/50 uppercase tracking-wider">Avg. Value</p>
-                    <p className="text-base font-bold text-slate-900 dark:text-gold-50">GHS {avgOrderValue.toFixed(2)}</p>
-                </div>
-            </div>
-
-            {/* ─── REWARDS (compact progress) ───────────────────────────── */}
-            {rewards && (
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-lg p-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                            <Award size={14} className="text-brand-600 dark:text-gold-400" />
-                            <span className="font-semibold text-slate-700 dark:text-gold-100">Milestone progress</span>
-                            <span className="text-slate-400 dark:text-gold-200/50">· 0.5% back every 30 sales</span>
-                        </div>
-                        <span className="font-bold text-brand-600 dark:text-gold-400">
-                            {rewards.progress} / {rewards.next_milestone}
-                        </span>
-                    </div>
-                    <div className="h-1.5 bg-slate-100 dark:bg-ink-700 rounded-full overflow-hidden">
-                        <div 
-                            className="h-full bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(rewardProgress, 100)}%` }}
-                        />
-                    </div>
-
-                    {/* Latest reward (if any) */}
-                    {rewards.rewards.length > 0 && (
-                        <div className="pt-2 border-t border-slate-100 dark:border-ink-600 flex items-center justify-between text-xs">
-                            <span className="text-slate-400 dark:text-gold-200/50">Latest reward</span>
-                            <span className="font-semibold text-emerald-600 dark:text-gold-400">
-                                +GHS {parseFloat(rewards.rewards[0].reward_amount).toFixed(2)} · Milestone {rewards.rewards[0].milestone}
-                            </span>
-                        </div>
-                    )}
                 </div>
             )}
         </div>
+    );
+}
+
+// A receipt-style row: label, a dotted leader filling the gap, then the
+// value — keeps every amount aligned without a rigid table.
+function StatementRow({ label, value }) {
+    return (
+        <div className="flex items-baseline gap-2 py-1.5">
+            <span className="text-sm text-slate-500 dark:text-gold-200/60 shrink-0">{label}</span>
+            <span className="flex-1 border-b border-dotted border-slate-300 dark:border-ink-600 translate-y-[-3px]" aria-hidden="true" />
+            <span className="text-sm font-semibold text-slate-800 dark:text-gold-100 tabular-nums shrink-0">{value}</span>
+        </div>
+    );
+}
+
+// Circular progress toward the next reward milestone.
+function MilestoneRing({ progress, total, size = 72, stroke = 6 }) {
+    const r = (size - stroke) / 2;
+    const c = 2 * Math.PI * r;
+    const pct = total > 0 ? Math.min(progress / total, 1) : 0;
+    const offset = c * (1 - pct);
+
+    return (
+        <svg width={size} height={size} className="-rotate-90" role="img" aria-label={`${progress} of ${total} sales toward the next milestone`}>
+            <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} fill="none" className="stroke-slate-100 dark:stroke-ink-700" />
+            <circle
+                cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} fill="none"
+                strokeDasharray={c}
+                strokeDashoffset={offset}
+                strokeLinecap="round"
+                className="stroke-brand-600 dark:stroke-gold-500 transition-[stroke-dashoffset] duration-700 ease-out"
+            />
+        </svg>
     );
 }
 
