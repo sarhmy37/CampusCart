@@ -594,8 +594,7 @@ useEffect(() => {
                      centered blurred circle
                   4. a soft vignette for depth + grain for texture
                   5. a gentle fade at the seam under the dark header */}
-            <section className="relative overflow-hidden bg-gradient-to-b from-[#F7F1E3] via-[#FBF7EE] to-[#F2EADB] dark:from-ink-900 dark:via-ink-950 dark:to-ink-900">
-                {/* Blueprint grid — thin gold hairlines every 56px, like a
+<section className="relative overflow-hidden bg-slate-50 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">                {/* Blueprint grid — thin gold hairlines every 56px, like a
                     campus map or architectural plan. This is the signature
                     element; everything else stays quiet around it. */}
                 <div
