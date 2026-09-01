@@ -181,7 +181,7 @@ export default function ProductCard({ product }) {
                         <>
                             {/* Old price - crossed out, with discount badge beside it */}
                             <div className="flex items-center gap-1.5">
-                                <p className="text-[11px] text-slate-400 dark:text-gold-200/50 line-through">
+                                <p className="text-[10px] text-slate-400 dark:text-gold-200/50 line-through">
                                     GHS {oldPrice.toFixed(2)}
                                 </p>
                                 <span className="text-[10px] font-bold text-red-500">
