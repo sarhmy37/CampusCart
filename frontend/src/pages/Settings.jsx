@@ -25,17 +25,6 @@ export default function Settings() {
     const { theme, toggleTheme } = useTheme();
     const isSeller = user?.account_type === 'seller';
 
-    // ── Business Profile ──
-    // No create/fetch round-trip needed — we already have everything about
-    // this seller (id, name, school, rating, listings), so the storefront
-    // link just exists as soon as they're a seller.
-    //
-    // IMPORTANT: this must point at the BACKEND origin (Render), not the
-    // frontend (Vercel). The backend's /store/:id route is what detects
-    // link-preview bots and serves og:image/og:title tags — a client-only
-    // Vite app can't do that. client.js's baseURL is
-    // "https://campuscart-tdfn.onrender.com/api", so we strip the
-    // trailing /api to get the plain origin.
     const API_ORIGIN = (api.defaults.baseURL || '').replace(/\/api\/?$/, '');
     const businessProfileUrl = user?.id ? `${API_ORIGIN}/store/${user.id}` : '';
     const [storeStats, setStoreStats] = useState(null);
@@ -56,7 +45,6 @@ export default function Settings() {
     const [deleting, setDeleting] = useState(false);
     const { logout } = useAuth();
 
-    // ── Storefront preview stats (listing count + rating) ──
     useEffect(() => {
         if (!isSeller || !user?.id) return;
         setStoreStatsLoading(true);
@@ -211,66 +199,60 @@ export default function Settings() {
 
             <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-5">
 
-                {/* APPEARANCE */}
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                                {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
-                            </div>
-                            <div>
-                                <h2 className="font-bold text-slate-900 dark:text-gold-50">Appearance</h2>
-                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
-                                    {theme === 'dark' ? 'Dark mode is on' : 'Light mode is on'}
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={toggleTheme}
-                            className={`w-11 h-6 rounded-full relative transition ${theme === 'dark' ? 'bg-gold-500' : 'bg-slate-200'}`}
-                        >
-                            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform flex items-center justify-center ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                        </button>
-                    </div>
-                </div>
-
                 {/* ─── BUSINESS PROFILE ─── */}
                 {isSeller && (
                     <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
-                        <div className="bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 p-5">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 p-6">
+                            {user?.avatar_url && (
+                                <div
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 w-56 h-56 pointer-events-none"
+                                    style={{
+                                        backgroundImage: `url(${user.avatar_url})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        filter: 'blur(8px)',
+                                        opacity: 0.6,
+                                        borderRadius: '9999px',
+                                        maskImage: 'radial-gradient(circle, black 30%, transparent 72%)',
+                                        WebkitMaskImage: 'radial-gradient(circle, black 30%, transparent 72%)',
+                                    }}
+                                />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-40 pointer-events-none" />
+
+                            <div className="relative z-10 flex items-center gap-3.5">
+                                <div className="w-14 h-14 rounded-full bg-white/15 border-2 border-white/30 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
                                     {user?.avatar_url ? (
                                         <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="text-white dark:text-ink-900 font-bold text-lg">
+                                        <span className="text-white font-bold text-xl">
                                             {user?.name?.charAt(0)?.toUpperCase() || '?'}
                                         </span>
                                     )}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5">
-                                        <p className="font-bold text-white dark:text-ink-900 truncate">{user?.name}</p>
+                                        <p className="font-extrabold text-white text-lg truncate">{user?.name}</p>
                                         {user?.verified && (
-                                            <span title="Verified seller" className="shrink-0 w-4 h-4 rounded-full bg-white/25 dark:bg-ink-900/20 flex items-center justify-center text-[10px] text-white dark:text-ink-900">✓</span>
+                                            <span title="Verified seller" className="shrink-0 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[11px] text-white">✓</span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-white/80 dark:text-ink-900/70">{user?.school}</p>
+                                    <p className="text-sm text-white/75">{user?.school}</p>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/20 dark:border-ink-900/15">
+                            <div className="relative z-10 flex items-center gap-6 mt-5 pt-4 border-t border-white/15">
                                 <div>
-                                    <p className="text-sm font-bold text-white dark:text-ink-900">
+                                    <p className="text-lg font-extrabold text-white">
                                         {storeStatsLoading ? '···' : (storeStats?.listingCount ?? 0)}
                                     </p>
-                                    <p className="text-[11px] text-white/75 dark:text-ink-900/70">Listings</p>
+                                    <p className="text-[11px] text-white/70 uppercase tracking-wide">Listings</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-white dark:text-ink-900">
+                                    <p className="text-lg font-extrabold text-white">
                                         {storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '— No ratings')}
                                     </p>
-                                    <p className="text-[11px] text-white/75 dark:text-ink-900/70">
+                                    <p className="text-[11px] text-white/70 uppercase tracking-wide">
                                         {storeStatsLoading ? 'Rating' : `${storeStats?.reviewCount ?? 0} review${storeStats?.reviewCount === 1 ? '' : 's'}`}
                                     </p>
                                 </div>
@@ -347,6 +329,29 @@ export default function Settings() {
                         </div>
                     </div>
                 )}
+
+                {/* APPEARANCE */}
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                                {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-slate-900 dark:text-gold-50">Appearance</h2>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                    {theme === 'dark' ? 'Dark mode is on' : 'Light mode is on'}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={toggleTheme}
+                            className={`w-11 h-6 rounded-full relative transition ${theme === 'dark' ? 'bg-gold-500' : 'bg-slate-200'}`}
+                        >
+                            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform flex items-center justify-center ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </button>
+                    </div>
+                </div>
 
                 {/* SELLER FEES & TERMS */}
                 {isSeller && (

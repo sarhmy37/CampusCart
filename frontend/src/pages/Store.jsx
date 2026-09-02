@@ -79,7 +79,7 @@ export default function Store() {
                         }}
                     />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-30 pointer-events-none" />          
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-25 pointer-events-none" />          
                       <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
                 
