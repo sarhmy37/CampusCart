@@ -24,6 +24,7 @@ export default function PullToRefresh({ children }) {
 
     const onTouchStart = (e) => {
         if (isScrollLocked()) return;
+        if (e.target.closest('[data-ptr-ignore]')) return;
         if (window.scrollY === 0 && !refreshing) {
             startY.current = e.touches[0].clientY;
             dragging.current = true;

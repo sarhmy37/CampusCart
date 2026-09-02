@@ -263,8 +263,9 @@ export default function Dashboard() {
                 )}
 
                 {/* MOBILE: swipable strip */}
-                <div
+                  <div
                     ref={tabViewportRef}
+                    data-ptr-ignore
                     className="sm:hidden overflow-x-hidden overflow-y-auto no-scrollbar overscroll-contain"
                     style={{
                         maxHeight: 'calc(100dvh - 300px)',
