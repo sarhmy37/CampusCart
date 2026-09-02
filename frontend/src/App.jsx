@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AppToaster from './components/AppToaster';
-import ZoomHintOverlay from './components/ZoomHintOverlay';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -34,24 +32,6 @@ import Store from './pages/Store';
 
 
 export default function App() {
-  const [showZoomHint, setShowZoomHint] = useState(false);
-  const [zoomHintAnchor, setZoomHintAnchor] = useState(null);
-
-useEffect(() => {
-    const handleKeyDown = (e) => {
-        if (e.key !== 'Enter') return;
-        if (window.innerWidth >= 640) return; // mobile only
-        if (e.target.tagName !== 'INPUT') return;
-        if (localStorage.getItem('cc_zoom_hint_seen') === 'true') return;
-
-        setZoomHintAnchor(e.target.getBoundingClientRect());
-        setShowZoomHint(true);
-        localStorage.setItem('cc_zoom_hint_seen', 'true');
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-}, []);
-
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -60,6 +40,7 @@ useEffect(() => {
             <NotificationProvider>
               <ChatProvider>
                 <BrowserRouter>
+                  <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
                     <Navbar />
                     <AppToaster />
                     <AwayTimeoutModal />
@@ -86,6 +67,7 @@ useEffect(() => {
                     </PullToRefresh>
                     <InstallButton />
                     <ChatPanel />
+                  </div>
                 </BrowserRouter>
               </ChatProvider>
             </NotificationProvider>
@@ -95,4 +77,3 @@ useEffect(() => {
     </ThemeProvider>
   );
 }
-//,
