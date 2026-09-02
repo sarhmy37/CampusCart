@@ -202,7 +202,7 @@ export default function Settings() {
                 {/* ─── BUSINESS PROFILE ─── */}
                 {isSeller && (
                     <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
-                        <div className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 p-6">
+                        <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 p-6">
                             {user?.avatar_url && (
                                 <div
                                     className="absolute right-0 top-1/2 -translate-y-1/2 w-56 h-56 pointer-events-none"
@@ -218,41 +218,41 @@ export default function Settings() {
                                     }}
                                 />
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-40 pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-40 pointer-events-none" />
 
                             <div className="relative z-10 flex items-center gap-3.5">
-                                <div className="w-14 h-14 rounded-full bg-white/15 border-2 border-white/30 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
+                                <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-white/15 border-2 border-slate-200 dark:border-white/30 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
                                     {user?.avatar_url ? (
                                         <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="text-white font-bold text-xl">
+                                        <span className="text-slate-700 dark:text-white font-bold text-xl">
                                             {user?.name?.charAt(0)?.toUpperCase() || '?'}
                                         </span>
                                     )}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5">
-                                        <p className="font-extrabold text-white text-lg truncate">{user?.name}</p>
+                                        <p className="font-extrabold text-slate-900 dark:text-white text-lg truncate">{user?.name}</p>
                                         {user?.verified && (
-                                            <span title="Verified seller" className="shrink-0 w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[11px] text-white">✓</span>
+                                            <span title="Verified seller" className="shrink-0 w-5 h-5 rounded-full bg-brand-100 dark:bg-white/20 flex items-center justify-center text-[11px] text-brand-700 dark:text-white">✓</span>
                                         )}
                                     </div>
-                                    <p className="text-sm text-white/75">{user?.school}</p>
+                                    <p className="text-sm text-slate-500 dark:text-white/75">{user?.school}</p>
                                 </div>
                             </div>
 
-                            <div className="relative z-10 flex items-center gap-6 mt-5 pt-4 border-t border-white/15">
+                            <div className="relative z-10 flex items-center gap-6 mt-5 pt-4 border-t border-slate-200 dark:border-white/15">
                                 <div>
-                                    <p className="text-lg font-extrabold text-white">
+                                    <p className="text-lg font-extrabold text-slate-900 dark:text-white">
                                         {storeStatsLoading ? '···' : (storeStats?.listingCount ?? 0)}
                                     </p>
-                                    <p className="text-[11px] text-white/70 uppercase tracking-wide">Listings</p>
+                                    <p className="text-[11px] text-slate-400 dark:text-white/70 uppercase tracking-wide">Listings</p>
                                 </div>
                                 <div>
-                                    <p className="text-lg font-extrabold text-white">
+                                    <p className="text-lg font-extrabold text-slate-900 dark:text-white">
                                         {storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '— No ratings')}
                                     </p>
-                                    <p className="text-[11px] text-white/70 uppercase tracking-wide">
+                                    <p className="text-[11px] text-slate-400 dark:text-white/70 uppercase tracking-wide">
                                         {storeStatsLoading ? 'Rating' : `${storeStats?.reviewCount ?? 0} review${storeStats?.reviewCount === 1 ? '' : 's'}`}
                                     </p>
                                 </div>
