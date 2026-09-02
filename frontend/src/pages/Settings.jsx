@@ -295,7 +295,7 @@ export default function Settings() {
                                 </button>
                             </div>
                             <div className="flex items-center justify-end gap-2 mt-4 flex-wrap">
-                                <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60 mr-auto">Share on:</span>
+                                <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60 mr-2">Share on:</span>
                                 <button
                                     onClick={() => shareOnSocial('facebook')}
                                     className="p-2 rounded-lg bg-[#1877F2] hover:bg-[#0d65d9] text-white transition"
