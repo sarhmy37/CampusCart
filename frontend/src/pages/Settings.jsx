@@ -5,14 +5,14 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
-    ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck, Info,
-    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift, Phone, MessageCircle,
+    ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck,
+    Shield, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift,
     Store, Copy, Facebook, Twitter, Linkedin, Loader2
 } from 'lucide-react';
 import { SETTINGS_VIDEO } from '../data/media';
 
-const APP_VERSION = '1.0.0';
 const PLATFORM_FEE_RATE = 1.5;
+const BUYER_SERVICE_FEE_RATE = 2;
 
 export default function Settings() {
     const navigate = useNavigate();
@@ -100,10 +100,12 @@ export default function Settings() {
     const handleDeleteAccount = async () => {
         setDeleting(true);
         try {
-            await api.delete('/auth/me', { 
-                data: { password: deletePassword },
-                headers: { Authorization: `Bearer ${localStorage.getItem('cc_token')}` }
-            });
+            // No manual Authorization header here — the shared `api` client's
+            // interceptor already attaches it on every request, same as
+            // every other call in this file. Setting it by hand here was
+            // the one place that could silently drift out of sync if the
+            // token key or header format ever changes centrally.
+            await api.delete('/auth/me', { data: { password: deletePassword } });
             toast.success('Account deleted');
             logout();
             navigate('/');
@@ -123,7 +125,7 @@ export default function Settings() {
     const [defaultDelivery, setDefaultDelivery] = useState(
         localStorage.getItem('cc_default_delivery') || 'pickup'
     );
-    
+
     const [referrals, setReferrals] = useState([]);
 
     useEffect(() => {
@@ -149,14 +151,14 @@ export default function Settings() {
     const requestPasswordCode = async (e) => {
         e.preventDefault();
         setSaving(true);
-        
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            const response = await api.post('/auth/me/password/request-code', 
+            const response = await api.post('/auth/me/password/request-code',
                 { current_password: current },
-                { signal: controller.signal } 
+                { signal: controller.signal }
             );
 
             clearTimeout(timeoutId);
@@ -454,7 +456,7 @@ export default function Settings() {
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                        A small service fee (2%) is applied to your checkout to cover payment processing charges by our payment provider (Paystack). This fee ensures your payment is secure and the platform remains safe for everyone.
+                                        A small service fee ({BUYER_SERVICE_FEE_RATE}%) is applied to your checkout to cover payment processing charges by our payment provider (Paystack). This fee ensures your payment is secure and the platform remains safe for everyone.
                                     </li>
                                 </ul>
                             </div>
@@ -675,15 +677,15 @@ export default function Settings() {
         <div>
             <span className="font-medium text-slate-700 dark:text-gold-100">{r.name}</span>
             <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                r.credit_earned > 0
+                r.verified
                     ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
                     : 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400'
             }`}>
-                {r.credit_earned > 0 ? 'Earned credit' : 'No order yet'}
+                {r.verified ? 'Earned credit' : 'No order yet'}
             </span>
         </div>
         <span className="text-xs font-semibold text-brand-700 dark:text-gold-400">
-            {r.verified ? `+GHS ${r.credit_earned.toFixed(2)}` : '—'}
+            {r.verified ? `+GHS ${parseFloat(r.credit_earned).toFixed(2)}` : '—'}
         </span>
     </div>
 ))}
@@ -753,19 +755,6 @@ export default function Settings() {
             )}
         </div>
     );
-}
-
-function AboutRow({ icon: Icon, label, to, href }) {
-    const content = (
-        <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-ink-600 first:border-0 first:pt-0 group">
-            <div className="flex items-center gap-2.5">
-                <Icon size={16} className="text-slate-400 dark:text-gold-300/50" />
-                <span className="text-sm font-semibold text-slate-700 dark:text-gold-100">{label}</span>
-            </div>
-            <ChevronRight size={16} className="text-slate-300 dark:text-gold-300/40 group-hover:text-slate-500 dark:group-hover:text-gold-200 transition" />
-        </div>
-    );
-    return to ? <Link to={to}>{content}</Link> : <a href={href}>{content}</a>;
 }
 
 function TermsBlock({ title, children }) {
