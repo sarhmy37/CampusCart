@@ -225,7 +225,7 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 pb-8 bg-white dark:bg-ink-900">
                 {/* TABS SECTION */}
                 {tabs.length > 1 && (
                     <>
@@ -443,7 +443,7 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
     };
 
     return (
-        <div className="mb-8 relative">
+        <div className="mb-3 relative">
             <div
                 className="absolute -bottom-4 left-0 right-0 h-8 bg-gradient-to-b from-slate-200/50 via-slate-200/30 to-transparent dark:from-ink-600/30 dark:via-ink-600/20 dark:to-transparent blur-md rounded-full"
                 style={{
