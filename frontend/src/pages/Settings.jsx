@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck, Info,
-    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift, Phone, MessageCircle
+    FileText, Shield, Mail, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift, Phone, MessageCircle,
+    Store, Copy, Facebook, Twitter, Linkedin, Loader2
 } from 'lucide-react';
 import { SETTINGS_VIDEO } from '../data/media';
 
@@ -24,6 +25,11 @@ export default function Settings() {
     const { theme, toggleTheme } = useTheme();
     const isSeller = user?.account_type === 'seller';
 
+    // ── Business Profile ──
+    const [businessProfileUrl, setBusinessProfileUrl] = useState('');
+    const [businessProfileLoading, setBusinessProfileLoading] = useState(false);
+    const [creatingBusinessProfile, setCreatingBusinessProfile] = useState(false);
+
     const [pwStep, setPwStep] = useState(1);
     const [current, setCurrent] = useState('');
     const [code, setCode] = useState('');
@@ -38,6 +44,58 @@ export default function Settings() {
     const [deletePassword, setDeletePassword] = useState('');
     const [deleting, setDeleting] = useState(false);
     const { logout } = useAuth();
+
+    // ── Fetch Business Profile ──
+    useEffect(() => {
+        if (isSeller) {
+            fetchBusinessProfile();
+        }
+    }, [isSeller]);
+
+    const fetchBusinessProfile = async () => {
+        setBusinessProfileLoading(true);
+        try {
+            const res = await api.get('/sellers/business-profile');
+            if (res.data?.profile_url) {
+                setBusinessProfileUrl(res.data.profile_url);
+            }
+        } catch {
+            // Profile doesn't exist yet — that's fine
+        } finally {
+            setBusinessProfileLoading(false);
+        }
+    };
+
+    const createBusinessProfile = async () => {
+        setCreatingBusinessProfile(true);
+        try {
+            const res = await api.post('/sellers/business-profile');
+            setBusinessProfileUrl(res.data.profile_url);
+            toast.success('Business profile created! 🎉');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to create business profile');
+        } finally {
+            setCreatingBusinessProfile(false);
+        }
+    };
+
+    const shareOnSocial = (platform) => {
+        if (!businessProfileUrl) return;
+        const url = encodeURIComponent(businessProfileUrl);
+        const text = encodeURIComponent('Check out my store on TreX! 🛍️');
+        const shareUrls = {
+            facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+            twitter: `https://twitter.com/intent/tweet?url=${url}&text=${text}`,
+            whatsapp: `https://wa.me/?text=${text} ${url}`,
+            linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+        };
+        window.open(shareUrls[platform], '_blank', 'width=600,height=400');
+    };
+
+    const copyBusinessLink = () => {
+        navigator.clipboard.writeText(businessProfileUrl);
+        toast.success('Profile link copied!');
+    };
 
     const handleDeleteAccount = async () => {
         setDeleting(true);
@@ -148,7 +206,7 @@ export default function Settings() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-500/10 rounded-full blur-3xl" />
                 <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10">
-                                        <button
+                    <button
                         onClick={() => navigate('/', { state: { openProfile: true } })}
                         className="inline-flex items-center gap-1 sm:gap-2 bg-white/10 text-white font-semibold px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-sm"
                     >
@@ -183,6 +241,97 @@ export default function Settings() {
                         </button>
                     </div>
                 </div>
+
+                {/* ─── BUSINESS PROFILE ─── */}
+                {isSeller && (
+                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                        <div className="flex items-center gap-2.5 mb-4">
+                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                                <Store size={16} />
+                            </div>
+                            <h2 className="font-bold text-slate-900 dark:text-gold-50">Business Profile</h2>
+                        </div>
+
+                        {businessProfileLoading ? (
+                            <div className="flex justify-center py-4">
+                                <Loader2 size={24} className="animate-spin text-brand-600 dark:text-gold-400" />
+                            </div>
+                        ) : businessProfileUrl ? (
+                            <>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-3">
+                                    Share your business profile with the world. Anyone can view your storefront and all your listings.
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        readOnly
+                                        value={businessProfileUrl}
+                                        className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm truncate"
+                                    />
+                                    <button
+                                        onClick={copyBusinessLink}
+                                        className="shrink-0 p-2.5 rounded-xl bg-slate-100 dark:bg-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-200 dark:hover:bg-ink-500 transition"
+                                        title="Copy link"
+                                    >
+                                        <Copy size={16} />
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2 mt-4">
+                                    <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Share on:</span>
+                                    <button
+                                        onClick={() => shareOnSocial('facebook')}
+                                        className="p-2 rounded-lg bg-[#1877F2] hover:bg-[#0d65d9] text-white transition"
+                                        title="Share on Facebook"
+                                    >
+                                        <Facebook size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => shareOnSocial('twitter')}
+                                        className="p-2 rounded-lg bg-black dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-black transition"
+                                        title="Share on Twitter / X"
+                                    >
+                                        <Twitter size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => shareOnSocial('whatsapp')}
+                                        className="p-2 rounded-lg bg-[#25D366] hover:bg-[#1da851] text-white transition"
+                                        title="Share on WhatsApp"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                                            <path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.86.505 3.678 1.462 5.272L2 22l4.83-1.44a10.001 10.001 0 0 0 5.174 1.44h.004c5.518 0 10.004-4.486 10.004-10.004C22.008 6.486 17.522 2 12.004 2zm0 18.09h-.003a8.077 8.077 0 0 1-4.116-1.128l-.295-.176-3.056.912.918-2.98-.192-.306a8.062 8.062 0 0 1-1.246-4.408c0-4.463 3.632-8.095 8.098-8.095 2.163 0 4.195.843 5.724 2.373a8.037 8.037 0 0 1 2.372 5.727c0 4.463-3.633 8.095-8.204 8.081z"/>
+                                        </svg>
+                                    </button>
+                                    <button
+                                        onClick={() => shareOnSocial('linkedin')}
+                                        className="p-2 rounded-lg bg-[#0A66C2] hover:bg-[#0957a8] text-white transition"
+                                        title="Share on LinkedIn"
+                                    >
+                                        <Linkedin size={16} />
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                                    Create a public business profile that you can share on social media. Your profile will display your listings, rating, and contact info.
+                                </p>
+                                <button
+                                    onClick={createBusinessProfile}
+                                    disabled={creatingBusinessProfile}
+                                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 hover:opacity-90 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm flex items-center justify-center gap-2"
+                                >
+                                    {creatingBusinessProfile ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" /> Creating…
+                                        </>
+                                    ) : (
+                                        'Create Business Profile'
+                                    )}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {/* SELLER FEES & TERMS */}
                 {isSeller && (
