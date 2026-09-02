@@ -71,6 +71,8 @@ export default function Settings() {
             twitter: `https://twitter.com/intent/tweet?url=${url}&text=${text}`,
             whatsapp: `https://wa.me/?text=${text} ${url}`,
             linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+            telegram: `https://t.me/share/url?url=${url}&text=${text}`,
+            reddit: `https://www.reddit.com/submit?url=${url}&title=${text}`,
         };
         window.open(shareUrls[platform], '_blank', 'width=600,height=400');
     };
@@ -78,6 +80,12 @@ export default function Settings() {
     const copyBusinessLink = () => {
         navigator.clipboard.writeText(businessProfileUrl);
         toast.success('Profile link copied!');
+    };
+
+        const shareInstagram = () => {
+        if (!businessProfileUrl) return;
+        navigator.clipboard.writeText(businessProfileUrl);
+        toast.success('Link copied! Paste it in your Instagram bio or story.');
     };
 
     const handleDeleteAccount = async () => {
@@ -286,8 +294,8 @@ export default function Settings() {
                                     <Copy size={16} />
                                 </button>
                             </div>
-                            <div className="flex items-center gap-2 mt-4">
-                                <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Share on:</span>
+                            <div className="flex items-center justify-end gap-2 mt-4 flex-wrap">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60 mr-auto">Share on:</span>
                                 <button
                                     onClick={() => shareOnSocial('facebook')}
                                     className="p-2 rounded-lg bg-[#1877F2] hover:bg-[#0d65d9] text-white transition"
@@ -323,6 +331,33 @@ export default function Settings() {
                                 >
                                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                                         <path d="M20.45 20.45h-3.56v-5.58c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.68H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.61 0 4.28 2.38 4.28 5.47v6.27zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => shareOnSocial('telegram')}
+                                    className="p-2 rounded-lg bg-[#26A5E4] hover:bg-[#1e8ec4] text-white transition"
+                                    title="Share on Telegram"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path d="M21.94 4.68a1.5 1.5 0 0 0-1.53-.26L2.7 11.3a1.4 1.4 0 0 0 .1 2.63l4.62 1.5 1.79 5.71a1.2 1.2 0 0 0 1.98.46l2.65-2.51 4.53 3.34a1.4 1.4 0 0 0 2.2-.85l3.13-14.7a1.5 1.5 0 0 0-.76-1.7ZM9.1 14.24l8.9-7.16-7.44 8.53-.28 3.03-1.18-4.4Z"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => shareOnSocial('reddit')}
+                                    className="p-2 rounded-lg bg-[#FF4500] hover:bg-[#e03d00] text-white transition"
+                                    title="Share on Reddit"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm5.5 9.1a1.5 1.5 0 0 1-1.5 1.5c-.3 0-.58-.09-.81-.24-.83.6-1.98 1-3.24 1.06l.55-2.58 1.8.38a1.06 1.06 0 1 0 .09-.55l-2-.42a.28.28 0 0 0-.33.21l-.6 2.86c-1.27-.05-2.42-.46-3.26-1.06-.23.15-.5.24-.81.24a1.5 1.5 0 1 1 1.14-2.48 3.7 3.7 0 0 1 1.63-.6l.65-3.05a.23.23 0 0 1 .27-.17l2.15.46a1.06 1.06 0 1 1-.09.53l-1.9-.4-.55 2.6a3.72 3.72 0 0 1 1.65.6 1.5 1.5 0 0 1 2.16 2.02Zm-6.7-.5a.63.63 0 1 0 0 1.25.63.63 0 0 0 0-1.25Zm5.9 0a.63.63 0 1 0 0 1.25.63.63 0 0 0 0-1.25Zm-3 2.7c.6 0 1.16-.12 1.66-.33a.19.19 0 0 0-.15-.35c-.44.18-.94.28-1.51.28s-1.07-.1-1.51-.28a.19.19 0 1 0-.15.35c.5.21 1.06.33 1.66.33Z"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={shareInstagram}
+                                    className="p-2 rounded-lg bg-gradient-to-br from-[#feda75] via-[#d62976] to-[#4f5bd5] hover:opacity-90 text-white transition"
+                                    title="Share on Instagram"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path d="M12 2c-2.72 0-3.06.01-4.13.06-1.06.05-1.79.22-2.43.47-.66.26-1.22.6-1.77 1.16-.56.55-.9 1.11-1.16 1.77-.25.64-.42 1.37-.47 2.43C2.01 8.94 2 9.28 2 12s.01 3.06.06 4.13c.05 1.06.22 1.79.47 2.43.26.66.6 1.22 1.16 1.77.55.56 1.11.9 1.77 1.16.64.25 1.37.42 2.43.47C8.94 21.99 9.28 22 12 22s3.06-.01 4.13-.06c1.06-.05 1.79-.22 2.43-.47.66-.26 1.22-.6 1.77-1.16.56-.55.9-1.11 1.16-1.77.25-.64.42-1.37.47-2.43.05-1.07.06-1.41.06-4.13s-.01-3.06-.06-4.13c-.05-1.06-.22-1.79-.47-2.43a4.9 4.9 0 0 0-1.16-1.77 4.9 4.9 0 0 0-1.77-1.16c-.64-.25-1.37-.42-2.43-.47C15.06 2.01 14.72 2 12 2Zm0 1.8c2.67 0 2.99.01 4.04.06.98.04 1.5.2 1.85.34.47.18.8.4 1.15.75.35.35.57.68.75 1.15.14.35.3.87.34 1.85.05 1.05.06 1.37.06 4.04s-.01 2.99-.06 4.04c-.04.98-.2 1.5-.34 1.85-.18.47-.4.8-.75 1.15-.35.35-.68.57-1.15.75-.35.14-.87.3-1.85.34-1.05.05-1.37.06-4.04.06s-2.99-.01-4.04-.06c-.98-.04-1.5-.2-1.85-.34a3.1 3.1 0 0 1-1.15-.75 3.1 3.1 0 0 1-.75-1.15c-.14-.35-.3-.87-.34-1.85-.05-1.05-.06-1.37-.06-4.04s.01-2.99.06-4.04c.04-.98.2-1.5.34-1.85.18-.47.4-.8.75-1.15.35-.35.68-.57 1.15-.75.35-.14.87-.3 1.85-.34C9.01 3.81 9.33 3.8 12 3.8Zm0 3.06a5.14 5.14 0 1 0 0 10.28 5.14 5.14 0 0 0 0-10.28Zm0 8.48a3.34 3.34 0 1 1 0-6.68 3.34 3.34 0 0 1 0 6.68Zm5.34-8.68a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0Z"/>
                                     </svg>
                                 </button>
                             </div>
