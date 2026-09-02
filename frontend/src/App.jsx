@@ -30,7 +30,7 @@ import Admin from './pages/Admin';
 import OrderConfirmation from './pages/OrderConfirmation';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
-
+import Store from './pages/Store';
 
 
 export default function App() {
@@ -82,6 +82,7 @@ useEffect(() => {
                         <Route path="/chat" element={<ProtectedRoute><ChatHistory /></ProtectedRoute>} />
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/store/:id" element={<Store />} />
                       </Routes>
                     </PullToRefresh>
                     <InstallButton />

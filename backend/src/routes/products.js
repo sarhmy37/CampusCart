@@ -249,4 +249,40 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
 });
 
+// ─── ADD THIS ROUTE to your existing backend/src/routes/products.js ───
+// Paste it anywhere among the other router.get(...) calls — placement
+// relative to '/:id' doesn't matter since this path has two segments
+// (/seller/:sellerId) and can't collide with the single-segment '/:id'.
+
+// GET /api/products/seller/:sellerId — a seller's public storefront listings
+router.get('/seller/:sellerId', async (req, res) => {
+    try {
+        const sellerResult = await pool.query(
+            `SELECT id, name, school, avatar_url, verified, created_at
+             FROM users
+             WHERE id = $1 AND account_type = 'seller'`,
+            [req.params.sellerId]
+        );
+        const seller = sellerResult.rows[0];
+        if (!seller) return res.status(404).json({ error: 'Seller not found' });
+
+        // Same shape as the main browse listing — no status/stock filtering,
+        // matching how GET /api/products already behaves.
+        const listingsResult = await pool.query(
+            `SELECT p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image,
+                    p.rating, p.review_count, p.created_at, c.name AS category
+             FROM products p
+             LEFT JOIN categories c ON c.id = p.category_id
+             WHERE p.seller_id = $1
+             ORDER BY p.created_at DESC`,
+            [req.params.sellerId]
+        );
+
+        res.json({ seller, listings: listingsResult.rows });
+    } catch (err) {
+        console.error('Get seller storefront error:', err);
+        res.status(500).json({ error: 'Something went wrong loading this store' });
+    }
+});
+
 module.exports = router;
