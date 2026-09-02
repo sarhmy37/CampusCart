@@ -83,6 +83,53 @@ export default function Dashboard() {
         ? ['overview', 'listings', 'orders', 'deliveries', 'sales', 'payouts', 'reports']
         : ['orders', 'reports'];
 
+    // Lock page scroll on mobile only — desktop still relies on normal page
+    // scroll for the full tab content. Self-aware: if a child modal already
+    // has the body locked (position: fixed), this won't fight it, and vice
+    // versa child modals check for this lock before applying their own.
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 639px)');
+        let locked = false;
+
+        const applyLock = () => {
+            if (mq.matches && document.body.style.position !== 'fixed') {
+                const scrollY = window.scrollY;
+                document.body.style.position = 'fixed';
+                document.body.style.top = `-${scrollY}px`;
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.style.overflow = 'hidden';
+                document.body.style.touchAction = 'none';
+                document.documentElement.style.overscrollBehavior = 'none';
+                locked = true;
+            }
+        };
+
+        const releaseLock = () => {
+            if (locked) {
+                const scrollY = document.body.style.top;
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+                document.documentElement.style.overscrollBehavior = '';
+                if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+                locked = false;
+            }
+        };
+
+        applyLock();
+        const handleChange = (e) => (e.matches ? applyLock() : releaseLock());
+        mq.addEventListener('change', handleChange);
+
+        return () => {
+            mq.removeEventListener('change', handleChange);
+            releaseLock();
+        };
+    }, []);
+
     // ─── SWIPEABLE SLIDING TAB CONTENT (mobile only) ────────────────────
     const [visitedTabs, setVisitedTabs] = useState(() => new Set([isSeller ? 'overview' : 'orders']));
     const [dragOffset, setDragOffset] = useState(0);
