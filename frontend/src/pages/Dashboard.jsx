@@ -99,8 +99,6 @@ export default function Dashboard() {
                 document.body.style.left = '0';
                 document.body.style.right = '0';
                 document.body.style.overflow = 'hidden';
-                document.body.style.touchAction = 'none';
-                document.documentElement.style.overscrollBehavior = 'none';
                 locked = true;
             }
         };
@@ -113,8 +111,6 @@ export default function Dashboard() {
                 document.body.style.left = '';
                 document.body.style.right = '';
                 document.body.style.overflow = '';
-                document.body.style.touchAction = '';
-                document.documentElement.style.overscrollBehavior = '';
                 if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
                 locked = false;
             }
