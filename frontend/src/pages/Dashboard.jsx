@@ -166,7 +166,7 @@ export default function Dashboard() {
                     technique as the video fade behind the form in CreateListing.jsx. */}
                 <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-b from-transparent to-slate-50 dark:to-ink-900 sm:hidden pointer-events-none" />
 
-                <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
+                <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-6">
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center gap-4 sm:gap-5">
                             <button
