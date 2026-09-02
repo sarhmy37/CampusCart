@@ -226,7 +226,7 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 -mt-12 sm:mt-0 sm:py-8 bg-transparent sm:bg-white sm:dark:bg-ink-900 relative z-10">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 -mt-8 sm:mt-0 sm:py-8 bg-transparent sm:bg-white sm:dark:bg-ink-900 relative z-10">
                 {/* TABS SECTION */}
                 {tabs.length > 1 && (
                     <>
