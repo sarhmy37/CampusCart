@@ -301,6 +301,23 @@ export default function Dashboard() {
                 </div>
             </div>
 
+            {tabs.length > 1 && (
+                <div className="sm:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex justify-center gap-1.5 bg-white/90 dark:bg-ink-800/90 backdrop-blur-md px-3 py-2 rounded-full shadow-lg border border-slate-200/60 dark:border-ink-600/60">
+                    {tabs.map((t) => (
+                        <button
+                            key={t}
+                            onClick={() => changeTab(t)}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                                t === tab
+                                    ? 'w-4 bg-brand-600 dark:bg-gold-500'
+                                    : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
+                            }`}
+                            aria-label={`Go to ${TAB_LABELS[t] || t}`}
+                        />
+                    ))}
+                </div>
+            )}
+
             <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
         </div>
     );
@@ -533,20 +550,6 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                 )}
             </div>
 
-            <div className="flex justify-center gap-1.5 mt-4">
-                {tabs.map((t, i) => (
-                    <button
-                        key={t}
-                        onClick={() => scrollToTab(t)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                            t === activeTab
-                                ? 'w-4 bg-brand-600 dark:bg-gold-500'
-                                : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
-                        }`}
-                        aria-label={`Go to ${TAB_LABELS[t] || t}`}
-                    />
-                ))}
-            </div>
         </div>
     );
 }
