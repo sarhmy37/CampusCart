@@ -7,7 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck,
     Shield, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift,
-    Store, Copy, Loader2
+    Store, Copy
 } from 'lucide-react';
 import { SETTINGS_VIDEO } from '../data/media';
 
@@ -26,9 +26,14 @@ export default function Settings() {
     const isSeller = user?.account_type === 'seller';
 
     // ── Business Profile ──
-    const [businessProfileUrl, setBusinessProfileUrl] = useState('');
-    const [businessProfileLoading, setBusinessProfileLoading] = useState(false);
-    const [creatingBusinessProfile, setCreatingBusinessProfile] = useState(false);
+    // No create/fetch round-trip needed — we already have everything about
+    // this seller (id, name, school, rating, listings), so the storefront
+    // link just exists as soon as they're a seller.
+    // NOTE: assumes a public storefront route at /store/:id — adjust the
+    // path below if your actual route is named differently.
+    const businessProfileUrl = user?.id ? `${window.location.origin}/store/${user.id}` : '';
+    const [storeStats, setStoreStats] = useState(null);
+    const [storeStatsLoading, setStoreStatsLoading] = useState(false);
 
     const [pwStep, setPwStep] = useState(1);
     const [current, setCurrent] = useState('');
@@ -45,39 +50,23 @@ export default function Settings() {
     const [deleting, setDeleting] = useState(false);
     const { logout } = useAuth();
 
-    // ── Fetch Business Profile ──
+    // ── Storefront preview stats (listing count + rating) ──
     useEffect(() => {
-        if (isSeller) {
-            fetchBusinessProfile();
-        }
-    }, [isSeller]);
-
-    const fetchBusinessProfile = async () => {
-        setBusinessProfileLoading(true);
-        try {
-            const res = await api.get('/sellers/business-profile');
-            if (res.data?.profile_url) {
-                setBusinessProfileUrl(res.data.profile_url);
-            }
-        } catch {
-            // Profile doesn't exist yet — that's fine
-        } finally {
-            setBusinessProfileLoading(false);
-        }
-    };
-
-    const createBusinessProfile = async () => {
-        setCreatingBusinessProfile(true);
-        try {
-            const res = await api.post('/sellers/business-profile');
-            setBusinessProfileUrl(res.data.profile_url);
-            toast.success('Business profile created! 🎉');
-        } catch (err) {
-            toast.error(err.response?.data?.error || 'Failed to create business profile');
-        } finally {
-            setCreatingBusinessProfile(false);
-        }
-    };
+        if (!isSeller || !user?.id) return;
+        setStoreStatsLoading(true);
+        Promise.all([
+            api.get('/products/mine').catch(() => ({ data: [] })),
+            api.get(`/reviews/seller/${user.id}`).catch(() => ({ data: { avg_rating: null, total: 0 } })),
+        ])
+            .then(([listingsRes, reviewsRes]) => {
+                setStoreStats({
+                    listingCount: listingsRes.data.filter((p) => p.status === 'available').length,
+                    avgRating: reviewsRes.data.avg_rating,
+                    reviewCount: reviewsRes.data.total || 0,
+                });
+            })
+            .finally(() => setStoreStatsLoading(false));
+    }, [isSeller, user?.id]);
 
     const shareOnSocial = (platform) => {
         if (!businessProfileUrl) return;
@@ -246,98 +235,116 @@ export default function Settings() {
 
                 {/* ─── BUSINESS PROFILE ─── */}
                 {isSeller && (
-                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-                        <div className="flex items-center gap-2.5 mb-4">
-                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                                <Store size={16} />
+                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
+                        {/* Storefront preview — a small mock of what visitors see */}
+                        <div className="bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 p-5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
+                                    {user?.avatar_url ? (
+                                        <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-white dark:text-ink-900 font-bold text-lg">
+                                            {user?.name?.charAt(0)?.toUpperCase() || '?'}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="font-bold text-white dark:text-ink-900 truncate">{user?.name}</p>
+                                        {user?.verified && (
+                                            <span title="Verified seller" className="shrink-0 w-4 h-4 rounded-full bg-white/25 dark:bg-ink-900/20 flex items-center justify-center text-[10px] text-white dark:text-ink-900">✓</span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-white/80 dark:text-ink-900/70">{user?.school}</p>
+                                </div>
                             </div>
-                            <h2 className="font-bold text-slate-900 dark:text-gold-50">Business Profile</h2>
+
+                            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/20 dark:border-ink-900/15">
+                                <div>
+                                    <p className="text-sm font-bold text-white dark:text-ink-900">
+                                        {storeStatsLoading ? '···' : (storeStats?.listingCount ?? 0)}
+                                    </p>
+                                    <p className="text-[11px] text-white/75 dark:text-ink-900/70">Listings</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white dark:text-ink-900">
+                                        {storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '— No ratings')}
+                                    </p>
+                                    <p className="text-[11px] text-white/75 dark:text-ink-900/70">
+                                        {storeStatsLoading ? 'Rating' : `${storeStats?.reviewCount ?? 0} review${storeStats?.reviewCount === 1 ? '' : 's'}`}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
-                        {businessProfileLoading ? (
-                            <div className="flex justify-center py-4">
-                                <Loader2 size={24} className="animate-spin text-brand-600 dark:text-gold-400" />
+                        <div className="p-6">
+                            <div className="flex items-center gap-2.5 mb-4">
+                                <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                                    <Store size={16} />
+                                </div>
+                                <div>
+                                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Business Profile</h2>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                        Your storefront link, live for anyone to view and share.
+                                    </p>
+                                </div>
                             </div>
-                        ) : businessProfileUrl ? (
-                            <>
-                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-3">
-                                    Share your business profile with the world. Anyone can view your storefront and all your listings.
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        readOnly
-                                        value={businessProfileUrl}
-                                        className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm truncate"
-                                    />
-                                    <button
-                                        onClick={copyBusinessLink}
-                                        className="shrink-0 p-2.5 rounded-xl bg-slate-100 dark:bg-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-200 dark:hover:bg-ink-500 transition"
-                                        title="Copy link"
-                                    >
-                                        <Copy size={16} />
-                                    </button>
-                                </div>
-                                <div className="flex items-center gap-2 mt-4">
-                                    <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Share on:</span>
-                                    <button
-                                        onClick={() => shareOnSocial('facebook')}
-                                        className="p-2 rounded-lg bg-[#1877F2] hover:bg-[#0d65d9] text-white transition"
-                                        title="Share on Facebook"
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                            <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.23.2 2.23.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.89h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z"/>
-                                        </svg>
-                                    </button>
-                                    <button
-                                        onClick={() => shareOnSocial('twitter')}
-                                        className="p-2 rounded-lg bg-black dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-black transition"
-                                        title="Share on Twitter / X"
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                            <path d="M18.9 2H22l-7.6 8.7L23 22h-7.1l-5.5-7.2L4.1 22H1l8.2-9.3L1.4 2h7.3l5 6.6L18.9 2zm-1.2 18h1.7L7.1 4H5.3l12.4 16z"/>
-                                        </svg>
-                                    </button>
-                                    <button
-                                        onClick={() => shareOnSocial('whatsapp')}
-                                        className="p-2 rounded-lg bg-[#25D366] hover:bg-[#1da851] text-white transition"
-                                        title="Share on WhatsApp"
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                                            <path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.86.505 3.678 1.462 5.272L2 22l4.83-1.44a10.001 10.001 0 0 0 5.174 1.44h.004c5.518 0 10.004-4.486 10.004-10.004C22.008 6.486 17.522 2 12.004 2zm0 18.09h-.003a8.077 8.077 0 0 1-4.116-1.128l-.295-.176-3.056.912.918-2.98-.192-.306a8.062 8.062 0 0 1-1.246-4.408c0-4.463 3.632-8.095 8.098-8.095 2.163 0 4.195.843 5.724 2.373a8.037 8.037 0 0 1 2.372 5.727c0 4.463-3.633 8.095-8.204 8.081z"/>
-                                        </svg>
-                                    </button>
-                                    <button
-                                        onClick={() => shareOnSocial('linkedin')}
-                                        className="p-2 rounded-lg bg-[#0A66C2] hover:bg-[#0957a8] text-white transition"
-                                        title="Share on LinkedIn"
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                            <path d="M20.45 20.45h-3.56v-5.58c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.68H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.61 0 4.28 2.38 4.28 5.47v6.27zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
-                                    Create a public business profile that you can share on social media. Your profile will display your listings, rating, and contact info.
-                                </p>
+
+                            <div className="flex items-center gap-2">
+                                <input
+                                    readOnly
+                                    value={businessProfileUrl}
+                                    className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm truncate"
+                                />
                                 <button
-                                    onClick={createBusinessProfile}
-                                    disabled={creatingBusinessProfile}
-                                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 hover:opacity-90 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm flex items-center justify-center gap-2"
+                                    onClick={copyBusinessLink}
+                                    className="shrink-0 p-2.5 rounded-xl bg-slate-100 dark:bg-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-200 dark:hover:bg-ink-500 transition"
+                                    title="Copy link"
                                 >
-                                    {creatingBusinessProfile ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin" /> Creating…
-                                        </>
-                                    ) : (
-                                        'Create Business Profile'
-                                    )}
+                                    <Copy size={16} />
                                 </button>
-                            </>
-                        )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-4">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Share on:</span>
+                                <button
+                                    onClick={() => shareOnSocial('facebook')}
+                                    className="p-2 rounded-lg bg-[#1877F2] hover:bg-[#0d65d9] text-white transition"
+                                    title="Share on Facebook"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.23.2 2.23.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.89h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => shareOnSocial('twitter')}
+                                    className="p-2 rounded-lg bg-black dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-black transition"
+                                    title="Share on Twitter / X"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path d="M18.9 2H22l-7.6 8.7L23 22h-7.1l-5.5-7.2L4.1 22H1l8.2-9.3L1.4 2h7.3l5 6.6L18.9 2zm-1.2 18h1.7L7.1 4H5.3l12.4 16z"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => shareOnSocial('whatsapp')}
+                                    className="p-2 rounded-lg bg-[#25D366] hover:bg-[#1da851] text-white transition"
+                                    title="Share on WhatsApp"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                                        <path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.86.505 3.678 1.462 5.272L2 22l4.83-1.44a10.001 10.001 0 0 0 5.174 1.44h.004c5.518 0 10.004-4.486 10.004-10.004C22.008 6.486 17.522 2 12.004 2zm0 18.09h-.003a8.077 8.077 0 0 1-4.116-1.128l-.295-.176-3.056.912.918-2.98-.192-.306a8.062 8.062 0 0 1-1.246-4.408c0-4.463 3.632-8.095 8.098-8.095 2.163 0 4.195.843 5.724 2.373a8.037 8.037 0 0 1 2.372 5.727c0 4.463-3.633 8.095-8.204 8.081z"/>
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => shareOnSocial('linkedin')}
+                                    className="p-2 rounded-lg bg-[#0A66C2] hover:bg-[#0957a8] text-white transition"
+                                    title="Share on LinkedIn"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path d="M20.45 20.45h-3.56v-5.58c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.68H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.61 0 4.28 2.38 4.28 5.47v6.27zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
 
