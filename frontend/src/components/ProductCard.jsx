@@ -12,7 +12,7 @@ export default function ProductCard({ product }) {
     const stock = product.stock !== undefined ? product.stock : null;
 
     // ====== VIDEO VIEWPORT LOGIC ======
-        const [isVisible, setIsVisible] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
     const [videoReady, setVideoReady] = useState(false);
     const cardRef = useRef(null);
 
@@ -117,7 +117,7 @@ export default function ProductCard({ product }) {
                     </div>
                 )}
 
-                                {/* VIDEO */}
+                {/* VIDEO */}
                 {product.video_url && (
                     <>
                         <video
@@ -153,21 +153,26 @@ export default function ProductCard({ product }) {
                     </span>
                 )}
 
+                {/* ─── WISHLIST ICON — NO PADDING, FLUSH AGAINST CORNER ─── */}
                 <button
                     type="button"
                     onClick={handleWishlistClick}
-                    className={`absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 dark:bg-ink-900/80 backdrop-blur flex items-center justify-center shadow-sm transition ${
+                    className={`absolute bottom-0 right-0 w-6 h-6 flex items-center justify-center transition ${
                         wishlisted ? 'text-red-500' : 'text-slate-400 dark:text-gold-200/60 hover:text-red-500'
                     }`}
                 >
-                    <Heart size={12} className={wishlisted ? 'fill-red-500' : ''} />
+                    <Heart size={14} className={wishlisted ? 'fill-red-500 drop-shadow-sm' : ''} />
                 </button>
             </div>
 
             <div className="p-2.5">
-                <h3 className="font-semibold text-slate-900 dark:text-gold-50 text-xs line-clamp-2 leading-snug min-h-[2rem]">{product.title}</h3>
+                {/* ─── TITLE — removed min-height to reduce space ─── */}
+                <h3 className="font-semibold text-slate-900 dark:text-gold-50 text-xs line-clamp-2 leading-snug">
+                    {product.title}
+                </h3>
 
-                <div className="flex items-center gap-1 mt-1">
+                {/* ─── RATING — reduced margin from mt-1 to mt-0.5 ─── */}
+                <div className="flex items-center gap-1 mt-0.5">
                     <Star size={11} className="fill-amber-400 text-amber-400" />
                     <span className="text-[11px] font-semibold text-slate-700 dark:text-gold-100">{rating ? Number(rating).toFixed(1) : 'New'}</span>
                     {reviewCount > 0 && (
@@ -177,9 +182,8 @@ export default function ProductCard({ product }) {
 
                 {/* ─── PRICE SECTION ─── */}
                 <div className="mt-1.5">
-                                        {discountPercent !== null ? (
+                    {discountPercent !== null ? (
                         <>
-                            {/* Old price - crossed out, with discount badge beside it */}
                             <div className="flex items-center gap-1.5">
                                 <p className="text-[10px] text-slate-400 dark:text-gold-200/50 line-through">
                                     GHS {oldPrice.toFixed(2)}
@@ -188,7 +192,6 @@ export default function ProductCard({ product }) {
                                     -{discountPercent}%
                                 </span>
                             </div>
-                            {/* New (main) price — smaller only when a discount is shown */}
                             <span className="text-brand-700 dark:text-gold-400 font-extrabold text-xs">
                                 GHS {currentPrice.toFixed(2)}
                             </span>
@@ -200,7 +203,7 @@ export default function ProductCard({ product }) {
                     )}
                 </div>
 
-                                <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5 truncate flex items-center gap-1">
+                <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5 truncate flex items-center gap-1">
                     {product.seller_name}
                     {product.seller_verified && <CheckBadgeIcon className="w-2.5 h-2.5 text-emerald-500 shrink-0" />}
                 </p>
