@@ -26,9 +26,7 @@ import CategoryRequestModal from '../components/CategoryRequestModal';
 const ITEM_TYPES = ['Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sneakers', 'Other'];
 
 const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their university email has been confirmed.';
-
 const VERIFIED_NOTE_TYPE_SPEED_MS = 40;
-
 const VERIFIED_NOTE_DELAY_MS = 500;
 
 const SCHOOLS = [
@@ -75,12 +73,7 @@ const TAB_ICONS = {
 
 // How many px of scroll it takes for the target to reach fully collapsed.
 const MOBILE_COLLAPSE_DISTANCE = 100;
-
-// How quickly the *displayed* progress eases toward the scroll-driven
-// target every animation frame. Lower = silkier/slower catch-up,
-// higher = snappier/more mechanical. This is the main "smoothness" knob.
 const SPRING_SMOOTHING = 1;
-
 
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
@@ -102,11 +95,6 @@ export default function Browse() {
     const search = searchParams.get('search') || '';
     const [showCategoryRequest, setShowCategoryRequest] = useState(false);
 
-    // `progress` is the smoothed, displayed 0→1 value driving every header
-    // measurement. `targetProgressRef` is the raw scroll-derived value.
-    // A continuous rAF loop eases `progress` toward the target every
-    // frame — that's what produces the buttery, momentum-like glide
-    // instead of a mechanical step-by-step follow.
     const [progress, setProgress] = useState(0);
     const [isMobileViewport, setIsMobileViewport] = useState(
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
@@ -116,33 +104,30 @@ export default function Browse() {
 
     const [verifiedNoteText, setVerifiedNoteText] = useState('');
 
-useEffect(() => {
-    if (!verifiedOnly) {
+    useEffect(() => {
+        if (!verifiedOnly) {
+            setVerifiedNoteText('');
+            return;
+        }
         setVerifiedNoteText('');
-        return;
-    }
-    setVerifiedNoteText('');
-    let typeInterval;
-    const delayTimer = setTimeout(() => {
-        let i = 0;
-        typeInterval = setInterval(() => {
-            i++;
-            setVerifiedNoteText(VERIFIED_NOTE_FULL.slice(0, i));
-            if (i >= VERIFIED_NOTE_FULL.length) {
-                clearInterval(typeInterval);
-            }
-        }, VERIFIED_NOTE_TYPE_SPEED_MS);
-    }, VERIFIED_NOTE_DELAY_MS);
+        let typeInterval;
+        const delayTimer = setTimeout(() => {
+            let i = 0;
+            typeInterval = setInterval(() => {
+                i++;
+                setVerifiedNoteText(VERIFIED_NOTE_FULL.slice(0, i));
+                if (i >= VERIFIED_NOTE_FULL.length) {
+                    clearInterval(typeInterval);
+                }
+            }, VERIFIED_NOTE_TYPE_SPEED_MS);
+        }, VERIFIED_NOTE_DELAY_MS);
 
-    return () => {
-        clearTimeout(delayTimer);
-        if (typeInterval) clearInterval(typeInterval);
-    };
-}, [verifiedOnly]);
+        return () => {
+            clearTimeout(delayTimer);
+            if (typeInterval) clearInterval(typeInterval);
+        };
+    }, [verifiedOnly]);
 
-    // Track scroll → update the target only (no state write here, so
-    // scrolling itself never causes a render; the rAF loop below is the
-    // only thing that calls setProgress).
     useEffect(() => {
         const evaluate = () => {
             const mobile = window.innerWidth < 640;
@@ -168,9 +153,6 @@ useEffect(() => {
         };
     }, []);
 
-    // The spring/easing loop. Runs continuously (cheap — one float compare
-    // per frame) so the header keeps gliding toward the target even after
-    // scrolling has stopped, then settles.
     useEffect(() => {
         let rafId;
         const loop = () => {
@@ -276,10 +258,6 @@ useEffect(() => {
             filteredByType = verifiedFiltered.slice(0, 4);
         }
     } else if (filterType === 'nearby') {
-        // NOTE: filter by `seller_school` — that's the field name the
-        // /products API actually returns (aliased from users.school).
-        // A plain `p.school` doesn't exist on the product object, which
-        // was silently wiping out results whenever this branch ran.
         if (school) {
             filteredByType = verifiedFiltered.filter(p => p.seller_school === school);
         } else {
@@ -304,7 +282,7 @@ useEffect(() => {
         })
         : filteredByType;
 
-       const renderBudgetInput = () => (
+    const renderBudgetInput = () => (
         <div className="relative shrink-0">
             <WalletIcon className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
@@ -326,7 +304,7 @@ useEffect(() => {
             </button>
         </div>
     );
-    
+
     const handleDesktopTabChange = (tab) => {
         if (tab === 'verified') {
             setVerifiedOnly(!verifiedOnly);
@@ -390,16 +368,10 @@ useEffect(() => {
 
     const headerTitle = search ? `Results for "${search}"` : 'Browse listings';
 
-    // ── Mobile header measurements, all derived from the smoothed
-    // `progress` (0→1). Expanded values match your original Tailwind
-    // classes exactly (px-2.5=10px, py-1=4px, py-8=32px, mt-4=16px) so
-    // at progress 0 this is pixel-identical to your original header.
     const sectionPadding = isMobileViewport
         ? { paddingTop: lerp(32, 14, progress), paddingBottom: lerp(32, 14, progress) }
         : undefined;
 
-    // Background photo fades out completely by the time the header is
-    // fully collapsed, leaving just the section's own gradient behind it.
     const imageOpacity = isMobileViewport ? 1 - progress : 1;
 
     const btnPadX = lerp(10, 9, progress);
@@ -432,9 +404,7 @@ useEffect(() => {
                     className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
                     style={sectionPadding}
                 >
-                    {/* ── MOBILE Row A: back button. The title span next to
-                        it has zero width/opacity at rest, so it never
-                        shifts the button's position at progress 0. ── */}
+                    {/* ── MOBILE Row A: back button + title ── */}
                     <div className="sm:hidden flex items-center" style={{ gap: `${rowAGap}px` }}>
                         <Link
                             to="/"
@@ -468,8 +438,7 @@ useEffect(() => {
                         </span>
                     </div>
 
-                    {/* ── MOBILE Row B: original title + budget row,
-                        collapsing away as Row A's title takes over. ── */}
+                    {/* ── MOBILE Row B: original title + budget ── */}
                     <div
                         className="sm:hidden overflow-hidden"
                         style={{
@@ -483,11 +452,11 @@ useEffect(() => {
                             <h1 className="text-xl font-extrabold text-white truncate">
                                 {headerTitle}
                             </h1>
-                                                        {renderBudgetInput()}
+                            {renderBudgetInput()}
                         </div>
                     </div>
 
-                    {/* ── DESKTOP (unchanged, no scroll behavior) ──────── */}
+                    {/* ── DESKTOP ── */}
                     <div className="hidden sm:flex items-center justify-between flex-wrap gap-2 sm:gap-3">
                         <Link
                             to="/"
@@ -529,15 +498,15 @@ useEffect(() => {
                         </div>
                     </div>
 
-                                        <div className="hidden sm:flex items-center justify-between gap-3 mt-4 sm:mt-5">
+                    <div className="hidden sm:flex items-center justify-between gap-3 mt-4 sm:mt-5">
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white truncate">
                             {headerTitle}
                         </h1>
-                                                {renderBudgetInput()}
+                        {renderBudgetInput()}
                     </div>
                     <div className="hidden sm:block h-px bg-gradient-to-r from-gold-400/40 via-white/10 to-transparent mt-4" />
 
-                    {/* ─── DESKTOP FILTER PILLS (unchanged) ─────────────── */}
+                    {/* ─── DESKTOP FILTER PILLS ─────────────────────────── */}
                     <div className="hidden sm:flex items-center gap-2 flex-wrap mt-5">
                         {['all', 'new', 'nearby', 'verified'].map((tab) => {
                             const active = isTabActive(tab);
@@ -560,7 +529,7 @@ useEffect(() => {
                                 </button>
                             );
                         })}
-                                               {PRICE_RANGES.map((r) => (
+                        {PRICE_RANGES.map((r) => (
                             <button
                                 key={r.label}
                                 onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
@@ -583,22 +552,12 @@ useEffect(() => {
                 </div>
             </section>
 
-            {/* LISTINGS — layered, subject-grounded background instead of a
-                flat color:
-                  1. warm parchment base
-                  2. a faint blueprint/campus-map grid of gold hairlines —
-                     literally a nod to what this section is (browsing a
-                     campus), not decoration for its own sake
-                  3. one deliberate diagonal light wash from the top-right,
-                     like sunlight through a window, instead of a generic
-                     centered blurred circle
-                  4. a soft vignette for depth + grain for texture
-                  5. a gentle fade at the seam under the dark header */}
-                <section className="relative overflow-hidden bg-slate-100 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">
-                      {/*  campus map or architectural plan. This is the signature
-                    element; everything else stays quiet around it. */}
+            {/* ─── LISTINGS ───────────────────────────────────────────────── */}
+            {/* ✅ Updated background: bg-slate-100 in light mode, dark mode unchanged */}
+            <section className="relative overflow-hidden bg-slate-100 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">
+                {/* Decorative overlays — hidden in light mode, shown only in dark mode */}
                 <div
-                    className="absolute inset-0 pointer-events-none opacity-[0.5] dark:opacity-[0.35]"
+                    className="absolute inset-0 pointer-events-none opacity-[0.5] dark:opacity-[0.35] hidden dark:block"
                     style={{
                         backgroundImage: `
                             repeating-linear-gradient(0deg, rgba(180,140,60,0.10) 0px, rgba(180,140,60,0.10) 1px, transparent 1px, transparent 56px),
@@ -606,10 +565,8 @@ useEffect(() => {
                         `,
                     }}
                 />
-                {/* Directional light — a diagonal wash from the top-right,
-                    like light falling across a desk, not a centered glow */}
                 <div
-                    className="absolute inset-0 pointer-events-none"
+                    className="absolute inset-0 pointer-events-none hidden dark:block"
                     style={{
                         background: 'linear-gradient(135deg, rgba(212,175,90,0.14) 0%, transparent 42%)',
                     }}
@@ -620,16 +577,14 @@ useEffect(() => {
                         background: 'linear-gradient(135deg, rgba(212,175,90,0.10) 0%, transparent 45%)',
                     }}
                 />
-                {/* Seam under the dark header */}
-                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink-900/20 dark:from-black/40 to-transparent pointer-events-none" />
-                {/* Vignette — corners read a touch deeper than the center */}
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink-900/20 dark:from-black/40 to-transparent pointer-events-none hidden dark:block" />
                 <div
-                    className="absolute inset-0 pointer-events-none"
+                    className="absolute inset-0 pointer-events-none hidden dark:block"
                     style={{
                         background: 'radial-gradient(120% 100% at 50% 0%, transparent 50%, rgba(15,12,8,0.08) 100%)',
                     }}
                 />
-                <svg className="absolute inset-0 w-full h-full opacity-[0.05] dark:opacity-[0.07] pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                <svg className="absolute inset-0 w-full h-full opacity-[0.05] dark:opacity-[0.07] pointer-events-none hidden dark:block" xmlns="http://www.w3.org/2000/svg">
                     <filter id="listingsGrain">
                         <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
                     </filter>
@@ -679,10 +634,10 @@ useEffect(() => {
                     </div>
 
                     {verifiedOnly && (
-    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
-        {verifiedNoteText}
-    </p>
-)}
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                            {verifiedNoteText}
+                        </p>
+                    )}
 
                     {filterType === 'special' && (
                         <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
@@ -734,7 +689,7 @@ useEffect(() => {
                 onSelect={selectCategory}
                 onClose={() => setOpenSheet(null)}
             />
-                        <MobileFilterSheet
+            <MobileFilterSheet
                 open={openSheet === 'school'}
                 title="School"
                 options={schoolOptions}

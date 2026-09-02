@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square, Check, CheckCheck, MoreVertical } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -9,6 +9,8 @@ import WallpaperPicker from './WallpaperPicker';
 const MOBILE_BREAKPOINT = 640;
 const SWIPE_DISMISS_THRESHOLD = 80;
 const ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────
 
 function formatMessageTime(dateString) {
     const date = new Date(dateString);
@@ -33,8 +35,18 @@ function formatDuration(seconds) {
     return `${m}:${s}`;
 }
 
+function getDateLabel(dateStr) {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
 export default function ChatPanel() {
-    // ✅ FIXED: Added useAuth to get the current user
     const { user } = useAuth();
     const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone } = useChat();
     const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
@@ -48,7 +60,21 @@ export default function ChatPanel() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [messageMenu, setMessageMenu] = useState(null);
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
     const longPressTimerRef = useRef(null);
+
+    // ── Refs ──────────────────────────────────────────────────────────────
+    const startY = useRef(null);
+    const dragging = useRef(false);
+    const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
+    const panelRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const recordingTimerRef = useRef(null);
+
+    // ─── TOUCH / DRAG HANDLERS ────────────────────────────────────────────
 
     const handleBubblePressStart = (m, isMine, e) => {
         const point = e.touches ? e.touches[0] : e;
@@ -63,13 +89,70 @@ export default function ChatPanel() {
         clearTimeout(longPressTimerRef.current);
     };
 
-    const startY = useRef(null);
-    const dragging = useRef(false);
-    const messagesEndRef = useRef(null);
-    const fileInputRef = useRef(null);
-    const mediaRecorderRef = useRef(null);
-    const audioChunksRef = useRef([]);
-    const recordingTimerRef = useRef(null);
+    const handleTouchStart = (e) => {
+        if (!isMobile) return;
+        startY.current = e.touches[0].clientY;
+        dragging.current = true;
+        setIsDragging(true);
+    };
+
+    const handleTouchMove = (e) => {
+        if (!isMobile || !dragging.current) return;
+        const diff = e.touches[0].clientY - startY.current;
+        if (diff < 0) setDragY(diff);
+    };
+
+    const handleTouchEnd = () => {
+        if (!isMobile || !dragging.current) return;
+        dragging.current = false;
+        setIsDragging(false);
+
+        if (dragY <= -SWIPE_DISMISS_THRESHOLD) {
+            closeChat();
+        } else {
+            setDragY(0);
+        }
+    };
+
+    // ─── SCROLL LISTENER ──────────────────────────────────────────────────
+
+    const handleScroll = useCallback(() => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        setShowScrollToBottom(distanceFromBottom > 200);
+    }, []);
+
+    // ─── EFFECTS ──────────────────────────────────────────────────────────
+
+    // ✅ Lock background when chat is open (same as ProfileDrawer)
+    useEffect(() => {
+        if (isOpen) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+
+            if (panelRef.current) {
+                panelRef.current.scrollTop = 0;
+            }
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -77,20 +160,24 @@ export default function ChatPanel() {
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
+    // Scroll to bottom when chat opens or conversation changes
     useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
+        if (isOpen && conversation) {
+            requestAnimationFrame(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+                setShowScrollToBottom(false);
+            });
         }
-        return () => {
-            document.body.style.overflow = '';
-        };
-    }, [isOpen]);
+    }, [isOpen, conversation?.id]);
 
+    // Attach scroll listener to messages container
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        container.addEventListener('scroll', handleScroll);
+        handleScroll();
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [handleScroll]);
 
     useEffect(() => {
         if (isOpen) setDragY(0);
@@ -107,6 +194,8 @@ export default function ChatPanel() {
         setShowSettingsMenu(false);
         setShowWallpaperPicker(false);
     }, [conversation?.id]);
+
+    // ─── HANDLERS ──────────────────────────────────────────────────────────
 
     const handleComingSoon = (key) => {
         if (key === 'clear' || key === 'delete') {
@@ -146,6 +235,9 @@ export default function ChatPanel() {
         if (!draft.trim()) return;
         sendMessage(draft);
         setDraft('');
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
     };
 
     const handleAttachClick = () => fileInputRef.current?.click();
@@ -155,7 +247,12 @@ export default function ChatPanel() {
         if (!file) return;
         sendMedia(file);
         e.target.value = '';
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
     };
+
+    // ─── AUDIO RECORDING ──────────────────────────────────────────────────
 
     const MIME_CANDIDATES = [
         'audio/webm;codecs=opus',
@@ -189,6 +286,9 @@ export default function ChatPanel() {
                 const blob = new Blob(audioChunksRef.current, { type: actualType });
                 const file = new File([blob], `voice-note.${extension}`, { type: actualType });
                 sendMedia(file);
+                setTimeout(() => {
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
             };
 
             recorder.start();
@@ -207,30 +307,7 @@ export default function ChatPanel() {
         clearInterval(recordingTimerRef.current);
     };
 
-    const handleTouchStart = (e) => {
-        if (!isMobile) return;
-        startY.current = e.touches[0].clientY;
-        dragging.current = true;
-        setIsDragging(true);
-    };
-
-    const handleTouchMove = (e) => {
-        if (!isMobile || !dragging.current) return;
-        const diff = e.touches[0].clientY - startY.current;
-        if (diff < 0) setDragY(diff);
-    };
-
-    const handleTouchEnd = () => {
-        if (!isMobile || !dragging.current) return;
-        dragging.current = false;
-        setIsDragging(false);
-
-        if (dragY <= -SWIPE_DISMISS_THRESHOLD) {
-            closeChat();
-        } else {
-            setDragY(0);
-        }
-    };
+    // ─── RENDER ────────────────────────────────────────────────────────────
 
     if (!isOpen) return null;
 
@@ -254,11 +331,17 @@ export default function ChatPanel() {
               borderRadius: '1.5rem 0 0 1.5rem',
           };
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setShowScrollToBottom(false);
+    };
+
     return (
         <div className="fixed inset-0 z-[100]">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeChat} />
 
             <div
+                ref={panelRef}
                 className="fixed bg-white dark:bg-ink-800 shadow-2xl flex flex-col"
                 style={panelStyle}
                 onClick={(e) => e.stopPropagation()}
@@ -275,7 +358,7 @@ export default function ChatPanel() {
                     </div>
                 )}
 
-                {/* Header */}
+                {/* ─── HEADER ─────────────────────────────────────────────── */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-ink-600 shrink-0">
                     <div className="flex items-center gap-2 sm:gap-3">
                         <div className="relative shrink-0">
@@ -322,9 +405,10 @@ export default function ChatPanel() {
                     </button>
                 </div>
 
-                {/* Messages */}
+                {/* ─── MESSAGES ───────────────────────────────────────────── */}
                 <div
-                    className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3"
+                    ref={messagesContainerRef}
+                    className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3 relative"
                     style={wallpaperToStyle(wallpaper)}
                 >
                     {loading ? (
@@ -336,94 +420,150 @@ export default function ChatPanel() {
                             Say hello — ask about condition, price, or when to meet up.
                         </p>
                     ) : (
-                        messages.map((m) => {
-                            const isMine = m.sender_id === user?.id;
-                            const otherUserOnline = otherUserLastActive
-                                && (Date.now() - new Date(otherUserLastActive).getTime() < ONLINE_THRESHOLD_MS);
+                        (() => {
+                            let lastDate = null;
+                            return messages.map((m) => {
+                                const isMine = m.sender_id === user?.id;
+                                const otherUserOnline = otherUserLastActive
+                                    && (Date.now() - new Date(otherUserLastActive).getTime() < ONLINE_THRESHOLD_MS);
 
-                            const isImage = m.media_type === 'image';
+                                const isImage = m.media_type === 'image';
+                                const messageDate = new Date(m.created_at).toDateString();
+                                const showDateHeader = messageDate !== lastDate;
+                                lastDate = messageDate;
 
-                            const meta = (
-                                <span
-                                    className={`inline-flex items-center gap-1 shrink-0 select-none ${
-                                        isImage
-                                            ? 'text-white'
-                                            : isMine
-                                                ? 'text-white/75 dark:text-ink-900/60'
-                                                : 'text-slate-400 dark:text-gold-300/50'
-                                    }`}
-                                >
-                                    <span className="text-[11px]">{formatMessageTime(m.created_at)}</span>
-                                    {isMine && (
-                                        m.read ? (
-                                            <CheckCheck size={13} className={isImage ? 'text-blue-300' : 'text-current'} />
-                                        ) : otherUserOnline ? (
-                                            <CheckCheck size={13} className="text-current" />
-                                        ) : (
-                                            <Check size={13} className="text-current" />
-                                        )
-                                    )}
-                                </span>
-                            );
-
-                            if (m.deleted_for_everyone) {
-                                return (
-                                    <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                                            <div className="px-3.5 py-2 rounded-2xl text-sm italic text-slate-400 dark:text-gold-200/40 bg-slate-50 dark:bg-ink-700/50 border border-dashed border-slate-200 dark:border-ink-600">
-                                                This message was deleted
-                                            </div>
-                                        </div>
-                                    </div>
+                                const meta = (
+                                    <span
+                                        className={`inline-flex items-center gap-1 shrink-0 select-none ${
+                                            isImage
+                                                ? 'text-white'
+                                                : isMine
+                                                    ? 'text-white/75 dark:text-ink-900/60'
+                                                    : 'text-slate-400 dark:text-gold-300/50'
+                                        }`}
+                                    >
+                                        <span className="text-[11px]">{formatMessageTime(m.created_at)}</span>
+                                        {isMine && (
+                                            m.read ? (
+                                                <CheckCheck size={13} className={isImage ? 'text-blue-300' : 'text-current'} />
+                                            ) : otherUserOnline ? (
+                                                <CheckCheck size={13} className="text-current" />
+                                            ) : (
+                                                <Check size={13} className="text-current" />
+                                            )
+                                        )}
+                                    </span>
                                 );
-                            }
 
-                            return (
-                                <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                                        <div
-                                            onTouchStart={(e) => handleBubblePressStart(m, isMine, e)}
-                                            onTouchEnd={handleBubblePressEnd}
-                                            onMouseDown={(e) => handleBubblePressStart(m, isMine, e)}
-                                            onMouseUp={handleBubblePressEnd}
-                                            onMouseLeave={handleBubblePressEnd}
-                                            className={`relative rounded-2xl text-sm leading-relaxed overflow-hidden select-none ${
-                                                isImage ? 'pb-1' : 'px-3.5 pt-2.5 pb-1.5'
-                                            } ${
-                                                isMine
-                                                    ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
-                                                    : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
-                                            }`}
-                                        >
-                                            {isImage && (
-                                                <div className="relative">
-                                                    <img src={m.media_url} alt="" className="max-w-full rounded-t-2xl block" />
-                                                    <span className="absolute bottom-1.5 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
-                                                        {meta}
+                                // ── Deleted for everyone ──────────────────
+                                if (m.deleted_for_everyone) {
+                                    return (
+                                        <React.Fragment key={m.id}>
+                                            {showDateHeader && (
+                                                <div className="flex justify-center my-2">
+                                                    <span className="text-xs text-slate-400 dark:text-gold-300/50 bg-slate-100 dark:bg-ink-700 px-3 py-1 rounded-full">
+                                                        {getDateLabel(m.created_at)}
                                                     </span>
                                                 </div>
                                             )}
-                                            {m.media_type === 'audio' && (
-                                                <div className="px-3.5 pt-2.5 pb-1">
-                                                    <audio controls src={m.media_url} className="max-w-full" />
+                                            <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                                                    <div className="px-3.5 py-2 rounded-2xl text-sm italic text-slate-400 dark:text-gold-200/40 bg-slate-50 dark:bg-ink-700/50 border border-dashed border-slate-200 dark:border-ink-600">
+                                                        This message was deleted
+                                                    </div>
                                                 </div>
-                                            )}
-                                            {m.content && (
-                                                <p className={isImage ? 'px-3.5 pt-2' : ''}>{m.content}</p>
-                                            )}
+                                            </div>
+                                        </React.Fragment>
+                                    );
+                                }
 
-                                            {!isImage && (
-                                                <div className={`flex items-center justify-end mt-1 ${m.media_type === 'audio' ? 'px-3.5' : ''}`}>
-                                                    {meta}
+                                // ── Regular message ──────────────────────
+                                return (
+                                    <React.Fragment key={m.id}>
+                                        {showDateHeader && (
+                                            <div className="flex justify-center my-2">
+                                                <span className="text-xs text-slate-400 dark:text-gold-300/50 bg-slate-100 dark:bg-ink-700 px-3 py-1 rounded-full">
+                                                    {getDateLabel(m.created_at)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                                                <div
+                                                    onTouchStart={(e) => handleBubblePressStart(m, isMine, e)}
+                                                    onTouchEnd={handleBubblePressEnd}
+                                                    onMouseDown={(e) => handleBubblePressStart(m, isMine, e)}
+                                                    onMouseUp={handleBubblePressEnd}
+                                                    onMouseLeave={handleBubblePressEnd}
+                                                    className={`relative group rounded-2xl text-sm leading-relaxed overflow-hidden select-none ${
+                                                        isImage ? 'pb-1' : 'px-3.5 pt-2.5 pb-1.5'
+                                                    } ${
+                                                        isMine
+                                                            ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
+                                                            : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
+                                                    }`}
+                                                >
+                                                    {/* ── Desktop hover dots ── */}
+                                                    {!isMobile && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                setMessageMenu({
+                                                                    id: m.id,
+                                                                    isMine,
+                                                                    x: rect.left,
+                                                                    y: rect.bottom + 4,
+                                                                });
+                                                            }}
+                                                            className="absolute top-1 right-1 p-1 rounded-full hover:bg-white/20 dark:hover:bg-ink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+                                                        >
+                                                            <MoreVertical size={14} />
+                                                        </button>
+                                                    )}
+
+                                                    {isImage && (
+                                                        <div className="relative">
+                                                            <img src={m.media_url} alt="" className="max-w-full rounded-t-2xl block" />
+                                                            <span className="absolute bottom-1.5 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
+                                                                {meta}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {m.media_type === 'audio' && (
+                                                        <div className="px-3.5 pt-2.5 pb-1">
+                                                            <audio controls src={m.media_url} className="max-w-full" />
+                                                        </div>
+                                                    )}
+                                                    {m.content && (
+                                                        <p className={isImage ? 'px-3.5 pt-2' : ''}>{m.content}</p>
+                                                    )}
+
+                                                    {!isImage && (
+                                                        <div className={`flex items-center justify-end mt-1 ${m.media_type === 'audio' ? 'px-3.5' : ''}`}>
+                                                            {meta}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            );
-                        })
+                                    </React.Fragment>
+                                );
+                            });
+                        })()
                     )}
                     <div ref={messagesEndRef} />
+
+                    {/* ─── SCROLL TO BOTTOM BUTTON ──────────────────────── */}
+                    {showScrollToBottom && (
+                        <button
+                            onClick={scrollToBottom}
+                            className="absolute bottom-4 right-4 z-20 w-10 h-10 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 shadow-lg hover:scale-105 transition flex items-center justify-center"
+                            aria-label="Scroll to bottom"
+                        >
+                            <ChevronDown size={18} />
+                        </button>
+                    )}
 
                     {messageMenu && (
                         <>
@@ -451,7 +591,7 @@ export default function ChatPanel() {
                     )}
                 </div>
 
-                {/* Composer */}
+                {/* ─── COMPOSER ───────────────────────────────────────────── */}
                 <div className="border-t border-slate-100 dark:border-ink-600 shrink-0">
                     {isRecording ? (
                         <div className="flex items-center gap-3 px-4 py-3">
