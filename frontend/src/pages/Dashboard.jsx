@@ -153,7 +153,8 @@ export default function Dashboard() {
 
     return (
         <div>
-            <section className="sticky top-0 z-20 relative overflow-hidden">
+            {/* HEADER — with video background */}
+            <section className="relative overflow-hidden">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
@@ -162,8 +163,7 @@ export default function Dashboard() {
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
                 {/* Fades the header into the page background on mobile — same
-                    technique as the video fade behind the form in CreateListing.jsx.
-                    MobileTabRoll's glass bar sits in this fade once pulled up below. */}
+                    technique as the video fade behind the form in CreateListing.jsx. */}
                 <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-b from-transparent to-slate-50 dark:to-ink-900 sm:hidden pointer-events-none" />
 
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
@@ -225,10 +225,11 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 pt-[80px] sm:pt-8 sm:py-8 bg-white dark:bg-ink-900 relative z-10">                {/* TABS SECTION */}
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
+                {/* TABS SECTION */}
                 {tabs.length > 1 && (
                     <>
-                        <div className="fixed sm:hidden top-[320px] left-0 right-0 z-30 px-4">
+                        <div className="block sm:hidden">
                             <MobileTabRoll
                                 tabs={tabs}
                                 activeTab={tab}
@@ -301,27 +302,6 @@ export default function Dashboard() {
             </div>
 
             <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
-
-            {/* Tab dots — fixed to the bottom of the viewport so they hover in
-                the same spot regardless of scroll position or which tab's
-                content is showing. Just calls changeTab; MobileTabRoll's own
-                effect scrolls the roll into view when activeTab changes. */}
-            {tabs.length > 1 && (
-                <div className="fixed sm:hidden bottom-4 left-0 right-0 z-30 flex justify-center gap-1.5 pointer-events-none">
-                    {tabs.map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => changeTab(t)}
-                            className={`h-1.5 rounded-full transition-all duration-300 pointer-events-auto ${
-                                t === tab
-                                    ? 'w-4 bg-brand-600 dark:bg-gold-500'
-                                    : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
-                            }`}
-                            aria-label={`Go to ${TAB_LABELS[t] || t}`}
-                        />
-                    ))}
-                </div>
-            )}
         </div>
     );
 }
@@ -553,6 +533,20 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                 )}
             </div>
 
+            <div className="flex justify-center gap-1.5 mt-4">
+                {tabs.map((t, i) => (
+                    <button
+                        key={t}
+                        onClick={() => scrollToTab(t)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                            t === activeTab
+                                ? 'w-4 bg-brand-600 dark:bg-gold-500'
+                                : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
+                        }`}
+                        aria-label={`Go to ${TAB_LABELS[t] || t}`}
+                    />
+                ))}
+            </div>
         </div>
     );
 }
