@@ -29,9 +29,15 @@ export default function Settings() {
     // No create/fetch round-trip needed — we already have everything about
     // this seller (id, name, school, rating, listings), so the storefront
     // link just exists as soon as they're a seller.
-    // NOTE: assumes a public storefront route at /store/:id — adjust the
-    // path below if your actual route is named differently.
-    const businessProfileUrl = user?.id ? `${window.location.origin}/store/${user.id}` : '';
+    //
+    // IMPORTANT: this must point at the BACKEND origin (Render), not the
+    // frontend (Vercel). The backend's /store/:id route is what detects
+    // link-preview bots and serves og:image/og:title tags — a client-only
+    // Vite app can't do that. client.js's baseURL is
+    // "https://campuscart-tdfn.onrender.com/api", so we strip the
+    // trailing /api to get the plain origin.
+    const API_ORIGIN = (api.defaults.baseURL || '').replace(/\/api\/?$/, '');
+    const businessProfileUrl = user?.id ? `${API_ORIGIN}/store/${user.id}` : '';
     const [storeStats, setStoreStats] = useState(null);
     const [storeStatsLoading, setStoreStatsLoading] = useState(false);
 
@@ -89,11 +95,6 @@ export default function Settings() {
     const handleDeleteAccount = async () => {
         setDeleting(true);
         try {
-            // No manual Authorization header here — the shared `api` client's
-            // interceptor already attaches it on every request, same as
-            // every other call in this file. Setting it by hand here was
-            // the one place that could silently drift out of sync if the
-            // token key or header format ever changes centrally.
             await api.delete('/auth/me', { data: { password: deletePassword } });
             toast.success('Account deleted');
             logout();
@@ -236,7 +237,6 @@ export default function Settings() {
                 {/* ─── BUSINESS PROFILE ─── */}
                 {isSeller && (
                     <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
-                        {/* Storefront preview — a small mock of what visitors see */}
                         <div className="bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 p-5">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/40 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
