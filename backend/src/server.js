@@ -29,6 +29,8 @@ const reviewRoutes = require('./routes/reviews');
 
 const chatRoutes = require('./routes/chat');
 
+const storefrontRoutes = require('./routes/storefront');
+
 const app = express();
 
 // ============================================================
@@ -105,6 +107,10 @@ app.use('/api/payouts', payoutRoutes);
 app.use('/api/reviews', reviewRoutes);
 
 app.use('/api/chat', chatRoutes);
+
+// No /api prefix — this needs to be a clean, shareable URL like
+// https://your-api.onrender.com/store/:id
+app.use(storefrontRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
