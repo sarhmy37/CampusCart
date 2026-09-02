@@ -153,8 +153,7 @@ export default function Dashboard() {
 
     return (
         <div>
-            {/* HEADER — with video background */}
-            <section className="relative overflow-hidden">
+            <section className="sticky top-0 z-20 relative overflow-hidden">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
@@ -304,16 +303,17 @@ export default function Dashboard() {
 
             <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
 
-            {/* Tab dots — moved down to the far bottom of the page, away from
-                the tab roll itself. Just calls changeTab; MobileTabRoll's own
+            {/* Tab dots — fixed to the bottom of the viewport so they hover in
+                the same spot regardless of scroll position or which tab's
+                content is showing. Just calls changeTab; MobileTabRoll's own
                 effect scrolls the roll into view when activeTab changes. */}
             {tabs.length > 1 && (
-                <div className="flex sm:hidden justify-center gap-1.5 pb-8">
+                <div className="fixed sm:hidden bottom-4 left-0 right-0 z-30 flex justify-center gap-1.5 pointer-events-none">
                     {tabs.map((t) => (
                         <button
                             key={t}
                             onClick={() => changeTab(t)}
-                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                            className={`h-1.5 rounded-full transition-all duration-300 pointer-events-auto ${
                                 t === tab
                                     ? 'w-4 bg-brand-600 dark:bg-gold-500'
                                     : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
