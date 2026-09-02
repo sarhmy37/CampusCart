@@ -162,6 +162,11 @@ export default function Dashboard() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
+                {/* Fades the header into the page background on mobile — same
+                    technique as the video fade behind the form in CreateListing.jsx.
+                    MobileTabRoll's glass bar sits in this fade once pulled up below. */}
+                <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-b from-transparent to-slate-50 dark:to-ink-900 sm:hidden pointer-events-none" />
+
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center gap-4 sm:gap-5">
@@ -221,7 +226,7 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 -mt-16 sm:mt-0 sm:py-8 bg-transparent sm:bg-white sm:dark:bg-ink-900 relative z-10">
                 {/* TABS SECTION */}
                 {tabs.length > 1 && (
                     <>
@@ -298,6 +303,26 @@ export default function Dashboard() {
             </div>
 
             <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />
+
+            {/* Tab dots — moved down to the far bottom of the page, away from
+                the tab roll itself. Just calls changeTab; MobileTabRoll's own
+                effect scrolls the roll into view when activeTab changes. */}
+            {tabs.length > 1 && (
+                <div className="flex sm:hidden justify-center gap-1.5 pb-8">
+                    {tabs.map((t) => (
+                        <button
+                            key={t}
+                            onClick={() => changeTab(t)}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                                t === tab
+                                    ? 'w-4 bg-brand-600 dark:bg-gold-500'
+                                    : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
+                            }`}
+                            aria-label={`Go to ${TAB_LABELS[t] || t}`}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -529,20 +554,6 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                 )}
             </div>
 
-            <div className="flex justify-center gap-1.5 mt-4">
-                {tabs.map((t, i) => (
-                    <button
-                        key={t}
-                        onClick={() => scrollToTab(t)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                            t === activeTab
-                                ? 'w-4 bg-brand-600 dark:bg-gold-500'
-                                : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
-                        }`}
-                        aria-label={`Go to ${TAB_LABELS[t] || t}`}
-                    />
-                ))}
-            </div>
         </div>
     );
 }
