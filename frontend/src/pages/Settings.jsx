@@ -211,7 +211,7 @@ export default function Settings() {
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
                                         filter: theme === 'dark' ? 'blur(8px)' : 'blur(1px)',
-                                        opacity: theme === 'dark' ? 0.6 : 0.08,
+                                        opacity: theme === 'dark' ? 0.6 : 0.35,
                                         borderRadius: '9999px',
                                         maskImage: 'radial-gradient(circle, black 30%, transparent 72%)',
                                         WebkitMaskImage: 'radial-gradient(circle, black 30%, transparent 72%)',
