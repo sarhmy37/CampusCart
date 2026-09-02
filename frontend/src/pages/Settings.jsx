@@ -210,18 +210,18 @@ export default function Settings() {
                                         backgroundImage: `url(${user.avatar_url})`,
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
-                                        filter: 'blur(8px)',
-                                        opacity: 0.6,
+                                        filter: theme === 'dark' ? 'blur(8px)' : 'blur(1px)',
+                                        opacity: theme === 'dark' ? 0.6 : 0.08,
                                         borderRadius: '9999px',
                                         maskImage: 'radial-gradient(circle, black 30%, transparent 72%)',
                                         WebkitMaskImage: 'radial-gradient(circle, black 30%, transparent 72%)',
                                     }}
                                 />
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-40 pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-0 dark:opacity-40 pointer-events-none" />
 
                             <div className="relative z-10 flex items-center gap-3.5">
-                                <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-white/15 border-2 border-slate-200 dark:border-white/30 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
+                                <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-white/15 border-[3px] border-slate-300 dark:border-white/30 dark:backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
                                     {user?.avatar_url ? (
                                         <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                                     ) : (
