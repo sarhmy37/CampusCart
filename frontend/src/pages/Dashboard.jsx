@@ -229,7 +229,7 @@ export default function Dashboard() {
                 {/* TABS SECTION */}
                 {tabs.length > 1 && (
                     <>
-                        <div className="fixed sm:hidden top-[420px] left-0 right-0 z-30 px-4">
+                        <div className="fixed sm:hidden top-[380px] left-0 right-0 z-30 px-4">
                             <MobileTabRoll
                                 tabs={tabs}
                                 activeTab={tab}
