@@ -64,9 +64,24 @@ export default function Store() {
         <div>
             {/* HEADER */}
             <section className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+                {seller.avatar_url && (
+                    <div
+                        className="absolute right-0 top-0 bottom-0 w-1/2 sm:w-2/5 pointer-events-none"
+                        style={{
+                            backgroundImage: `url(${seller.avatar_url})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            filter: 'blur(6px)',
+                            opacity: 0.35,
+                            maskImage: 'linear-gradient(to left, black 40%, transparent 100%)',
+                            WebkitMaskImage: 'linear-gradient(to left, black 40%, transparent 100%)',
+                        }}
+                    />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 opacity-70 pointer-events-none" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
-
+                
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                     <Link
                         to="/browse"
