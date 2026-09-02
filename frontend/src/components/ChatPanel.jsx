@@ -8,7 +8,7 @@ import WallpaperPicker from './WallpaperPicker';
 
 const MOBILE_BREAKPOINT = 640;
 const SWIPE_DISMISS_THRESHOLD = 80;
-const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // treat as "logged in" if active within the last 2 minutes
+const ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
 
 function formatMessageTime(dateString) {
     const date = new Date(dateString);
@@ -34,7 +34,10 @@ function formatDuration(seconds) {
 }
 
 export default function ChatPanel() {
-    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone } = useChat();    const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
+    // ✅ FIXED: Added useAuth to get the current user
+    const { user } = useAuth();
+    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone } = useChat();
+    const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
     const [dragY, setDragY] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
@@ -44,7 +47,7 @@ export default function ChatPanel() {
     const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [messageMenu, setMessageMenu] = useState(null); // { id, isMine, x, y }
+    const [messageMenu, setMessageMenu] = useState(null);
     const longPressTimerRef = useRef(null);
 
     const handleBubblePressStart = (m, isMine, e) => {
@@ -74,7 +77,7 @@ export default function ChatPanel() {
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
-        useEffect(() => {
+    useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
         } else {
@@ -93,7 +96,6 @@ export default function ChatPanel() {
         if (isOpen) setDragY(0);
     }, [isOpen]);
 
-    // Close the settings menu/picker whenever the panel closes or the conversation changes
     useEffect(() => {
         if (!isOpen) {
             setShowSettingsMenu(false);
@@ -116,7 +118,6 @@ export default function ChatPanel() {
             report: 'Reporting a user from chat',
             block: 'Blocking a user',
         };
-        // Placeholder until the matching backend route exists — see suggestions.
         console.info(`[chat settings] "${labels[key] || key}" is not wired up yet.`);
     };
 
@@ -149,16 +150,13 @@ export default function ChatPanel() {
 
     const handleAttachClick = () => fileInputRef.current?.click();
 
-        const handleFileChange = (e) => {
+    const handleFileChange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
         sendMedia(file);
         e.target.value = '';
     };
 
-        // Ask for the most widely-compatible format the browser can actually record,
-    // rather than assuming webm — Safari and some other browsers default to
-    // a different codec, and mislabeling the file breaks playback.
     const MIME_CANDIDATES = [
         'audio/webm;codecs=opus',
         'audio/webm',
@@ -184,9 +182,6 @@ export default function ChatPanel() {
             recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
             recorder.onstop = () => {
                 stream.getTracks().forEach((t) => t.stop());
-                // recorder.mimeType reflects what the browser ACTUALLY used,
-                // regardless of what we asked for — always trust this over
-                // any assumption.
                 const actualType = recorder.mimeType || 'audio/webm';
                 const extension = actualType.includes('mp4') ? 'm4a'
                     : actualType.includes('ogg') ? 'ogg'
@@ -283,7 +278,6 @@ export default function ChatPanel() {
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-ink-600 shrink-0">
                     <div className="flex items-center gap-2 sm:gap-3">
-                        {/* Settings trigger — sits to the left of the seller's avatar */}
                         <div className="relative shrink-0">
                             <button
                                 onClick={() => setShowSettingsMenu((v) => !v)}
@@ -343,92 +337,91 @@ export default function ChatPanel() {
                         </p>
                     ) : (
                         messages.map((m) => {
-    const isMine = m.sender_id === user?.id;
-    const otherUserOnline = otherUserLastActive
-        && (Date.now() - new Date(otherUserLastActive).getTime() < ONLINE_THRESHOLD_MS);
+                            const isMine = m.sender_id === user?.id;
+                            const otherUserOnline = otherUserLastActive
+                                && (Date.now() - new Date(otherUserLastActive).getTime() < ONLINE_THRESHOLD_MS);
 
-    const isImage = m.media_type === 'image';
+                            const isImage = m.media_type === 'image';
 
-    const meta = (
-        <span
-            className={`inline-flex items-center gap-1 shrink-0 select-none ${
-                isImage
-                    ? 'text-white'
-                    : isMine
-                        ? 'text-white/75 dark:text-ink-900/60'
-                        : 'text-slate-400 dark:text-gold-300/50'
-            }`}
-        >
-            <span className="text-[11px]">{formatMessageTime(m.created_at)}</span>
-            {isMine && (
-                m.read ? (
-                    <CheckCheck size={13} className={isImage ? 'text-blue-300' : 'text-current'} />
-                ) : otherUserOnline ? (
-                    <CheckCheck size={13} className="text-current" />
-                ) : (
-                    <Check size={13} className="text-current" />
-                )
-            )}
-        </span>
-    );
+                            const meta = (
+                                <span
+                                    className={`inline-flex items-center gap-1 shrink-0 select-none ${
+                                        isImage
+                                            ? 'text-white'
+                                            : isMine
+                                                ? 'text-white/75 dark:text-ink-900/60'
+                                                : 'text-slate-400 dark:text-gold-300/50'
+                                    }`}
+                                >
+                                    <span className="text-[11px]">{formatMessageTime(m.created_at)}</span>
+                                    {isMine && (
+                                        m.read ? (
+                                            <CheckCheck size={13} className={isImage ? 'text-blue-300' : 'text-current'} />
+                                        ) : otherUserOnline ? (
+                                            <CheckCheck size={13} className="text-current" />
+                                        ) : (
+                                            <Check size={13} className="text-current" />
+                                        )
+                                    )}
+                                </span>
+                            );
 
-    if (m.deleted_for_everyone) {
-        return (
-            <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                    <div className="px-3.5 py-2 rounded-2xl text-sm italic text-slate-400 dark:text-gold-200/40 bg-slate-50 dark:bg-ink-700/50 border border-dashed border-slate-200 dark:border-ink-600">
-                        This message was deleted
-                    </div>
-                </div>
-            </div>
-        );
-    }
+                            if (m.deleted_for_everyone) {
+                                return (
+                                    <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                                            <div className="px-3.5 py-2 rounded-2xl text-sm italic text-slate-400 dark:text-gold-200/40 bg-slate-50 dark:bg-ink-700/50 border border-dashed border-slate-200 dark:border-ink-600">
+                                                This message was deleted
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
 
-    return (
-        <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                <div
-                    onTouchStart={(e) => handleBubblePressStart(m, isMine, e)}
-                    onTouchEnd={handleBubblePressEnd}
-                    onMouseDown={(e) => handleBubblePressStart(m, isMine, e)}
-                    onMouseUp={handleBubblePressEnd}
-                    onMouseLeave={handleBubblePressEnd}
-                    className={`relative rounded-2xl text-sm leading-relaxed overflow-hidden select-none ${
-                        isImage ? 'pb-1' : 'px-3.5 pt-2.5 pb-1.5'
-                    } ${
-                        isMine
-                            ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
-                            : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
-                    }`}
-                >
+                            return (
+                                <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                                        <div
+                                            onTouchStart={(e) => handleBubblePressStart(m, isMine, e)}
+                                            onTouchEnd={handleBubblePressEnd}
+                                            onMouseDown={(e) => handleBubblePressStart(m, isMine, e)}
+                                            onMouseUp={handleBubblePressEnd}
+                                            onMouseLeave={handleBubblePressEnd}
+                                            className={`relative rounded-2xl text-sm leading-relaxed overflow-hidden select-none ${
+                                                isImage ? 'pb-1' : 'px-3.5 pt-2.5 pb-1.5'
+                                            } ${
+                                                isMine
+                                                    ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 rounded-br-sm'
+                                                    : 'bg-slate-100 dark:bg-ink-700 text-slate-800 dark:text-gold-100 rounded-bl-sm'
+                                            }`}
+                                        >
+                                            {isImage && (
+                                                <div className="relative">
+                                                    <img src={m.media_url} alt="" className="max-w-full rounded-t-2xl block" />
+                                                    <span className="absolute bottom-1.5 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
+                                                        {meta}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {m.media_type === 'audio' && (
+                                                <div className="px-3.5 pt-2.5 pb-1">
+                                                    <audio controls src={m.media_url} className="max-w-full" />
+                                                </div>
+                                            )}
+                                            {m.content && (
+                                                <p className={isImage ? 'px-3.5 pt-2' : ''}>{m.content}</p>
+                                            )}
 
-                    {isImage && (
-                        <div className="relative">
-                            <img src={m.media_url} alt="" className="max-w-full rounded-t-2xl block" />
-                            <span className="absolute bottom-1.5 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
-                                {meta}
-                            </span>
-                        </div>
-                    )}
-                    {m.media_type === 'audio' && (
-                        <div className="px-3.5 pt-2.5 pb-1">
-                            <audio controls src={m.media_url} className="max-w-full" />
-                        </div>
-                    )}
-                    {m.content && (
-                        <p className={isImage ? 'px-3.5 pt-2' : ''}>{m.content}</p>
-                    )}
-
-                    {!isImage && (
-                        <div className={`flex items-center justify-end mt-1 ${m.media_type === 'audio' ? 'px-3.5' : ''}`}>
-                            {meta}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-})
+                                            {!isImage && (
+                                                <div className={`flex items-center justify-end mt-1 ${m.media_type === 'audio' ? 'px-3.5' : ''}`}>
+                                                    {meta}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
                     )}
                     <div ref={messagesEndRef} />
 
@@ -519,7 +512,7 @@ export default function ChatPanel() {
                 </div>
             </div>
 
-            <WallpaperPicker open={showWallpaperPicker} onClose={() => setShowWallpaperPicker(false)} currentUserId={user.id} />
+            <WallpaperPicker open={showWallpaperPicker} onClose={() => setShowWallpaperPicker(false)} currentUserId={user?.id} />
 
             {showDeleteModal && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center px-4">

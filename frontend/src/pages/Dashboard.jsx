@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
-    Truck, MapPin, MessageCircle, X, Loader2, ChevronLeft, ChevronRight 
+    Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import EditListingModal from '../components/EditListingModal';
 import ProfileDrawer from '../components/ProfileDrawer';
@@ -58,7 +58,12 @@ export default function Dashboard() {
                 api.get('/products/mine').catch(() => ({ data: [] })),
                 api.get('/orders/sales').catch(() => ({ data: [] })),
             ]).then(([listings, sales]) => {
-                setStats((s) => ({ ...s, listings: listings.data.length, sales: sales.data.length }));
+                setStats((s) => ({
+                    ...s,
+                    listings: listings.data.length,
+                    orders: sales.data.length,   // ✅ fixed: orders = total sales
+                    sales: sales.data.length,
+                }));
             });
         } else {
             api.get('/orders/mine').catch(() => ({ data: [] })).then((res) => {
@@ -74,15 +79,11 @@ export default function Dashboard() {
         }
     }, [isSeller]);
 
-            const tabs = isSeller
+    const tabs = isSeller
         ? ['overview', 'listings', 'orders', 'deliveries', 'sales', 'payouts', 'reports']
         : ['orders', 'reports'];
 
     // ─── SWIPEABLE SLIDING TAB CONTENT (mobile only) ────────────────────
-    // `visitedTabs` lazy-mounts each panel only once you've actually been
-    // to it, so switching tabs doesn't fire every tab's API calls on
-    // first load — but once visited, a panel stays mounted (and its data
-    // stays loaded) so flipping back to it is instant, no refetch.
     const [visitedTabs, setVisitedTabs] = useState(() => new Set([isSeller ? 'overview' : 'orders']));
     const [dragOffset, setDragOffset] = useState(0);
     const [isDraggingTab, setIsDraggingTab] = useState(false);
@@ -106,7 +107,6 @@ export default function Dashboard() {
         const t = e.touches[0];
         const dx = t.clientX - contentTouchRef.current.startX;
         const dy = t.clientY - contentTouchRef.current.startY;
-        // Mostly-vertical drags are a normal page scroll — don't hijack them
         if (Math.abs(dy) > Math.abs(dx) * 1.5) return;
         setDragOffset(dx);
     };
@@ -118,17 +118,17 @@ export default function Dashboard() {
 
         const width = contentTouchRef.current.containerWidth || window.innerWidth;
         const dx = dragOffset;
-        const SWIPE_FRACTION = 0.25; // must drag past 25% of screen width to switch
+        const SWIPE_FRACTION = 0.25;
         const currentIndex = tabs.indexOf(tab);
 
         if (Math.abs(dx) > width * SWIPE_FRACTION) {
             if (dx < 0 && currentIndex < tabs.length - 1) {
-                changeTab(tabs[currentIndex + 1]); // swiped left → next tab
+                changeTab(tabs[currentIndex + 1]);
             } else if (dx > 0 && currentIndex > 0) {
-                changeTab(tabs[currentIndex - 1]); // swiped right → previous tab
+                changeTab(tabs[currentIndex - 1]);
             }
         }
-        setDragOffset(0); // snap back to resting position either way
+        setDragOffset(0);
     };
 
     const activeTabIndex = tabs.indexOf(tab);
@@ -149,6 +149,8 @@ export default function Dashboard() {
         return null;
     };
 
+    const firstName = user?.name?.split(' ')[0] || 'User';
+
     return (
         <div>
             {/* HEADER — with video background */}
@@ -164,19 +166,19 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center gap-4 sm:gap-5">
                             <button
-    onClick={() => {
-        navigate('/', { state: { openProfile: true } });
-    }}
-    className="w-6 h-12 sm:w-8 sm:h-16 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
->
-    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-</button>
+                                onClick={() => {
+                                    navigate('/', { state: { openProfile: true } });
+                                }}
+                                className="w-6 h-12 sm:w-8 sm:h-16 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
+                            >
+                                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </button>
 
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-                                    Hi, {user.name.split(' ')[0]} 👋
+                                    Hi, {firstName} 👋
                                 </h1>
-                                <p className="text-white/70 text-sm mt-1">{user.university_email}</p>
+                                <p className="text-white/70 text-sm mt-1">{user?.university_email}</p>
                             </div>
                         </div>
 
@@ -184,18 +186,19 @@ export default function Dashboard() {
                             <select
                                 value={period}
                                 onChange={(e) => setPeriod(e.target.value)}
-className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"                            >
+                                className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
+                            >
                                 {PERIODS.map((p) => (
                                     <option key={p.value} value={p.value} className="text-slate-900">{p.label}</option>
                                 ))}
                             </select>
                             {isSeller && (
                                 <Link
-    to="/sell/new"
-    className="inline-flex items-center gap-1 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-sm text-xs sm:text-sm"
->
-    <Plus className="w-3 h-3 sm:w-4 sm:h-4" /> New Listing
-</Link>
+                                    to="/sell/new"
+                                    className="inline-flex items-center gap-1 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-sm text-xs sm:text-sm"
+                                >
+                                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" /> New Listing
+                                </Link>
                             )}
                         </div>
                     </div>
@@ -219,10 +222,9 @@ className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5
             </section>
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 bg-white dark:bg-ink-900">
-                {/* ─── TABS SECTION ────────────────────────────────────── */}
+                {/* TABS SECTION */}
                 {tabs.length > 1 && (
                     <>
-                                                {/* MOBILE: Swipeable tabs with floating shadow */}
                         <div className="block sm:hidden">
                             <MobileTabRoll
                                 tabs={tabs}
@@ -231,7 +233,6 @@ className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5
                             />
                         </div>
 
-                        {/* DESKTOP: Centered button-style tabs */}
                         <div className="hidden sm:flex justify-center mb-6">
                             <div className="flex gap-1 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
                                 {tabs.map((t) => {
@@ -257,18 +258,11 @@ className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5
                     </>
                 )}
 
-                {/* MOBILE: all panels sit side-by-side in one strip; we slide
-                    the whole strip via transform instead of swapping content,
-                    which is what actually produces the visible slide motion.
-                    The strip itself scrolls vertically inside a bounded box
-                    so an overflowing tab scrolls internally instead of
-                    pushing the whole page down — and the scrollbar is
-                    hidden while staying fully scrollable. */}
+                {/* MOBILE: swipable strip */}
                 <div
                     ref={tabViewportRef}
                     className="sm:hidden overflow-x-hidden overflow-y-auto no-scrollbar overscroll-contain"
                     style={{
-                        // Adjust this to match your actual header + tab-roll height
                         maxHeight: 'calc(100dvh - 300px)',
                         WebkitOverflowScrolling: 'touch',
                     }}
@@ -297,7 +291,7 @@ className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5
                     </div>
                 </div>
 
-                {/* DESKTOP: unchanged — no swipe/slide, just renders the active tab */}
+                {/* DESKTOP: normal tab content */}
                 <div className="hidden sm:block">
                     {renderTabPanel(tab)}
                 </div>
@@ -376,7 +370,7 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                 let closestIndex = 0;
                 let closestDistance = Infinity;
                 const containerCenter = container.scrollLeft + container.clientWidth / 2;
-                
+
                 tabElements.forEach((tab, i) => {
                     const tabCenter = tab.offsetLeft + tab.offsetWidth / 2;
                     const distance = Math.abs(tabCenter - containerCenter);
@@ -385,7 +379,7 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                         closestIndex = i;
                     }
                 });
-                
+
                 if (closestIndex !== activeIndex) {
                     onTabChange(tabs[closestIndex]);
                 }
@@ -428,16 +422,15 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
 
     return (
         <div className="mb-8 relative">
-            {/* Floating shadow effect */}
-            <div 
+            <div
                 className="absolute -bottom-4 left-0 right-0 h-8 bg-gradient-to-b from-slate-200/50 via-slate-200/30 to-transparent dark:from-ink-600/30 dark:via-ink-600/20 dark:to-transparent blur-md rounded-full"
                 style={{
                     transform: 'scaleX(0.85)',
                     filter: 'blur(8px)',
                 }}
             />
-            
-            <div 
+
+            <div
                 className="absolute -bottom-6 left-1/4 right-1/4 h-6 bg-gradient-to-b from-slate-300/30 to-transparent dark:from-ink-500/20 dark:to-transparent blur-xl"
                 style={{
                     transform: 'scaleX(0.7)',
@@ -454,7 +447,7 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                     onMouseDown={onMouseDown}
                     onScroll={checkChevrons}
                     className="relative rounded-xl border border-slate-200 dark:border-ink-600 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-lg hover:shadow-xl transition-shadow duration-300 scrollbar-hide"
-                                        style={{
+                    style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
                         height: 44,
@@ -485,7 +478,7 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                                         }
                                     }}
                                     onClick={() => scrollToTab(tab)}
-                                                                        className={`tab-item relative shrink-0 h-full flex flex-col items-center justify-center gap-0.5 px-4 text-xs transition-all duration-200 ${
+                                    className={`tab-item relative shrink-0 h-full flex flex-col items-center justify-center gap-0.5 px-4 text-xs transition-all duration-200 ${
                                         isActive
                                             ? 'text-brand-700 dark:text-gold-400 font-bold'
                                             : 'text-slate-500 dark:text-gold-200/50 font-semibold hover:text-slate-700 dark:hover:text-gold-300'
@@ -494,8 +487,8 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                                 >
                                     {Icon && <Icon size={16} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
                                     <span className="whitespace-nowrap">{label}</span>
-                                                                        {isActive && (
-                                        <span 
+                                    {isActive && (
+                                        <span
                                             className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-1 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
                                             style={{
                                                 width: 'auto',
@@ -505,7 +498,7 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                                                 paddingRight: '4px',
                                             }}
                                         >
-                                            <span 
+                                            <span
                                                 className="block"
                                                 style={{
                                                     width: 'auto',
@@ -523,7 +516,7 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                     </div>
                 </div>
 
-                                {showLeftChevron && (
+                {showLeftChevron && (
                     <div className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-xl bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
                         <ChevronLeft size={14} className="text-slate-400 dark:text-gold-300/40 ml-1" />
                     </div>
@@ -536,7 +529,6 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
                 )}
             </div>
 
-            {/* Dot indicators */}
             <div className="flex justify-center gap-1.5 mt-4">
                 {tabs.map((t, i) => (
                     <button
@@ -686,7 +678,7 @@ function PayoutSettings() {
     const [settingDefault, setSettingDefault] = useState(null);
     const [withdrawing, setWithdrawing] = useState(false);
     const [balance, setBalance] = useState(0);
-        const [withdrawAmount, setWithdrawAmount] = useState('');
+    const [withdrawAmount, setWithdrawAmount] = useState('');
     const [selectedAccountId, setSelectedAccountId] = useState('');
     const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
     const [withdrawPassword, setWithdrawPassword] = useState('');
@@ -763,7 +755,7 @@ function PayoutSettings() {
         }
     };
 
-        const handleWithdrawClick = () => {
+    const handleWithdrawClick = () => {
         if (!selectedAccountId) {
             toast.error('Please select a payout account');
             return;
@@ -855,7 +847,7 @@ function PayoutSettings() {
                         />
                     </div>
 
-                                        <button
+                    <button
                         onClick={handleWithdrawClick}
                         disabled={withdrawing || balance <= 0 || !selectedAccountId}
                         className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm"
@@ -932,7 +924,7 @@ function PayoutSettings() {
                 )}
             </div>
 
-                                               {showWithdrawConfirm && createPortal(
+            {showWithdrawConfirm && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 relative">
                         <button
@@ -1068,7 +1060,7 @@ function PayoutSettings() {
                                 {saving ? 'Adding…' : 'Add account'}
                             </button>
                         </div>
-                                        </div>
+                    </div>
                 </div>,
                 document.body
             )}
@@ -1107,10 +1099,10 @@ function SellerOverview({ period }) {
     const net = parseFloat(overview.net_earnings) || 0;
     const salesCount = overview.successful_sales || 0;
     const avgOrderValue = salesCount > 0 ? gross / salesCount : 0;
-    const platformFee = Math.max(gross - net, 0);
 
-    // Only show a trend badge when the backend actually sends one.
-    const changePct = typeof overview.net_change_percentage === 'number' ? overview.net_change_percentage : null;
+    // ✅ Parse percentage robustly (handles string or number)
+    const rawChange = overview.net_change_percentage;
+    const changePct = rawChange !== undefined && rawChange !== null ? parseFloat(rawChange) : null;
     const isPositive = (changePct ?? 0) >= 0;
 
     const periodLabel = PERIODS.find((p) => p.value === period)?.label || 'This period';
@@ -1134,7 +1126,7 @@ function SellerOverview({ period }) {
                 </div>
             )}
 
-            {/* ─── EARNINGS STATEMENT (+ milestone progress inline) ──── */}
+            {/* ─── EARNINGS STATEMENT ──────────────────────────────── */}
             <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 sm:p-6">
                 <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-slate-500 dark:text-gold-200/60">Earnings statement</p>
@@ -1162,15 +1154,14 @@ function SellerOverview({ period }) {
                     )}
                 </p>
 
-                {/* Torn statement rule */}
+                {/* Torn statement rule — NO platform fee row */}
                 <div className="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-ink-600 space-y-0.5">
                     <StatementRow label="Gross sales" value={`GHS ${gross.toFixed(2)}`} />
-                    <StatementRow label="Platform fee" value={`GHS ${platformFee.toFixed(2)}`} />
                     <StatementRow label="Average order" value={`GHS ${avgOrderValue.toFixed(2)}`} />
+                    {/* ❌ Platform fee removed per request */}
                 </div>
 
-                {/* Milestone progress — inline, no separate box, just another
-                    torn-rule section of the same statement card. */}
+                {/* Milestone progress — inline */}
                 {rewards && (
                     <div className="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-ink-600 flex items-center gap-4">
                         <div className="relative shrink-0">
@@ -1197,8 +1188,7 @@ function SellerOverview({ period }) {
     );
 }
 
-// A receipt-style row: label, a dotted leader filling the gap, then the
-// value — keeps every amount aligned without a rigid table.
+// ─── RECEIPT-STYLE ROW ──────────────────────────────────────────────────
 function StatementRow({ label, value }) {
     return (
         <div className="flex items-baseline gap-2 py-1.5">
@@ -1209,7 +1199,7 @@ function StatementRow({ label, value }) {
     );
 }
 
-// Circular progress toward the next reward milestone.
+// ─── MILESTONE RING ──────────────────────────────────────────────────────
 function MilestoneRing({ progress, total, size = 72, stroke = 6 }) {
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
