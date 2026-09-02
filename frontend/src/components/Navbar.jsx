@@ -56,6 +56,7 @@ export default function Navbar() {
     const location = useLocation();
     const isHome = location.pathname === '/';
     const isAdminPage = location.pathname.startsWith('/admin');
+    const isStorePage = location.pathname.startsWith('/store');
     const isAdminLoginPage = location.pathname === '/admin/login';
     const isAdmin = user?.role === 'admin';
     const [showProfile, setShowProfile] = useState(false);
@@ -194,10 +195,12 @@ export default function Navbar() {
         logoTitle = 'Go to home';
     }
 
+    if (isStorePage) return null;
+
     return (
         <>
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+                    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {/* Menu button - ONLY for non-admin users */}
