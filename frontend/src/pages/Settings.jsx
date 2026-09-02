@@ -7,7 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck,
     Shield, ChevronRight, ChevronDown, Percent, Trash2, AlertTriangle, Moon, Sun, Gift,
-    Store, Copy, Facebook, Twitter, Linkedin, Loader2
+    Store, Copy, Loader2
 } from 'lucide-react';
 import { SETTINGS_VIDEO } from '../data/media';
 
@@ -284,14 +284,18 @@ export default function Settings() {
                                         className="p-2 rounded-lg bg-[#1877F2] hover:bg-[#0d65d9] text-white transition"
                                         title="Share on Facebook"
                                     >
-                                        <Facebook size={16} />
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                            <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.23.2 2.23.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.89h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z"/>
+                                        </svg>
                                     </button>
                                     <button
                                         onClick={() => shareOnSocial('twitter')}
                                         className="p-2 rounded-lg bg-black dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-black transition"
                                         title="Share on Twitter / X"
                                     >
-                                        <Twitter size={16} />
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                            <path d="M18.9 2H22l-7.6 8.7L23 22h-7.1l-5.5-7.2L4.1 22H1l8.2-9.3L1.4 2h7.3l5 6.6L18.9 2zm-1.2 18h1.7L7.1 4H5.3l12.4 16z"/>
+                                        </svg>
                                     </button>
                                     <button
                                         onClick={() => shareOnSocial('whatsapp')}
@@ -308,7 +312,9 @@ export default function Settings() {
                                         className="p-2 rounded-lg bg-[#0A66C2] hover:bg-[#0957a8] text-white transition"
                                         title="Share on LinkedIn"
                                     >
-                                        <Linkedin size={16} />
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                            <path d="M20.45 20.45h-3.56v-5.58c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.68H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.61 0 4.28 2.38 4.28 5.47v6.27zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z"/>
+                                        </svg>
                                     </button>
                                 </div>
                             </>
