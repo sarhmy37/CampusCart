@@ -1,7 +1,54 @@
 import { AlertTriangle } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useEffect, useRef } from 'react';
 
 export default function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', onConfirm, onCancel }) {
+    // Only lock/unlock if nothing already has the body locked (e.g. a parent
+    // drawer or modal that opened this ConfirmModal). Prevents this modal
+    // from stealing or releasing a lock it doesn't own.
+    const didLockRef = useRef(false);
+
+    useEffect(() => {
+        if (open) {
+            if (document.body.style.position !== 'fixed') {
+                const scrollY = window.scrollY;
+                document.body.style.position = 'fixed';
+                document.body.style.top = `-${scrollY}px`;
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.style.overflow = 'hidden';
+                document.body.style.touchAction = 'none';
+                document.documentElement.style.overscrollBehavior = 'none';
+                didLockRef.current = true;
+            }
+        } else if (didLockRef.current) {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            didLockRef.current = false;
+        }
+        return () => {
+            if (didLockRef.current) {
+                const scrollY = document.body.style.top;
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+                document.documentElement.style.overscrollBehavior = '';
+                if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+                didLockRef.current = false;
+            }
+        };
+    }, [open]);
+
     if (!open) return null;
 
         return createPortal(

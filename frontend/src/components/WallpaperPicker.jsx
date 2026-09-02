@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState , useEffect } from 'react';
 import { X, Check, Upload, Loader2 } from 'lucide-react';
 import { WALLPAPER_PRESETS } from '../data/wallpapers';
 import { useChat } from '../context/ChatContext';
@@ -26,6 +26,52 @@ export default function WallpaperPicker({ open, onClose, currentUserId }) {
     // { kind: 'preset', preset } | { kind: 'custom', file, previewUrl } | null
     const [staged, setStaged] = useState(null);
     const [applying, setApplying] = useState(false);
+
+    // Lock body scroll while open. Self-aware — WallpaperPicker is opened
+    // from inside ChatPanel (which already locks the body), so this only
+    // takes/releases the lock if nothing already owns it.
+    const didLockRef = useRef(false);
+
+    useEffect(() => {
+        if (open) {
+            if (document.body.style.position !== 'fixed') {
+                const scrollY = window.scrollY;
+                document.body.style.position = 'fixed';
+                document.body.style.top = `-${scrollY}px`;
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.style.overflow = 'hidden';
+                document.body.style.touchAction = 'none';
+                document.documentElement.style.overscrollBehavior = 'none';
+                didLockRef.current = true;
+            }
+        } else if (didLockRef.current) {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            didLockRef.current = false;
+        }
+        return () => {
+            if (didLockRef.current) {
+                const scrollY = document.body.style.top;
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+                document.documentElement.style.overscrollBehavior = '';
+                if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+                didLockRef.current = false;
+            }
+        };
+    }, [open]);
 
     if (!open) return null;
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, HelpCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
@@ -7,6 +7,45 @@ export default function CategoryRequestModal({ open, onClose }) {
     const [categoryName, setCategoryName] = useState('');
     const [details, setDetails] = useState('');
     const [submitting, setSubmitting] = useState(false);
+
+    // Lock body scroll while the modal is up — same pattern as ProfileDrawer,
+    // so PullToRefresh's isScrollLocked() check also respects this modal.
+    useEffect(() => {
+        if (open) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+        return () => {
+            // Safety net if this unmounts while still open
+            if (document.body.style.position === 'fixed') {
+                const scrollY = document.body.style.top;
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+                document.documentElement.style.overscrollBehavior = '';
+                if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            }
+        };
+    }, [open]);
 
     if (!open) return null;
 

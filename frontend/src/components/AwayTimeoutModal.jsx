@@ -51,11 +51,54 @@ export default function AwayTimeoutModal() {
         return () => clearInterval(tickRef.current);
     }, [showModal, logout]);
 
+    // Lock body scroll while the modal is up — same pattern as ProfileDrawer,
+    // so PullToRefresh's isScrollLocked() check also respects this modal.
+    useEffect(() => {
+        if (showModal) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+    }, [showModal]);
+
     const handleContinue = () => {
         clearInterval(tickRef.current);
         setShowModal(false);
         setRemaining(AWAY_TIMEOUT_MS);
     };
+
+    // Safety net: if the component unmounts (e.g. logout navigates away)
+    // while the lock is still active, don't leave the body stuck.
+    useEffect(() => {
+        return () => {
+            if (document.body.style.position === 'fixed') {
+                const scrollY = document.body.style.top;
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+                document.documentElement.style.overscrollBehavior = '';
+                if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            }
+        };
+    }, []);
 
     if (!showModal) return null;
 

@@ -60,7 +60,6 @@ useEffect(() => {
             <NotificationProvider>
               <ChatProvider>
                 <BrowserRouter>
-                  <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
                     <Navbar />
                     <AppToaster />
                     <AwayTimeoutModal />
@@ -87,7 +86,6 @@ useEffect(() => {
                     </PullToRefresh>
                     <InstallButton />
                     <ChatPanel />
-<ZoomHintOverlay open={showZoomHint} anchorRect={zoomHintAnchor} onDismiss={() => setShowZoomHint(false)} />                  </div>
                 </BrowserRouter>
               </ChatProvider>
             </NotificationProvider>
