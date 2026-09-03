@@ -459,7 +459,7 @@ export default function Browse() {
                             onClick={() => setShowCategoryRequest(true)}
                             className="block text-right w-full text-[11px] font-semibold text-white/70 hover:text-white underline underline-offset-2 transition mt-1"
                         >
-                            Can't find category? Contact admin
+                            Suggest a feature
                         </button>
                     </div>
 
@@ -533,7 +533,7 @@ export default function Browse() {
                             onClick={() => setShowCategoryRequest(true)}
                             className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:bg-white/10 hover:text-white transition"
                         >
-                            Can't find category? Contact admin
+                            Suggest a feature
                         </button>
                     </div>
                 </div>

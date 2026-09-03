@@ -61,7 +61,7 @@ export default function CategoryRequestModal({ open, onClose }) {
 
     const handleSubmit = async () => {
         if (!categoryName.trim()) {
-            toast.error('Enter the category you\'d like to see');
+            toast.error('Enter a short title for your suggestion');
             return;
         }
         setSubmitting(true);
@@ -69,8 +69,8 @@ export default function CategoryRequestModal({ open, onClose }) {
             await api.post('/reports', {
                 product_id: null,
                 reported_user_id: null,
-                reason: 'category_request',
-                details: `Requested category: "${categoryName.trim()}"${details.trim() ? ` — ${details.trim()}` : ''}`,
+                reason: 'feature_suggestion',
+                details: `Feature suggestion: "${categoryName.trim()}"${details.trim() ? ` — ${details.trim()}` : ''}`,
             });
             toast.success('Request sent! Our team will review it.');
             handleClose();
@@ -92,18 +92,18 @@ export default function CategoryRequestModal({ open, onClose }) {
                 <div className="w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900/40 text-brand-600 dark:text-gold-400 flex items-center justify-center mb-4">
                     <HelpCircle size={20} />
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">Request a category</h3>
+                <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">Suggest a feature</h3>
                 <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-1.5">
-                    Can't find the right category for your listing? Let us know and we'll consider adding it.
+                    Got an idea to improve the app? Tell us what you'd like to see.
                 </p>
 
                 <div className="mt-5 space-y-3">
                     <div>
-                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Category name</label>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Feature title</label>
                         <input
                             value={categoryName}
                             onChange={(e) => setCategoryName(e.target.value)}
-                            placeholder="e.g. Furniture"
+                            placeholder="e.g. Wishlist for saved items"
                             className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50"
                         />
                     </div>
@@ -114,7 +114,7 @@ export default function CategoryRequestModal({ open, onClose }) {
                             rows={3}
                             value={details}
                             onChange={(e) => setDetails(e.target.value)}
-                            placeholder="What kind of items would go here?"
+                            placeholder="How would this help you or other users?"
                             className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 resize-none"
                         />
                     </div>
