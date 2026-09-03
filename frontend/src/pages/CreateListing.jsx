@@ -11,6 +11,17 @@ const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
 const CLOUD_NAME = 'b7fch4rp';
 const UPLOAD_PRESET = 'campuscart_preset';
 
+// Converts whole-number prices to charm pricing: 430 → 429.99.
+// Leaves prices that already have cents (e.g. 430.50) untouched.
+const toCharmPrice = (value) => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return value;
+    if (Number.isInteger(num)) {
+        return (num - 1 + 0.99).toFixed(2);
+    }
+    return num.toFixed(2);
+};
+
 const uploadToCloudinary = async (file, resourceType) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -192,7 +203,7 @@ export default function CreateListing() {
             const payload = {
                 title: form.title,
                 description: form.description,
-                price: form.price,
+                price: toCharmPrice(form.price),
                 condition: form.condition,
                 stock: form.stock,
                 category: category ? category.name : '',

@@ -6,6 +6,17 @@ import { X } from 'lucide-react';
 
 const CONDITIONS = ['new', 'good', 'fair'];
 
+// Converts whole-number prices to charm pricing: 46 → 45.99.
+// Leaves prices that already have cents (e.g. 46.50) untouched.
+const toCharmPrice = (value) => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return value;
+    if (Number.isInteger(num)) {
+        return (num - 1 + 0.99).toFixed(2);
+    }
+    return num.toFixed(2);
+};
+
 export default function EditListingModal({ product, open, onClose, onSaved }) {
     const [form, setForm] = useState({
         title: '',
@@ -41,7 +52,9 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
     const currentSavedPrice = product ? parseFloat(product.price) : null;
 
     const calculateDiscount = () => {
-        const newPrice = parseFloat(form.price);
+        // Use the charmed price here too, so the preview matches what
+        // actually gets saved (e.g. typing 46 previews against 45.99).
+        const newPrice = parseFloat(toCharmPrice(form.price));
         if (!currentSavedPrice || !newPrice || currentSavedPrice <= newPrice || currentSavedPrice <= 0 || newPrice <= 0) {
             return null;
         }
@@ -105,7 +118,7 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
             // old_price is never sent from the client — the backend works out
             // whether this counts as a discount by comparing to what's already
             // saved, and manages old_price entirely on its own.
-            const payload = { ...form };
+            const payload = { ...form, price: toCharmPrice(form.price) };
             await api.patch(`/products/${product.id}`, payload);
             toast.success('Listing updated');
             onSaved();
@@ -200,7 +213,7 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                                     🎉 This will show as -{discount}% off
                                 </p>
                                 <p className="text-[10px] text-emerald-600 dark:text-emerald-400/70">
-                                    Old price: GHS {currentSavedPrice.toFixed(2)} → New price: GHS {parseFloat(form.price).toFixed(2)}
+                                    Old price: GHS {currentSavedPrice.toFixed(2)} → New price: GHS {toCharmPrice(form.price)}
                                 </p>
                             </div>
                         )}
