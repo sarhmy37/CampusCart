@@ -47,7 +47,7 @@ export default function Dashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const isSeller = user?.account_type === 'seller';
-    const [tab, setTab] = useState(isSeller ? 'overview' : 'orders');
+    const [tab, setTab] = useState(isSeller ? 'payouts' : 'orders');
     const [period, setPeriod] = useState('month');
     const [showProfile, setShowProfile] = useState(false);
     const [stats, setStats] = useState({ listings: 0, orders: 0, sales: 0, completed: 0, pending: 0 });
@@ -127,8 +127,7 @@ export default function Dashboard() {
     }, []);
 
     // ─── SWIPEABLE SLIDING TAB CONTENT (mobile only) ────────────────────
-    const [visitedTabs, setVisitedTabs] = useState(() => new Set([isSeller ? 'overview' : 'orders']));
-    const [dragOffset, setDragOffset] = useState(0);
+    const [visitedTabs, setVisitedTabs] = useState(() => new Set([isSeller ? 'payouts' : 'orders']));    const [dragOffset, setDragOffset] = useState(0);
     const [isDraggingTab, setIsDraggingTab] = useState(false);
     const contentTouchRef = useRef({ startX: 0, startY: 0, tracking: false, containerWidth: 0 });
     const tabViewportRef = useRef(null);
