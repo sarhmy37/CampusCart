@@ -331,7 +331,7 @@ export default function Dashboard() {
                         }}
                     >
                         {tabs.map((t) => (
-                            <div key={t} style={{ width: `${100 / tabs.length}%` }} className="shrink-0 px-0.5">
+                            <div key={t} style={{ width: `${100 / tabs.length}%` }} className="shrink-0 px-0.5 pb-24">
                                 {visitedTabs.has(t) ? renderTabPanel(t) : null}
                             </div>
                         ))}
@@ -339,7 +339,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* DESKTOP: normal tab content */}
-                <div className="hidden sm:block">
+                <div className="hidden sm:block pb-24">
                     {renderTabPanel(tab)}
                 </div>
             </div>
