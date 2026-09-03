@@ -80,7 +80,7 @@ export default function Dashboard() {
     }, [isSeller]);
 
     const tabs = isSeller
-        ? ['overview', 'payouts', 'listings', 'orders', 'deliveries', 'sales', 'reports']
+        ? ['overview', 'listings', 'payouts', 'orders', 'deliveries', 'sales', 'reports']
         : ['orders', 'reports'];
 
    /* // Lock page scroll on mobile only — desktop still relies on normal page
