@@ -4,11 +4,138 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { REGISTER_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
-import { Mail, Lock, Eye, EyeOff, User, School, ShoppingBag, Store, Phone, ChevronDown, Landmark, Loader2, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
-import AutoLocationInput from '../components/AutoLocationInput';
+import { Mail, Lock, Eye, EyeOff, User, School, ShoppingBag, Store, Phone, ChevronDown, Landmark, Loader2, CheckCircle, XCircle, ArrowLeft, MapPin } from 'lucide-react';
 import { AcademicCapIcon } from '@heroicons/react/24/outline';
 
 const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU'];
+
+// Meeting places per school, combining official on-campus spots and well-known
+// nearby student areas (source: 12 Ghana Universities meeting-places guide,
+// Sep 2026). These are common ground where a buyer and seller can meet to
+// hand over an item — not a claim of university endorsement for the "nearby"
+// entries.
+const PLACES_BY_SCHOOL = {
+    KNUST: [
+        'Main Entrance / Main Gate', 'Ayeduase Gate', 'Conti Roundabout', 'Commercial Area',
+        'Agric Junction', 'Botanical Gardens', "Students' Clinic", 'Great Hall',
+        'Central Classroom Block', 'Main Administration', 'Ahinsan Gate',
+        'Ayeduase Junction', 'Ayeduase Market', 'Tech Junction', 'Ayeduase student-hostel area',
+        'Kotei area', 'Kentinkrono area',
+    ],
+    ATU: [
+        'Main Campus / Main Gate', 'Barnes Road', 'ATU Library – N Block', 'ATU Library – B-Tech Block',
+        'University Clinic', 'Cafeteria', 'Multipurpose Sports Facility', 'Tennis Court',
+        'Handball Court', 'Basketball Court', 'Volleyball Court', 'University Guesthouse',
+        'Kinbu / Barnes Road area', 'Accra Central', 'Tudu', 'Makola area', 'Kaneshie transport corridor',
+    ],
+    UCC: [
+        'Main / Old Site', 'Northern / New Site', 'Main Administration', 'UCC Main Library',
+        'University Garden', 'University Zoo', 'Science area', 'Campus Broadcasting Centre',
+        'Shopping centres on New Site', 'UCC Stadium / sports areas',
+        'UCC Main Gate area', 'Amamoma', 'Kotokuraba area', 'Cape Coast town centre',
+        'Cape Coast Castle area', 'University commercial/student areas',
+    ],
+    UHAS: [
+        'UHAS Main Campus', 'Main Entrance', 'Sokode campus area', 'Asogli campus area',
+        'UHAS CEDI Auditorium', 'Academic/lecture facilities', 'University health/clinical facilities',
+        'Student residential areas',
+        'Sokode', 'Ho township', 'Ho Central', 'Ho Market area', 'Sokode Junction / transport points',
+    ],
+    UG: [
+        'Main University Gate', 'University Avenue', 'University Square', 'Balme Library',
+        'Great Hall / Legon Hill', 'Open-Air Theatre', 'Central Cafeteria', 'Sports fields',
+        'UG Stadium', 'Banking Square', 'UG Medical Centre', 'Noguchi Memorial Institute area',
+        'UG Main Gate roadside', 'Okponglo', 'Madina', 'Haatso', 'East Legon',
+        'Legon campus commercial/student areas',
+    ],
+    UDS: [
+        'Tamale/Dungu Campus Main Administration', 'Multipurpose Sports Complex', 'UDS Basic School',
+        'Medical School Blocks', 'School of Allied Health Block', 'Tamale Campus Library',
+        'Tamale Campus Clinic', 'UDS Central Mosque', 'UDS Guesthouse', 'Commercial areas on campus',
+        'City Campus', 'Nyankpala Campus',
+        'Dungu', 'Sagnarigu', 'Tamale-Dungu Road', 'Tamale city/student areas',
+        'Nyankpala township', 'Nyankpala campus entrance area',
+    ],
+    UMaT: [
+        'UMaT Main Gate', 'Administration/academic area', 'UMaT Library', 'Lecture/engineering facilities',
+        'Chamber of Mines Hall', 'K.T. Hall', 'Gold Refinery Hall', 'UMaT Basic School',
+        'Campus recreational areas',
+        'Tarkwa town', 'Tarkwa Main Market area', 'UMaT Main Gate bus stop',
+        'TNA Park / Tarkwa & Abosso Stadium', 'Tarkwa Senior High School area', 'Tarkwa transport/town centre',
+    ],
+    UEW: [
+        'North Campus', 'Central Campus', 'South Campus', 'Osagyefo Library', 'North Campus Library',
+        'Central Campus Library', 'Jophus Anamuah-Mensah Conference Centre', 'JAM Conference Centre',
+        'North Assembly Hall', 'Technology Block', 'Food Court / faculty enclave',
+        'North and South Campus dining halls', 'Sports facilities',
+        'Winneba township', 'UEW North Campus area', 'UEW Central Campus area', 'UEW South Campus area',
+        'Winneba market/town centre', 'Campus-side student commercial areas',
+    ],
+    UPSA: [
+        'UPSA Main Gate', 'UPSA Hostel Complex', 'UPSA Library', 'UPSA Business School',
+        'UPSA Astroturf / sports area', 'Student activity areas', 'Campus commercial/student spaces',
+        'East Legon', 'Madina', 'American House', 'Legon', 'Trinity Avenue / UPSA hostel area',
+        'Accra-Madina road corridor',
+    ],
+    PentUni: [
+        'Pentecost University Main Campus', 'Main Gate', 'Campus Cafeteria', 'Residence halls',
+        'Lecture/academic areas', 'Student activity areas', 'Campus transport points',
+        'Pentecost University bus stop', 'Kyeiwaa Junction', 'Ontario Hostel area', 'Clare Hostel area',
+        'Sowutuom', 'Kwashieman', 'Lapaz',
+    ],
+    KsTU: [
+        'Main Campus', 'Main Gate', 'KsTU Library', 'SRC area', 'Lecture/classroom areas',
+        'Sports/recreation areas', 'Adako-Jachie campus',
+        'Asafo', 'Amakom', 'Adako-Jachie', 'Kumasi Central', 'Adum', 'Asafo transport area',
+    ],
+    CU: [
+        'Miotso Main Campus', 'Main Gate', 'Central Students Plaza', 'University Library',
+        'Johnson Kanda Building', 'VPY Gadzekpo Building', 'Lecture theatres', 'Student hostels',
+        'Recreational facilities', 'Central administration',
+        'Dawhenya', 'Ningo-Prampram area', 'Accra-Aflao Highway corridor', 'Miotso community',
+        'Tema-side corridor',
+    ],
+};
+
+// Campus coordinates, used only to find the nearest school to a buyer's
+// device location.
+export const SCHOOL_COORDS = {
+    KNUST: { lat: 6.6732, lng: -1.5654 },
+    ATU: { lat: 5.554028, lng: -0.205556 },   // corrected via Wikipedia (was 5.5504, -0.2174)
+    UHAS: { lat: 6.6008, lng: 0.4713 },
+    UCC: { lat: 5.1153, lng: -1.2903 },
+    UDS: { lat: 9.393273, lng: -0.823513 },   // corrected via Tamale Teaching Hospital (was 9.3730, -0.8850)
+    UEW: { lat: 5.35000, lng: -0.62500 },     // corrected via Winneba town center (was 5.3621, -0.6339)
+    UPSA: { lat: 5.6614, lng: -0.1664 },
+    PentUni: { lat: 5.6262, lng: -0.2742 },
+    KsTU: { lat: 6.6911, lng: -1.6100 },
+    CU: { lat: 5.5663, lng: -0.2410 },
+    UG: { lat: 5.65083, lng: -0.18694 },      // added — University of Ghana, Legon
+    UMaT: { lat: 5.3005, lng: -1.9900 },      // added — University of Mines and Technology, Tarkwa
+};
+
+function distanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function findNearestSchool(lat, lng) {
+    let nearest = '';
+    let minDist = Infinity;
+    for (const [code, coord] of Object.entries(UNIVERSITY_COORDS)) {
+        const d = distanceKm(lat, lng, coord.lat, coord.lng);
+        if (d < minDist) {
+            minDist = d;
+            nearest = code;
+        }
+    }
+    return nearest;
+}
 
 const COUNTRY_CODES = [
     { code: '+233', label: '+233 (Ghana)' },
@@ -72,7 +199,7 @@ const DEFAULT_BANK_RULE = { minLength: 10, label: 'Bank' };
 const LOGO_FULL = 'Tre-X';
 const TAGLINE_FULL = 'Redefining Campus Shopping';
 const TYPE_SPEED_MS = 70;
-const PULSE_ALONE_MS = 5000;
+const PULSE_ALONE_MS = 2000;
 const HOLD_MS = 10000;
 
 export default function Register() {
@@ -90,13 +217,48 @@ export default function Register() {
         password: '',
         confirm_password: '',
         school: SCHOOLS[0],
+        meeting_place: '',
         whatsapp: '',
-        location: '',
     });
     const [whatsappCode, setWhatsappCode] = useState('+233');
     const [whatsappNumber, setWhatsappNumber] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    // --- Buyer: auto-detected nearest school + free-text extra location info ---
+    const [buyerSchool, setBuyerSchool] = useState('');
+    const [buyerExtraInfo, setBuyerExtraInfo] = useState('');
+    const [detectingSchool, setDetectingSchool] = useState(false);
+    const [detectError, setDetectError] = useState('');
+
+    const detectNearestSchool = () => {
+        if (!navigator.geolocation) {
+            setDetectError("Your device doesn't support location detection. Please pick your school manually.");
+            return;
+        }
+        setDetectingSchool(true);
+        setDetectError('');
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const nearest = findNearestSchool(pos.coords.latitude, pos.coords.longitude);
+                setBuyerSchool(nearest);
+                setDetectingSchool(false);
+            },
+            () => {
+                setDetectError("Couldn't detect your location. Please pick your school manually.");
+                setDetectingSchool(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
+
+    // Run detection once, as soon as someone lands on the buyer tab.
+    useEffect(() => {
+        if (accountType === 'buyer' && !buyerSchool && !detectingSchool && !detectError) {
+            detectNearestSchool();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accountType]);
 
     const [payoutMethod, setPayoutMethod] = useState('bank');
     const [bankCode, setBankCode] = useState('');
@@ -107,6 +269,7 @@ export default function Register() {
 
     const [validating, setValidating] = useState(false);
     const [validationResult, setValidationResult] = useState({ isValid: false, message: '', type: '' });
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
 
     // --- Animated mobile logo state ---
     const [phase, setPhase] = useState('pulse'); // 'pulse' | 'typing-logo' | 'typing-tagline' | 'hold'
@@ -179,6 +342,16 @@ export default function Register() {
         const cleaned = number.replace(/\D/g, '');
         setWhatsappNumber(cleaned);
         setForm({ ...form, whatsapp: code + cleaned });
+    };
+
+    const updateSellerSchool = (newSchool) => {
+        const places = PLACES_BY_SCHOOL[newSchool] || [];
+        setForm((f) => ({
+            ...f,
+            school: newSchool,
+            // keep the chosen place only if it's still valid for the new school
+            meeting_place: places.includes(f.meeting_place) ? f.meeting_place : '',
+        }));
     };
 
     const getBankName = (code) => {
@@ -260,8 +433,25 @@ export default function Register() {
             toast.error('Password must be at least 6 characters');
             return;
         }
-        if (accountType === 'buyer' && !form.location.trim()) {
-            toast.error('Delivery location is required');
+
+        if (accountType === 'buyer') {
+            if (!buyerSchool) {
+                toast.error('Please select or wait for us to detect your nearest school.');
+                return;
+            }
+            if (!buyerExtraInfo.trim()) {
+                toast.error('Please add a bit more detail about where you are (e.g. a hostel or landmark).');
+                return;
+            }
+        }
+
+        if (accountType === 'seller' && !form.meeting_place) {
+            toast.error('Please select a meeting place on your campus.');
+            return;
+        }
+
+        if (!agreedToTerms) {
+            toast.error('Please confirm your details are correct and agree to the Terms of Service and Privacy Policy');
             return;
         }
 
@@ -282,10 +472,11 @@ export default function Register() {
                 name: form.name,
                 university_email: form.university_email,
                 password: form.password,
-                school: accountType === 'seller' ? form.school : null,
+                school: accountType === 'seller' ? form.school : buyerSchool,
                 account_type: accountType,
                 whatsapp: form.whatsapp,
-                location: accountType === 'buyer' ? form.location : null,
+                meeting_place: accountType === 'seller' ? form.meeting_place : null,
+                location: accountType === 'buyer' ? buyerExtraInfo : null,
                 referral_code: searchParams.get('ref') || null,
             };
 
@@ -309,6 +500,7 @@ export default function Register() {
     // Banks and mobile money are separate, unrelated lists — no shared
     // filtering logic between them.
     const networkOptions = payoutMethod === 'bank' ? banks : MOBILE_MONEY_NETWORKS;
+    const sellerPlaces = PLACES_BY_SCHOOL[form.school] || [];
 
     return (
         <>
@@ -546,35 +738,94 @@ export default function Register() {
                                     </p>
                                 </div>
 
+                                {/* SELLER: School + Meeting Place, same row layout as WhatsApp */}
                                 {accountType === 'seller' && (
                                     <div>
-                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">School</label>
-                                        <div className="relative mt-1">
-                                            <School size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
-                                            <select
-                                                value={form.school}
-                                                onChange={(e) => setForm({ ...form, school: e.target.value })}
-                                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 transition appearance-none"
-                                            >
-                                                {SCHOOLS.map((s) => (
-                                                    <option key={s} value={s}>{s}</option>
-                                                ))}
-                                            </select>
+                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">School & Meeting Place</label>
+                                        <div className="flex mt-1 gap-1.5">
+                                            <div className="relative w-32">
+                                                <School size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
+                                                <select
+                                                    value={form.school}
+                                                    onChange={(e) => updateSellerSchool(e.target.value)}
+                                                    className="w-full pl-8 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
+                                                >
+                                                    {SCHOOLS.map((s) => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
+                                            </div>
+                                            <div className="relative flex-1">
+                                                <select
+                                                    value={form.meeting_place}
+                                                    onChange={(e) => setForm({ ...form, meeting_place: e.target.value })}
+                                                    className="w-full pl-3 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
+                                                >
+                                                    <option value="">Select a meeting place</option>
+                                                    {sellerPlaces.map((place) => (
+                                                        <option key={place} value={place}>{place}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
+                                            </div>
                                         </div>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">
+                                            Pick a common spot on your campus where buyers can meet you.
+                                        </p>
                                     </div>
                                 )}
 
+                                {/* BUYER: auto-detected school + free-text extra info, same row layout */}
                                 {accountType === 'buyer' && (
                                     <div>
-                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Delivery Location</label>
-                                        <div className="mt-1">
-                                            <AutoLocationInput
-                                                value={form.location}
-                                                onChange={(newLocation) => setForm({ ...form, location: newLocation })}
-                                                placeholder="Tap here to auto-detect your location..."
-                                            />
+                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Your Campus & Location Details</label>
+                                        <div className="flex mt-1 gap-1.5">
+                                            <div className="relative w-32">
+                                                <School size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
+                                                <select
+                                                    value={buyerSchool}
+                                                    onChange={(e) => setBuyerSchool(e.target.value)}
+                                                    className="w-full pl-8 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
+                                                >
+                                                    <option value="">{detectingSchool ? 'Detecting…' : 'Select school'}</option>
+                                                    {SCHOOLS.map((s) => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                                {detectingSchool ? (
+                                                    <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 animate-spin pointer-events-none" />
+                                                ) : (
+                                                    <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
+                                                )}
+                                            </div>
+                                            <div className="relative flex-1">
+                                                <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
+                                                <input
+                                                    type="text"
+                                                    value={buyerExtraInfo}
+                                                    onChange={(e) => setBuyerExtraInfo(e.target.value)}
+                                                    placeholder="e.g. near Ayeduase Gate, West End Hostel"
+                                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition"
+                                                />
+                                            </div>
                                         </div>
-                                        <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Tap the bar above to automatically detect your Region, City, and Landmark.</p>
+                                        {detectingSchool && (
+                                            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Detecting your nearest campus…</p>
+                                        )}
+                                        {!detectingSchool && detectError && (
+                                            <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                                                {detectError}{' '}
+                                                <button type="button" onClick={detectNearestSchool} className="underline font-semibold">
+                                                    Try again
+                                                </button>
+                                            </p>
+                                        )}
+                                        {!detectingSchool && !detectError && buyerSchool && (
+                                            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">
+                                                We think you're closest to {buyerSchool} — change it if that's wrong, and tell us more about exactly where you are.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
@@ -739,9 +990,28 @@ export default function Register() {
                                     </div>
                                 </div>
 
+                                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={agreedToTerms}
+                                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 rounded border-slate-300 dark:border-ink-600 text-brand-600 dark:text-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none accent-brand-600 dark:accent-gold-500 shrink-0"
+                                    />
+                                    <span className="text-xs text-slate-500 dark:text-gold-200/60 leading-relaxed">
+                                        I confirm that the details I've provided are accurate, and I agree to the{' '}
+                                        <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-brand-600 dark:text-gold-400 font-semibold hover:underline">
+                                            Terms of Service
+                                        </Link>{' '}
+                                        and{' '}
+                                        <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-600 dark:text-gold-400 font-semibold hover:underline">
+                                            Privacy Policy
+                                        </Link>
+                                    </span>
+                                </label>
+
                                 <button
                                     type="submit"
-                                    disabled={loading}
+                                    disabled={loading || !agreedToTerms}
                                     className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm"
                                 >
                                     {loading ? 'Creating account…' : 'Create account'}

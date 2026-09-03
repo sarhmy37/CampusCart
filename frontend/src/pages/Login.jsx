@@ -9,7 +9,7 @@ import { AcademicCapIcon } from '@heroicons/react/24/outline';
 const LOGO_FULL = 'Tre-X';
 const TAGLINE_FULL = 'Redefining Campus Shopping';
 const TYPE_SPEED_MS = 70;   // per character — tweak to taste
-const PULSE_ALONE_MS = 5000;
+const PULSE_ALONE_MS = 2000;
 const HOLD_MS = 10000;
 
 export default function Login() {
