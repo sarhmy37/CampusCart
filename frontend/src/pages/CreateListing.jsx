@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
 import { clampFee, MAX_DELIVERY_FEE } from '../utils/distance';
-import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Sparkles, Undo2, Info, Truck, AlertTriangle } from 'lucide-react';
+import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle } from 'lucide-react';
 
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
@@ -50,13 +50,10 @@ export default function CreateListing() {
         delivery_fee_far_campus: '',
     });
     const [imageUrls, setImageUrls] = useState([]);
-    const [originalImageUrls, setOriginalImageUrls] = useState([]);
     const [previews, setPreviews] = useState([]);
     const [videoUrl, setVideoUrl] = useState(null);
     const [videoPreview, setVideoPreview] = useState(null);
     const [uploading, setUploading] = useState(false);
-    const [enhancingAll, setEnhancingAll] = useState(false);
-    const [isEnhanced, setIsEnhanced] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showDeliveryWarning, setShowDeliveryWarning] = useState(false);
 
@@ -99,8 +96,6 @@ export default function CreateListing() {
                 uploadedUrls.push(url);
             }
             setImageUrls((prev) => [...prev, ...uploadedUrls]);
-            setOriginalImageUrls((prev) => [...prev, ...uploadedUrls]);
-            setIsEnhanced(false);
             toast.success(`Uploaded ${uploadedUrls.length} image(s)`);
         } catch (err) {
             toast.error('Failed to upload images to Cloudinary');
@@ -113,10 +108,8 @@ export default function CreateListing() {
 
     const removeImage = (index) => {
         setImageUrls((prev) => prev.filter((_, i) => i !== index));
-        setOriginalImageUrls((prev) => prev.filter((_, i) => i !== index));
         setPreviews((prev) => prev.filter((_, i) => i !== index));
     };
-
     const handleAddVideoClick = () => videoGalleryInputRef.current?.click();
 
     const handleVideoSelected = async (e) => {
@@ -150,37 +143,6 @@ export default function CreateListing() {
     const removeVideo = () => {
         setVideoUrl(null);
         setVideoPreview(null);
-    };
-
-    const handleEnhanceAllImages = async () => {
-        if (isEnhanced) {
-            setImageUrls(originalImageUrls);
-            setPreviews(originalImageUrls);
-            setIsEnhanced(false);
-            toast.success('Reverted to original images.');
-            return;
-        }
-        if (imageUrls.length === 0) {
-            toast.error('No images to enhance.');
-            return;
-        }
-
-        setEnhancingAll(true);
-        toast.loading(`AI is enhancing ${imageUrls.length} image(s)...`, { id: 'enhance_all' });
-
-        try {
-            const updatedUrls = imageUrls.map((url) =>
-                url.replace('/upload/', '/upload/e_background_removal/f_auto,q_auto/')
-            );
-            setImageUrls(updatedUrls);
-            setPreviews(updatedUrls);
-            setIsEnhanced(true);
-            toast.success(`✨ Enhanced ${updatedUrls.length} image(s)!`, { id: 'enhance_all' });
-        } catch (err) {
-            toast.error('Failed to enhance all images.', { id: 'enhance_all' });
-        } finally {
-            setEnhancingAll(false);
-        }
     };
 
     // ---- DELIVERY PRICE HANDLING ----
@@ -365,38 +327,6 @@ export default function CreateListing() {
                                         onChange={handleImageFilesSelected}
                                         className="hidden"
                                     />
-
-                                    {imageUrls.length > 0 && (
-                                        <div>
-                                            <button
-                                                type="button"
-                                                onClick={handleEnhanceAllImages}
-                                                disabled={enhancingAll}
-                                                className="w-[calc(100%)] mt-2 py-1.5 rounded-lg bg-gradient-to-r from-brand-500 to-accent-500 dark:from-gold-500 dark:to-gold-400 text-white dark:text-ink-900 text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-60"
-                                            >
-                                                {enhancingAll ? (
-                                                    <>
-                                                        <Loader2 size={14} className="animate-spin" />
-                                                        Enhancing...
-                                                    </>
-                                                ) : isEnhanced ? (
-                                                    <>
-                                                        <Undo2 size={14} />
-                                                        Revert
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Sparkles size={14} />
-                                                         Enhance All Photos
-                                                    </>
-                                                )}
-                                            </button>
-                                            <p className="flex items-start gap-1 text-[10px] text-slate-400 dark:text-gold-300/50 mt-1.5 leading-tight">
-                                                <Info size={12} className="shrink-0 mt-0.5" />
-                                                Removes messy backgrounds. Best for items with cluttered surroundings.
-                                            </p>
-                                        </div>
-                                    )}
                                 </div>
 
                                 <div>
