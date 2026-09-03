@@ -223,7 +223,7 @@ export default function Settings() {
                         <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 p-6">
                             {user?.avatar_url && (
                                 <div
-                                    className="absolute -right-10 top-1/2 -translate-y-1/2 w-72 h-72 pointer-events-none"
+                                    className="absolute -right-12 top-1/2 -translate-y-1/2 w-80 h-80 pointer-events-none"
                                     style={{
                                         backgroundImage: `url(${user.avatar_url})`,
                                         backgroundSize: 'cover',
