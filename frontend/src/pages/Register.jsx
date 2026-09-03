@@ -794,7 +794,9 @@ export default function Register() {
                                                     ))}
                                                 </select>
                                                 {detectingSchool ? (
-                                                    <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 animate-spin pointer-events-none" />
+                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                        <Loader2 size={14} className="text-slate-400 dark:text-gold-200/40 animate-spin" />
+                                                    </span>
                                                 ) : (
                                                     <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
                                                 )}
