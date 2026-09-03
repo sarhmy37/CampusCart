@@ -512,6 +512,30 @@ export default function Browse() {
                         {renderBudgetInput()}
                     </div>
                     <div className="hidden sm:block h-px bg-gradient-to-r from-gold-400/40 via-white/10 to-transparent mt-4" />
+
+                    <div className="hidden sm:flex items-center justify-between gap-2 flex-wrap mt-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {PRICE_RANGES.map((r) => (
+                                <button
+                                    key={r.label}
+                                    onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
+                                    className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border transition backdrop-blur ${
+                                        priceRange?.label === r.label
+                                            ? 'bg-white text-brand-700 dark:bg-gold-500 dark:text-ink-900 border-white dark:border-gold-500'
+                                            : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
+                                    }`}
+                                >
+                                    {r.label}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setShowCategoryRequest(true)}
+                            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:bg-white/10 hover:text-white transition"
+                        >
+                            Can't find category? Contact admin
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -563,28 +587,6 @@ export default function Browse() {
                         </button>
                     );
                 })}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap mt-3">
-                {PRICE_RANGES.map((r) => (
-                    <button
-                        key={r.label}
-                        onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
-                        className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border transition ${
-                            priceRange?.label === r.label
-                                ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
-                                : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
-                        }`}
-                    >
-                        {r.label}
-                    </button>
-                ))}
-                <button
-                    onClick={() => setShowCategoryRequest(true)}
-                    className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-slate-300 dark:border-ink-600 text-slate-500 dark:text-gold-200/70 hover:bg-slate-50 dark:hover:bg-ink-700 hover:text-slate-700 dark:hover:text-gold-100 transition ml-auto"
-                >
-                    Can't find category? Contact admin
-                </button>
             </div>
             </div>
 
