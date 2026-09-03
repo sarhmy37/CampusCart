@@ -80,10 +80,10 @@ export default function Dashboard() {
     }, [isSeller]);
 
     const tabs = isSeller
-        ? ['overview', 'listings', 'orders', 'deliveries', 'sales', 'payouts', 'reports']
+        ? ['overview', 'payouts', 'listings', 'orders', 'deliveries', 'sales', 'reports']
         : ['orders', 'reports'];
 
-    // Lock page scroll on mobile only — desktop still relies on normal page
+   /* // Lock page scroll on mobile only — desktop still relies on normal page
     // scroll for the full tab content. Self-aware: if a child modal already
     // has the body locked (position: fixed), this won't fight it, and vice
     // versa child modals check for this lock before applying their own.
@@ -124,7 +124,7 @@ export default function Dashboard() {
             mq.removeEventListener('change', handleChange);
             releaseLock();
         };
-    }, []);
+    }, []); */
 
     // ─── SWIPEABLE SLIDING TAB CONTENT (mobile only) ────────────────────
     const [visitedTabs, setVisitedTabs] = useState(() => new Set([isSeller ? 'payouts' : 'orders']));    const [dragOffset, setDragOffset] = useState(0);
