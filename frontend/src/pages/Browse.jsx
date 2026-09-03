@@ -385,7 +385,7 @@ export default function Browse() {
     const rowATitleOpacity = progress;
     const rowATitleFontSize = lerp(0, 16, progress);
 
-    const rowBMaxHeight = lerp(56, 0, progress);
+    const rowBMaxHeight = lerp(76, 0, progress);
     const rowBOpacity = 1 - progress;
     const rowBMarginTop = lerp(16, 0, progress);
 
@@ -438,7 +438,7 @@ export default function Browse() {
                         </span>
                     </div>
 
-                    {/* ── MOBILE Row B: original title + budget ── */}
+                    {/* ── MOBILE Row B: original title + budget + category request ── */}
                     <div
                         className="sm:hidden overflow-hidden"
                         style={{
@@ -454,6 +454,13 @@ export default function Browse() {
                             </h1>
                             {renderBudgetInput()}
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowCategoryRequest(true)}
+                            className="block text-right w-full text-[11px] font-semibold text-white/70 hover:text-white underline underline-offset-2 transition mt-1"
+                        >
+                            Can't find category? Contact admin
+                        </button>
                     </div>
 
                     {/* ── DESKTOP ── */}
@@ -505,52 +512,81 @@ export default function Browse() {
                         {renderBudgetInput()}
                     </div>
                     <div className="hidden sm:block h-px bg-gradient-to-r from-gold-400/40 via-white/10 to-transparent mt-4" />
-
-                    {/* ─── DESKTOP FILTER PILLS ─────────────────────────── */}
-                    <div className="hidden sm:flex items-center gap-2 flex-wrap mt-5">
-                        {['all', 'new', 'nearby', 'verified'].map((tab) => {
-                            const active = isTabActive(tab);
-                            const Icon = active ? TAB_ICONS[tab].solid : TAB_ICONS[tab].outline;
-                            const label = tab === 'nearby'
-                                ? (school ? school : 'Nearby')
-                                : BROWSE_TAB_LABELS[tab];
-                            return (
-                                <button
-                                    key={tab}
-                                    onClick={() => handleDesktopTabChange(tab)}
-                                    className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 rounded-full border backdrop-blur transition-all ${
-                                        active
-                                            ? 'bg-white text-brand-700 border-white font-bold'
-                                            : 'bg-white/10 text-white border-white/30 hover:bg-white/20 font-semibold'
-                                    }`}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                    {label}
-                                </button>
-                            );
-                        })}
-                        {PRICE_RANGES.map((r) => (
-                            <button
-                                key={r.label}
-                                onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
-                                className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border backdrop-blur transition ${
-                                    priceRange?.label === r.label
-                                        ? 'bg-white text-brand-700 border-white'
-                                        : 'bg-white/10 text-white border-white/30 hover:bg-white/20'
-                                }`}
-                            >
-                                {r.label}
-                            </button>
-                        ))}
-                        <button
-                            onClick={() => setShowCategoryRequest(true)}
-                            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/40 text-white/80 hover:bg-white/10 hover:text-white transition ml-auto"
-                        >
-                            Can't find category? Contact admin
-                        </button>
-                    </div>
                 </div>
             </section>
+
+            {/* ─── DESKTOP FILTER BAR — sits below the header, above the listings ─── */}
+            <div className="hidden sm:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 bg-slate-100 dark:bg-ink-900">
+            <div className="flex items-center gap-2 flex-wrap">
+                {['all', 'new', 'categories', 'nearby', 'verified'].map((tab) => {
+                    if (tab === 'categories') {
+                        const active = !!itemCategory;
+                        const Icon = active ? TAB_ICONS.categories.solid : TAB_ICONS.categories.outline;
+                        return (
+                            <div key="categories" className="relative inline-flex items-center">
+                                <select
+                                    value={itemCategory}
+                                    onChange={(e) => setItemCategory(e.target.value)}
+                                    className={`appearance-none inline-flex items-center text-sm pl-8 pr-6 py-1.5 rounded-full border transition-all cursor-pointer ${
+                                        active
+                                            ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600 font-bold'
+                                            : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700 font-semibold'
+                                    }`}
+                                >
+                                    <option value="">Categories</option>
+                                    {ITEM_TYPES.map((t) => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                </select>
+                                <Icon className={`pointer-events-none absolute left-2.5 w-4 h-4 ${active ? 'text-white dark:text-ink-900' : 'text-slate-500 dark:text-gold-300/60'}`} />
+                            </div>
+                        );
+                    }
+
+                    const active = isTabActive(tab);
+                    const Icon = active ? TAB_ICONS[tab].solid : TAB_ICONS[tab].outline;
+                    const label = tab === 'nearby'
+                        ? (school ? school : 'Nearby')
+                        : BROWSE_TAB_LABELS[tab];
+                    return (
+                        <button
+                            key={tab}
+                            onClick={() => handleDesktopTabChange(tab)}
+                            className={`inline-flex items-center gap-1.5 text-sm px-3.5 py-1.5 rounded-full border transition-all ${
+                                active
+                                    ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600 font-bold'
+                                    : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700 font-semibold'
+                            }`}
+                        >
+                            <Icon className="w-4 h-4" />
+                            {label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap mt-3">
+                {PRICE_RANGES.map((r) => (
+                    <button
+                        key={r.label}
+                        onClick={() => setPriceRange(priceRange?.label === r.label ? null : r)}
+                        className={`text-sm font-semibold px-3.5 py-1.5 rounded-full border transition ${
+                            priceRange?.label === r.label
+                                ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
+                                : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
+                        }`}
+                    >
+                        {r.label}
+                    </button>
+                ))}
+                <button
+                    onClick={() => setShowCategoryRequest(true)}
+                    className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-slate-300 dark:border-ink-600 text-slate-500 dark:text-gold-200/70 hover:bg-slate-50 dark:hover:bg-ink-700 hover:text-slate-700 dark:hover:text-gold-100 transition ml-auto"
+                >
+                    Can't find category? Contact admin
+                </button>
+            </div>
+            </div>
 
             {/* ─── LISTINGS ───────────────────────────────────────────────── */}
             {/* ✅ Updated background: bg-slate-100 in light mode, dark mode unchanged */}
