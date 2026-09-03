@@ -598,23 +598,12 @@ export default function Browse() {
                     className="absolute inset-0 pointer-events-none opacity-[0.5] dark:opacity-[0.35] hidden dark:block"
                     style={{
                         backgroundImage: `
-                            repeating-linear-gradient(0deg, rgba(180,140,60,0.10) 0px, rgba(180,140,60,0.10) 1px, transparent 1px, transparent 56px),
-                            repeating-linear-gradient(90deg, rgba(180,140,60,0.10) 0px, rgba(180,140,60,0.10) 1px, transparent 1px, transparent 56px)
+                            repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 56px),
+                            repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 56px)
                         `,
                     }}
                 />
-                <div
-                    className="absolute inset-0 pointer-events-none hidden dark:block"
-                    style={{
-                        background: 'linear-gradient(135deg, rgba(212,175,90,0.14) 0%, transparent 42%)',
-                    }}
-                />
-                <div
-                    className="absolute inset-0 pointer-events-none hidden dark:block"
-                    style={{
-                        background: 'linear-gradient(135deg, rgba(212,175,90,0.10) 0%, transparent 45%)',
-                    }}
-                />
+
                 <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-ink-900/20 dark:from-black/40 to-transparent pointer-events-none hidden dark:block" />
                 <div
                     className="absolute inset-0 pointer-events-none hidden dark:block"
