@@ -16,12 +16,12 @@ import { useAuth } from '../context/AuthContext';
 
 const HERO_TEXTS = [
     'Buy and Sell within your campus, Safely.',
-    'Buy and Sell with students you can trust.',
-    'Buy and Sell everything your campus needs.',
+    'Buy and Discover great deals around campus.',
+    'Buy and Connect with students on your campus.',
 ];
 const HERO_TYPE_SPEED_MS = 70;
-const HERO_DELETE_SPEED_MS = 35;
-const HERO_HOLD_MS = 5000;
+const HERO_DELETE_SPEED_MS = 45;
+const HERO_HOLD_MS = 6000;
 
 function GalleryImage({ images, label }) {
     const [currentIndex, setCurrentIndex] = useState(0);
