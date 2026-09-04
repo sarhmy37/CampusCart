@@ -14,6 +14,15 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+const HERO_TEXTS = [
+    'Buy and Sell within your campus, Safely.',
+    'Buy and Sell with students you can trust.',
+    'Buy and Sell everything your campus needs.',
+];
+const HERO_TYPE_SPEED_MS = 70;
+const HERO_DELETE_SPEED_MS = 35;
+const HERO_HOLD_MS = 5000;
+
 function GalleryImage({ images, label }) {
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -103,6 +112,37 @@ export default function Home() {
     const navigate = useNavigate();
     const [showSellerModal, setShowSellerModal] = useState(false);
 
+    // ── Hero heading typewriter cycle ──
+    const [heroPhase, setHeroPhase] = useState('typing'); // 'typing' | 'deleting'
+    const [heroTextIndex, setHeroTextIndex] = useState(0);
+    const [heroDisplay, setHeroDisplay] = useState('');
+
+    useEffect(() => {
+        if (heroPhase !== 'typing') return;
+        const fullText = HERO_TEXTS[heroTextIndex];
+        if (heroDisplay.length >= fullText.length) {
+            const t = setTimeout(() => setHeroPhase('deleting'), HERO_HOLD_MS);
+            return () => clearTimeout(t);
+        }
+        const t = setTimeout(() => {
+            setHeroDisplay(fullText.slice(0, heroDisplay.length + 1));
+        }, HERO_TYPE_SPEED_MS);
+        return () => clearTimeout(t);
+    }, [heroPhase, heroDisplay, heroTextIndex]);
+
+    useEffect(() => {
+        if (heroPhase !== 'deleting') return;
+        if (heroDisplay.length === 0) {
+            setHeroTextIndex((i) => (i + 1) % HERO_TEXTS.length);
+            setHeroPhase('typing');
+            return;
+        }
+        const t = setTimeout(() => {
+            setHeroDisplay((d) => d.slice(0, -1));
+        }, HERO_DELETE_SPEED_MS);
+        return () => clearTimeout(t);
+    }, [heroPhase, heroDisplay]);
+
     // ── NEW: Navigate with auth check ──
     const handleNavigate = (path, requireSeller = false) => {
         if (!user) {
@@ -145,6 +185,15 @@ export default function Home() {
 
     return (
         <div>
+            <style>{`
+                @keyframes heroCursorBlink {
+                    0%, 50% { opacity: 1; }
+                    51%, 100% { opacity: 0; }
+                }
+                .hero-cursor-blink {
+                    animation: heroCursorBlink 1s step-end infinite;
+                }
+            `}</style>
 
             {/* HERO */}
             <section className="relative overflow-hidden">
@@ -170,8 +219,9 @@ export default function Home() {
                     </Reveal>
 
                     <Reveal delay={100}>
-                        <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] text-white max-w-2xl">
-                            Buy & sell within your campus , safely.
+                        <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] text-white max-w-2xl min-h-[2.1em] sm:min-h-[2.1em] lg:min-h-[1.05em]">
+                            {heroDisplay}
+                            <span className="inline-block w-[3px] sm:w-[4px] h-[0.9em] bg-white ml-1 align-middle hero-cursor-blink" />
                         </h1>
                     </Reveal>
 
