@@ -202,7 +202,7 @@ export default function Navbar() {
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
                     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                     {/* Menu button - ONLY for non-admin users */}
                     {user && !isAdmin && (
                         <button
@@ -217,7 +217,7 @@ export default function Navbar() {
                     {/* Logo - NO VISIBLE COUNTER! (hidden secret tap) */}
                     <span 
                         onClick={handleLogoClick}
-                        className="flex items-center gap-1.5 sm:gap-2 cursor-pointer shrink-0"
+                        className="flex items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0 -ml-1 sm:-ml-1.5"
                         title={logoTitle}
                     >
                         <img 
@@ -225,10 +225,10 @@ export default function Navbar() {
                             alt="TreX" 
                             className="h-7 sm:h-9 w-auto object-contain"
                         />
-                        <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                        <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap">
                             <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
-                            <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 mx-0.5">-</span>
-                            <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none">X</span>
+                            <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 -ml-0.5">-</span>
+                            <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none -ml-1">X</span>
                         </div>
                         {/* 👇 COUNTER IS COMPLETELY REMOVED - NO VISUAL INDICATOR! */}
                     </span>

@@ -11,10 +11,15 @@ import {
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
     Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import EditListingModal from '../components/EditListingModal';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { useReviewPrompt } from '../context/ReviewPromptContext';
 import { createPortal } from 'react-dom';
+
+
+// Used only if the live rate fetch fails — a safety net, not the source of truth.
+const FALLBACK_GHS_TO_USD_RATE = 0.067;
 
 const PERIODS = [
     { value: 'week', label: 'This week' },
@@ -189,7 +194,7 @@ export default function Dashboard() {
         if (t === 'orders') return <MyOrders period={period} isSeller={isSeller} />;
         if (t === 'deliveries') return <Deliveries />;
         if (t === 'sales') return <MySales />;
-        if (t === 'payouts') return <PayoutSettings />;
+        if (t === 'payouts') return <PayoutSettings period={period} />;
         if (t === 'reports') return <MyReports />;
         return null;
     };
@@ -207,9 +212,8 @@ export default function Dashboard() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
-                {/* Fades the header into the page background on mobile — same
-                    technique as the video fade behind the form in CreateListing.jsx. */}
-                <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-b from-transparent to-slate-50 dark:to-ink-900 sm:hidden pointer-events-none" />
+                {/* Fades the header into the page background on mobile — dark mode only. */}
+                <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-b from-transparent to-transparent dark:to-ink-900 sm:hidden pointer-events-none dark:block hidden" />
 
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-3">
                     <div className="flex items-center justify-between flex-wrap gap-4">
@@ -232,15 +236,18 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <select
-                                value={period}
-                                onChange={(e) => setPeriod(e.target.value)}
-                                className="bg-white/10 text-white text-xs sm:text-sm font-semibold px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
-                            >
-                                {PERIODS.map((p) => (
-                                    <option key={p.value} value={p.value} className="text-slate-900">{p.label}</option>
-                                ))}
-                            </select>
+                            <div className="relative inline-flex items-center">
+                                <select
+                                    value={period}
+                                    onChange={(e) => setPeriod(e.target.value)}
+                                    className="appearance-none bg-white/10 text-white text-xs sm:text-sm font-semibold pl-2.5 pr-7 py-1.5 sm:pl-4 sm:pr-8 sm:py-2.5 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
+                                >
+                                    {PERIODS.map((p) => (
+                                        <option key={p.value} value={p.value} className="text-slate-900">{p.label}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="pointer-events-none absolute right-2.5 sm:right-3 w-3.5 h-3.5 text-white/80 dark:text-gold-400" />
+                            </div>
                             {isSeller && (
                                 <Link
                                     to="/sell/new"
@@ -721,11 +728,13 @@ function Deliveries() {
 }
 
 // ─── PAYOUT SETTINGS ──────────────────────────────────────────────────────
-function PayoutSettings() {
+function PayoutSettings({ period }) {
     const { user } = useAuth();
     const { theme } = useTheme();
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [ghsToUsdRate, setGhsToUsdRate] = useState(null);
+    const [changePct, setChangePct] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
     const [saving, setSaving] = useState(false);
     const [settingDefault, setSettingDefault] = useState(null);
@@ -766,6 +775,30 @@ function PayoutSettings() {
         api.get('/payouts/banks')
             .then((res) => setBanks(res.data))
             .catch(() => {});
+    }, []);
+
+    // Real period-over-period change, same source SellerOverview uses —
+    // re-fetched whenever the header's period selector changes.
+    useEffect(() => {
+        api.get('/sellers/overview', { params: { period } })
+            .then((res) => {
+                const raw = res.data?.net_change_percentage;
+                setChangePct(raw !== undefined && raw !== null ? parseFloat(raw) : null);
+            })
+            .catch(() => setChangePct(null));
+    }, [period]);
+
+    // Live GHS→USD rate, fetched once per mount (free, no API key). Falls
+    // back to the static constant only if the request fails, so the USD
+    // figure is never left blank.
+    useEffect(() => {
+        fetch('https://open.er-api.com/v6/latest/GHS')
+            .then((res) => res.json())
+            .then((data) => {
+                const rate = data?.rates?.USD;
+                setGhsToUsdRate(typeof rate === 'number' ? rate : FALLBACK_GHS_TO_USD_RATE);
+            })
+            .catch(() => setGhsToUsdRate(FALLBACK_GHS_TO_USD_RATE));
     }, []);
 
     useEffect(() => {
@@ -897,10 +930,30 @@ function PayoutSettings() {
                     style={{ backgroundImage: `url(${theme === 'dark' ? BALANCE_DARK_IMAGE : BALANCE_LIGHT_IMAGE})` }}
                 />
                 <div className="absolute inset-0 bg-black/25" />
-                <div className="relative z-10">
-                    <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">Available Balance</p>
-                    <p className="text-3xl font-extrabold mt-1">GHS {balance.toFixed(2)}</p>
-                    <p className="text-xs opacity-80 mt-0.5">98.5% of your completed sales</p>
+                <div className="relative z-10 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">Available Balance</p>
+                        <p className="text-3xl font-bold mt-1 tabular-nums" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+                            GHS {balance.toFixed(2)}
+                        </p>
+                        <p className="text-xs opacity-80 mt-0.5">98.5% of your completed sales</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                        <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">USD</p>
+                        <p className="text-3xl font-bold mt-1 tabular-nums" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+                            {ghsToUsdRate !== null ? `$${(balance * ghsToUsdRate).toFixed(2)}` : '—'}
+                        </p>
+                        {changePct !== null && (
+                            <p className={`text-xs mt-0.5 inline-flex items-center gap-0.5 font-semibold ${
+                                changePct >= 0 ? 'text-emerald-300' : 'text-red-300'
+                            }`}>
+                                {changePct >= 0
+                                    ? <ChevronUpIcon className="w-3 h-3" />
+                                    : <ChevronDownIcon className="w-3 h-3" />}
+                                {Math.abs(changePct).toFixed(1)}%
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 
