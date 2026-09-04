@@ -5,14 +5,13 @@ import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
-import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search } from 'lucide-react';
+import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search , Wallet } from 'lucide-react';
 import {
     AdjustmentsHorizontalIcon,
     SparklesIcon,
     MapPinIcon,
     CheckBadgeIcon,
     Squares2X2Icon,
-    WalletIcon,
 } from '@heroicons/react/24/outline';
 import {
     AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
@@ -284,7 +283,7 @@ export default function Browse() {
 
     const renderBudgetInput = () => (
         <div className="relative shrink-0">
-            <WalletIcon className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
+            <Wallet className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
                 type="number"
                 min="1"

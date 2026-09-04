@@ -55,12 +55,14 @@ export default function Settings() {
         Promise.all([
             api.get('/products/mine').catch(() => ({ data: [] })),
             api.get(`/reviews/seller/${user.id}`).catch(() => ({ data: { avg_rating: null, total: 0 } })),
+            api.get('/orders/sales').catch(() => ({ data: [] })),
         ])
-            .then(([listingsRes, reviewsRes]) => {
+            .then(([listingsRes, reviewsRes, salesRes]) => {
                 setStoreStats({
                     listingCount: listingsRes.data.filter((p) => p.status === 'available').length,
                     avgRating: reviewsRes.data.avg_rating,
                     reviewCount: reviewsRes.data.total || 0,
+                    salesCount: salesRes.data.length,
                 });
             })
             .finally(() => setStoreStatsLoading(false));
@@ -301,14 +303,20 @@ export default function Settings() {
                                 </div>
                             </div>
 
-                            <div className="relative z-10 flex items-center gap-6 mt-5 pt-4 border-t border-slate-200 dark:border-white/15">
-                                <div>
+                            <div className="relative z-10 flex items-center justify-between mt-5 pt-4 border-t border-slate-200 dark:border-white/15">
+                                <div className="text-left">
                                     <p className="text-lg font-extrabold text-slate-900 dark:text-white">
                                         {storeStatsLoading ? '···' : (storeStats?.listingCount ?? 0)}
                                     </p>
                                     <p className="text-[11px] text-slate-400 dark:text-white/70 uppercase tracking-wide">Listings</p>
                                 </div>
-                                <div>
+                                <div className="text-center">
+                                    <p className="text-lg font-extrabold text-slate-900 dark:text-white">
+                                        {storeStatsLoading ? '···' : (storeStats?.salesCount ?? 0)}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 dark:text-white/70 uppercase tracking-wide">Sales</p>
+                                </div>
+                                <div className="text-right">
                                     <p className="text-lg font-extrabold text-slate-900 dark:text-white">
                                         {storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '— No ratings')}
                                     </p>
