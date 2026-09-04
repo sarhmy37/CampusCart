@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
@@ -6,8 +6,27 @@ import {
     Users, Package, ShoppingBag, DollarSign, ShieldCheck, ShieldAlert,
     Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
     Filter, X as XClose, Calendar, User, Tag as TagIcon, Layers, ArrowUpDown,
-    Search, Mail, School, UserCheck, UserX, Users as UsersIcon
+    Search, Mail, School, UserCheck, UserX, Users as UsersIcon,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
+
+const ADMIN_TABS = ['users', 'listings', 'orders', 'reports', 'deleted chats'];
+
+const TAB_LABELS = {
+    users: 'Users',
+    listings: 'Listings',
+    orders: 'Orders',
+    reports: 'Reports',
+    'deleted chats': 'Deleted Chats',
+};
+
+const TAB_ICONS = {
+    users: Users,
+    listings: Package,
+    orders: ShoppingBag,
+    reports: Flag,
+    'deleted chats': Trash2,
+};
 
 export default function Admin() {
     const [searchParams] = useSearchParams();
@@ -105,24 +124,32 @@ export default function Admin() {
             </section>
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-                <div className="max-w-full overflow-x-auto no-scrollbar mb-6">
-                    <style>{`.no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}.no-scrollbar::-webkit-scrollbar{display:none}`}</style>
-                    <div className="flex gap-1 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
-                        {['users', 'listings', 'orders', 'reports', 'deleted chats'].map((t) => (
-                            <button
-                                key={t}
-                                onClick={() => setTab(t)}
-                                className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${
-                                    tab === t
-                                        ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
-                                        : 'text-slate-500 dark:text-gold-200/50'
-                                }`}
-                            >
-                                {t}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+<div className="block sm:hidden">
+    <MobileTabRoll tabs={ADMIN_TABS} activeTab={tab} onTabChange={setTab} />
+</div>
+
+<div className="hidden sm:flex justify-center mb-6">
+    <div className="flex gap-1 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+        {ADMIN_TABS.map((t) => {
+            const Icon = TAB_ICONS[t];
+            const label = TAB_LABELS[t] || t;
+            return (
+                <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
+                        tab === t
+                            ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
+                            : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
+                    }`}
+                >
+                    {Icon && <Icon size={15} />}
+                    {label}
+                </button>
+            );
+        })}
+    </div>
+</div>
                 {tab === 'users' && <UsersTab filter={searchQuery} initialUsers={allUsers} loading={loadingUsers} />}
                 {tab === 'listings' && <ListingsTab filter={searchQuery} initialListings={allListings} loading={loadingListings} />}
                 {tab === 'orders' && <OrdersTab />}
@@ -133,12 +160,205 @@ export default function Admin() {
     );
 }
 
+
+
 function StatCard({ icon: Icon, label, value, highlight }) {
     return (
         <div className={`backdrop-blur border rounded-2xl p-4 ${highlight ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>
             <Icon size={18} className={`mb-2 ${highlight ? 'text-white' : 'text-white/80'}`} />
             <p className={`text-2xl font-extrabold ${highlight ? 'text-white' : 'text-white'}`}>{value}</p>
             <p className={`text-xs ${highlight ? 'text-white/90' : 'text-white/70'}`}>{label}</p>
+        </div>
+    );
+}
+
+function MobileTabRoll({ tabs, activeTab, onTabChange }) {
+    const containerRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollStart, setScrollStart] = useState(0);
+    const [showLeftChevron, setShowLeftChevron] = useState(false);
+    const [showRightChevron, setShowRightChevron] = useState(true);
+    const draggingRef = useRef(false);
+    const movedRef = useRef(false);
+
+    const activeIndex = tabs.indexOf(activeTab);
+
+    useEffect(() => {
+        if (containerRef.current && activeIndex >= 0) {
+            const container = containerRef.current;
+            const tabElements = container.querySelectorAll('.tab-item');
+            if (tabElements[activeIndex]) {
+                const tab = tabElements[activeIndex];
+                const containerRect = container.getBoundingClientRect();
+                const tabRect = tab.getBoundingClientRect();
+                const scrollTo = tab.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+                container.scrollTo({ left: scrollTo, behavior: 'smooth' });
+            }
+        }
+    }, [activeIndex]);
+
+    const checkChevrons = () => {
+        if (containerRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
+            setShowLeftChevron(scrollLeft > 10);
+            setShowRightChevron(scrollLeft < scrollWidth - clientWidth - 10);
+        }
+    };
+
+    useEffect(() => {
+        checkChevrons();
+        const handleResize = () => checkChevrons();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [tabs]);
+
+    const handleStart = (clientX) => {
+        setStartX(clientX);
+        setScrollStart(containerRef.current?.scrollLeft || 0);
+        draggingRef.current = true;
+        movedRef.current = false;
+        setIsDragging(true);
+    };
+
+    const handleMove = (clientX) => {
+        if (!draggingRef.current || !containerRef.current) return;
+        const diff = clientX - startX;
+        if (Math.abs(diff) > 5) movedRef.current = true;
+        containerRef.current.scrollLeft = scrollStart - diff;
+        checkChevrons();
+    };
+
+    const handleEnd = () => {
+        draggingRef.current = false;
+        setIsDragging(false);
+        if (movedRef.current) {
+            if (containerRef.current) {
+                const container = containerRef.current;
+                const tabElements = container.querySelectorAll('.tab-item');
+                let closestIndex = 0;
+                let closestDistance = Infinity;
+                const containerCenter = container.scrollLeft + container.clientWidth / 2;
+
+                tabElements.forEach((tab, i) => {
+                    const tabCenter = tab.offsetLeft + tab.offsetWidth / 2;
+                    const distance = Math.abs(tabCenter - containerCenter);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestIndex = i;
+                    }
+                });
+
+                if (closestIndex !== activeIndex) {
+                    onTabChange(tabs[closestIndex]);
+                }
+            }
+        }
+        checkChevrons();
+    };
+
+    const onTouchStart = (e) => handleStart(e.touches[0].clientX);
+    const onTouchMove = (e) => handleMove(e.touches[0].clientX);
+    const onTouchEnd = () => handleEnd();
+
+    const onMouseDown = (e) => {
+        handleStart(e.clientX);
+        const onMouseMove = (ev) => handleMove(ev.clientX);
+        const onMouseUp = () => {
+            handleEnd();
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const scrollToTab = (tab) => {
+        const index = tabs.indexOf(tab);
+        if (index >= 0 && containerRef.current) {
+            const container = containerRef.current;
+            const tabElements = container.querySelectorAll('.tab-item');
+            if (tabElements[index]) {
+                const tab = tabElements[index];
+                const containerRect = container.getBoundingClientRect();
+                const tabRect = tab.getBoundingClientRect();
+                const scrollTo = tab.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+                container.scrollTo({ left: scrollTo, behavior: 'smooth' });
+            }
+        }
+        onTabChange(tab);
+    };
+
+    return (
+        <div className="mb-3 relative">
+            <div
+                className="absolute -bottom-4 left-0 right-0 h-8 bg-gradient-to-b from-slate-200/50 via-slate-200/30 to-transparent dark:from-ink-600/30 dark:via-ink-600/20 dark:to-transparent blur-md rounded-full"
+                style={{ transform: 'scaleX(0.85)', filter: 'blur(8px)' }}
+            />
+            <div
+                className="absolute -bottom-6 left-1/4 right-1/4 h-6 bg-gradient-to-b from-slate-300/30 to-transparent dark:from-ink-500/20 dark:to-transparent blur-xl"
+                style={{ transform: 'scaleX(0.7)', filter: 'blur(12px)' }}
+            />
+
+            <div className="relative transform transition-all duration-300 hover:scale-[1.002]">
+                <div
+                    ref={containerRef}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
+                    onMouseDown={onMouseDown}
+                    onScroll={checkChevrons}
+                    className="relative rounded-xl border border-slate-200 dark:border-ink-600 bg-white/95 dark:bg-ink-800/95 backdrop-blur-sm overflow-x-auto overflow-y-hidden select-none cursor-grab active:cursor-grabbing shadow-lg hover:shadow-xl transition-shadow duration-300 scrollbar-hide"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', height: 44, WebkitOverflowScrolling: 'touch' }}
+                >
+                    <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
+
+                    <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 12px', gap: '4px' }}>
+                        {tabs.map((t, index) => {
+                            const isActive = t === activeTab;
+                            const Icon = TAB_ICONS[t];
+                            const label = TAB_LABELS[t] || t;
+                            return (
+                                <button
+                                    key={t}
+                                    ref={(el) => { if (el) el.dataset.index = index; }}
+                                    onClick={() => scrollToTab(t)}
+                                    className={`tab-item relative shrink-0 h-full flex flex-col items-center justify-center gap-0.5 px-4 text-xs transition-all duration-200 ${
+                                        isActive
+                                            ? 'text-brand-700 dark:text-gold-400 font-bold'
+                                            : 'text-slate-500 dark:text-gold-200/50 font-semibold hover:text-slate-700 dark:hover:text-gold-300'
+                                    }`}
+                                    style={{ minWidth: 70 }}
+                                >
+                                    {Icon && <Icon size={16} className={isActive ? 'text-brand-600 dark:text-gold-400' : 'text-current'} />}
+                                    <span className="whitespace-nowrap">{label}</span>
+                                    {isActive && (
+                                        <span
+                                            className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 h-1 bg-brand-600 dark:bg-gold-500 rounded-full transition-all duration-300"
+                                            style={{ width: 'auto', minWidth: '28px', maxWidth: '80%', paddingLeft: '4px', paddingRight: '4px' }}
+                                        >
+                                            <span className="block" style={{ width: 'auto', minWidth: '28px', height: '4px', background: 'currentColor', borderRadius: '9999px' }} />
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {showLeftChevron && (
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-8 rounded-l-xl bg-gradient-to-r from-white/95 dark:from-ink-800/95 to-transparent flex items-center">
+                        <ChevronLeft size={14} className="text-slate-400 dark:text-gold-300/40 ml-1" />
+                    </div>
+                )}
+                {showRightChevron && (
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-xl bg-gradient-to-l from-white/95 dark:from-ink-800/95 to-transparent flex items-center justify-end">
+                        <ChevronRight size={14} className="text-slate-400 dark:text-gold-300/40 mr-1" />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
