@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { SETTINGS_VIDEO } from '../data/media';
-import Store from './Store';
+import StorePage from './Store';
 
 const PLATFORM_FEE_RATE = 1.5;
 const BUYER_SERVICE_FEE_RATE = 2;
@@ -463,7 +463,7 @@ export default function Settings() {
                             onClick={() => setShowStorePreview(false)}
                         />
                         <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-                            {user?.id && <Store id={user.id} embedded />}
+                            {user?.id && <StorePage id={user.id} embedded />}
                         </div>
                     </div>
                 )}
