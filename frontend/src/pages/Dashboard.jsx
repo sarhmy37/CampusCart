@@ -893,7 +893,7 @@ function PayoutSettings() {
         <div className="max-w-xl mx-auto space-y-4">
             <div className="relative overflow-hidden rounded-2xl p-6 text-white shadow-md">
                 <div
-                    className="absolute inset-0 bg-cover bg-center scale-105 blur-[2px]"
+                    className="absolute inset-0 bg-cover bg-center "
                     style={{ backgroundImage: `url(${theme === 'dark' ? BALANCE_DARK_IMAGE : BALANCE_LIGHT_IMAGE})` }}
                 />
                 <div className="absolute inset-0 bg-black/25" />
