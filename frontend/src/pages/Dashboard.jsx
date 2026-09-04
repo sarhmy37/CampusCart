@@ -9,7 +9,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
-    Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight
+    Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight, ChevronDown
 } from 'lucide-react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import EditListingModal from '../components/EditListingModal';
