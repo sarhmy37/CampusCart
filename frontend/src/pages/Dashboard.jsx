@@ -741,6 +741,10 @@ function PayoutSettings() {
     const [form, setForm] = useState({ bank_code: '', account_number: '', account_name: '' });
     const [resolving, setResolving] = useState(false);
 
+    const [pendingDeleteId, setPendingDeleteId] = useState(null);
+    const [deletingAccountId, setDeletingAccountId] = useState(null);
+    const pendingDeleteTimerRef = useRef(null);
+
     const loadData = () => {
         setLoading(true);
         Promise.all([
@@ -786,6 +790,38 @@ function PayoutSettings() {
             toast.error(err.response?.data?.error || 'Failed to update default');
         } finally {
             setSettingDefault(null);
+        }
+    };
+
+    const DELETE_CONFIRM_WINDOW_MS = 4000;
+
+    const handleDeleteClick = (accountId) => {
+        if (pendingDeleteId === accountId) {
+            // Second click within the window — actually delete
+            clearTimeout(pendingDeleteTimerRef.current);
+            setPendingDeleteId(null);
+            deleteAccount(accountId);
+            return;
+        }
+        // First click — arm it and warn
+        setPendingDeleteId(accountId);
+        toast('Click again to delete this account permanently', { icon: '⚠️' });
+        clearTimeout(pendingDeleteTimerRef.current);
+        pendingDeleteTimerRef.current = setTimeout(() => {
+            setPendingDeleteId(null);
+        }, DELETE_CONFIRM_WINDOW_MS);
+    };
+
+    const deleteAccount = async (accountId) => {
+        setDeletingAccountId(accountId);
+        try {
+            await api.delete(`/payouts/accounts/${accountId}`);
+            toast.success('Payout account deleted');
+            loadData();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete account');
+        } finally {
+            setDeletingAccountId(null);
         }
     };
 
@@ -857,7 +893,7 @@ function PayoutSettings() {
         <div className="max-w-xl mx-auto space-y-4">
             <div className="relative overflow-hidden rounded-2xl p-6 text-white shadow-md">
                 <div
-                    className="absolute inset-0 bg-cover bg-center scale-110 blur-md"
+                    className="absolute inset-0 bg-cover bg-center scale-105 blur-[2px]"
                     style={{ backgroundImage: `url(${theme === 'dark' ? BALANCE_DARK_IMAGE : BALANCE_LIGHT_IMAGE})` }}
                 />
                 <div className="absolute inset-0 bg-black/25" />
@@ -948,13 +984,13 @@ function PayoutSettings() {
                         {accounts.map((acc) => (
                             <div
                                 key={acc.id}
-                                className={`flex items-center justify-between p-3 rounded-xl border ${
+                                className={`flex items-center justify-between gap-2 p-3 rounded-xl border ${
                                     acc.is_default
                                         ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/20'
                                         : 'border-slate-200 dark:border-ink-600'
                                 }`}
                             >
-                                <div>
+                                <div className="min-w-0">
                                     <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">{acc.account_name}</p>
                                     <p className="text-xs text-slate-400 dark:text-gold-200/50">
                                         {acc.bank_name || acc.method} · •••• {acc.account_number.slice(-4)}
@@ -963,15 +999,29 @@ function PayoutSettings() {
                                         <span className="text-[10px] font-bold text-brand-600 dark:text-gold-400">Default</span>
                                     )}
                                 </div>
-                                {!acc.is_default && (
+                                <div className="flex items-center gap-3 shrink-0">
+                                    {!acc.is_default && (
+                                        <button
+                                            onClick={() => setDefault(acc.id)}
+                                            disabled={settingDefault === acc.id}
+                                            className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:underline disabled:opacity-50 whitespace-nowrap"
+                                        >
+                                            {settingDefault === acc.id ? 'Setting…' : 'Set as default'}
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => setDefault(acc.id)}
-                                        disabled={settingDefault === acc.id}
-                                        className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:underline disabled:opacity-50"
+                                        onClick={() => handleDeleteClick(acc.id)}
+                                        disabled={deletingAccountId === acc.id}
+                                        title="Delete this payout account"
+                                        className={`p-1.5 rounded-lg transition disabled:opacity-50 ${
+                                            pendingDeleteId === acc.id
+                                                ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30'
+                                                : 'text-slate-300 dark:text-gold-300/40 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20'
+                                        }`}
                                     >
-                                        {settingDefault === acc.id ? 'Setting…' : 'Set as default'}
+                                        <Trash2 size={16} />
                                     </button>
-                                )}
+                                </div>
                             </div>
                         ))}
                         <button

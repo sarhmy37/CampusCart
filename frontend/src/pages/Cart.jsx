@@ -376,34 +376,30 @@ export default function Cart() {
                             <h3 className="font-bold text-slate-900 dark:text-gold-50 mb-4">Order summary</h3>
 
                             <div className="space-y-2 mb-5">
-                                <button
-                                    onClick={() => setDeliveryMethod('pickup')}
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
-                                        deliveryMethod === 'pickup'
-                                            ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
-                                            : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
-                                    }`}
-                                >
-                                    <MapPin size={16} className={deliveryMethod === 'pickup' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Meet on campus</p>
-                                        <p className="text-xs text-slate-400 dark:text-gold-200/50">Free — arrange with the seller</p>
-                                    </div>
-                                </button>
-                                <button
-                                    onClick={() => setDeliveryMethod('delivery')}
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
-                                        deliveryMethod === 'delivery'
-                                            ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40'
-                                            : 'border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500'
-                                    }`}
-                                >
-                                    <Truck size={16} className={deliveryMethod === 'delivery' ? 'text-brand-600 dark:text-gold-400' : 'text-slate-400 dark:text-gold-200/40'} />
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-50">Delivery</p>
-                                        <p className="text-xs text-slate-400 dark:text-gold-200/50">Fee based on distance</p>
-                                    </div>
-                                </button>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setDeliveryMethod('pickup')}
+                                        className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${
+                                            deliveryMethod === 'pickup'
+                                                ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
+                                                : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
+                                        }`}
+                                    >
+                                        <MapPin size={18} />
+                                        Meet on campus
+                                    </button>
+                                    <button
+                                        onClick={() => setDeliveryMethod('delivery')}
+                                        className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${
+                                            deliveryMethod === 'delivery'
+                                                ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
+                                                : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
+                                        }`}
+                                    >
+                                        <Truck size={18} />
+                                        Delivery
+                                    </button>
+                                </div>
 
                                 {deliveryMethod === 'delivery' && (
                                     <div className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-700">

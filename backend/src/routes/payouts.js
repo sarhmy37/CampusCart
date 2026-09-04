@@ -155,6 +155,53 @@ router.patch('/default/:accountId', requireAuth, async (req, res) => {
     }
 });
 
+// DELETE /api/payouts/accounts/:accountId — permanently remove a payout account
+router.delete('/accounts/:accountId', requireAuth, async (req, res) => {
+    const { accountId } = req.params;
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const accountCheck = await client.query(
+            'SELECT id, is_default FROM seller_payout_accounts WHERE id = $1 AND seller_id = $2',
+            [accountId, req.userId]
+        );
+        const account = accountCheck.rows[0];
+        if (!account) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Payout account not found' });
+        }
+
+        await client.query('DELETE FROM seller_payout_accounts WHERE id = $1', [accountId]);
+
+        // If the deleted account was the default, promote the next most recent
+        // remaining account (if any) to default so withdrawals aren't left
+        // without a default selected.
+        if (account.is_default) {
+            await client.query(
+                `UPDATE seller_payout_accounts SET is_default = true
+                 WHERE id = (
+                     SELECT id FROM seller_payout_accounts
+                     WHERE seller_id = $1
+                     ORDER BY created_at DESC
+                     LIMIT 1
+                 )`,
+                [req.userId]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Payout account deleted' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Delete payout account error:', err);
+        res.status(500).json({ error: 'Failed to delete payout account' });
+    } finally {
+        client.release();
+    }
+});
+
 // Shared helper: available balance = confirmed earnings minus everything already withdrawn.
 // This replaces the old "mark every unpaid item as paid" approach, which couldn't
 // support partial withdrawals and was wiping the whole balance on any withdraw.

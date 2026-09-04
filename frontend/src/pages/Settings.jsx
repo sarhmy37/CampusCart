@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
@@ -687,6 +687,9 @@ export default function Settings() {
                     )}
                 </div>
 
+                {/* SAVED DELIVERY LOCATIONS — buyers only */}
+                {!isSeller && <DeliveryLocations />}
+
                 {/* DELIVERY PREFERENCE + LOCATION */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-1">
@@ -915,6 +918,161 @@ export default function Settings() {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function DeliveryLocations() {
+    const [locations, setLocations] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [adding, setAdding] = useState(false);
+    const [newLocation, setNewLocation] = useState('');
+    const [settingDefault, setSettingDefault] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState(null);
+    const pendingDeleteTimerRef = useRef(null);
+
+    const load = () => {
+        setLoading(true);
+        api.get('/locations/mine')
+            .then((res) => setLocations(res.data))
+            .catch(() => setLocations([]))
+            .finally(() => setLoading(false));
+    };
+    useEffect(load, []);
+
+    const handleAdd = async () => {
+        if (!newLocation.trim()) {
+            toast.error('Enter a location first');
+            return;
+        }
+        setAdding(true);
+        try {
+            await api.post('/locations', { location: newLocation.trim() });
+            toast.success('Location added');
+            setNewLocation('');
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to add location');
+        } finally {
+            setAdding(false);
+        }
+    };
+
+    const setDefault = async (id) => {
+        setSettingDefault(id);
+        try {
+            await api.patch(`/locations/default/${id}`);
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to set default');
+        } finally {
+            setSettingDefault(null);
+        }
+    };
+
+    const handleDeleteClick = (id) => {
+        if (pendingDeleteId === id) {
+            clearTimeout(pendingDeleteTimerRef.current);
+            setPendingDeleteId(null);
+            deleteLocation(id);
+            return;
+        }
+        setPendingDeleteId(id);
+        toast('Click again to delete this location permanently', { icon: '⚠️' });
+        clearTimeout(pendingDeleteTimerRef.current);
+        pendingDeleteTimerRef.current = setTimeout(() => setPendingDeleteId(null), 4000);
+    };
+
+    const deleteLocation = async (id) => {
+        setDeletingId(id);
+        try {
+            await api.delete(`/locations/${id}`);
+            toast.success('Location deleted');
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to delete location');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                    <MapPin size={16} />
+                </div>
+                <h2 className="font-bold text-slate-900 dark:text-gold-50">Delivery Locations</h2>
+            </div>
+            <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                Your first saved location is used by default at checkout — only one can be selected at a time.
+            </p>
+
+            {loading ? (
+                <div className="h-16 rounded-xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+            ) : locations.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-gold-200/50 mb-4">No saved locations yet.</p>
+            ) : (
+                <div className="space-y-2 mb-4">
+                    {locations.map((loc) => (
+                        <div
+                            key={loc.id}
+                            className={`flex items-center justify-between gap-2 p-3 rounded-xl border ${
+                                loc.is_default
+                                    ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/20'
+                                    : 'border-slate-200 dark:border-ink-600'
+                            }`}
+                        >
+                            <label className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="default-location"
+                                    checked={loc.is_default}
+                                    onChange={() => !loc.is_default && setDefault(loc.id)}
+                                    disabled={settingDefault === loc.id}
+                                    className="w-4 h-4 accent-brand-600 dark:accent-gold-500 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-slate-800 dark:text-gold-100 truncate">{loc.location}</p>
+                                    {loc.is_default && (
+                                        <span className="text-[10px] font-bold text-brand-600 dark:text-gold-400">Default</span>
+                                    )}
+                                </div>
+                            </label>
+                            <button
+                                onClick={() => handleDeleteClick(loc.id)}
+                                disabled={deletingId === loc.id}
+                                title="Delete this location"
+                                className={`p-1.5 rounded-lg transition disabled:opacity-50 shrink-0 ${
+                                    pendingDeleteId === loc.id
+                                        ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30'
+                                        : 'text-slate-300 dark:text-gold-300/40 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20'
+                                }`}
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="flex items-center gap-2">
+                <input
+                    type="text"
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                    placeholder="e.g. Ayeduase Gate, West End Hostel"
+                    className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm"
+                />
+                <button
+                    onClick={handleAdd}
+                    disabled={adding}
+                    className="shrink-0 px-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
+                >
+                    {adding ? 'Adding…' : 'Add'}
+                </button>
+            </div>
         </div>
     );
 }

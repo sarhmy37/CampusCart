@@ -33,11 +33,15 @@ const storefrontRoutes = require('./routes/storefront');
 
 const app = express();
 
+// Trust the reverse proxy (Render, etc.) so req.ip, req.secure, and
+// X-Forwarded-* headers are read correctly.
+app.set('trust proxy', 1);
+
 // ============================================================
 // CORS Configuration - FIXED for production
 // ============================================================
 // Get allowed origins from environment variable
-const allowedOrigins = process.env.CORS_ORIGIN 
+const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
     : ['http://localhost:5173', 'http://localhost:3000'];
 
@@ -49,14 +53,16 @@ app.use(cors({
         if (!origin) {
             return callback(null, true);
         }
-        
+
         // Check if origin is allowed
         if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             console.log('🚫 Blocked by CORS:', origin);
             console.log('✅ Allowed origins:', allowedOrigins);
-            callback(new Error('Not allowed by CORS'));
+            const err = new Error('Not allowed by CORS');
+            err.status = 403;
+            callback(err);
         }
     },
     credentials: true,
@@ -66,10 +72,12 @@ app.use(cors({
     maxAge: 86400, // 24 hours
 }));
 
-// Handle preflight requests explicitly
-app.options('*', cors());
+// Note: the cors() middleware above already handles OPTIONS preflight
+// requests automatically — no need for a separate app.options('*', cors())
+// route (and a bare '*' pattern throws on Express 5 / path-to-regexp v6+).
 
 app.use(express.json({
+    limit: '1mb',
     verify: (req, res, buf) => { req.rawBody = buf; },
 }));
 
@@ -85,6 +93,8 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', authRoutes);
 
 app.use('/api/products', productRoutes);
+
+app.use('/api/locations', require('./routes/locations'));
 
 app.use('/api/categories', categoryRoutes);
 

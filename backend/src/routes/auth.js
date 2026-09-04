@@ -163,6 +163,15 @@ router.post('/register', async (req, res) => {
             );
         }
 
+        // 👇 If buyer, save their signup location as first saved & default delivery location
+if (resolvedAccountType === 'buyer' && location) {
+    await pool.query(
+        `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default)
+         VALUES ($1, $2, true)`,
+        [user.id, location.trim()]
+    );
+}
+
         const token = signToken(user);
         res.status(201).json({ token, user: toPublicUser(user) });
     } catch (err) {
