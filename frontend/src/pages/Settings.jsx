@@ -9,7 +9,9 @@ import {
     Shield, ChevronRight, ChevronDown, ChevronLeft, Percent, Trash2, AlertTriangle, Moon, Sun, Gift,
     Store, Copy, Check
 } from 'lucide-react';
+import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { SETTINGS_VIDEO } from '../data/media';
+import Store from './Store';
 
 const PLATFORM_FEE_RATE = 1.5;
 const BUYER_SERVICE_FEE_RATE = 2;
@@ -30,6 +32,7 @@ export default function Settings() {
     const [storeStats, setStoreStats] = useState(null);
     const [storeStatsLoading, setStoreStatsLoading] = useState(false);
     const [socialsExpanded, setSocialsExpanded] = useState(false);
+    const [showStorePreview, setShowStorePreview] = useState(false);
 
     const [pwStep, setPwStep] = useState(1);
     const [current, setCurrent] = useState('');
@@ -291,7 +294,7 @@ export default function Settings() {
                                     <div className="flex items-center gap-1.5">
                                         <p className="font-extrabold text-slate-900 dark:text-white text-lg truncate">{user?.name}</p>
                                         {user?.verified && (
-                                            <span title="Verified seller" className="shrink-0 w-5 h-5 rounded-full bg-brand-100 dark:bg-white/20 flex items-center justify-center text-[11px] text-brand-700 dark:text-white">✓</span>
+                                            <CheckBadgeIcon title="Verified seller" className="shrink-0 w-5 h-5 text-emerald-500" />
                                         )}
                                     </div>
                                     <p className="text-sm text-slate-500 dark:text-white/75">{user?.school}</p>
@@ -345,8 +348,17 @@ export default function Settings() {
                             </div>
 
                             {/* ─── SOCIAL SHARE BUTTONS ───────────────────── */}
-                            <div className="flex items-center flex-wrap gap-2 mt-4">
-                                <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60 mr-2">Share on:</span>
+                            <div className="mt-4">
+                                <div className="flex items-center justify-between mb-2.5">
+                                    <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Share on:</span>
+                                    <button
+                                        onClick={() => setShowStorePreview(true)}
+                                        className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300 transition"
+                                    >
+                                        Preview →
+                                    </button>
+                                </div>
+                                <div className="flex items-center flex-wrap gap-2">
 
                                 {/* Always visible buttons */}
                                 <button
@@ -437,7 +449,21 @@ export default function Settings() {
                                 >
                                     {socialsExpanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                                 </button>
+                                </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* STORE PREVIEW MODAL */}
+                {showStorePreview && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                        <div
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                            onClick={() => setShowStorePreview(false)}
+                        />
+                        <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                            {user?.id && <Store id={user.id} embedded />}
                         </div>
                     </div>
                 )}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Download, X, Smartphone, CheckCircle, Share } from 'lucide-react';
 import useInstallPrompt from '../hooks/useInstallPrompt';
@@ -8,6 +8,50 @@ export default function InstallButton() {
     const { install, isInstallable, isIOS, isStandalone, canInstall } = useInstallPrompt();
     const [showModal, setShowModal] = useState(false);
     const [installing, setInstalling] = useState(false);
+    const didLockRef = useRef(false);
+
+    // Lock body scroll while open. Self-aware like EditListingModal — only
+    // locks/unlocks if nothing already has the body locked.
+    useEffect(() => {
+        if (showModal) {
+            if (document.body.style.position !== 'fixed') {
+                const scrollY = window.scrollY;
+                document.body.style.position = 'fixed';
+                document.body.style.top = `-${scrollY}px`;
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.style.overflow = 'hidden';
+                document.body.style.touchAction = 'none';
+                document.documentElement.style.overscrollBehavior = 'none';
+                didLockRef.current = true;
+            }
+        } else if (didLockRef.current) {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            didLockRef.current = false;
+        }
+        return () => {
+            if (didLockRef.current) {
+                const scrollY = document.body.style.top;
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+                document.documentElement.style.overscrollBehavior = '';
+                if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+                didLockRef.current = false;
+            }
+        };
+    }, [showModal]);
 
     // Only show on Home page
     const isHome = location.pathname === '/';
@@ -91,10 +135,10 @@ export default function InstallButton() {
 
                         {isIOS && !isStandalone ? (
                             <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 mb-4">
-                                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                                    📱 Tap the Share button{' '}
-                                    <Share className="w-4 h-4 inline-block align-middle" />
-                                    and select <span className="font-bold">"Add to Home Screen"</span>
+                                <p className="text-xs text-amber-700 dark:text-amber-400 flex flex-wrap items-center justify-center gap-1 text-center">
+                                    <span>📱 Tap the Share button</span>
+                                    <Share className="w-4 h-4 shrink-0" />
+                                    <span>and select <span className="font-bold">"Add to Home Screen"</span></span>
                                 </p>
                             </div>
                         ) : null}

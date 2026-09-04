@@ -4,8 +4,9 @@ import api from '../api/client';
 import ProductCard from '../components/ProductCard';
 import { ArrowLeft, Star, Tag, ShieldCheck } from 'lucide-react';
 
-export default function Store() {
-    const { id } = useParams();
+export default function Store({ id: idProp, embedded = false }) {
+    const { id: idParam } = useParams();
+    const id = idProp || idParam;
     const [seller, setSeller] = useState(null);
     const [listings, setListings] = useState([]);
     const [rating, setRating] = useState(null);
@@ -84,12 +85,14 @@ export default function Store() {
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
                 
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
-                    <Link
-                        to="/browse"
-                        className="inline-flex items-center gap-1.5 bg-white/10 text-white font-semibold px-3 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-sm"
-                    >
-                        <ArrowLeft className="w-3.5 h-3.5" /> Browse
-                    </Link>
+                    {!embedded && (
+                        <Link
+                            to="/browse"
+                            className="inline-flex items-center gap-1.5 bg-white/10 text-white font-semibold px-3 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-sm"
+                        >
+                            <ArrowLeft className="w-3.5 h-3.5" /> Browse
+                        </Link>
+                    )}
 
                     <div className="flex items-center gap-4 mt-6">
                         <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/15 border-2 border-white/30 backdrop-blur flex items-center justify-center overflow-hidden shrink-0">
