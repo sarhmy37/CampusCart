@@ -254,22 +254,37 @@ router.post('/webhook', async (req, res) => {
         // Mark paid — order still isn't 'completed' until the buyer confirms receipt.
         await pool.query(`UPDATE orders SET status = 'paid' WHERE id = $1`, [order.id]);
 
-        const buyerResult = await pool.query('SELECT name FROM users WHERE id = $1', [order.buyer_id]);
+        const buyerResult = await pool.query('SELECT name, location FROM users WHERE id = $1', [order.buyer_id]);
         const buyerName = buyerResult.rows[0]?.name || 'A buyer';
+        const buyerLocation = buyerResult.rows[0]?.location;
 
         const deliveryNote = order.delivery_method === 'delivery'
-            ? 'Delivery within 1-3 working days.'
-            : 'Buyer will arrange pickup with you on campus.';
+            ? 'get it delivered within 1-3 working days to secure your sale.'
+            : 'the buyer will arrange pickup with you on campus.';
+
+        const locationPhrase = buyerLocation
+            ? `This person is located at ${buyerLocation}, `
+            : '';
+
+        // Need each item's quantity + price so we can total up what THIS seller
+        // is owed from this order, not the order's grand total (which may span
+        // multiple sellers).
+        const itemsWithPricing = await pool.query(
+            'SELECT seller_id, title, quantity, price_at_purchase FROM order_items WHERE order_id = $1',
+            [order.id]
+        );
 
         const sellerIds = [...new Set(itemsResult.rows.map((i) => i.seller_id))];
 
         for (const sellerId of sellerIds) {
-            const itemNames = itemsResult.rows
-                .filter((i) => i.seller_id === sellerId)
-                .map((i) => i.title)
-                .join(', ');
+            const sellerItems = itemsWithPricing.rows.filter((i) => i.seller_id === sellerId);
+            const itemNames = sellerItems.map((i) => i.title).join(', ');
+            const sellerAmount = sellerItems.reduce(
+                (sum, i) => sum + parseFloat(i.price_at_purchase) * i.quantity,
+                0
+            );
 
-            const message = `CampusCart: ${buyerName} just paid for "${itemNames}". Delivery method: ${order.delivery_method}. ${deliveryNote}`;
+            const message = `${buyerName} placed an order of GHS ${sellerAmount.toFixed(2)} for ${itemNames}. ${locationPhrase}${deliveryNote}`;
 
             // Send notification to seller with link to their Delivery tab
             await insertNotification(sellerId, 'payment_received_seller', message, order.id, '/dashboard?tab=deliveries');

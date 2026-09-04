@@ -263,6 +263,8 @@ function ReviewModal({ open, productId, onClose, onSubmitted }) {
         }
     };
 
+    if (!open) return null;
+
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
             <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />

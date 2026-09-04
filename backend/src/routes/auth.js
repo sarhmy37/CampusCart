@@ -31,6 +31,7 @@ function toPublicUser(row) {
         personal_email: row.personal_email,
         whatsapp: row.whatsapp,
         location: row.location,
+        meeting_place: row.meeting_place,
         referral_code: row.referral_code,
         credit_balance: row.credit_balance,
     };
@@ -83,7 +84,7 @@ function isAllowedEmailDomain(email) {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-    const { name, university_email, password, school, account_type, whatsapp, location, referral_code,
+    const { name, university_email, password, school, account_type, whatsapp, location, meeting_place, referral_code,
             bank_code, account_number, account_name, payout_method } = req.body;
 
     if (!name || !university_email || !password) {
@@ -108,6 +109,10 @@ router.post('/register', async (req, res) => {
 
     if (resolvedAccountType === 'buyer' && !location) {
         return res.status(400).json({ error: 'Delivery location is required for buyer accounts' });
+    }
+
+    if (resolvedAccountType === 'seller' && !meeting_place) {
+        return res.status(400).json({ error: 'Please select a meeting place on your campus' });
     }
 
     // Seller payout account validation
@@ -141,9 +146,9 @@ router.post('/register', async (req, res) => {
 
         const passwordHash = await bcrypt.hash(password, 10);
         const result = await pool.query(
-            `INSERT INTO users (name, university_email, password_hash, school, account_type, whatsapp, location, referral_code, referred_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-            [name, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, myReferralCode, referrerId]
+            `INSERT INTO users (name, university_email, password_hash, school, account_type, whatsapp, location, meeting_place, referral_code, referred_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+            [name, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, meeting_place || null, myReferralCode, referrerId]
         );
 
         const user = result.rows[0];
@@ -233,13 +238,14 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // PATCH /api/auth/me
 router.patch('/me', requireAuth, async (req, res) => {
-    const { about, personal_email, whatsapp, location, name, school, verified, avatar_url } = req.body;
+    const { about, personal_email, whatsapp, location, meeting_place, name, school, verified, avatar_url } = req.body;
 
     const PROFILE_EDIT_COOLDOWN_SECONDS = 60 * 60;
 
     try {
         const isUserProfileEdit = about !== undefined || personal_email !== undefined ||
-            whatsapp !== undefined || location !== undefined || name !== undefined || school !== undefined;
+            whatsapp !== undefined || location !== undefined || meeting_place !== undefined ||
+            name !== undefined || school !== undefined;
 
         if (isUserProfileEdit) {
             const current = await pool.query('SELECT profile_updated_at FROM users WHERE id = $1', [req.userId]);
@@ -267,10 +273,11 @@ router.patch('/me', requireAuth, async (req, res) => {
                 school = COALESCE($6, school),
                 verified = COALESCE($7, verified),
                 avatar_url = COALESCE($10, avatar_url),
+                meeting_place = COALESCE($11, meeting_place),
                 profile_updated_at = CASE WHEN $9 THEN now() ELSE profile_updated_at END
              WHERE id = $8
              RETURNING *`,
-            [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit, avatar_url]
+            [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit, avatar_url, meeting_place]
         );
         
         res.json(toPublicUser(result.rows[0]));

@@ -49,7 +49,9 @@ export default function Cart() {
     const { user } = useAuth();
     const { openChat, broadcastToSellers, openConversationDirect } = useChat();
     const navigate = useNavigate();
-    const [deliveryMethod, setDeliveryMethod] = useState('pickup');
+    const [deliveryMethod, setDeliveryMethod] = useState(
+        () => localStorage.getItem('cc_default_delivery') || 'pickup'
+    );
     const [paying, setPaying] = useState(false);
     const [buyerCoords, setBuyerCoords] = useState(null);
     const [locating, setLocating] = useState(false);

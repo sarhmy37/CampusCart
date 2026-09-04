@@ -7,7 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck,
     Shield, ChevronRight, ChevronDown, ChevronLeft, Percent, Trash2, AlertTriangle, Moon, Sun, Gift,
-    Store, Copy
+    Store, Copy, Check
 } from 'lucide-react';
 import { SETTINGS_VIDEO } from '../data/media';
 
@@ -121,6 +121,45 @@ export default function Settings() {
     const [defaultDelivery, setDefaultDelivery] = useState(
         localStorage.getItem('cc_default_delivery') || 'pickup'
     );
+
+    // ─── Delivery location: the spot a seller sees on the buyer's order.
+    // Pre-filled from whatever was captured at registration (buyer's
+    // detected/selected location, or a seller's meeting place as a
+    // fallback), then editable and saveable here. ─────────────────────
+    const [deliveryLocation, setDeliveryLocation] = useState('');
+    const [locationInitialized, setLocationInitialized] = useState(false);
+    const [savingLocation, setSavingLocation] = useState(false);
+    const [locationSaved, setLocationSaved] = useState(false);
+
+    useEffect(() => {
+        if (!locationInitialized && user) {
+            setDeliveryLocation(user.location || user.meeting_place || '');
+            setLocationInitialized(true);
+        }
+    }, [user, locationInitialized]);
+
+    const saveDeliveryLocation = async () => {
+        const trimmed = deliveryLocation.trim();
+        if (!trimmed) {
+            toast.error('Please enter a location first.');
+            return;
+        }
+        setSavingLocation(true);
+        setLocationSaved(false);
+        try {
+            const res = await api.patch('/auth/me', { location: trimmed });
+            const updatedUser = res.data || { ...user, location: trimmed };
+            setUser(updatedUser);
+            localStorage.setItem('cc_user', JSON.stringify(updatedUser));
+            setLocationSaved(true);
+            toast.success('Delivery location saved');
+            setTimeout(() => setLocationSaved(false), 3000);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to save delivery location');
+        } finally {
+            setSavingLocation(false);
+        }
+    };
 
     const [referrals, setReferrals] = useState([]);
 
@@ -648,41 +687,73 @@ export default function Settings() {
                     )}
                 </div>
 
-                {/* DEFAULT DELIVERY */}
+                {/* DELIVERY PREFERENCE + LOCATION */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center gap-2.5 mb-4">
+                    <div className="flex items-center gap-2.5 mb-1">
                         <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
                             <Truck size={16} />
                         </div>
-                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Default delivery preference</h2>
+                        <div>
+                            <h2 className="font-bold text-slate-900 dark:text-gold-50">Delivery preference</h2>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                Pre-selected at checkout — you can still change it per order.
+                            </p>
+                        </div>
                     </div>
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
-                        This will be pre-selected whenever you check out — you can still change it per order.
-                    </p>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Compact segmented toggle, same style as the payout-method switch elsewhere */}
+                    <div className="flex gap-1 mt-4 mb-4 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
                         <button
                             onClick={() => setDelivery('pickup')}
-                            className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${(
+                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                                 defaultDelivery === 'pickup'
-                                    ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
-                                    : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
-                            )}`}
+                                    ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                    : 'text-slate-500 dark:text-gold-200/50'
+                            }`}
                         >
-                            <MapPin size={18} />
-                            Meet on campus
+                            <MapPin size={13} /> Meet on campus
                         </button>
                         <button
                             onClick={() => setDelivery('delivery')}
-                            className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${(
+                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                                 defaultDelivery === 'delivery'
-                                    ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
-                                    : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
-                            )}`}
+                                    ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                    : 'text-slate-500 dark:text-gold-200/50'
+                            }`}
                         >
-                            <Truck size={18} />
-                            Delivery
+                            <Truck size={13} /> Delivery
                         </button>
+                    </div>
+
+                    {/* Functional location field — pre-filled from what was set at
+                        registration, editable, and saved to the profile so a seller
+                        can see it when the buyer places an order. */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-ink-600">
+                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">
+                            {defaultDelivery === 'pickup' ? 'Your usual meet-up spot' : 'Delivery location'}
+                        </label>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <div className="relative flex-1">
+                                <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
+                                <input
+                                    type="text"
+                                    value={deliveryLocation}
+                                    onChange={(e) => setDeliveryLocation(e.target.value)}
+                                    placeholder="e.g. near Ayeduase Gate, West End Hostel"
+                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                />
+                            </div>
+                            <button
+                                onClick={saveDeliveryLocation}
+                                disabled={savingLocation || !deliveryLocation.trim() || deliveryLocation.trim() === (user?.location || '').trim()}
+                                className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-50"
+                            >
+                                {savingLocation ? 'Saving…' : locationSaved ? <><Check size={14} /> Saved</> : 'Save'}
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 dark:text-gold-200/40 mt-1.5">
+                            {user?.school ? `Near ${user.school}. ` : ''}This is what sellers will see when you place an order.
+                        </p>
                     </div>
                 </div>
 

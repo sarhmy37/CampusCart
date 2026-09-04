@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { DASHBOARD_VIDEO } from '../data/media';
+import { DASHBOARD_VIDEO, BALANCE_DARK_IMAGE, BALANCE_LIGHT_IMAGE } from '../data/media';
+import { useTheme } from '../context/ThemeContext';
 import ConfirmModal from '../components/ConfirmModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import EditListingModal from '../components/EditListingModal';
 import ProfileDrawer from '../components/ProfileDrawer';
+import { useReviewPrompt } from '../context/ReviewPromptContext';
 import { createPortal } from 'react-dom';
 
 const PERIODS = [
@@ -135,6 +137,7 @@ export default function Dashboard() {
     const changeTab = (nextTab) => {
         setVisitedTabs((prev) => (prev.has(nextTab) ? prev : new Set(prev).add(nextTab)));
         setTab(nextTab);
+        if (tabViewportRef.current) tabViewportRef.current.scrollTop = 0;
     };
 
     const handleContentTouchStart = (e) => {
@@ -287,9 +290,8 @@ export default function Dashboard() {
                                     return (
                                         <button
                                             key={t}
-                                            onClick={() => setTab(t)}
-                                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${
-                                                tab === t
+                                            onClick={() => { setTab(t); window.scrollTo({ top: 0, behavior: 'auto' }); }}
+                                            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${                                                tab === t
                                                     ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
                                                     : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-300'
                                             }`}
@@ -331,7 +333,7 @@ export default function Dashboard() {
                         }}
                     >
                         {tabs.map((t) => (
-                            <div key={t} style={{ width: `${100 / tabs.length}%` }} className="shrink-0 px-0.5 pb-24">
+                            <div key={t} style={{ width: `${100 / tabs.length}%` }} className="shrink-0 px-0.5 pb-40">
                                 {visitedTabs.has(t) ? renderTabPanel(t) : null}
                             </div>
                         ))}
@@ -339,7 +341,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* DESKTOP: normal tab content */}
-                <div className="hidden sm:block pb-24">
+                <div className={`hidden sm:block ${tab === 'overview' ? 'pb-6' : 'pb-40'}`}>
                     {renderTabPanel(tab)}
                 </div>
             </div>
@@ -721,6 +723,7 @@ function Deliveries() {
 // ─── PAYOUT SETTINGS ──────────────────────────────────────────────────────
 function PayoutSettings() {
     const { user } = useAuth();
+    const { theme } = useTheme();
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -852,10 +855,17 @@ function PayoutSettings() {
 
     return (
         <div className="max-w-xl mx-auto space-y-4">
-            <div className="bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 rounded-2xl p-6 text-white dark:text-ink-900 shadow-md">
-                <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">Available Balance</p>
-                <p className="text-3xl font-extrabold mt-1">GHS {balance.toFixed(2)}</p>
-                <p className="text-xs opacity-80 mt-0.5">98.5% of your completed sales</p>
+            <div className="relative overflow-hidden rounded-2xl p-6 text-white shadow-md">
+                <div
+                    className="absolute inset-0 bg-cover bg-center scale-110 blur-md"
+                    style={{ backgroundImage: `url(${theme === 'dark' ? BALANCE_DARK_IMAGE : BALANCE_LIGHT_IMAGE})` }}
+                />
+                <div className="absolute inset-0 bg-black/25" />
+                <div className="relative z-10">
+                    <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">Available Balance</p>
+                    <p className="text-3xl font-extrabold mt-1">GHS {balance.toFixed(2)}</p>
+                    <p className="text-xs opacity-80 mt-0.5">98.5% of your completed sales</p>
+                </div>
             </div>
 
             <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
@@ -1289,6 +1299,7 @@ function MyListings() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingProduct, setEditingProduct] = useState(null);
+    const [search, setSearch] = useState('');
 
     const load = () => {
         api.get('/products/mine').then((res) => setProducts(res.data)).finally(() => setLoading(false));
@@ -1308,9 +1319,29 @@ function MyListings() {
     if (loading) return <SkeletonList />;
     if (products.length === 0) return <EmptyState icon={Tag} text="You haven't listed anything yet." cta="List an item" ctaLink="/sell/new" />;
 
+    const filteredProducts = search.trim()
+        ? products.filter((p) => p.title.toLowerCase().includes(search.trim().toLowerCase()))
+        : products;
+
     return (
         <div className="max-w-2xl mx-auto space-y-2">
-            {products.map((p) => (
+            {products.length > 10 && (
+                <div className="relative mb-1">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search your listings…"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                    />
+                </div>
+            )}
+            {filteredProducts.length === 0 && search.trim() && (
+                <p className="text-sm text-slate-400 dark:text-gold-200/50 text-center py-6">
+                    No listings match "{search}"
+                </p>
+            )}
+            {filteredProducts.map((p) => (
                 <div key={p.id} className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 hover:shadow-sm transition">
                     <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
                         {p.primary_image && <img src={p.primary_image} className="w-full h-full object-cover" alt={p.title} />}
@@ -1346,6 +1377,7 @@ function MyOrders({ period, isSeller }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [confirmingItem, setConfirmingItem] = useState(null);
+    const { scheduleReviewCheck } = useReviewPrompt();
 
     const loadOrders = () => {
         setLoading(true);
@@ -1368,6 +1400,7 @@ function MyOrders({ period, isSeller }) {
            await api.post(`/orders/order-items/${itemId}/confirm`);
             toast.success('Item confirmed as received! ✅');
             loadOrders();
+            scheduleReviewCheck();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to confirm');
         } finally {

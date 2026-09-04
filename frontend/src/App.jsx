@@ -6,6 +6,8 @@ import { WishlistProvider } from './context/WishlistContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ChatProvider } from './context/ChatContext';
+import { ReviewPromptProvider } from './context/ReviewPromptContext';
+import PostPurchaseReviewModal from './components/PostPurchaseReviewModal';
 import AdminLogin from './pages/AdminLogin';
 import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
@@ -39,11 +41,13 @@ export default function App() {
           <CartProvider>
             <NotificationProvider>
               <ChatProvider>
+                <ReviewPromptProvider>
                 <BrowserRouter>
                   <div className="min-h-screen bg-slate-50 dark:bg-ink-900 transition-colors">
                     <Navbar />
                     <AppToaster />
                     <AwayTimeoutModal />
+                    <PostPurchaseReviewModal />
                     <PullToRefresh>
                       <Routes>
                         <Route path="/" element={<Home />} />
@@ -69,6 +73,7 @@ export default function App() {
                     <ChatPanel />
                   </div>
                 </BrowserRouter>
+                </ReviewPromptProvider>
               </ChatProvider>
             </NotificationProvider>
           </CartProvider>

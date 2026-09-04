@@ -127,7 +127,7 @@ function distanceKm(lat1, lon1, lat2, lon2) {
 function findNearestSchool(lat, lng) {
     let nearest = '';
     let minDist = Infinity;
-    for (const [code, coord] of Object.entries(UNIVERSITY_COORDS)) {
+    for (const [code, coord] of Object.entries(SCHOOL_COORDS)) {
         const d = distanceKm(lat, lng, coord.lat, coord.lng);
         if (d < minDist) {
             minDist = d;
@@ -231,6 +231,14 @@ export default function Register() {
     const [detectingSchool, setDetectingSchool] = useState(false);
     const [detectError, setDetectError] = useState('');
 
+    // Fires the first time the buyer focuses/clicks the school field — not
+    // automatically on mount. Guarded so it doesn't re-trigger every time
+    // they tap back into the field once a school is already set.
+    const handleSchoolFieldActivate = () => {
+        if (buyerSchool || detectingSchool) return;
+        detectNearestSchool();
+    };
+
     const detectNearestSchool = () => {
         if (!navigator.geolocation) {
             setDetectError("Your device doesn't support location detection. Please pick your school manually.");
@@ -251,14 +259,6 @@ export default function Register() {
             { enableHighAccuracy: true, timeout: 10000 }
         );
     };
-
-    // Run detection once, as soon as someone lands on the buyer tab.
-    useEffect(() => {
-        if (accountType === 'buyer' && !buyerSchool && !detectingSchool && !detectError) {
-            detectNearestSchool();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accountType]);
 
     const [payoutMethod, setPayoutMethod] = useState('bank');
     const [bankCode, setBankCode] = useState('');
@@ -785,10 +785,12 @@ export default function Register() {
                                                 <School size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
                                                 <select
                                                     value={buyerSchool}
+                                                    onFocus={handleSchoolFieldActivate}
+                                                    onClick={handleSchoolFieldActivate}
                                                     onChange={(e) => setBuyerSchool(e.target.value)}
                                                     className="w-full pl-8 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
                                                 >
-                                                    <option value="">{detectingSchool ? 'Detecting…' : 'Select school'}</option>
+                                                    <option value="">{detectingSchool ? 'Detecting…' : 'Tap to detect'}</option>
                                                     {SCHOOLS.map((s) => (
                                                         <option key={s} value={s}>{s}</option>
                                                     ))}
@@ -812,6 +814,9 @@ export default function Register() {
                                                 />
                                             </div>
                                         </div>
+                                        {!detectingSchool && !detectError && !buyerSchool && (
+                                            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Tap the field to auto-detect your nearest campus.</p>
+                                        )}
                                         {detectingSchool && (
                                             <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Detecting your nearest campus…</p>
                                         )}

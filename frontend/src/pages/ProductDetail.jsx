@@ -246,16 +246,16 @@ export default function ProductDetail() {
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-200/50 dark:border-white/10 space-y-2.5">
-                {(isDemo ? product.seller_school : product.seller_school) && (
+                {product.seller_school && (
                     <div className="flex items-center gap-2 text-sm">
                         <MapPin size={14} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
                         <span className="text-slate-600 dark:text-gold-100/80">{product.seller_school}</span>
                     </div>
                 )}
-                {product.seller_location && (
+                {product.seller_meeting_place && (
                     <div className="flex items-center gap-2 text-sm">
-                        <MapPin size={14} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                        <span className="text-slate-600 dark:text-gold-100/80">{product.seller_location}</span>
+                        <Tag size={14} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                        <span className="text-slate-600 dark:text-gold-100/80">Meets at: {product.seller_meeting_place}</span>
                     </div>
                 )}
                 {(product.seller_whatsapp || product.whatsapp) && (

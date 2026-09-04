@@ -74,6 +74,8 @@ export const GALLERY = [
 
 export const LOGIN_IMAGE = cloudinaryImage('login.jpg');
 export const REGISTER_IMAGE = cloudinaryImage('register.jpg');
+export const BALANCE_DARK_IMAGE = cloudinaryImage('dark_bala.jpg');
+export const BALANCE_LIGHT_IMAGE = cloudinaryImage('light_bala.jpg');
 
 // Additional images used elsewhere
 export const SNEAKERS_2 = cloudinaryImage('Sneakers2.jpg');
@@ -99,6 +101,8 @@ export const PRELOAD_ASSETS = [
     ...GALLERY.flatMap((g) => g.images),
     LOGIN_IMAGE,
     REGISTER_IMAGE,
+    BALANCE_DARK_IMAGE,
+    BALANCE_LIGHT_IMAGE,
     SNEAKERS_2,
     SNEAKERS_4,
     MEET_ME,

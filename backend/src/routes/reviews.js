@@ -48,6 +48,50 @@ router.get('/seller/:sellerId', async (req, res) => {
     }
 });
 
+// GET /api/reviews/pending-sellers — distinct sellers this buyer has completed a
+// purchase from, hasn't reviewed, and hasn't permanently skipped. Used to drive
+// the post-purchase review prompt queue.
+router.get('/pending-sellers', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT DISTINCT u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar
+             FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             JOIN users u ON u.id = oi.seller_id
+             WHERE o.buyer_id = $1
+               AND oi.status = 'completed'
+               AND NOT EXISTS (
+                   SELECT 1 FROM reviews r WHERE r.seller_id = oi.seller_id AND r.reviewer_id = $1
+               )
+               AND NOT EXISTS (
+                   SELECT 1 FROM review_skips rs WHERE rs.seller_id = oi.seller_id AND rs.buyer_id = $1
+               )
+             ORDER BY u.name ASC`,
+            [req.userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get pending sellers error:', err);
+        res.status(500).json({ error: 'Something went wrong checking pending reviews' });
+    }
+});
+
+// POST /api/reviews/:sellerId/skip — permanently dismiss the review prompt for this seller
+router.post('/:sellerId/skip', requireAuth, async (req, res) => {
+    const { sellerId } = req.params;
+    try {
+        await pool.query(
+            `INSERT INTO review_skips (buyer_id, seller_id) VALUES ($1, $2)
+             ON CONFLICT (buyer_id, seller_id) DO NOTHING`,
+            [req.userId, sellerId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Skip review error:', err);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
 // GET /api/reviews/can-review/:sellerId — has this buyer completed a purchase from this seller, and not already reviewed?
 router.get('/can-review/:sellerId', requireAuth, async (req, res) => {
     const { sellerId } = req.params;
