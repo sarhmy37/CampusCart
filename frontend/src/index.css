@@ -76,7 +76,7 @@ body::-webkit-scrollbar,
 }
 
 .dark .pinch-dot {
-    background: theme('colors.gold.400');
+    background: theme('colors.brand.400');
 }
 
 .pinch-dot-left {
