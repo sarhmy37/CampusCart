@@ -105,22 +105,24 @@ export default function Admin() {
             </section>
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-                <div className="flex gap-1 mb-6 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
-                    {['users', 'listings', 'orders', 'reports', 'deleted chats'].map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => setTab(t)}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition ${
-                                tab === t
-                                    ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
-                                    : 'text-slate-500 dark:text-gold-200/50'
-                            }`}
-                        >
-                            {t}
-                        </button>
-                    ))}
+                <div className="max-w-full overflow-x-auto no-scrollbar mb-6">
+                    <style>{`.no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}.no-scrollbar::-webkit-scrollbar{display:none}`}</style>
+                    <div className="flex gap-1 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
+                        {['users', 'listings', 'orders', 'reports', 'deleted chats'].map((t) => (
+                            <button
+                                key={t}
+                                onClick={() => setTab(t)}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-semibold capitalize transition whitespace-nowrap ${
+                                    tab === t
+                                        ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
+                                        : 'text-slate-500 dark:text-gold-200/50'
+                                }`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-
                 {tab === 'users' && <UsersTab filter={searchQuery} initialUsers={allUsers} loading={loadingUsers} />}
                 {tab === 'listings' && <ListingsTab filter={searchQuery} initialListings={allListings} loading={loadingListings} />}
                 {tab === 'orders' && <OrdersTab />}
