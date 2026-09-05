@@ -70,9 +70,6 @@ export default function ProductCard({ product }) {
         if (stock <= 0) {
             stockLabel = 'Out of stock';
             stockColor = 'text-red-500 dark:text-red-400';
-        } else if (stock <= 5) {
-            stockLabel = `Low stock: ${stock}`;
-            stockColor = 'text-amber-600 dark:text-amber-400';
         }
     }
 
