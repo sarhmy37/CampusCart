@@ -29,6 +29,92 @@ const PERIODS = [
     { value: 'all', label: 'All time' },
 ];
 
+// ─── SKELETON-LOADING PATTERN ──────────────────────────────────────────────
+// Shared by every tab panel below. A panel using this hook shows its
+// skeleton the instant it mounts, and only swaps to real content once BOTH
+// the API data and any images referenced in that data have finished
+// loading — so nothing pops in piece by piece. If it's taking unusually
+// long (default 15s), a toast nudges the user to check their connection,
+// and the skeleton keeps showing (with a retry if the request errors).
+const CONTENT_TIMEOUT_MS = 15000;
+
+function preloadImage(src) {
+    return new Promise((resolve) => {
+        if (!src) return resolve();
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // one bad image shouldn't block the whole panel
+        img.src = src;
+    });
+}
+
+/**
+ * @param {() => Promise<any>} load - async function resolving to the panel's data
+ * @param {(data: any) => string[]} getImageUrls - pull image URLs out of that data (optional)
+ * @param {any[]} deps - re-run when these change (e.g. [period])
+ */
+function useContentReady({ load, getImageUrls, deps = [] }) {
+    const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+    const [data, setData] = useState(null);
+    const attemptId = useRef(0);
+    const slowToastShown = useRef(false);
+
+    const run = () => {
+        const currentAttempt = ++attemptId.current;
+        slowToastShown.current = false;
+        setStatus('loading');
+
+        const slowTimer = setTimeout(() => {
+            if (attemptId.current === currentAttempt) {
+                slowToastShown.current = true;
+                toast('Still loading — check your internet connection.', { icon: '⚠️', duration: 6000 });
+            }
+        }, CONTENT_TIMEOUT_MS);
+
+        load()
+            .then(async (result) => {
+                if (attemptId.current !== currentAttempt) return;
+                const urls = getImageUrls ? getImageUrls(result).filter(Boolean) : [];
+                await Promise.all(urls.map(preloadImage));
+                if (attemptId.current !== currentAttempt) return;
+                clearTimeout(slowTimer);
+                setData(result);
+                setStatus('ready');
+            })
+            .catch(() => {
+                if (attemptId.current !== currentAttempt) return;
+                clearTimeout(slowTimer);
+                setStatus('error');
+            });
+
+        return () => clearTimeout(slowTimer);
+    };
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => run(), deps);
+
+    return { status, data, retry: run };
+}
+
+// Shared "couldn't load" state with a retry button, for any panel using
+// useContentReady. Mirrors the pattern MyReports already had.
+function ErrorState({ icon: Icon, text = "Couldn't load this right now.", onRetry }) {
+    return (
+        <div className="text-center py-16">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center mb-4">
+                <Icon className="text-red-400" size={24} />
+            </div>
+            <p className="text-sm text-slate-400 dark:text-gold-200/50">{text}</p>
+            <button
+                onClick={onRetry}
+                className="inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition"
+            >
+                Try again
+            </button>
+        </div>
+    );
+}
+
 // ─── SWIPEABLE TABS CONFIG ────────────────────────────────────────────────
 const TAB_LABELS = {
     overview: 'Overview',
@@ -618,20 +704,12 @@ function StatCard({ icon: Icon, label, value }) {
 
 // ─── DELIVERIES ────────────────────────────────────────────────────────────
 function Deliveries() {
-    const [deliveries, setDeliveries] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [marking, setMarking] = useState(null);
     const [confirmTarget, setConfirmTarget] = useState(null);
 
-    const load = () => {
-        setLoading(true);
-        api.get('/orders/deliveries')
-            .then((res) => setDeliveries(res.data))
-            .catch(() => setDeliveries([]))
-            .finally(() => setLoading(false));
-    };
-
-    useEffect(load, []);
+    const { status, data: deliveries, retry } = useContentReady({
+        load: () => api.get('/orders/deliveries').then((res) => res.data),
+    });
 
     const handleMarkDelivered = async () => {
         if (!confirmTarget) return;
@@ -640,7 +718,7 @@ function Deliveries() {
             await api.post(`/orders/${confirmTarget}/mark-delivered`);
             toast.success("Marked as delivered — buyer's been notified to confirm.");
             setConfirmTarget(null);
-            load();
+            retry();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to mark as delivered');
         } finally {
@@ -648,7 +726,8 @@ function Deliveries() {
         }
     };
 
-    if (loading) return <SkeletonList />;
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error') return <ErrorState icon={Truck} text="Couldn't load your deliveries right now." onRetry={retry} />;
     if (deliveries.length === 0) return <EmptyState icon={Truck} text="No deliveries pending right now." />;
 
     return (
@@ -730,8 +809,6 @@ function Deliveries() {
 function PayoutSettings({ period }) {
     const { user } = useAuth();
     const { theme } = useTheme();
-    const [accounts, setAccounts] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [ghsToUsdRate, setGhsToUsdRate] = useState(null);
     const [changePct, setChangePct] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -753,24 +830,24 @@ function PayoutSettings({ period }) {
     const [deletingAccountId, setDeletingAccountId] = useState(null);
     const pendingDeleteTimerRef = useRef(null);
 
-    const loadData = () => {
-        setLoading(true);
-        Promise.all([
-            api.get('/payouts/accounts'),
-            api.get('/payouts/balance')
-        ])
-            .then(([accRes, balRes]) => {
-                setAccounts(accRes.data);
-                setBalance(balRes.data.availableBalance);
-                const defaultAcc = accRes.data.find(a => a.is_default);
-                if (defaultAcc) setSelectedAccountId(defaultAcc.id);
-            })
-            .catch(() => setAccounts([]))
-            .finally(() => setLoading(false));
-    };
+    const { status, data: payoutData, retry: loadData } = useContentReady({
+        load: () =>
+            Promise.all([api.get('/payouts/accounts'), api.get('/payouts/balance')]).then(
+                ([accRes, balRes]) => ({ accounts: accRes.data, balance: balRes.data.availableBalance })
+            ),
+    });
+    const accounts = payoutData?.accounts || [];
+
+    // Keep local state in sync once each load resolves (selected account,
+    // balance) — the withdraw form below still needs to write to these.
+    useEffect(() => {
+        if (!payoutData) return;
+        setBalance(payoutData.balance);
+        const defaultAcc = payoutData.accounts.find((a) => a.is_default);
+        if (defaultAcc) setSelectedAccountId(defaultAcc.id);
+    }, [payoutData]);
 
     useEffect(() => {
-        loadData();
         api.get('/payouts/banks')
             .then((res) => setBanks(res.data))
             .catch(() => {});
@@ -919,7 +996,8 @@ function PayoutSettings({ period }) {
         }
     };
 
-    if (loading) return <SkeletonList />;
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error') return <ErrorState icon={Wallet} text="Couldn't load your payout info right now." onRetry={loadData} />;
 
     return (
         <div className="max-w-xl mx-auto space-y-4">
@@ -1238,23 +1316,21 @@ function PayoutSettings({ period }) {
 // dashed rule) instead of its own separate padded box, so the whole
 // overview reads as one continuous statement.
 function SellerOverview({ period }) {
-    const [overview, setOverview] = useState(null);
-    const [rewards, setRewards] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { status, data, retry } = useContentReady({
+        load: () =>
+            Promise.all([
+                api.get('/sellers/overview', { params: { period } }),
+                api.get('/sellers/rewards'),
+            ]).then(([o, r]) => ({ overview: o.data, rewards: r.data })),
+        deps: [period],
+    });
 
-    useEffect(() => {
-        setLoading(true);
-        Promise.all([
-            api.get('/sellers/overview', { params: { period } }),
-            api.get('/sellers/rewards'),
-        ])
-            .then(([o, r]) => { setOverview(o.data); setRewards(r.data); })
-            .catch(() => {})
-            .finally(() => setLoading(false));
-    }, [period]);
-
-    if (loading) return <SkeletonList />;
-    if (!overview) return <EmptyState icon={Store} text="Couldn't load your overview right now." />;
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error' || !data?.overview) {
+        return <ErrorState icon={Store} text="Couldn't load your overview right now." onRetry={retry} />;
+    }
+    const overview = data.overview;
+    const rewards = data.rewards;
 
     // ─── DERIVED METRICS ──────────────────────────────────────────────
     const gross = parseFloat(overview.gross_sales) || 0;
@@ -1398,15 +1474,13 @@ function MetricCard({ icon: Icon, label, value, highlight }) {
 
 // ─── MY LISTINGS ──────────────────────────────────────────────────────────
 function MyListings() {
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [editingProduct, setEditingProduct] = useState(null);
     const [search, setSearch] = useState('');
 
-    const load = () => {
-        api.get('/products/mine').then((res) => setProducts(res.data)).finally(() => setLoading(false));
-    };
-    useEffect(load, []);
+    const { status, data: products, retry: load } = useContentReady({
+        load: () => api.get('/products/mine').then((res) => res.data),
+        getImageUrls: (products) => products.map((p) => p.primary_image),
+    });
 
     const remove = async (id) => {
         try {
@@ -1418,7 +1492,8 @@ function MyListings() {
         }
     };
 
-    if (loading) return <SkeletonList />;
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error') return <ErrorState icon={Tag} text="Couldn't load your listings right now." onRetry={load} />;
     if (products.length === 0) return <EmptyState icon={Tag} text="You haven't listed anything yet." cta="List an item" ctaLink="/sell/new" />;
 
     const filteredProducts = search.trim()
@@ -1476,21 +1551,13 @@ function MyListings() {
 
 // ─── MY ORDERS ────────────────────────────────────────────────────────────
 function MyOrders({ period, isSeller }) {
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [confirmingItem, setConfirmingItem] = useState(null);
     const { scheduleReviewCheck } = useReviewPrompt();
 
-    const loadOrders = () => {
-        setLoading(true);
-        api.get('/orders/mine', { params: { period } })
-            .then((res) => setOrders(res.data))
-            .finally(() => setLoading(false));
-    };
-
-    useEffect(() => {
-        loadOrders();
-    }, [period]);
+    const { status, data: orders, retry: loadOrders } = useContentReady({
+        load: () => api.get('/orders/mine', { params: { period } }).then((res) => res.data),
+        deps: [period],
+    });
 
     const handleConfirmReceived = async (orderId, itemId) => {
         if (!window.confirm('⚠️ Are you sure you have received this item? This action cannot be undone.')) {
@@ -1510,7 +1577,8 @@ function MyOrders({ period, isSeller }) {
         }
     };
 
-    if (loading) return <SkeletonList />;
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error') return <ErrorState icon={ShoppingBag} text="Couldn't load your orders right now." onRetry={loadOrders} />;
     if (orders.length === 0) return <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
 
     return (
@@ -1572,14 +1640,12 @@ const STATUS_STYLES = {
 
 // ─── MY SALES ─────────────────────────────────────────────────────────────
 function MySales() {
-    const [sales, setSales] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { status, data: sales, retry } = useContentReady({
+        load: () => api.get('/orders/sales').then((res) => res.data),
+    });
 
-    useEffect(() => {
-        api.get('/orders/sales').then((res) => setSales(res.data)).finally(() => setLoading(false));
-    }, []);
-
-    if (loading) return <SkeletonList />;
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error') return <ErrorState icon={TrendingUp} text="Couldn't load your sales right now." onRetry={retry} />;
     if (sales.length === 0) return <EmptyState icon={TrendingUp} text="No sales yet." />;
 
     return (
@@ -1677,40 +1743,12 @@ const REPORT_STATUS_DESC = {
 };
 
 function MyReports() {
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState(false);
+    const { status, data: reports, retry: load } = useContentReady({
+        load: () => api.get('/reports/mine').then((res) => res.data),
+    });
 
-    const load = () => {
-        setLoading(true);
-        setLoadError(false);
-        api.get('/reports/mine')
-            .then((res) => setReports(res.data))
-            .catch(() => setLoadError(true))
-            .finally(() => setLoading(false));
-    };
-
-    useEffect(load, []);
-
-    if (loading) return <SkeletonList />;
-
-    if (loadError) {
-        return (
-            <div className="text-center py-16">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center mb-4">
-                    <Flag className="text-red-400" size={24} />
-                </div>
-                <p className="text-sm text-slate-400 dark:text-gold-200/50">Couldn't load your reports right now.</p>
-                <button
-                    onClick={load}
-                    className="inline-flex items-center gap-1.5 mt-5 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition"
-                >
-                    Try again
-                </button>
-            </div>
-        );
-    }
-
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error') return <ErrorState icon={Flag} text="Couldn't load your reports right now." onRetry={load} />;
     if (reports.length === 0) return <EmptyState icon={Flag} text="You haven't reported anything." />;
 
     return (

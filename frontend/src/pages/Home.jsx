@@ -218,9 +218,15 @@ export default function Home() {
                     </Reveal>
 
                     <Reveal delay={100}>
-                        <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] text-white max-w-2xl min-h-[2.1em] sm:min-h-[2.1em] lg:min-h-[1.05em]">
+                        {/* MOBILE — static, no typewriter */}
+                        <h1 className="sm:hidden mt-5 text-4xl font-extrabold leading-[1.05] text-white max-w-2xl">
+                            Buy and Sell within your campus, Safely.
+                        </h1>
+
+                        {/* DESKTOP — animated typewriter */}
+                        <h1 className="hidden sm:block mt-5 text-5xl lg:text-6xl font-extrabold leading-[1.05] text-white max-w-2xl min-h-[2.1em] lg:min-h-[1.05em]">
                             {heroDisplay}
-                            <span className="inline-block w-[3px] sm:w-[4px] h-[0.9em] bg-white ml-1 align-middle hero-cursor-blink" />
+                            <span className="inline-block w-[4px] h-[0.9em] bg-white ml-1 align-middle hero-cursor-blink" />
                         </h1>
                     </Reveal>
 
