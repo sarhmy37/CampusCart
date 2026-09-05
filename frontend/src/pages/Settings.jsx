@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck,
     Shield, ChevronRight, ChevronDown, ChevronLeft, Percent, Trash2, AlertTriangle, Moon, Sun, Gift,
-    Store, Copy, Check
+    Store, Copy, Check, X
 } from 'lucide-react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { SETTINGS_VIDEO } from '../data/media';
@@ -68,6 +69,26 @@ export default function Settings() {
             .finally(() => setStoreStatsLoading(false));
     }, [isSeller, user?.id]);
 
+        useEffect(() => {
+        if (!showStorePreview) return;
+        if (document.body.style.position === 'fixed') return; // already locked elsewhere
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+        return () => {
+            const y = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            if (y) window.scrollTo(0, parseInt(y || '0') * -1);
+        };
+    }, [showStorePreview]);
+
     const shareOnSocial = (platform) => {
         if (!businessProfileUrl) return;
         const url = encodeURIComponent(businessProfileUrl);
@@ -78,7 +99,6 @@ export default function Settings() {
             whatsapp: `https://wa.me/?text=${text} ${url}`,
             linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
             telegram: `https://t.me/share/url?url=${url}&text=${text}`,
-            reddit: `https://www.reddit.com/submit?url=${url}&title=${text}`,
         };
         if (shareUrls[platform]) {
             window.open(shareUrls[platform], '_blank', 'width=600,height=400');
@@ -420,15 +440,6 @@ export default function Settings() {
                                             </svg>
                                         </button>
                                         <button
-                                            onClick={() => shareOnSocial('reddit')}
-                                            className="p-2 rounded-lg bg-[#FF4500] hover:bg-[#e03d00] text-white transition"
-                                            title="Share on Reddit"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm5.5 9.1a1.5 1.5 0 0 1-1.5 1.5c-.3 0-.58-.09-.81-.24-.83.6-1.98 1-3.24 1.06l.55-2.58 1.8.38a1.06 1.06 0 1 0 .09-.55l-2-.42a.28.28 0 0 0-.33.21l-.6 2.86c-1.27-.05-2.42-.46-3.26-1.06-.23.15-.5.24-.81.24a1.5 1.5 0 1 1 1.14-2.48 3.7 3.7 0 0 1 1.63-.6l.65-3.05a.23.23 0 0 1 .27-.17l2.15.46a1.06 1.06 0 1 1-.09.53l-1.9-.4-.55 2.6a3.72 3.72 0 0 1 1.65.6 1.5 1.5 0 0 1 2.16 2.02Zm-6.7-.5a.63.63 0 1 0 0 1.25.63.63 0 0 0 0-1.25Zm5.9 0a.63.63 0 1 0 0 1.25.63.63 0 0 0 0-1.25Zm-3 2.7c.6 0 1.16-.12 1.66-.33a.19.19 0 0 0-.15-.35c-.44.18-.94.28-1.51.28s-1.07-.1-1.51-.28a.19.19 0 1 0-.15.35c.5.21 1.06.33 1.66.33Z"/>
-                                            </svg>
-                                        </button>
-                                        <button
                                             onClick={shareInstagram}
                                             className="p-2 rounded-lg bg-gradient-to-br from-[#feda75] via-[#d62976] to-[#4f5bd5] hover:opacity-90 text-white transition"
                                             title="Share on Instagram"
@@ -464,16 +475,24 @@ export default function Settings() {
                 )}
 
                 {/* STORE PREVIEW MODAL */}
-                {showStorePreview && (
+                {showStorePreview && createPortal(
                     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
                         <div
                             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
                             onClick={() => setShowStorePreview(false)}
                         />
                         <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                            <button
+                                onClick={() => setShowStorePreview(false)}
+                                className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-900/60 hover:bg-slate-900/80 text-white backdrop-blur transition"
+                                title="Close preview"
+                            >
+                                <X size={18} />
+                            </button>
                             {user?.id && <StorePage id={user.id} embedded />}
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
                 {/* APPEARANCE */}
@@ -499,86 +518,6 @@ export default function Settings() {
                     </div>
                 </div>
 
-                {/* SELLER FEES & TERMS */}
-                {isSeller && (
-                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
-                        <button
-                            onClick={() => setTermsOpen((o) => !o)}
-                            className="w-full flex items-center justify-between p-6"
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-600 to-accent-500 dark:from-gold-600 dark:to-gold-400 text-white flex items-center justify-center">
-                                    <Percent size={16} />
-                                </div>
-                                <div className="text-left">
-                                    <h2 className="font-bold text-slate-900 dark:text-gold-50">Fees & Terms</h2>
-                                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">Platform commission for sellers</p>
-                                </div>
-                            </div>
-                            <ChevronDown size={18} className={`text-slate-400 dark:text-gold-300/60 transition-transform ${termsOpen ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {termsOpen && (
-                            <div className="px-6 pb-6 -mt-1">
-                                <div className="bg-brand-50 dark:bg-ink-700 border border-brand-100 dark:border-gold-800 rounded-xl p-4">
-                                    <p className="text-sm text-brand-900 dark:text-gold-200 leading-relaxed">
-                                        <span className="font-bold">{PLATFORM_FEE_RATE}% platform fee</span> is
-                                        charged on every product you sell as a seller. This fee is calculated on
-                                        the item's sale price at the moment a purchase is completed.
-                                    </p>
-                                </div>
-
-                                <ul className="mt-4 space-y-2.5 text-sm text-slate-600 dark:text-gold-200/70">
-                                    <li className="flex gap-2">
-                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                        Fees from all your sales are totaled up over the calendar month.
-                                    </li>
-                                    <li className="flex gap-2">
-                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                        At the end of each month, the total amount owed must be paid to
-                                        continue creating new listings and selling on Tre-X.
-                                    </li>
-                                    <li className="flex gap-2">
-                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                        Buyers are never charged this fee — it only applies to seller payouts.
-                                    </li>
-                                    <li className="flex gap-2">
-                                        <span className="text-brand-600 dark:text-gold-400 font-bold">•</span>
-                                        You can track fees owed and payment history from your Dashboard.
-                                    </li>
-                                </ul>
-
-                                <button
-                                    onClick={() => setFullTermsOpen((o) => !o)}
-                                    className="inline-flex items-center gap-1 mt-4 text-sm font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300"
-                                >
-                                    {fullTermsOpen ? 'Hide' : 'Read'} full Seller Terms of Service
-                                    <ChevronDown size={14} className={`transition-transform ${fullTermsOpen ? 'rotate-180' : ''}`} />
-                                </button>
-
-                                {fullTermsOpen && (
-                                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-ink-600 space-y-4 text-sm text-slate-600 dark:text-gold-200/70">
-                                        <TermsBlock title="1. Platform fee">
-                                            Tre-X charges a {PLATFORM_FEE_RATE}% commission on the sale price of every completed transaction. This fee is deducted automatically from your payout.
-                                        </TermsBlock>
-                                        <TermsBlock title="2. Monthly settlement">
-                                            Fees accrued across a calendar month are totaled and must be settled before new listings can be created in the following month.
-                                        </TermsBlock>
-                                        <TermsBlock title="3. Listing accuracy">
-                                            Sellers must accurately represent the condition, price, and availability of items listed. Misrepresentation may result in listing removal or account suspension.
-                                        </TermsBlock>
-                                        <TermsBlock title="4. Order fulfillment">
-                                            Sellers are expected to honor pickup or delivery arrangements made with buyers within the agreed timeframe.
-                                        </TermsBlock>
-                                        <TermsBlock title="5. Account standing">
-                                            Tre-X reserves the right to suspend or ban seller accounts that repeatedly violate these terms or receive substantiated reports from buyers.
-                                        </TermsBlock>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {/* BUYER TERMS */}
                 {!isSeller && (
@@ -627,6 +566,79 @@ export default function Settings() {
                         )}
                     </div>
                 )}
+
+                {/* SAVED DELIVERY LOCATIONS — buyers only */}
+                {!isSeller && <DeliveryLocations />}
+
+                {/* DELIVERY PREFERENCE + LOCATION */}
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center gap-2.5 mb-1">
+                        <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                            <Truck size={16} />
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-slate-900 dark:text-gold-50">Delivery preference</h2>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                Pre-selected at checkout — you can still change it per order.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Compact segmented toggle, same style as the payout-method switch elsewhere */}
+                    <div className="flex gap-1 mt-4 mb-4 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
+                        <button
+                            onClick={() => setDelivery('pickup')}
+                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                                defaultDelivery === 'pickup'
+                                    ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                    : 'text-slate-500 dark:text-gold-200/50'
+                            }`}
+                        >
+                            <MapPin size={13} /> Meet on campus
+                        </button>
+                        <button
+                            onClick={() => setDelivery('delivery')}
+                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                                defaultDelivery === 'delivery'
+                                    ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                    : 'text-slate-500 dark:text-gold-200/50'
+                            }`}
+                        >
+                            <Truck size={13} /> Delivery
+                        </button>
+                    </div>
+
+                    {/* Functional location field — pre-filled from what was set at
+                        registration, editable, and saved to the profile so a seller
+                        can see it when the buyer places an order. */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-ink-600">
+                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">
+                            {defaultDelivery === 'pickup' ? 'Your usual meet-up spot' : 'Delivery location'}
+                        </label>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <div className="relative flex-1">
+                                <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
+                                <input
+                                    type="text"
+                                    value={deliveryLocation}
+                                    onChange={(e) => setDeliveryLocation(e.target.value)}
+                                    placeholder="e.g. near Ayeduase Gate, West End Hostel"
+                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                />
+                            </div>
+                            <button
+                                onClick={saveDeliveryLocation}
+                                disabled={savingLocation || !deliveryLocation.trim() || deliveryLocation.trim() === (user?.location || '').trim()}
+                                className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-50"
+                            >
+                                {savingLocation ? 'Saving…' : locationSaved ? <><Check size={14} /> Saved</> : 'Save'}
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 dark:text-gold-200/40 mt-1.5">
+                            {user?.school ? `Near ${user.school}. ` : ''}This is what sellers will see when you place an order.
+                        </p>
+                    </div>
+                </div>
 
                 {/* CHANGE PASSWORD */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
@@ -719,79 +731,6 @@ export default function Settings() {
                             </button>
                         </form>
                     )}
-                </div>
-
-                {/* SAVED DELIVERY LOCATIONS — buyers only */}
-                {!isSeller && <DeliveryLocations />}
-
-                {/* DELIVERY PREFERENCE + LOCATION */}
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center gap-2.5 mb-1">
-                        <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                            <Truck size={16} />
-                        </div>
-                        <div>
-                            <h2 className="font-bold text-slate-900 dark:text-gold-50">Delivery preference</h2>
-                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
-                                Pre-selected at checkout — you can still change it per order.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Compact segmented toggle, same style as the payout-method switch elsewhere */}
-                    <div className="flex gap-1 mt-4 mb-4 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
-                        <button
-                            onClick={() => setDelivery('pickup')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                                defaultDelivery === 'pickup'
-                                    ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
-                                    : 'text-slate-500 dark:text-gold-200/50'
-                            }`}
-                        >
-                            <MapPin size={13} /> Meet on campus
-                        </button>
-                        <button
-                            onClick={() => setDelivery('delivery')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                                defaultDelivery === 'delivery'
-                                    ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
-                                    : 'text-slate-500 dark:text-gold-200/50'
-                            }`}
-                        >
-                            <Truck size={13} /> Delivery
-                        </button>
-                    </div>
-
-                    {/* Functional location field — pre-filled from what was set at
-                        registration, editable, and saved to the profile so a seller
-                        can see it when the buyer places an order. */}
-                    <div className="pt-3 border-t border-slate-100 dark:border-ink-600">
-                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">
-                            {defaultDelivery === 'pickup' ? 'Your usual meet-up spot' : 'Delivery location'}
-                        </label>
-                        <div className="flex items-center gap-2 mt-1.5">
-                            <div className="relative flex-1">
-                                <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
-                                <input
-                                    type="text"
-                                    value={deliveryLocation}
-                                    onChange={(e) => setDeliveryLocation(e.target.value)}
-                                    placeholder="e.g. near Ayeduase Gate, West End Hostel"
-                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
-                                />
-                            </div>
-                            <button
-                                onClick={saveDeliveryLocation}
-                                disabled={savingLocation || !deliveryLocation.trim() || deliveryLocation.trim() === (user?.location || '').trim()}
-                                className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-50"
-                            >
-                                {savingLocation ? 'Saving…' : locationSaved ? <><Check size={14} /> Saved</> : 'Save'}
-                            </button>
-                        </div>
-                        <p className="text-[11px] text-slate-400 dark:text-gold-200/40 mt-1.5">
-                            {user?.school ? `Near ${user.school}. ` : ''}This is what sellers will see when you place an order.
-                        </p>
-                    </div>
                 </div>
 
                 {/* NOTIFICATIONS */}

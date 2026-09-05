@@ -30,7 +30,9 @@ export default function Terms() {
                     Payments are processed securely through our third-party payment provider, Paystack. Tre-X does not store your card or mobile money details directly.
                 </Section>
                 <Section title="5. Fees">
-                    A platform fee is charged to sellers on each completed sale, and a smaller service fee is charged to buyers at checkout to cover payment processing costs. Current rates are shown in Settings.
+                    <p>Sellers are charged a 1.5% platform fee on the sale price of every completed transaction, deducted automatically from their payout. Fees accrued across a calendar month are totaled and must be settled before new listings can be created the following month. Buyers are never charged this fee.</p>
+                    <p className="mt-2">Buyers pay a separate 2% service fee at checkout, covering payment processing costs charged by our payment provider, Paystack.</p>
+                    <p className="mt-2">Sellers can track fees owed and payment history from their Dashboard.</p>
                 </Section>
                 <Section title="6. Order confirmation">
                     Buyers should only confirm "Order Received" once the item has been received in the agreed condition. Confirming an order releases payment to the seller.
@@ -53,7 +55,7 @@ function Section({ title, children }) {
     return (
         <div>
             <h2 className="font-bold text-slate-800 dark:text-gold-100 mb-1.5">{title}</h2>
-            <p>{children}</p>
+            <div>{children}</div>
         </div>
     );
 }
