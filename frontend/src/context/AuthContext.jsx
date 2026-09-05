@@ -77,6 +77,13 @@ export function AuthProvider({ children }) {
         return res.data;
     };
 
+    const removeAvatar = async () => {
+        const res = await api.delete('/auth/me/avatar');
+        localStorage.setItem('cc_user', JSON.stringify(res.data));
+        setUser(res.data);
+        return res.data;
+    };
+
     const uploadAvatar = async (file) => {
         const CLOUD_NAME = 'b7fch4rp';
         const UPLOAD_PRESET = 'campuscart_preset';
@@ -113,7 +120,8 @@ export function AuthProvider({ children }) {
             logout, 
             loading, 
             updateProfile, 
-            uploadAvatar 
+            uploadAvatar,
+            removeAvatar
         }}>
             {children}
         </AuthContext.Provider>

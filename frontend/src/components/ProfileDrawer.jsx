@@ -6,7 +6,7 @@ import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
     MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
-    ChevronDown, ChevronRight, MessageCircle, Info, Shield, Search
+    ChevronDown, ChevronRight, MessageCircle, Info, Shield, Search, Trash2
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
@@ -24,7 +24,7 @@ function WhatsAppIcon(props) {
 }
 
 export default function ProfileDrawer({ open, onClose }) {
-    const { user, logout, updateProfile, uploadAvatar } = useAuth();
+    const { user, logout, updateProfile, uploadAvatar, removeAvatar } = useAuth();
     const { conversations, unreadCount: chatUnreadCount } = useChat();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
@@ -37,6 +37,8 @@ export default function ProfileDrawer({ open, onClose }) {
     const [editing, setEditing] = useState(false);
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [showVerify, setShowVerify] = useState(false);
+    const [removingAvatar, setRemovingAvatar] = useState(false);
+    const [confirmRemoveAvatar, setConfirmRemoveAvatar] = useState(false);
     const [personalOpen, setPersonalOpen] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
     const [contactOpen, setContactOpen] = useState(false);
@@ -128,6 +130,22 @@ export default function ProfileDrawer({ open, onClose }) {
         } finally {
             setUploading(false);
             e.target.value = ''; // lets the user re-pick the same file later if needed
+        }
+    };
+
+    const handleRemoveAvatar = async () => {
+        setRemovingAvatar(true);
+        try {
+            await removeAvatar();
+            if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+            previewUrlRef.current = null;
+            setAvatarPreview(null);
+            toast.success('Profile photo removed');
+            setConfirmRemoveAvatar(false);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to remove photo');
+        } finally {
+            setRemovingAvatar(false);
         }
     };
 
@@ -561,8 +579,27 @@ export default function ProfileDrawer({ open, onClose }) {
                             </>
                         )}
                     </button>
+
+                    {(avatarPreview || user.avatar_url) && (
+                        <button
+                            onClick={() => setConfirmRemoveAvatar(true)}
+                            disabled={uploading || removingAvatar}
+                            className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 text-sm font-semibold transition disabled:opacity-60"
+                        >
+                            <Trash2 size={16} /> Remove photo
+                        </button>
+                    )}
                 </div>
             </div>
+
+            <ConfirmModal
+                open={confirmRemoveAvatar}
+                title="Remove profile photo?"
+                message="Your profile will show your initials instead until you add a new one."
+                confirmLabel={removingAvatar ? 'Removing…' : 'Remove photo'}
+                onConfirm={handleRemoveAvatar}
+                onCancel={() => setConfirmRemoveAvatar(false)}
+            />
         </>
     );
 }

@@ -567,10 +567,10 @@ export default function Register() {
                         {/* Site name + graduation cap icon, sitting on a translucent pill — text only, no image */}
                         <div className="inline-flex items-center gap-2 self-start bg-white/10 backdrop-blur-md border border-white/15 rounded-full pl-4 pr-5 py-2 w-fit">
                             <AcademicCapIcon className="h-6 w-6 text-white shrink-0" />
-                            <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                            <div className="flex items-center font-sans font-black tracking-wider whitespace-nowrap gap-x-0">
                                 <span className="text-lg text-white">Tre</span>
                                 <span className="text-lg text-white mx-0.5">-</span>
-                                <span className="text-2xl italic text-accent-300 dark:text-gold-400 leading-none">X</span>
+                                <span className="text-2xl text-accent-300 dark:text-gold-400 leading-none">X</span>
                             </div>
                         </div>
 
@@ -601,14 +601,14 @@ export default function Register() {
 
                                 {/* wordmark + tagline share the same left edge, so "R" sits under "T" */}
                                 <div className="flex flex-col items-start ml-2">
-                                    <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap gap-x-0">
+                                    <div className="flex items-center font-sans font-black tracking-wider whitespace-nowrap gap-x-0">
                                         <span className="text-2xl text-slate-900 dark:text-gold-200">
                                             {logoText.slice(0, 3)}
                                         </span>
                                         <span className="text-2xl text-slate-900 dark:text-gold-200 mx-0.5">
                                             {logoText.slice(3, 4)}
                                         </span>
-                                        <span className="text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
+                                        <span className="text-3xl text-brand-600 dark:text-gold-400 leading-none">
                                             {logoText.slice(4, 5)}
                                         </span>
                                         {phase === 'typing-logo' && (
@@ -1035,7 +1035,7 @@ export default function Register() {
                 <Link
                     to="/"
                     aria-label="Back to home"
-                    className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 w-9 h-9 rounded-full bg-white/80 dark:bg-ink-800/80 backdrop-blur border border-slate-200 dark:border-ink-600 flex items-center justify-center text-slate-500 dark:text-gold-200/60 shadow-sm hover:bg-white dark:hover:bg-ink-700 transition"
+                    className="fixed bottom-8 right-8 sm:bottom-10 sm:right-10 z-20 w-10 h-10 rounded-full bg-brand-600 dark:bg-ink-800/80 border border-brand-600 dark:border-ink-600 flex items-center justify-center text-white dark:text-gold-200/60 shadow-md hover:bg-brand-700 dark:hover:bg-ink-700 transition"
                 >
                     <ArrowLeft size={15} />
                 </Link>

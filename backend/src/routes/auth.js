@@ -318,6 +318,21 @@ router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req
     }
 });
 
+// DELETE /api/auth/me/avatar — clears the photo (COALESCE in PATCH /me can't do this, since it treats NULL as "leave unchanged")
+router.delete('/me/avatar', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'UPDATE users SET avatar_url = NULL WHERE id = $1 RETURNING *',
+            [req.userId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        res.json(toPublicUser(result.rows[0]));
+    } catch (err) {
+        console.error('Remove avatar error:', err);
+        res.status(500).json({ error: 'Something went wrong removing your photo' });
+    }
+});
+
 // POST /api/auth/forgot-password — request a reset code by email (no login required)
 router.post('/forgot-password', async (req, res) => {
     const { university_email } = req.body;

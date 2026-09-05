@@ -58,6 +58,8 @@ export default function Navbar() {
     const isAdminPage = location.pathname.startsWith('/admin');
     const isStorePage = location.pathname.startsWith('/store');
     const isAdminLoginPage = location.pathname === '/admin/login';
+    const isLoginPage = location.pathname === '/login';
+    const isRegisterPage = location.pathname === '/register';
     const isAdmin = user?.role === 'admin';
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
@@ -225,10 +227,10 @@ export default function Navbar() {
                             alt="TreX" 
                             className="h-7 sm:h-9 w-auto object-contain"
                         />
-                        <div className="flex items-center font-serif font-black tracking-wider whitespace-nowrap">
+                        <div className="flex items-center font-sans font-black tracking-wider whitespace-nowrap">
                             <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
                             <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 -ml-0.5">-</span>
-                            <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none -ml-1">X</span>
+                            <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none -ml-1">X</span>
                         </div>
                         {/* 👇 COUNTER IS COMPLETELY REMOVED - NO VISUAL INDICATOR! */}
                     </span>
@@ -488,10 +490,17 @@ export default function Navbar() {
                         </>
                     ) : (
                         <>
-                            {/* Desktop — unchanged */}
-                            <Link to="/login" className="hidden sm:inline-block px-3 py-2 text-sm font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition whitespace-nowrap">Log in</Link>
-                            <Link to="/register" className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Sign up</Link>
-
+                            {/* Desktop — swaps to the opposite action when already on that page */}
+                            {isRegisterPage ? (
+                                <Link to="/login" className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Log in</Link>
+                            ) : isLoginPage ? (
+                                <Link to="/register" className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Sign up</Link>
+                            ) : (
+                                <>
+                                    <Link to="/login" className="hidden sm:inline-block px-3 py-2 text-sm font-semibold text-slate-700 dark:text-gold-200 hover:text-brand-700 dark:hover:text-gold-100 transition whitespace-nowrap">Log in</Link>
+                                    <Link to="/register" className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Sign up</Link>
+                                </>
+                            )}
                             {/* Mobile — draggable roll ball */}
                             <div className="sm:hidden">
                                 <AuthRollBall />
@@ -581,7 +590,7 @@ function AuthRollBall() {
         return () => clearInterval(timer);
     }, [hasInteracted]);
 
-    const label = (i) => (((i % 2) + 2) % 2 === 0 ? 'Log in' : 'Sign up');
+    const label = (i) => (((i % 2) + 2) % 2 === 0 ? 'Sign up' : 'Log in');
 
     const handleStart = (clientX) => {
         setHasInteracted(true);

@@ -123,7 +123,7 @@ export default function PullToRefresh({ children }) {
 
                 {/* Wordmark, styled like the navbar, fades/scales in as you pull */}
                 <div
-                    className="flex items-center font-serif font-black italic tracking-tight whitespace-nowrap mt-1.5"
+                    className="flex items-center font-sans font-black tracking-tight whitespace-nowrap mt-1.5"
                     style={{
                         opacity: refreshing ? 1 : progress * 0.85,
                         transform: `translateY(${refreshing ? 0 : (1 - progress) * 4}px)`,
