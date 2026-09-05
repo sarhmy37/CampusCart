@@ -9,6 +9,7 @@ import ReportModal from '../components/ReportModal';
 import ReviewsSection from '../components/ReviewsSection';
 import { getDemoProduct } from '../data/demoProducts';
 import ProductCard from '../components/ProductCard';
+import { useChat } from '../context/ChatContext';
 import {
     ShoppingCart,
     MessageCircle,
@@ -56,6 +57,8 @@ export default function ProductDetail() {
     const [similar, setSimilar] = useState([]);
     const [showReport, setShowReport] = useState(false);
     const isDemo = id?.startsWith('demo-');
+
+    const { openChat } = useChat();
 
     useEffect(() => {
         setProduct(null);
@@ -179,13 +182,11 @@ export default function ProductDetail() {
             toast('You are the seller – no need to message yourself.');
             return;
         }
-        const number = formatWhatsAppNumber(product.seller_whatsapp || product.whatsapp);
-        if (!number) {
-            toast.error(`${sellerName} hasn't added a WhatsApp number yet.`);
-            return;
-        }
-        const message = `Hi ${sellerName || ''}, I'm interested in "${product.title}" (GHS ${parseFloat(product.price).toFixed(2)}) on CampusCart. Is it still available?`;
-        window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, '_blank');
+        openChat({
+            sellerId: product.seller_id,
+            sellerName: sellerName,
+            productId: product.id,
+        });
     };
 
     const sellerName = product.seller_name;
@@ -398,7 +399,7 @@ export default function ProductDetail() {
                             : 'border-slate-200/50 dark:border-white/10 bg-white/50 dark:bg-ink-700/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-ink-600/80 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
                     }`}
                 >
-                    <MessageCircle size={18} /> {isOwner ? 'You are the seller' : 'Message seller'}
+                    <MessageCircle size={18} /> {isOwner ? 'You are the seller' : 'Chat with the seller'}
                 </button>
             </div>
         </GlassCard>

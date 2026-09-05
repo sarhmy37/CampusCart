@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle } from 'lucide-react';
+import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle, MapPin } from 'lucide-react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { useWishlist } from '../context/WishlistContext';
+
 
 export default function ProductCard({ product }) {
     const { isWishlisted, toggleItem } = useWishlist();
@@ -86,8 +87,8 @@ export default function ProductCard({ product }) {
         }
         if (stock <= 5) {
             return (
-                <span className="hidden sm:block absolute top-1.5 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
-                    Low stock
+                <span className="absolute bottom-1.5 left-1.5 bg-white/90 dark:bg-ink-900/80 backdrop-blur px-1.5 py-0.5 rounded-full text-[9px] font-bold text-amber-600 dark:text-amber-400 shadow-sm">
+                    {stock} left
                 </span>
             );
         }
@@ -201,7 +202,8 @@ export default function ProductCard({ product }) {
                 </div>
 
                 <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5 truncate flex items-center gap-1">
-                    {product.seller_name}
+                    <MapPin size={10} className="shrink-0" />
+                    {product.seller_meeting_place || 'Meeting place not set'}
                     {product.seller_verified && <CheckBadgeIcon className="w-2.5 h-2.5 text-emerald-500 shrink-0" />}
                 </p>
 

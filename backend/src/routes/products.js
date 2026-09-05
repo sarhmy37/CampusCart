@@ -57,7 +57,7 @@ router.get('/', async (req, res) => {
                 p.rating, p.review_count,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
-                u.meeting_place AS seller_meeting_place,
+                u.meeting_place AS seller_meeting_place, u.location AS seller_location,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified,
                 u.avatar_url AS seller_avatar,
                 c.name AS category
