@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { DASHBOARD_VIDEO, BALANCE_DARK_IMAGE, BALANCE_LIGHT_IMAGE } from '../data/media';
 import { useTheme } from '../context/ThemeContext';
 import ConfirmModal from '../components/ConfirmModal';
+import { usePageReady } from '../hooks/usePageReady';
+import FullPageLoader from '../components/FullPageLoader';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
@@ -143,34 +145,40 @@ export default function Dashboard() {
     const [tab, setTab] = useState(isSeller ? 'payouts' : 'orders');
     const [period, setPeriod] = useState('month');
     const [showProfile, setShowProfile] = useState(false);
-    const [stats, setStats] = useState({ listings: 0, orders: 0, sales: 0, completed: 0, pending: 0 });
 
-    useEffect(() => {
-        if (isSeller) {
-            Promise.all([
-                api.get('/products/mine').catch(() => ({ data: [] })),
-                api.get('/orders/sales').catch(() => ({ data: [] })),
-            ]).then(([listings, sales]) => {
-                setStats((s) => ({
-                    ...s,
+    // Gates the WHOLE dashboard (header video + stats) behind one loading
+    // screen — nothing pops in piece by piece. The page only reveals once
+    // the stats have loaded AND the header video is ready to play.
+    const { status: pageStatus, data: pageData, retry: retryPage } = usePageReady({
+        load: () => {
+            if (isSeller) {
+                return Promise.all([
+                    api.get('/products/mine').catch(() => ({ data: [] })),
+                    api.get('/orders/sales').catch(() => ({ data: [] })),
+                ]).then(([listings, sales]) => ({
                     listings: listings.data.length,
-                    orders: sales.data.length,   // ✅ fixed: orders = total sales
+                    orders: sales.data.length, // ✅ fixed: orders = total sales
                     sales: sales.data.length,
+                    completed: 0,
+                    pending: 0,
                 }));
-            });
-        } else {
-            api.get('/orders/mine').catch(() => ({ data: [] })).then((res) => {
+            }
+            return api.get('/orders/mine').catch(() => ({ data: [] })).then((res) => {
                 const orders = res.data;
-                setStats({
+                return {
                     listings: 0,
                     orders: orders.length,
                     sales: 0,
                     completed: orders.filter((o) => o.status === 'completed').length,
                     pending: orders.filter((o) => o.status !== 'completed').length,
-                });
+                };
             });
-        }
-    }, [isSeller]);
+        },
+        videos: [DASHBOARD_VIDEO],
+        deps: [isSeller],
+    });
+
+    const stats = pageData || { listings: 0, orders: 0, sales: 0, completed: 0, pending: 0 };
 
     const tabs = isSeller
         ? ['overview', 'listings', 'payouts', 'orders', 'deliveries', 'sales', 'reports']
@@ -286,6 +294,10 @@ export default function Dashboard() {
     };
 
     const firstName = user?.name?.split(' ')[0] || 'User';
+
+    if (pageStatus === 'loading' || pageStatus === 'error') {
+        return <FullPageLoader screen="dashboard" status={pageStatus} onRetry={retryPage} />;
+    }
 
     return (
         <div>
