@@ -246,7 +246,7 @@ export default function Dashboard() {
                                         <option key={p.value} value={p.value} className="text-slate-900">{p.label}</option>
                                     ))}
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2.5 sm:right-3 w-3.5 h-3.5 text-white/80 dark:text-brand-400" />
+                                <ChevronDown className="pointer-events-none absolute right-2.5 sm:right-3 w-3.5 h-3.5 text-white/80" />
                             </div>
                             {isSeller && (
                                 <Link
