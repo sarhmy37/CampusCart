@@ -564,31 +564,33 @@ export default function ProfileDrawer({ open, onClose }) {
                         )}
                     </div>
 
-                    <button
-                        onClick={handleChangePhotoClick}
-                        disabled={uploading}
-                        className="w-full mt-5 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
-                    >
-                        {uploading ? (
-                            <>
-                                <Loader2 size={16} className="animate-spin" /> Uploading…
-                            </>
-                        ) : (
-                            <>
-                                <Camera size={16} /> Change photo
-                            </>
-                        )}
-                    </button>
-
-                    {(avatarPreview || user.avatar_url) && (
+                    <div className="flex gap-2 mt-5">
                         <button
-                            onClick={() => setConfirmRemoveAvatar(true)}
-                            disabled={uploading || removingAvatar}
-                            className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 text-sm font-semibold transition disabled:opacity-60"
+                            onClick={handleChangePhotoClick}
+                            disabled={uploading}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
                         >
-                            <Trash2 size={16} /> Remove photo
+                            {uploading ? (
+                                <>
+                                    <Loader2 size={16} className="animate-spin" /> Uploading…
+                                </>
+                            ) : (
+                                <>
+                                    <Camera size={16} /> {avatarPreview || user.avatar_url ? 'Change photo' : 'Add a photo'}
+                                </>
+                            )}
                         </button>
-                    )}
+
+                        {(avatarPreview || user.avatar_url) && (
+                            <button
+                                onClick={() => setConfirmRemoveAvatar(true)}
+                                disabled={uploading || removingAvatar}
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 text-sm font-semibold transition disabled:opacity-60"
+                            >
+                                <Trash2 size={16} /> Remove
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
