@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Reveal from '../components/Reveal';
 import { HERO_IMAGES, GALLERY } from '../data/media';
@@ -183,6 +183,25 @@ export default function Home() {
         navigate('/sell/new');
     };
 
+    // Shuffle each gallery tile's media ONCE per mount. Previously this ran
+    // inline during render, so it re-shuffled on every re-render — including
+    // every ~25ms while the hero typewriter was animating — which is why the
+    // images looked like they were constantly reshuffling/flickering.
+    const shuffledGallery = useMemo(
+        () =>
+            GALLERY.map((g) => {
+                const mixedMedia = [
+                    { type: 'image', src: g.images[0] },
+                    { type: 'image', src: g.images[1] },
+                    { type: 'image', src: g.images[2] },
+                    { type: 'image', src: g.images[3] },
+                    { type: 'video', src: g.video },
+                ];
+                return { ...g, shuffled: [...mixedMedia].sort(() => Math.random() - 0.5) };
+            }),
+        [] // GALLERY is a static import — shuffle once and keep it stable for the life of the page
+    );
+
     return (
         <div>
             <style>{`
@@ -360,16 +379,8 @@ export default function Home() {
 
 
                     <div className="mt-10 grid grid-cols-2 gap-4 sm:gap-5">
-                        {GALLERY.map((g, i) => {
-                            const mixedMedia = [
-                                { type: 'image', src: g.images[0] },
-                                { type: 'image', src: g.images[1] },
-                                { type: 'image', src: g.images[2] },
-                                { type: 'image', src: g.images[3] },
-                                { type: 'video', src: g.video },
-                            ];
-
-                            const shuffled = mixedMedia.sort(() => Math.random() - 0.5);
+                        {shuffledGallery.map((g, i) => {
+                            const { shuffled } = g;
 
                             return (
                                 <Reveal
