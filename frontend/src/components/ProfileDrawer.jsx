@@ -173,7 +173,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     style={{ overscrollBehavior: 'contain' }}
                 >
                 {/* Header */}
-                <div className="relative bg-gradient-to-br from-brand-700 via-brand-600 to-accent-500 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 px-6 pt-6 pb-16">
+                <div className="relative bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 px-6 pt-6 pb-16">
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 p-2 rounded-lg bg-white/15 hover:bg-white/25 transition text-white"

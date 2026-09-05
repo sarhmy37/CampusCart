@@ -557,7 +557,7 @@ function CartHeader({ count }) {
             >
                 <source src={CART_VIDEO} type="video/mp4" />
             </video>
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-900/50 via-brand-800/35 to-accent-600/25 dark:from-ink-900/80 dark:via-ink-900/60 dark:to-gold-900/35" />
+            <div className="absolute inset-0 bg-gradient-to-br from-ink-900/70 via-ink-800/45 to-brand-600/25 dark:from-ink-900/80 dark:via-ink-900/60 dark:to-gold-900/35" />
             <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
             <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
             <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">

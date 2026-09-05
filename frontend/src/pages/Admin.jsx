@@ -89,7 +89,7 @@ export default function Admin() {
 
     return (
         <div className="bg-white dark:bg-ink-900 min-h-screen">
-            <section className="relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            <section className="relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Admin Dashboard</h1>

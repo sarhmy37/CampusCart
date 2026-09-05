@@ -211,13 +211,13 @@ export default function CreateListing() {
                 bg-gradient-to-br sits on the SECTION itself (not just an overlay div),
                 so it shows immediately even before the video file has loaded — same
                 pattern as CartHeader in Cart.jsx and the Dashboard header video. */}
-            <div className="absolute top-0 left-0 right-0 h-[38vh] lg:hidden overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-accent-600 dark:from-ink-900 dark:via-ink-900 dark:to-gold-900">
+            <div className="absolute top-0 left-0 right-0 h-[38vh] lg:hidden overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-900 dark:to-gold-900">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={CREATE_LISTING_VIDEO} type="video/mp4" />
                 </video>
                 {/* Fades the bottom of the video into the form's background color,
                     so there's no hard seam — the form overlaps the last bit of video. */}
-                <div className="absolute inset-0 bg-gradient-to-b from-brand-900/50 via-transparent to-slate-50 dark:from-ink-900/60 dark:via-transparent dark:to-ink-900" />
+                <div className="absolute inset-0 bg-gradient-to-b from-ink-900/50 via-transparent to-slate-50 dark:from-ink-900/60 dark:via-transparent dark:to-ink-900" />
                 <button
                     onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
                     className="absolute top-6 left-4 z-20 inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
@@ -231,7 +231,7 @@ export default function CreateListing() {
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={CREATE_LISTING_VIDEO} type="video/mp4" />
                 </video>
-                <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
+                <div className="absolute inset-0 bg-gradient-to-br from-ink-900/80 via-ink-800/55 to-brand-600/35 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                 <button
                     onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
                     className="absolute top-6 left-6 z-20 inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
