@@ -37,17 +37,17 @@ body::-webkit-scrollbar,
 
 :root {
   /* Light mode = Snapchat-style bright yellow */
-  --brand-50: 255 253 224;
-  --brand-100: 255 250 179;
-  --brand-200: 255 246 102;
-  --brand-300: 255 241 51;
-  --brand-400: 255 229 0;
-  --brand-500: 234 200 0;
-  --brand-600: 202 168 0;
-  --brand-700: 163 133 0;
-  --brand-800: 130 105 0;
-  --brand-900: 97 79 0;
-  --brand-950: 61 49 0;
+  --brand-50: 255 254 230;
+  --brand-100: 255 252 153;
+  --brand-200: 255 250 77;
+  --brand-300: 255 252 0;
+  --brand-400: 255 240 0;
+  --brand-500: 240 220 0;
+  --brand-600: 214 194 0;
+  --brand-700: 173 157 0;
+  --brand-800: 138 125 0;
+  --brand-900: 102 92 0;
+  --brand-950: 64 58 0;
 }
 
 .dark {
