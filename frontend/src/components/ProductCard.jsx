@@ -72,9 +72,6 @@ export default function ProductCard({ product }) {
         } else if (stock <= 5) {
             stockLabel = `Low stock: ${stock}`;
             stockColor = 'text-amber-600 dark:text-amber-400';
-        } else {
-            stockLabel = `In stock: ${stock}`;
-            stockColor = 'text-emerald-600 dark:text-emerald-400';
         }
     }
 
