@@ -102,7 +102,12 @@ export default function AwayTimeoutModal() {
 
     if (!showModal) return null;
 
-    const seconds = Math.ceil(remaining / 1000);
+    const totalSeconds = Math.ceil(remaining / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const formattedTime = minutes > 0
+        ? `${minutes}:${String(seconds).padStart(2, '0')}`
+        : `${seconds}s`;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -115,8 +120,7 @@ export default function AwayTimeoutModal() {
                 <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-1.5">
                     You were away. Your session will end in
                 </p>
-                <p className="text-3xl font-extrabold text-brand-600 dark:text-gold-400 mt-2">{seconds}s</p>
-
+                <p className="text-3xl font-extrabold text-brand-600 dark:text-gold-400 mt-2">{formattedTime}</p>
                 <button
                     onClick={handleContinue}
                     className="w-full mt-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition"
