@@ -208,8 +208,7 @@ export default function Dashboard() {
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
-                <div className="absolute inset-0 bg-gradient-to-br from-brand-900/85 via-brand-800/70 to-accent-600/60 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
-                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
+<div className="absolute inset-0 bg-gradient-to-br from-ink-900/80 via-ink-800/55 to-brand-600/35 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
                 {/* Fades the header into the page background on mobile — dark mode only. */}

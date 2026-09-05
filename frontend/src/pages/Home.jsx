@@ -200,8 +200,7 @@ export default function Home() {
                 <div className="absolute inset-0">
                     <HeroSlideshow images={HERO_IMAGES} />
 
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-900/65 via-brand-800/40 to-accent-600/45 dark:from-ink-900/80 dark:via-ink-900/55 dark:to-gold-900/40" />
-                </div>
+<div className="absolute inset-0 bg-gradient-to-br from-ink-900/60 via-ink-800/35 to-brand-600/30 dark:from-ink-900/80 dark:via-ink-900/55 dark:to-gold-900/40" />                </div>
 
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl animate-pulse-slow" />
 

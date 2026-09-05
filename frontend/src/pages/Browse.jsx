@@ -391,10 +391,10 @@ export default function Browse() {
     return (
         <div className="relative min-h-screen">
             {/* HEADER STRIP */}
-            <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-accent-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute inset-0" style={{ opacity: imageOpacity }}>
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-900/70 via-brand-800/50 to-accent-600/40 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-ink-900/65 via-ink-800/45 to-brand-600/25 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
                 </div>
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" style={{ opacity: imageOpacity }} />
                 <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" style={{ opacity: imageOpacity }} />
