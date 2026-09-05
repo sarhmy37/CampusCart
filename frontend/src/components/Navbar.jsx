@@ -503,9 +503,19 @@ export default function Navbar() {
                                     <Link to="/register" className="hidden sm:inline-block px-4 py-2 text-sm font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 rounded-lg transition shadow-sm whitespace-nowrap">Sign up</Link>
                                 </>
                             )}
-                            {/* Mobile — draggable roll ball */}
+                            {/* Mobile — swaps to opposite action on login/register, roll ball elsewhere */}
                             <div className="sm:hidden">
-                                <AuthRollBall />
+                                {isRegisterPage ? (
+                                    <Link to="/login" className="px-3 py-1.5 text-xs font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 rounded-lg whitespace-nowrap">
+                                        Log in
+                                    </Link>
+                                ) : isLoginPage ? (
+                                    <Link to="/register" className="px-3 py-1.5 text-xs font-semibold text-white dark:text-ink-900 bg-brand-600 dark:bg-gold-500 rounded-lg whitespace-nowrap">
+                                        Sign up
+                                    </Link>
+                                ) : (
+                                    <AuthRollBall />
+                                )}
                             </div>
                         </>
                     )}
