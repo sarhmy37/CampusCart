@@ -6,6 +6,8 @@ const PULL_THRESHOLD = 70;
 const MAX_PULL = 110;
 const REFRESH_HOLD_MS = 700;
 
+const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 export default function PullToRefresh({ children }) {
     const { theme } = useTheme();
     const [pullDistance, setPullDistance] = useState(0);
@@ -123,7 +125,7 @@ export default function PullToRefresh({ children }) {
 
                 {/* Wordmark, styled like the navbar, fades/scales in as you pull */}
                 <div
-                    className="flex items-center font-sans font-black tracking-tight whitespace-nowrap mt-1.5"
+                    className={`flex items-center font-black tracking-tight whitespace-nowrap mt-1.5 ${isIOSDevice ? 'font-serif italic' : 'font-sans'}`}
                     style={{
                         opacity: refreshing ? 1 : progress * 0.85,
                         transform: `translateY(${refreshing ? 0 : (1 - progress) * 4}px)`,
@@ -131,7 +133,7 @@ export default function PullToRefresh({ children }) {
                 >
                     <span className="text-xs text-slate-900 dark:text-white">Tre</span>
                     <span className="text-xs text-slate-900 dark:text-white mx-0.5">-</span>
-                    <span className="text-sm text-brand-600 dark:text-gold-400 leading-none">X</span>
+                    <span className={`text-sm text-brand-600 dark:text-gold-400 leading-none ${isIOSDevice ? '' : 'italic'}`}>X</span>
                 </div>
 
                 {/* Subtle status label, only while refreshing */}

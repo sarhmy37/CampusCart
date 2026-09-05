@@ -10,6 +10,8 @@ import { useTheme } from '../context/ThemeContext';
 import ProfileDrawer from './ProfileDrawer';
 import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
 
+const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 const NOTIF_META = {
     price_drop: { emoji: '💰', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' },
     low_stock: { emoji: '⚡', color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' },
@@ -227,10 +229,10 @@ export default function Navbar() {
                             alt="TreX" 
                             className="h-7 sm:h-9 w-auto object-contain"
                         />
-                        <div className="flex items-center font-sans font-black tracking-wider whitespace-nowrap">
+                        <div className={`flex items-center font-black tracking-wider whitespace-nowrap ${isIOSDevice ? 'font-serif' : 'font-sans'}`}>
                             <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200">Tre</span>
                             <span className="text-base sm:text-lg text-slate-900 dark:text-gold-200 -ml-0.5">-</span>
-                            <span className="text-2xl sm:text-3xl text-brand-600 dark:text-gold-400 leading-none -ml-1">X</span>
+                            <span className="text-2xl sm:text-3xl italic text-brand-600 dark:text-gold-400 leading-none -ml-1">X</span>
                         </div>
                         {/* 👇 COUNTER IS COMPLETELY REMOVED - NO VISUAL INDICATOR! */}
                     </span>

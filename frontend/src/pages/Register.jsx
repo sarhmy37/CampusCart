@@ -202,6 +202,8 @@ const TYPE_SPEED_MS = 70;
 const PULSE_ALONE_MS = 2000;
 const HOLD_MS = 10000;
 
+const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 export default function Register() {
     const { register, user } = useAuth();
     const navigate = useNavigate();
@@ -567,10 +569,10 @@ export default function Register() {
                         {/* Site name + graduation cap icon, sitting on a translucent pill — text only, no image */}
                         <div className="inline-flex items-center gap-2 self-start bg-white/10 backdrop-blur-md border border-white/15 rounded-full pl-4 pr-5 py-2 w-fit">
                             <AcademicCapIcon className="h-6 w-6 text-white shrink-0" />
-                            <div className="flex items-center font-sans font-black tracking-wider whitespace-nowrap gap-x-0">
+                            <div className={`flex items-center font-black tracking-wider whitespace-nowrap gap-x-0 ${isIOSDevice ? 'font-serif' : 'font-sans'}`}>
                                 <span className="text-lg text-white">Tre</span>
                                 <span className="text-lg text-white mx-0.5">-</span>
-                                <span className="text-2xl text-accent-300 dark:text-gold-400 leading-none">X</span>
+                                <span className="text-2xl italic text-accent-300 dark:text-gold-400 leading-none">X</span>
                             </div>
                         </div>
 
@@ -601,14 +603,14 @@ export default function Register() {
 
                                 {/* wordmark + tagline share the same left edge, so "R" sits under "T" */}
                                 <div className="flex flex-col items-start ml-2">
-                                    <div className="flex items-center font-sans font-black tracking-wider whitespace-nowrap gap-x-0">
+                                    <div className={`flex items-center font-black tracking-wider whitespace-nowrap gap-x-0 ${isIOSDevice ? 'font-serif' : 'font-sans'}`}>
                                         <span className="text-2xl text-slate-900 dark:text-gold-200">
                                             {logoText.slice(0, 3)}
                                         </span>
                                         <span className="text-2xl text-slate-900 dark:text-gold-200 mx-0.5">
                                             {logoText.slice(3, 4)}
                                         </span>
-                                        <span className="text-3xl text-brand-600 dark:text-gold-400 leading-none">
+                                        <span className="text-3xl italic text-brand-600 dark:text-gold-400 leading-none">
                                             {logoText.slice(4, 5)}
                                         </span>
                                         {phase === 'typing-logo' && (
