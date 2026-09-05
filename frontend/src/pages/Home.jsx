@@ -19,9 +19,9 @@ const HERO_TEXTS = [
     'Buy and Discover great deals around campus.',
     'Buy and Connect with students on your campus.',
 ];
-const HERO_TYPE_SPEED_MS = 200;
-const HERO_DELETE_SPEED_MS = 400;
-const HERO_HOLD_MS = 7000;
+const HERO_TYPE_SPEED_MS = 50;
+const HERO_DELETE_SPEED_MS = 25;
+const HERO_HOLD_MS = 5000;
 
 function GalleryImage({ images, label }) {
     const [currentIndex, setCurrentIndex] = useState(0);
