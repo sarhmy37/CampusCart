@@ -572,6 +572,10 @@ const REEL_ITEMS = Array.from({ length: 20 }, (_, i) => (i % 2 === 0 ? 'Log in' 
 function AuthRollBall({ startIndex = 0 }) {
     const navigate = useNavigate();
     const [index, setIndex] = useState(startIndex);
+
+    useEffect(() => {
+        setIndex(startIndex);
+    }, [startIndex]);
     const [dragPixels, setDragPixels] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [hasInteracted, setHasInteracted] = useState(false);
