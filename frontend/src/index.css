@@ -36,18 +36,18 @@ body::-webkit-scrollbar,
 }
 
 :root {
-  /* Light mode = Snapchat-style bright yellow */
-  --brand-50: 255 254 230;
-  --brand-100: 255 252 153;
-  --brand-200: 255 250 77;
-  --brand-300: 255 252 0;
-  --brand-400: 255 240 0;
-  --brand-500: 240 220 0;
-  --brand-600: 214 194 0;
-  --brand-700: 173 157 0;
-  --brand-800: 138 125 0;
-  --brand-900: 102 92 0;
-  --brand-950: 64 58 0;
+  /* Light mode = same gold as dark mode */
+  --brand-50: 253 248 236;
+  --brand-100: 250 237 196;
+  --brand-200: 245 219 141;
+  --brand-300: 238 194 79;
+  --brand-400: 230 171 43;
+  --brand-500: 212 148 28;
+  --brand-600: 184 117 21;
+  --brand-700: 147 88 20;
+  --brand-800: 121 71 24;
+  --brand-900: 102 60 25;
+  --brand-950: 74 43 18;
 }
 
 .dark {
