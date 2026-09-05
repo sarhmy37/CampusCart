@@ -36,33 +36,31 @@ body::-webkit-scrollbar,
 }
 
 :root {
-  /* Light mode = same mauve/orchid family as dark mode, lightened for a white background */
-  --brand-50: 253 247 251;
-  --brand-100: 250 232 245;
-  --brand-200: 244 210 233;
-  --brand-300: 233 175 212;
-  --brand-400: 219 133 189;
-  --brand-500: 199 92 163;
-  --brand-600: 172 68 138;
-  --brand-700: 141 52 112;
-  --brand-800: 110 42 88;
-  --brand-900: 82 34 66;
-  --brand-950: 48 20 39;
+  --brand-50: 252 246 250;
+  --brand-100: 248 227 241;
+  --brand-200: 240 199 226;
+  --brand-300: 227 157 203;
+  --brand-400: 210 108 175;
+  --brand-500: 186 66 143;
+  --brand-600: 156 46 115;
+  --brand-700: 124 36 91;
+  --brand-800: 94 30 71;
+  --brand-900: 68 25 54;
+  --brand-950: 38 15 31;
 }
 
 .dark {
-  /* Dark mode = bright orchid/plum-violet, slightly softened */
-  --brand-50: 253 246 251;
-  --brand-100: 249 229 244;
-  --brand-200: 242 202 231;
-  --brand-300: 228 160 208;
-  --brand-400: 221 118 194;
-  --brand-500: 203 76 170;
-  --brand-600: 178 55 148;
-  --brand-700: 147 44 122;
-  --brand-800: 115 37 96;
-  --brand-900: 86 31 70;
-  --brand-950: 52 20 42;
+  --brand-50: 250 240 247;
+  --brand-100: 243 216 235;
+  --brand-200: 232 180 216;
+  --brand-300: 219 137 195;
+  --brand-400: 224 105 183;
+  --brand-500: 214 74 165;
+  --brand-600: 188 52 141;
+  --brand-700: 152 42 114;
+  --brand-800: 108 34 87;
+  --brand-900: 72 26 60;
+  --brand-950: 42 17 37;
 }
 
 .pinch-dot {
