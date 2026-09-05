@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 
 // If loading is still going after this long, nudge the user to check their
 // connection — the page keeps loading in the background either way.
-const PAGE_READY_TIMEOUT_MS = 60000;
+const PAGE_READY_TIMEOUT_MS = 15000;
 
 // Safety cap per video — some mobile browsers restrict preloading without a
 // user gesture and never fire 'canplaythrough', so we don't want to hang
