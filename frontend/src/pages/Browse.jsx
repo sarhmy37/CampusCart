@@ -526,7 +526,12 @@ export default function Browse() {
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white truncate">
                             {headerTitle}
                         </h1>
-                        {renderBudgetInput()}
+                        <button
+                            onClick={() => setShowCategoryRequest(true)}
+                            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:bg-white/10 hover:text-white transition shrink-0"
+                        >
+                            Suggest a feature
+                        </button>
                     </div>
                     <div className="hidden sm:block h-px bg-gradient-to-r from-gold-400/40 via-white/10 to-transparent mt-4" />
 
@@ -546,12 +551,7 @@ export default function Browse() {
                                 </button>
                             ))}
                         </div>
-                        <button
-                            onClick={() => setShowCategoryRequest(true)}
-                            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:bg-white/10 hover:text-white transition"
-                        >
-                            Suggest a feature
-                        </button>
+                        {renderBudgetInput()}
                     </div>
                 </div>
             </section>
