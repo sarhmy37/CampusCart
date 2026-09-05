@@ -36,31 +36,33 @@ body::-webkit-scrollbar,
 }
 
 :root {
-  --brand-50: 253 251 245;
-  --brand-100: 249 243 226;
-  --brand-200: 240 228 190;
-  --brand-300: 226 205 145;
-  --brand-400: 208 179 105;
-  --brand-500: 184 152 75;
-  --brand-600: 152 122 55;
-  --brand-700: 120 95 42;
-  --brand-800: 90 71 33;
-  --brand-900: 65 51 25;
-  --brand-950: 38 30 15;
+  /* Light mode = indigo/violet */
+  --brand-50: 238 242 255;
+  --brand-100: 224 231 255;
+  --brand-200: 199 210 254;
+  --brand-300: 165 180 252;
+  --brand-400: 129 140 248;
+  --brand-500: 99 102 241;
+  --brand-600: 79 70 229;
+  --brand-700: 67 56 202;
+  --brand-800: 55 48 163;
+  --brand-900: 49 46 129;
+  --brand-950: 30 27 75;
 }
 
 .dark {
-  --brand-50: 251 247 237;
-  --brand-100: 244 234 205;
-  --brand-200: 233 214 160;
-  --brand-300: 219 190 115;
-  --brand-400: 210 172 90;
-  --brand-500: 196 154 68;
-  --brand-600: 165 126 50;
-  --brand-700: 132 100 38;
-  --brand-800: 98 74 29;
-  --brand-900: 68 52 22;
-  --brand-950: 40 31 15;
+  /* Dark mode = original blue, unchanged */
+  --brand-50: 238 247 255;
+  --brand-100: 217 237 255;
+  --brand-200: 188 224 255;
+  --brand-300: 142 205 255;
+  --brand-400: 89 176 255;
+  --brand-500: 51 144 253;
+  --brand-600: 28 111 242;
+  --brand-700: 24 89 222;
+  --brand-800: 26 73 179;
+  --brand-900: 27 65 141;
+  --brand-950: 21 42 86;
 }
 
 .pinch-dot {
@@ -74,7 +76,7 @@ body::-webkit-scrollbar,
 }
 
 .dark .pinch-dot {
-    background: theme('colors.brand.400');
+    background: theme('colors.gold.400');
 }
 
 .pinch-dot-left {
