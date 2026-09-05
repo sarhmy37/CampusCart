@@ -36,18 +36,18 @@ body::-webkit-scrollbar,
 }
 
 :root {
-  /* Light mode = indigo/violet */
-  --brand-50: 238 242 255;
-  --brand-100: 224 231 255;
-  --brand-200: 199 210 254;
-  --brand-300: 165 180 252;
-  --brand-400: 129 140 248;
-  --brand-500: 99 102 241;
-  --brand-600: 79 70 229;
-  --brand-700: 67 56 202;
-  --brand-800: 55 48 163;
-  --brand-900: 49 46 129;
-  --brand-950: 30 27 75;
+  /* Light mode = same mauve/orchid family as dark mode, lightened for a white background */
+  --brand-50: 253 247 251;
+  --brand-100: 250 232 245;
+  --brand-200: 244 210 233;
+  --brand-300: 233 175 212;
+  --brand-400: 219 133 189;
+  --brand-500: 199 92 163;
+  --brand-600: 172 68 138;
+  --brand-700: 141 52 112;
+  --brand-800: 110 42 88;
+  --brand-900: 82 34 66;
+  --brand-950: 48 20 39;
 }
 
 .dark {
