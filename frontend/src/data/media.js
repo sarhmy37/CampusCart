@@ -2,10 +2,6 @@
 // Change CLOUD_NAME if you use a different Cloudinary account.
 const CLOUD_NAME = 'b7fch4rp';
 
-// LOGOS (Moved to the TOP so they are defined before PRELOAD_ASSETS)
-export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
-export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
-
 // Helper to generate Cloudinary Image URLs
 function cloudinaryImage(filename) {
     // No cache-busting param — letting the URL stay stable lets the browser
@@ -17,6 +13,10 @@ function cloudinaryImage(filename) {
 function cloudinaryVideo(filename) {
     return `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/${filename}`;
 }
+
+// LOGOS
+export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
+export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
 
 // ----- IMAGES -----
 export const HERO_IMAGES = [
@@ -95,7 +95,8 @@ export const MEETING_VIDEO = cloudinaryVideo('Meeting.mp4');
 export const SETTINGS_VIDEO = cloudinaryVideo('Settings.mp4');
 export const SNEAKERS_VIDEO = cloudinaryVideo('Sneakers.mp4');
 
-// All assets for preloading
+// Images only — cheap enough to preload/precache in bulk without
+// exhausting the browser's connection pool.
 export const PRELOAD_ASSETS = [
     ...HERO_IMAGES,
     ...GALLERY.flatMap((g) => g.images),
@@ -107,6 +108,17 @@ export const PRELOAD_ASSETS = [
     SNEAKERS_4,
     MEET_ME,
     FO00D,
+    LOGO_LIGHT,
+    LOGO_DARK
+];
+
+// Videos are intentionally excluded from bulk preloading — each is several
+// MB, and fetching 8 of them at once alongside ~28 images blew past the
+// browser's per-origin connection limit (net::ERR_INSUFFICIENT_RESOURCES),
+// which then surfaced as failed/uncacheable fetches in the service worker
+// (workbox "no-response" errors). Videos should load lazily via their own
+// <video> tags as they scroll into view instead.
+export const PRELOAD_VIDEOS = [
     CART_VIDEO,
     DASHBOARD_VIDEO,
     CREATE_LISTING_VIDEO,
@@ -115,6 +127,4 @@ export const PRELOAD_ASSETS = [
     MEETING_VIDEO,
     SETTINGS_VIDEO,
     SNEAKERS_VIDEO,
-    LOGO_LIGHT,
-    LOGO_DARK   
 ];
