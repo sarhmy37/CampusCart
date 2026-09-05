@@ -51,18 +51,18 @@ body::-webkit-scrollbar,
 }
 
 .dark {
-  /* Dark mode = bright orchid/plum-violet */
-  --brand-50: 253 245 250;
-  --brand-100: 248 225 242;
-  --brand-200: 240 195 227;
-  --brand-300: 224 148 202;
-  --brand-400: 216 102 186;
-  --brand-500: 196 58 161;
-  --brand-600: 168 42 138;
-  --brand-700: 136 32 112;
-  --brand-800: 104 26 86;
-  --brand-900: 76 22 62;
-  --brand-950: 44 14 36;
+  /* Dark mode = bright orchid/plum-violet, slightly softened */
+  --brand-50: 253 246 251;
+  --brand-100: 249 229 244;
+  --brand-200: 242 202 231;
+  --brand-300: 228 160 208;
+  --brand-400: 221 118 194;
+  --brand-500: 203 76 170;
+  --brand-600: 178 55 148;
+  --brand-700: 147 44 122;
+  --brand-800: 115 37 96;
+  --brand-900: 86 31 70;
+  --brand-950: 52 20 42;
 }
 
 .pinch-dot {
