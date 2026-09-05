@@ -274,12 +274,30 @@ export default function Browse() {
         }
     }
 
-    const visibleProducts = priceRange
+    const priceFilteredList = priceRange
         ? filteredByType.filter((p) => {
             const price = parseFloat(p.price);
             return price >= priceRange.min && price <= priceRange.max;
         })
         : filteredByType;
+
+    let visibleProducts = priceFilteredList;
+    let outOfStockProducts = [];
+
+    if (isDemo) {
+        outOfStockProducts = priceFilteredList.filter((_, i) => i % 3 === 0);
+        const outOfStockIds = new Set(outOfStockProducts.map((p) => p.id));
+        visibleProducts = priceFilteredList.filter((p) => !outOfStockIds.has(p.id));
+    } else {
+        outOfStockProducts = priceFilteredList.filter((p) => {
+            const stock = p.stock !== undefined ? p.stock : 1;
+            return stock <= 0;
+        });
+        visibleProducts = priceFilteredList.filter((p) => {
+            const stock = p.stock !== undefined ? p.stock : 1;
+            return stock > 0;
+        });
+    }
 
     const renderBudgetInput = () => (
         <div className="relative shrink-0">
@@ -690,6 +708,22 @@ export default function Browse() {
                             )}
                             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                                 {visibleProducts.map((p) => <ProductCard key={p.id} product={p} />)}
+                            </div>
+                        </>
+                    )}
+
+                    {outOfStockProducts.length > 0 && (
+                        <>
+                            <div className="flex items-center gap-3 mt-10 mb-3">
+                                <span className="text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
+                                    Out of Stock
+                                </span>
+                                <div className="flex-1 h-px bg-slate-300 dark:bg-ink-600" />
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 opacity-60 grayscale-[30%]">
+                                {outOfStockProducts.map((p) => (
+                                    <ProductCard key={`oos-${p.id}`} product={p} />
+                                ))}
                             </div>
                         </>
                     )}
