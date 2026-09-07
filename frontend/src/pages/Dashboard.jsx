@@ -1561,6 +1561,50 @@ function MyListings() {
     );
 }
 
+const TIMELINE_STEPS = ['Placed', 'Paid', 'Delivered', 'Confirmed'];
+
+function OrderTimeline({ order }) {
+    // Figure out how many steps are complete based on existing order/item data
+    let currentStep = 0; // 0 = placed only
+    if (order.status === 'paid' || order.status === 'completed') currentStep = 1;
+    const anyDelivered = order.items?.some((i) => i.buyer_confirmed_at) || order.delivered_at;
+    if (order.delivered_at) currentStep = 2;
+    const allConfirmed = order.items?.length > 0 && order.items.every((i) => i.buyer_confirmed_at);
+    if (allConfirmed) currentStep = 3;
+    if (order.status === 'cancelled' || order.status === 'refunded') return null; // timeline doesn't apply
+
+    return (
+        <div className="flex items-center mb-3">
+            {TIMELINE_STEPS.map((label, i) => {
+                const done = i <= currentStep;
+                return (
+                    <div key={label} className="flex items-center flex-1 last:flex-none">
+                        <div className="flex flex-col items-center">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                done
+                                    ? 'bg-emerald-500 text-white'
+                                    : 'bg-slate-200 dark:bg-ink-600 text-slate-400 dark:text-gold-200/40'
+                            }`}>
+                                {done ? '✓' : i + 1}
+                            </div>
+                            <span className={`text-[10px] mt-1 whitespace-nowrap ${
+                                done ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400 dark:text-gold-200/40'
+                            }`}>
+                                {label}
+                            </span>
+                        </div>
+                        {i < TIMELINE_STEPS.length - 1 && (
+                            <div className={`flex-1 h-0.5 mx-1.5 mb-4 ${
+                                i < currentStep ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-ink-600'
+                            }`} />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 // ─── MY ORDERS ────────────────────────────────────────────────────────────
 function MyOrders({ period, isSeller }) {
     const [confirmingItem, setConfirmingItem] = useState(null);
@@ -1596,7 +1640,8 @@ function MyOrders({ period, isSeller }) {
     return (
         <div className="max-w-2xl mx-auto space-y-3">
             {orders.map((o) => (
-                <div key={o.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                                <div key={o.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                    <OrderTimeline order={o} />
                     <div className="flex justify-between items-center mb-2">
                         <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">Order #{o.id}</p>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[o.status] || 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50'}`}>

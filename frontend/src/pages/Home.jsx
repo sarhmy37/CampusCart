@@ -107,6 +107,57 @@ const VALUES = [
     },
 ];
 
+const PLANS = [
+    {
+        name: 'Free',
+        price: '0',
+        period: 'forever',
+        highlight: false,
+        buyerBenefits: [
+            'Browse and message any seller',
+            'Save items you like',
+            'Leave and read reviews',
+        ],
+        sellerBenefits: [
+            'List as many items as you want',
+            'Standard 1.5% fee per sale',
+            'Basic store page',
+        ],
+    },
+    {
+        name: 'Monthly',
+        price: '25',
+        period: '/month',
+        highlight: true,
+        buyerBenefits: [
+            '24-hour priority support',
+            'See new listings first',
+            'Verified badge shown more often',
+        ],
+        sellerBenefits: [
+            'Keep 100% of every sale — no platform fee',
+            'Upgraded store page with social sharing',
+            'Listings shown first in search',
+            'Sales stats and insights',
+        ],
+    },
+    {
+        name: 'Yearly',
+        price: '240',
+        period: '/year',
+        highlight: false,
+        buyerBenefits: [
+            'Everything in Monthly',
+            'Same-day dedicated support line',
+        ],
+        sellerBenefits: [
+            'Keep 100% of every sale — no platform fee',
+            'Store page shown at the very top of search',
+            'Full sales reports you can download',
+        ],
+    },
+];
+
 export default function Home() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -451,6 +502,91 @@ export default function Home() {
 
                 </Reveal>
 
+            </section>
+
+            {/* PRICING / SUBSCRIPTION */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="h-px bg-slate-200 dark:bg-ink-700" />
+            </div>
+
+            <section className="relative overflow-hidden bg-gradient-to-b from-ink-950 via-ink-900 to-ink-950 py-16 sm:py-20">
+                <div className="absolute -right-20 -top-24 w-72 h-72 bg-brand-500/10 dark:bg-gold-500/10 rounded-full blur-3xl" />
+                <div className="absolute -left-16 bottom-0 w-64 h-64 bg-accent-500/10 dark:bg-gold-700/10 rounded-full blur-3xl" />
+
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <Reveal>
+                        <p className="text-accent-400 dark:text-gold-400 font-bold text-sm tracking-wide uppercase text-center">
+                            Plans
+                        </p>
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-white text-center mt-1">
+                            Pick the plan that fits how you trade
+                        </h2>
+                        <p className="text-white/60 text-sm text-center mt-2 max-w-xl mx-auto">
+                            Every plan works for both buyers and sellers — upgrade any time as your activity on campus grows.
+                        </p>
+                    </Reveal>
+
+                    <div className="mt-10 grid sm:grid-cols-3 gap-5">
+                        {PLANS.map((plan, i) => (
+                            <Reveal key={plan.name} delay={i * 100}>
+                                <div
+                                    className={`relative h-full rounded-2xl p-6 border backdrop-blur-sm transition ${
+                                        plan.highlight
+                                            ? 'bg-white/[0.06] border-brand-400/40 dark:border-gold-500/40 shadow-lg shadow-brand-500/10'
+                                            : 'bg-white/[0.03] border-white/10'
+                                    }`}
+                                >
+                                    {plan.highlight && (
+                                        <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold px-3 py-1 rounded-full">
+                                            Most popular
+                                        </span>
+                                    )}
+
+                                    <h3 className="text-lg font-extrabold text-white text-center">{plan.name}</h3>
+                                    <div className="flex items-end justify-center gap-1 mt-2">
+                                        <span className="text-3xl font-black text-white">GHS {plan.price}</span>
+                                        <span className="text-white/50 text-sm mb-1">{plan.period}</span>
+                                    </div>
+
+                                    <div className="mt-6 pt-5 border-t border-white/10">
+                                        <p className="text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">For buyers</p>
+                                        <ul className="space-y-1.5">
+                                            {plan.buyerBenefits.map((b) => (
+                                                <li key={b} className="flex items-start gap-2 text-sm text-white/80">
+                                                    <span className="text-brand-400 dark:text-gold-400 mt-0.5">✓</span>
+                                                    {b}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    <div className="mt-5 pt-5 border-t border-white/10">
+                                        <p className="text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">For sellers</p>
+                                        <ul className="space-y-1.5">
+                                            {plan.sellerBenefits.map((b) => (
+                                                <li key={b} className="flex items-start gap-2 text-sm text-white/80">
+                                                    <span className="text-brand-400 dark:text-gold-400 mt-0.5">✓</span>
+                                                    {b}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    <button
+                                        onClick={handleBrowseClick}
+                                        className={`w-full mt-6 py-2.5 rounded-xl font-semibold text-sm transition ${
+                                            plan.highlight
+                                                ? 'bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-600 dark:hover:bg-gold-400'
+                                                : 'bg-white/10 text-white hover:bg-white/20'
+                                        }`}
+                                    >
+                                        {plan.price === '0' ? 'Get started free' : `Choose ${plan.name}`}
+                                    </button>
+                                </div>
+                            </Reveal>
+                        ))}
+                    </div>
+                </div>
             </section>
 
 

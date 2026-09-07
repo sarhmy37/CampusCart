@@ -743,7 +743,7 @@ export default function Register() {
                                 {/* SELLER: School + Meeting Place, same row layout as WhatsApp */}
                                 {accountType === 'seller' && (
                                     <div>
-                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">School & Meeting Place</label>
+                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">School & Campus Location</label>
                                         <div className="flex mt-1 gap-1.5">
                                             <div className="relative w-32">
                                                 <School size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
@@ -764,7 +764,7 @@ export default function Register() {
                                                     onChange={(e) => setForm({ ...form, meeting_place: e.target.value })}
                                                     className="w-full pl-3 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
                                                 >
-                                                    <option value="">Select a meeting place</option>
+                                                                                                        <option value="">Select your campus spot</option>
                                                     {sellerPlaces.map((place) => (
                                                         <option key={place} value={place}>{place}</option>
                                                     ))}
@@ -773,7 +773,7 @@ export default function Register() {
                                             </div>
                                         </div>
                                         <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">
-                                            Pick a common spot on your campus where buyers can meet you.
+                                            This just shows buyers roughly where you are on campus — items are still delivered to the buyer's own location.
                                         </p>
                                     </div>
                                 )}

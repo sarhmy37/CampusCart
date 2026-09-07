@@ -7,15 +7,16 @@ import {
     Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
     Filter, X as XClose, Calendar, User, Tag as TagIcon, Layers, ArrowUpDown,
     Search, Mail, School, UserCheck, UserX, Users as UsersIcon,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, AlertTriangle
 } from 'lucide-react';
 
-const ADMIN_TABS = ['users', 'listings', 'orders', 'reports', 'deleted chats'];
+const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'deleted chats'];
 
 const TAB_LABELS = {
     users: 'Users',
     listings: 'Listings',
     orders: 'Orders',
+    overdue: 'Overdue',
     reports: 'Reports',
     'deleted chats': 'Deleted Chats',
 };
@@ -24,6 +25,7 @@ const TAB_ICONS = {
     users: Users,
     listings: Package,
     orders: ShoppingBag,
+    overdue: AlertTriangle,
     reports: Flag,
     'deleted chats': Trash2,
 };
@@ -153,6 +155,7 @@ export default function Admin() {
                 {tab === 'users' && <UsersTab filter={searchQuery} initialUsers={allUsers} loading={loadingUsers} />}
                 {tab === 'listings' && <ListingsTab filter={searchQuery} initialListings={allListings} loading={loadingListings} />}
                 {tab === 'orders' && <OrdersTab />}
+                {tab === 'overdue' && <OverdueOrdersTab />}
                 {tab === 'reports' && <ReportsTab />}
                 {tab === 'deleted chats' && <DeletedChatsTab />}
             </div>
@@ -1349,6 +1352,84 @@ function OrderDetailModal({ order, loading, onClose }) {
                         </button>
                     </>
                 )}
+            </div>
+        </div>
+    );
+}
+
+function OverdueOrdersTab() {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refundingId, setRefundingId] = useState(null);
+
+    const load = () => {
+        setLoading(true);
+        api.get('/admin/orders/overdue')
+            .then((res) => setOrders(res.data))
+            .catch(() => setOrders([]))
+            .finally(() => setLoading(false));
+    };
+    useEffect(load, []);
+
+    const handleRefund = async (id) => {
+        if (!window.confirm('Refund this order as credit to the buyer? This cannot be undone.')) return;
+        setRefundingId(id);
+        try {
+            await api.post(`/admin/orders/${id}/refund`);
+            toast.success('Order refunded');
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to refund order');
+        } finally {
+            setRefundingId(null);
+        }
+    };
+
+    if (loading) return <SkeletonList />;
+
+    if (orders.length === 0) {
+        return (
+            <div className="text-center py-16">
+                <AlertTriangle className="mx-auto text-slate-300 dark:text-gold-300/30 mb-3" size={28} />
+                <p className="text-sm text-slate-400 dark:text-gold-200/50">No overdue orders flagged right now.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-3xl mx-auto">
+            <p className="text-sm text-slate-400 dark:text-gold-200/50 mb-4">
+                {orders.length} order{orders.length !== 1 ? 's' : ''} flagged for missed delivery
+            </p>
+            <div className="space-y-2">
+                {orders.map((o) => (
+                    <div key={o.id} className="bg-white dark:bg-ink-800 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 font-mono">#{o.id}</p>
+                                <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
+                                    {o.buyer_name} · {o.buyer_email}
+                                </p>
+                                <p className="text-xs text-amber-600 dark:text-gold-400 mt-1">
+                                    Flagged {new Date(o.overdue_flagged_at).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                    Placed {new Date(o.created_at).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className="text-sm font-bold text-slate-900 dark:text-gold-50 mb-2">GHS {parseFloat(o.total_amount).toFixed(2)}</p>
+                                <button
+                                    onClick={() => handleRefund(o.id)}
+                                    disabled={refundingId === o.id}
+                                    className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                                >
+                                    {refundingId === o.id ? 'Refunding…' : 'Refund'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
