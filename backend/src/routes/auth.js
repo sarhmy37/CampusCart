@@ -125,27 +125,31 @@ router.post('/register', async (req, res) => {
         }
     }
 
+    const client = await pool.connect();
     try {
-        const existing = await pool.query('SELECT id FROM users WHERE university_email = $1', [university_email]);
+        await client.query('BEGIN');
+
+        const existing = await client.query('SELECT id FROM users WHERE university_email = $1', [university_email]);
         if (existing.rows.length > 0) {
+            await client.query('ROLLBACK');
             return res.status(409).json({ error: 'An account with this email already exists' });
         }
 
         let referrerId = null;
         if (referral_code) {
-            const referrerResult = await pool.query('SELECT id FROM users WHERE referral_code = $1', [referral_code.toUpperCase()]);
+            const referrerResult = await client.query('SELECT id FROM users WHERE referral_code = $1', [referral_code.toUpperCase()]);
             referrerId = referrerResult.rows[0]?.id || null;
         }
 
         let myReferralCode;
         for (let attempt = 0; attempt < 5; attempt++) {
             myReferralCode = generateReferralCode();
-            const clash = await pool.query('SELECT 1 FROM users WHERE referral_code = $1', [myReferralCode]);
+            const clash = await client.query('SELECT 1 FROM users WHERE referral_code = $1', [myReferralCode]);
             if (clash.rows.length === 0) break;
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
-        const result = await pool.query(
+        const result = await client.query(
             `INSERT INTO users (name, university_email, password_hash, school, account_type, whatsapp, location, meeting_place, referral_code, referred_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
             [name, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, meeting_place || null, myReferralCode, referrerId]
@@ -155,28 +159,35 @@ router.post('/register', async (req, res) => {
 
         // 👇 If seller, create a default payout account
         if (resolvedAccountType === 'seller' && account_number && bank_code && account_name) {
-            await pool.query(
+            const bankLookup = await client.query('SELECT name FROM banks WHERE code = $1', [bank_code]);
+            const bankName = bankLookup.rows[0]?.name || bank_code;
+            await client.query(
                 `INSERT INTO seller_payout_accounts 
-                 (seller_id, bank_code, account_number, account_name, method, is_default)
-                 VALUES ($1, $2, $3, $4, $5, true)`,
-                [user.id, bank_code, account_number, account_name, payout_method || 'bank']
+                 (seller_id, bank_code, bank_name, account_number, account_name, method, is_default)
+                 VALUES ($1, $2, $3, $4, $5, $6, true)`,
+                [user.id, bank_code, bankName, account_number, account_name, payout_method || 'bank']
             );
         }
 
         // 👇 If buyer, save their signup location as first saved & default delivery location
-if (resolvedAccountType === 'buyer' && location) {
-    await pool.query(
-        `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default)
-         VALUES ($1, $2, true)`,
-        [user.id, location.trim()]
-    );
-}
+        if (resolvedAccountType === 'buyer' && location) {
+            await client.query(
+                `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default)
+                 VALUES ($1, $2, true)`,
+                [user.id, location.trim()]
+            );
+        }
+
+        await client.query('COMMIT');
 
         const token = signToken(user);
         res.status(201).json({ token, user: toPublicUser(user) });
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error('Register error:', err);
         res.status(500).json({ error: 'Something went wrong creating your account' });
+    } finally {
+        client.release();
     }
 });
 

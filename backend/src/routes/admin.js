@@ -310,4 +310,55 @@ router.get('/deleted-chats/:id/messages', async (req, res) => {
     }
 });
 
+// GET /api/admin/orders/overdue
+router.get('/orders/overdue', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT o.id, o.status, o.total_amount, o.created_at, o.overdue_flagged_at,
+                    u.name AS buyer_name, u.university_email AS buyer_email
+             FROM orders o
+             JOIN users u ON u.id = o.buyer_id
+             WHERE o.overdue_flagged_at IS NOT NULL AND o.status = 'paid'
+             ORDER BY o.overdue_flagged_at DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin get overdue orders error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching overdue orders' });
+    }
+});
+
+// POST /api/admin/orders/:id/refund
+router.post('/orders/:id/refund', async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+        const order = orderResult.rows[0];
+        if (!order) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+        if (order.status !== 'paid') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Only paid orders can be refunded this way' }); }
+
+        await client.query(`UPDATE orders SET status = 'refunded' WHERE id = $1`, [id]);
+        await client.query(`UPDATE order_items SET status = 'refunded' WHERE order_id = $1`, [id]);
+        await client.query('UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2', [order.total_amount, order.buyer_id]);
+
+        await client.query('COMMIT');
+
+        await pool.query(
+            `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
+            [order.buyer_id, 'order_refunded', `Order #${id} was refunded as GHS ${parseFloat(order.total_amount).toFixed(2)} credit to your account.`, id, '/dashboard?tab=orders']
+        );
+
+        res.json({ message: 'Order refunded' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Admin refund order error:', err);
+        res.status(500).json({ error: 'Something went wrong refunding this order' });
+    } finally {
+        client.release();
+    }
+});
+
 module.exports = router;

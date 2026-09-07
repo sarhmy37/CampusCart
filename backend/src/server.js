@@ -2,6 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cron = require('node-cron');
+
+const { checkOverdueOrders } = require('./jobs/overdueOrders');
 
 const authRoutes = require('./routes/auth');
 
@@ -136,3 +139,5 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 CampusCart API running on http://localhost:${PORT}`);
     console.log(`🚀 CampusCart API running on network: http://0.0.0.0:${PORT}`);
 });
+
+cron.schedule('0 8 * * *', checkOverdueOrders); // daily at 8am
