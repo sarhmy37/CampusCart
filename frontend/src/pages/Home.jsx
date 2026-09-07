@@ -526,9 +526,13 @@ export default function Home() {
                         </p>
                     </Reveal>
 
-                    <div className="mt-10 grid sm:grid-cols-3 gap-5">
+                    <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-5">
                         {PLANS.map((plan, i) => (
-                            <Reveal key={plan.name} delay={i * 100}>
+                            <Reveal
+                                key={plan.name}
+                                delay={i * 100}
+                                className={i === 2 ? 'col-span-2 sm:col-span-1' : ''}
+                            >
                                 <div
                                     className={`relative h-full rounded-2xl p-6 border backdrop-blur-sm transition ${
                                         plan.highlight
@@ -548,46 +552,97 @@ export default function Home() {
                                         <span className="text-white/50 text-sm mb-1">{plan.period}</span>
                                     </div>
 
-                                    <div className="mt-6 pt-5 border-t border-white/10">
-                                        <p className="text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">For buyers</p>
-                                        <ul className="space-y-1.5">
-                                            {plan.buyerBenefits.map((b) => (
-                                                <li key={b} className="flex items-start gap-2 text-sm text-white/80">
-                                                    <span className="text-brand-400 dark:text-gold-400 mt-0.5">✓</span>
-                                                    {b}
-                                                </li>
-                                            ))}
-                                        </ul>
+                                    <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-[10px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">Buyers</p>
+                                            <ul className="space-y-1.5">
+                                                {plan.buyerBenefits.map((b) => (
+                                                    <li key={b} className="flex items-start gap-1.5 text-[11px] sm:text-sm text-white/80">
+                                                        <span className="text-brand-400 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
+                                                        {b}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">Sellers</p>
+                                            <ul className="space-y-1.5">
+                                                {plan.sellerBenefits.map((b) => (
+                                                    <li key={b} className="flex items-start gap-1.5 text-[11px] sm:text-sm text-white/80">
+                                                        <span className="text-brand-400 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
+                                                        {b}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
                                     </div>
 
-                                    <div className="mt-5 pt-5 border-t border-white/10">
-                                        <p className="text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">For sellers</p>
-                                        <ul className="space-y-1.5">
-                                            {plan.sellerBenefits.map((b) => (
-                                                <li key={b} className="flex items-start gap-2 text-sm text-white/80">
-                                                    <span className="text-brand-400 dark:text-gold-400 mt-0.5">✓</span>
-                                                    {b}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
+                                    {(() => {
+                                        const currentPlan = (user?.plan || 'free').toLowerCase();
+                                        const isCurrent = plan.name.toLowerCase() === currentPlan;
 
-                                    <button
-                                        onClick={handleBrowseClick}
-                                        className={`w-full mt-6 py-2.5 rounded-xl font-semibold text-sm transition ${
-                                            plan.highlight
-                                                ? 'bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-600 dark:hover:bg-gold-400'
-                                                : 'bg-white/10 text-white hover:bg-white/20'
-                                        }`}
-                                    >
-                                        {plan.price === '0' ? 'Get started free' : `Choose ${plan.name}`}
-                                    </button>
+                                        if (isCurrent) {
+                                            return (
+                                                <button
+                                                    disabled
+                                                    className="w-full mt-6 py-2.5 rounded-xl font-semibold text-sm bg-white/10 text-white/50 cursor-not-allowed"
+                                                >
+                                                    Current plan
+                                                </button>
+                                            );
+                                        }
+
+                                        return (
+                                            <button
+                                                onClick={handleBrowseClick}
+                                                className={`w-full mt-6 py-2.5 rounded-xl font-semibold text-sm transition ${
+                                                    plan.highlight
+                                                        ? 'bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-600 dark:hover:bg-gold-400'
+                                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                                }`}
+                                            >
+                                                {plan.price === '0' ? 'Get started free' : `Choose ${plan.name}`}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </Reveal>
                         ))}
                     </div>
                 </div>
             </section>
+
+            {/* SITE FOOTER */}
+            <footer className="bg-ink-950 border-t border-white/10 py-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                        <div className="flex items-center gap-2">
+                            <span className="text-white/50 text-xs">🌍</span>
+                            <select
+                                defaultValue="GH"
+                                className="bg-transparent text-white/70 text-xs font-medium border border-white/15 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-white/30"
+                            >
+                                <option value="GH" className="text-slate-900">Ghana (English)</option>
+                                <option value="NG" className="text-slate-900">Nigeria (English)</option>
+                                <option value="KE" className="text-slate-900">Kenya (English)</option>
+                                <option value="ZA" className="text-slate-900">South Africa (English)</option>
+                            </select>
+                        </div>
+
+                        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/60">
+                            <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
+                            <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
+                            <Link to="/help" className="hover:text-white transition">Help Center</Link>
+                            <Link to="/contact" className="hover:text-white transition">Contact Us</Link>
+                        </nav>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <p className="text-xs text-white/40">© {new Date().getFullYear()} Tre-X. Made for students, across Africa.</p>
+                        <p className="text-xs text-white/40">Prices shown in GHS.</p>
+                    </div>
+                </div>
+            </footer>
 
 
             <SellerRequiredModal
