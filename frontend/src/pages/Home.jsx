@@ -15,7 +15,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 const HERO_TEXTS = [
-    'Buy and Sell within your campus, Safely.',
+    'Buy and Sell within your campus,Safely.',
     'Buy and Discover great deals around campus.',
     'Buy and Connect with students on your campus.',
 ];
@@ -534,7 +534,7 @@ export default function Home() {
                                 className={i === 2 ? 'col-span-2 sm:col-span-1' : ''}
                             >
                                 <div
-                                    className={`relative h-full rounded-2xl p-6 border backdrop-blur-sm transition ${
+                                    className={`relative h-full rounded-2xl p-3 sm:p-6 border backdrop-blur-sm transition ${
                                         plan.highlight
                                             ? 'bg-white/[0.06] border-brand-400/40 dark:border-gold-500/40 shadow-lg shadow-brand-500/10'
                                             : 'bg-white/[0.03] border-white/10'
@@ -546,18 +546,18 @@ export default function Home() {
                                         </span>
                                     )}
 
-                                    <h3 className="text-lg font-extrabold text-white text-center">{plan.name}</h3>
-                                    <div className="flex items-end justify-center gap-1 mt-2">
-                                        <span className="text-3xl font-black text-white">GHS {plan.price}</span>
-                                        <span className="text-white/50 text-sm mb-1">{plan.period}</span>
+                                    <h3 className="text-sm sm:text-lg font-extrabold text-white text-center">{plan.name}</h3>
+                                    <div className="flex items-end justify-center gap-1 mt-1 sm:mt-2">
+                                        <span className="text-xl sm:text-3xl font-black text-white">GHS {plan.price}</span>
+                                        <span className="text-white/50 text-[10px] sm:text-sm mb-0.5 sm:mb-1">{plan.period}</span>
                                     </div>
 
-                                    <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 gap-4">
+                                    <div className="mt-3 pt-3 sm:mt-6 sm:pt-5 border-t border-white/10 grid grid-cols-2 gap-2 sm:gap-4">
                                         <div>
-                                            <p className="text-[10px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">Buyers</p>
-                                            <ul className="space-y-1.5">
+                                            <p className="text-[9px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-1 sm:mb-2">Buyers</p>
+                                            <ul className="space-y-1 sm:space-y-1.5">
                                                 {plan.buyerBenefits.map((b) => (
-                                                    <li key={b} className="flex items-start gap-1.5 text-[11px] sm:text-sm text-white/80">
+                                                    <li key={b} className="flex items-start gap-1 sm:gap-1.5 text-[9px] sm:text-sm text-white/80 leading-tight">
                                                         <span className="text-brand-400 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
                                                         {b}
                                                     </li>
@@ -565,10 +565,10 @@ export default function Home() {
                                             </ul>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-2">Sellers</p>
-                                            <ul className="space-y-1.5">
+                                            <p className="text-[9px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-1 sm:mb-2">Sellers</p>
+                                            <ul className="space-y-1 sm:space-y-1.5">
                                                 {plan.sellerBenefits.map((b) => (
-                                                    <li key={b} className="flex items-start gap-1.5 text-[11px] sm:text-sm text-white/80">
+                                                    <li key={b} className="flex items-start gap-1 sm:gap-1.5 text-[9px] sm:text-sm text-white/80 leading-tight">
                                                         <span className="text-brand-400 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
                                                         {b}
                                                     </li>
@@ -585,7 +585,7 @@ export default function Home() {
                                             return (
                                                 <button
                                                     disabled
-                                                    className="w-full mt-6 py-2.5 rounded-xl font-semibold text-sm bg-white/10 text-white/50 cursor-not-allowed"
+                                                    className="w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-white/10 text-white/50 cursor-not-allowed"
                                                 >
                                                     Current plan
                                                 </button>
@@ -595,7 +595,7 @@ export default function Home() {
                                         return (
                                             <button
                                                 onClick={handleBrowseClick}
-                                                className={`w-full mt-6 py-2.5 rounded-xl font-semibold text-sm transition ${
+                                                className={`w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition ${
                                                     plan.highlight
                                                         ? 'bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-600 dark:hover:bg-gold-400'
                                                         : 'bg-white/10 text-white hover:bg-white/20'
