@@ -134,7 +134,7 @@ export const PRELOAD_VIDEOS = [
 // fixed square — it's 1/3 of a button's width by its full height) is left
 // to object-cover in CSS, so we don't double-crop and risk clipping the logo.
 function cloudinaryNetworkLogo(filename) {
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/e_trim/${filename}`;
+    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/e_trim:10/${filename}`;
 }
 
 export const MTN_LOGO = cloudinaryNetworkLogo('mtn.jpg');
