@@ -7,6 +7,7 @@ import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
 import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search , Wallet, Wifi, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { MTN_LOGO, VODAFONE_LOGO, AIRTELTIGO_LOGO } from '../data/media';
 import {
     AdjustmentsHorizontalIcon,
     SparklesIcon,
@@ -29,6 +30,11 @@ const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their universit
 const VERIFIED_NOTE_TYPE_SPEED_MS = 40;
 const VERIFIED_NOTE_DELAY_MS = 500;
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
+const NETWORK_IMAGES = {
+  MTN: MTN_LOGO,
+  Vodafone: VODAFONE_LOGO,
+  AirtelTigo: AIRTELTIGO_LOGO,
+};
 
 const SCHOOLS = [
     { name: 'KNUST', lat: 6.6732, lng: -1.5654 },
@@ -682,17 +688,22 @@ export default function Browse() {
                             <div className="flex sm:flex-col gap-2">
                                 {NETWORKS.map((n) => (
                                     <button
-                                        key={n}
-                                        onClick={() => setDataNetwork(n)}
-                                        className={`flex-1 sm:flex-none flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
-                                            dataNetwork === n
-                                                ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
-                                                : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
-                                        }`}
-                                    >
-                                        <Wifi size={15} />
-                                        {n}
-                                    </button>
+    key={n}
+    onClick={() => setDataNetwork(n)}
+    className={`flex-1 sm:flex-none flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+        dataNetwork === n
+            ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
+            : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
+    }`}
+>
+    <img
+        src={NETWORK_IMAGES[n]}
+        alt={n}
+        className="w-5 h-5 object-contain"
+        // Optional: if you want the logo to invert on active state, you can add a filter
+    />
+    {n}
+</button>
                                 ))}
                             </div>
 

@@ -128,3 +128,8 @@ export const PRELOAD_VIDEOS = [
     SETTINGS_VIDEO,
     SNEAKERS_VIDEO,
 ];
+
+// Network logos (for Mobile Data picker)
+export const MTN_LOGO = cloudinaryImage('mtn.jpg');
+export const VODAFONE_LOGO = cloudinaryImage('voda.png');
+export const AIRTELTIGO_LOGO = cloudinaryImage('airtel.jpg');
