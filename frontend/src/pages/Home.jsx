@@ -509,19 +509,19 @@ export default function Home() {
                 <div className="h-px bg-slate-200 dark:bg-ink-700" />
             </div>
 
-            <section className="relative overflow-hidden bg-gradient-to-b from-ink-950 via-ink-900 to-ink-950 py-16 sm:py-20">
+            <section className="relative overflow-hidden bg-slate-50 dark:bg-gradient-to-b dark:from-ink-950 dark:via-ink-900 dark:to-ink-950 py-16 sm:py-20">
                 <div className="absolute -right-20 -top-24 w-72 h-72 bg-brand-500/10 dark:bg-gold-500/10 rounded-full blur-3xl" />
                 <div className="absolute -left-16 bottom-0 w-64 h-64 bg-accent-500/10 dark:bg-gold-700/10 rounded-full blur-3xl" />
 
                 <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Reveal>
-                        <p className="text-accent-400 dark:text-gold-400 font-bold text-sm tracking-wide uppercase text-center">
+                        <p className="text-accent-600 dark:text-gold-400 font-bold text-sm tracking-wide uppercase text-center">
                             Plans
                         </p>
-                        <h2 className="text-2xl sm:text-3xl font-extrabold text-white text-center mt-1">
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white text-center mt-1">
                             Pick the plan that fits how you trade
                         </h2>
-                        <p className="text-white/60 text-sm text-center mt-2 max-w-xl mx-auto">
+                        <p className="text-slate-500 dark:text-white/60 text-sm text-center mt-2 max-w-xl mx-auto">
                             Every plan works for both buyers and sellers — upgrade any time as your activity on campus grows.
                         </p>
                     </Reveal>
@@ -536,8 +536,8 @@ export default function Home() {
                                 <div
                                     className={`relative h-full rounded-2xl p-3 sm:p-6 border backdrop-blur-sm transition ${
                                         plan.highlight
-                                            ? 'bg-white/[0.06] border-brand-400/40 dark:border-gold-500/40 shadow-lg shadow-brand-500/10'
-                                            : 'bg-white/[0.03] border-white/10'
+                                            ? 'bg-white dark:bg-white/[0.06] border-brand-300 dark:border-gold-500/40 shadow-lg shadow-brand-500/10'
+                                            : 'bg-white dark:bg-white/[0.03] border-slate-200 dark:border-white/10'
                                     }`}
                                 >
                                     {plan.highlight && (
@@ -546,30 +546,30 @@ export default function Home() {
                                         </span>
                                     )}
 
-                                    <h3 className="text-sm sm:text-lg font-extrabold text-white text-center">{plan.name}</h3>
+                                    <h3 className="text-sm sm:text-lg font-extrabold text-slate-900 dark:text-white text-center">{plan.name}</h3>
                                     <div className="flex items-end justify-center gap-1 mt-1 sm:mt-2">
-                                        <span className="text-xl sm:text-3xl font-black text-white">GHS {plan.price}</span>
-                                        <span className="text-white/50 text-[10px] sm:text-sm mb-0.5 sm:mb-1">{plan.period}</span>
+                                        <span className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">GHS {plan.price}</span>
+                                        <span className="text-slate-500 dark:text-white/50 text-[10px] sm:text-sm mb-0.5 sm:mb-1">{plan.period}</span>
                                     </div>
 
-                                    <div className="mt-3 pt-3 sm:mt-6 sm:pt-5 border-t border-white/10 grid grid-cols-2 gap-2 sm:gap-4">
+                                    <div className="mt-3 pt-3 sm:mt-6 sm:pt-5 border-t border-slate-200 dark:border-white/10 grid grid-cols-2 gap-2 sm:gap-4">
                                         <div>
-                                            <p className="text-[9px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-1 sm:mb-2">Buyers</p>
+                                            <p className="text-[9px] sm:text-[11px] font-bold text-slate-500 dark:text-white/50 uppercase tracking-wide mb-1 sm:mb-2">Buyers</p>
                                             <ul className="space-y-1 sm:space-y-1.5">
                                                 {plan.buyerBenefits.map((b) => (
-                                                    <li key={b} className="flex items-start gap-1 sm:gap-1.5 text-[9px] sm:text-sm text-white/80 leading-tight">
-                                                        <span className="text-brand-400 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
+                                                    <li key={b} className="flex items-start gap-1 sm:gap-1.5 text-[9px] sm:text-sm text-slate-600 dark:text-white/80 leading-tight">
+                                                        <span className="text-brand-500 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
                                                         {b}
                                                     </li>
                                                 ))}
                                             </ul>
                                         </div>
                                         <div>
-                                            <p className="text-[9px] sm:text-[11px] font-bold text-white/50 uppercase tracking-wide mb-1 sm:mb-2">Sellers</p>
+                                            <p className="text-[9px] sm:text-[11px] font-bold text-slate-500 dark:text-white/50 uppercase tracking-wide mb-1 sm:mb-2">Sellers</p>
                                             <ul className="space-y-1 sm:space-y-1.5">
                                                 {plan.sellerBenefits.map((b) => (
-                                                    <li key={b} className="flex items-start gap-1 sm:gap-1.5 text-[9px] sm:text-sm text-white/80 leading-tight">
-                                                        <span className="text-brand-400 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
+                                                    <li key={b} className="flex items-start gap-1 sm:gap-1.5 text-[9px] sm:text-sm text-slate-600 dark:text-white/80 leading-tight">
+                                                        <span className="text-brand-500 dark:text-gold-400 mt-0.5 shrink-0">✓</span>
                                                         {b}
                                                     </li>
                                                 ))}
@@ -585,7 +585,7 @@ export default function Home() {
                                             return (
                                                 <button
                                                     disabled
-                                                    className="w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-white/10 text-white/50 cursor-not-allowed"
+                                                    className="w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/50 cursor-not-allowed"
                                                 >
                                                     Current plan
                                                 </button>
@@ -598,7 +598,7 @@ export default function Home() {
                                                 className={`w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition ${
                                                     plan.highlight
                                                         ? 'bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-600 dark:hover:bg-gold-400'
-                                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                                        : 'bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/20'
                                                 }`}
                                             >
                                                 {plan.price === '0' ? 'Get started free' : `Choose ${plan.name}`}
