@@ -93,7 +93,7 @@ export default function Admin() {
         <div className="bg-white dark:bg-ink-900 min-h-screen">
             <section className="relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
+                <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-3">
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Admin Dashboard</h1>
                     <p className="text-white/70 text-sm mt-1">Manage users, listings, and orders</p>
 
@@ -167,10 +167,10 @@ export default function Admin() {
 
 function StatCard({ icon: Icon, label, value, highlight }) {
     return (
-        <div className={`backdrop-blur border rounded-2xl p-4 ${highlight ? 'bg-white/20 border-white/40' : 'bg-white/10 border-white/20'}`}>
-            <Icon size={18} className={`mb-2 ${highlight ? 'text-white' : 'text-white/80'}`} />
-            <p className={`text-2xl font-extrabold ${highlight ? 'text-white' : 'text-white'}`}>{value}</p>
-            <p className={`text-xs ${highlight ? 'text-white/90' : 'text-white/70'}`}>{label}</p>
+        <div className={`backdrop-blur border border-white/20 rounded-2xl p-2.5 sm:p-4 ${highlight ? 'bg-white/20 border-white/40' : 'bg-white/10'}`}>
+            <Icon className={`w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] mb-1 sm:mb-2 ${highlight ? 'text-white' : 'text-white/80'}`} />
+            <p className={`text-lg sm:text-2xl font-extrabold ${highlight ? 'text-white' : 'text-white'}`}>{value}</p>
+            <p className={`text-[10px] sm:text-xs ${highlight ? 'text-white/90' : 'text-white/70'}`}>{label}</p>
         </div>
     );
 }
