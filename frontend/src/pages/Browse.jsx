@@ -32,7 +32,7 @@ const VERIFIED_NOTE_DELAY_MS = 500;
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
 const NETWORK_IMAGES = {
   MTN: MTN_LOGO,
-  Vodafone: VODAFONE_LOGO,
+  Telecel: VODAFONE_LOGO,
   AirtelTigo: AIRTELTIGO_LOGO,
 };
 
@@ -690,19 +690,20 @@ export default function Browse() {
                                     <button
     key={n}
     onClick={() => setDataNetwork(n)}
-    className={`flex-1 sm:flex-none flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+    className={`flex-1 sm:flex-none flex items-center px-4 py-3 rounded-xl border text-sm font-semibold transition ${
         dataNetwork === n
             ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
             : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
     }`}
 >
-    <img
-        src={NETWORK_IMAGES[n]}
-        alt={n}
-        className="w-5 h-5 object-contain"
-        // Optional: if you want the logo to invert on active state, you can add a filter
-    />
-    {n}
+    <span className="w-1/3 flex justify-center shrink-0">
+        <img
+            src={NETWORK_IMAGES[n]}
+            alt={n}
+            className="w-5 h-5 object-contain"
+        />
+    </span>
+    <span className="w-2/3 text-left truncate">{n}</span>
 </button>
                                 ))}
                             </div>
