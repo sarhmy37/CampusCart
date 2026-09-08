@@ -655,7 +655,7 @@ export default function Browse() {
 
             {/* ─── LISTINGS ───────────────────────────────────────────────── */}
             {/* ✅ Updated background: bg-slate-100 in light mode, dark mode unchanged */}
-            <section className="relative overflow-hidden bg-slate-100 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">
+            <section className="relative overflow-hidden min-h-[calc(100vh-3.5rem)] bg-slate-100 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">
                 {/* Decorative overlays — hidden in light mode, shown only in dark mode */}
                 <div
                     className="absolute inset-0 pointer-events-none opacity-[0.5] dark:opacity-[0.35] hidden dark:block"
@@ -794,12 +794,11 @@ export default function Browse() {
                     )}
 
                     {filterType === 'special' && (
-                        <div className="text-center py-10 text-slate-400 dark:text-gold-200/40">
+                        <div className="flex flex-col items-center justify-center text-center flex-1 min-h-[50vh] text-slate-400 dark:text-gold-200/40">
                             <p className="text-lg font-semibold">🚀 Special Listings</p>
                             <p className="text-sm mt-1">This feature is coming soon! Stay tuned for curated deals and top-rated items.</p>
                         </div>
                     )}
-
                     {loading ? (
                         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                             {Array.from({ length: 8 }).map((_, i) => (
@@ -807,7 +806,7 @@ export default function Browse() {
                             ))}
                         </div>
                     ) : visibleProducts.length === 0 && filterType !== 'special' ? (
-                        <div className="text-center py-20 text-slate-400 dark:text-gold-200/40">
+                        <div className="flex flex-col items-center justify-center text-center flex-1 min-h-[50vh] text-slate-400 dark:text-gold-200/40">
                             <SlidersHorizontal className="mx-auto mb-3" size={32} />
                             <p>No listings found. Try a different category, price range, or filter.</p>
                         </div>
