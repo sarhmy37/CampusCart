@@ -145,7 +145,7 @@ const PLANS = [
         name: 'Yearly',
         price: '240',
         period: '/year',
-        highlight: true,
+        highlight: false,
         buyerBenefits: [
             'Everything in Monthly',
             'Same-day dedicated support line',
@@ -519,7 +519,7 @@ export default function Home() {
                 <div className="h-px bg-slate-200 dark:bg-ink-700" />
             </div>
 
-            <section className="relative overflow-hidden bg-slate-50 dark:bg-gradient-to-b dark:from-ink-950 dark:via-ink-900 dark:to-ink-950 py-16 sm:py-20">
+           <section className="relative overflow-hidden bg-slate-50 dark:bg-gradient-to-b dark:from-ink-900 dark:via-ink-800 dark:to-ink-900 py-16 sm:py-20">
                 <div className="absolute -right-20 -top-24 w-72 h-72 bg-brand-500/10 dark:bg-gold-500/10 rounded-full blur-3xl" />
                 <div className="absolute -left-16 bottom-0 w-64 h-64 bg-accent-500/10 dark:bg-gold-700/10 rounded-full blur-3xl" />
 
@@ -623,36 +623,36 @@ export default function Home() {
             </section>
 
             {/* SITE FOOTER */}
-            <footer className="bg-ink-950 border-t border-white/10 py-10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                        <div className="flex items-center gap-2">
-                            <span className="text-white/50 text-xs">🌍</span>
-                            <select
-                                defaultValue="GH"
-                                className="bg-transparent text-white/70 text-xs font-medium border border-white/15 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-white/30"
-                            >
-                                <option value="GH" className="text-slate-900">Ghana (English)</option>
-                                <option value="NG" className="text-slate-900">Nigeria (English)</option>
-                                <option value="KE" className="text-slate-900">Kenya (English)</option>
-                                <option value="ZA" className="text-slate-900">South Africa (English)</option>
-                            </select>
-                        </div>
+<footer className="bg-white dark:bg-ink-900 border-t border-slate-200 dark:border-white/10 py-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <div className="flex items-center gap-2">
+                <span className="text-slate-400 dark:text-white/50 text-xs">🌍</span>
+                <select
+                    defaultValue="GH"
+                    className="bg-transparent text-slate-600 dark:text-white/70 text-xs font-medium border border-slate-200 dark:border-white/15 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-slate-400 dark:focus:border-white/30"
+                >
+                    <option value="GH" className="text-slate-900">Ghana (English)</option>
+                    <option value="NG" className="text-slate-900">Nigeria (English)</option>
+                    <option value="KE" className="text-slate-900">Kenya (English)</option>
+                    <option value="ZA" className="text-slate-900">South Africa (English)</option>
+                </select>
+            </div>
 
-                        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/60">
-                            <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
-                            <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
-                            <Link to="/help" className="hover:text-white transition">Help Center</Link>
-                            <Link to="/contact" className="hover:text-white transition">Contact Us</Link>
-                        </nav>
-                    </div>
+            <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-white/60">
+                <Link to="/terms" className="hover:text-slate-900 dark:hover:text-white transition">Terms of Service</Link>
+                <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white transition">Privacy Policy</Link>
+                <Link to="/help" className="hover:text-slate-900 dark:hover:text-white transition">Help Center</Link>
+                <Link to="/contact" className="hover:text-slate-900 dark:hover:text-white transition">Contact Us</Link>
+            </nav>
+        </div>
 
-                    <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <p className="text-xs text-white/40">© {new Date().getFullYear()} Tre-X. Made for students, across Africa.</p>
-                        <p className="text-xs text-white/40">Prices shown in GHS.</p>
-                    </div>
-                </div>
-            </footer>
+        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <p className="text-xs text-slate-400 dark:text-white/40">© {new Date().getFullYear()} Tre-X. Made for students, across Africa.</p>
+            <p className="text-xs text-slate-400 dark:text-white/40">Prices shown in GHS.</p>
+        </div>
+    </div>
+</footer>
 
 
             <SellerRequiredModal
