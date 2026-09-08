@@ -34,6 +34,7 @@ function toPublicUser(row) {
         meeting_place: row.meeting_place,
         referral_code: row.referral_code,
         credit_balance: row.credit_balance,
+        is_data_seller: row.is_data_seller,
     };
 }
 

@@ -7,7 +7,7 @@ import {
     Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
     Filter, X as XClose, Calendar, User, Tag as TagIcon, Layers, ArrowUpDown,
     Search, Mail, School, UserCheck, UserX, Users as UsersIcon,
-    ChevronLeft, ChevronRight, AlertTriangle
+    ChevronLeft, ChevronRight, AlertTriangle, Wifi
 } from 'lucide-react';
 
 const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'deleted chats'];
@@ -485,6 +485,20 @@ function UsersTab({ filter, initialUsers, loading }) {
         }
     };
 
+    const setDataSeller = async (id, enabled) => {
+        if (enabled && !window.confirm('This will remove Mobile Data seller access (and their bundles) from anyone else who currently has it. Continue?')) {
+            return;
+        }
+        try {
+            await api.post(`/admin/users/${id}/set-data-seller`, { enabled });
+            toast.success(enabled ? 'Assigned as Mobile Data seller' : 'Removed Mobile Data seller access');
+            const res = await api.get('/admin/users');
+            setUsers(res.data);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update data seller status');
+        }
+    };
+
     const deleteUser = async (id) => {
         if (!window.confirm('⚠️ Are you sure you want to permanently delete this user? This cannot be undone.')) return;
         try {
@@ -725,6 +739,7 @@ function UsersTab({ filter, initialUsers, loading }) {
                                     <Tag color={u.account_type === 'seller' ? 'red' : 'blue'}>{u.account_type}</Tag>
                                     <Tag color={u.verified ? 'emerald' : 'amber'}>{u.verified ? 'Verified' : 'Unverified'}</Tag>
                                     {u.banned && <Tag color="red">Banned</Tag>}
+                                    {u.is_data_seller && <Tag color="blue">Mobile Data Seller</Tag>}
                                 </div>
                             </div>
 
@@ -750,6 +765,13 @@ function UsersTab({ filter, initialUsers, loading }) {
                                     active={u.role === 'admin'}
                                 >
                                     <Crown size={15} />
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => setDataSeller(u.id, !u.is_data_seller)}
+                                    title={u.is_data_seller ? 'Remove Mobile Data seller access' : 'Assign as Mobile Data seller'}
+                                    active={u.is_data_seller}
+                                >
+                                    <Wifi size={15} />
                                 </IconButton>
                                 <IconButton
                                     onClick={() => setSelectedUser(u)}

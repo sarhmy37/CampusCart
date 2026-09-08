@@ -8,6 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 import ConfirmModal from '../components/ConfirmModal';
 import { usePageReady } from '../hooks/usePageReady';
 import FullPageLoader from '../components/FullPageLoader';
+import ReportModal from '../components/ReportModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
@@ -718,10 +719,17 @@ function StatCard({ icon: Icon, label, value }) {
 function Deliveries() {
     const [marking, setMarking] = useState(null);
     const [confirmTarget, setConfirmTarget] = useState(null);
+    const [dataOrders, setDataOrders] = useState([]);
+    const [markingDataOrder, setMarkingDataOrder] = useState(null);
 
     const { status, data: deliveries, retry } = useContentReady({
         load: () => api.get('/orders/deliveries').then((res) => res.data),
     });
+
+    const loadDataOrders = () => {
+        api.get('/data-orders/pending').then((res) => setDataOrders(res.data)).catch(() => setDataOrders([]));
+    };
+    useEffect(loadDataOrders, []);
 
     const handleMarkDelivered = async () => {
         if (!confirmTarget) return;
@@ -738,10 +746,22 @@ function Deliveries() {
         }
     };
 
+    const handleMarkDataDelivered = async (id) => {
+        setMarkingDataOrder(id);
+        try {
+            await api.post(`/data-orders/${id}/mark-delivered`);
+            toast.success('Marked as delivered');
+            loadDataOrders();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to mark as delivered');
+        } finally {
+            setMarkingDataOrder(null);
+        }
+    };
+
     if (status === 'loading') return <SkeletonList />;
     if (status === 'error') return <ErrorState icon={Truck} text="Couldn't load your deliveries right now." onRetry={retry} />;
-    if (deliveries.length === 0) return <EmptyState icon={Truck} text="No deliveries pending right now." />;
-
+    if (deliveries.length === 0 && dataOrders.length === 0) return <EmptyState icon={Truck} text="No deliveries pending right now." />;
     return (
         <div className="max-w-2xl mx-auto space-y-3">
             {deliveries.map((d) => {
@@ -804,6 +824,41 @@ function Deliveries() {
                     </div>
                 );
             })}
+
+            {dataOrders.length > 0 && (
+                <>
+                    <div className="flex items-center gap-3 mt-6 mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
+                            Data Orders
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200 dark:bg-ink-600" />
+                    </div>
+                    {dataOrders.map((d) => (
+                        <div key={d.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                            <div className="flex justify-between items-start gap-3">
+                                <div>
+                                    <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">
+                                        {parseFloat(d.gb_amount)}GB {d.network}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">Buyer: {d.buyer_name}</p>
+                                    <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">Number: {d.buyer_momo_number}</p>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">GHS {parseFloat(d.price).toFixed(2)}</p>
+                                </div>
+                                <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400">
+                                    Pending
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => handleMarkDataDelivered(d.id)}
+                                disabled={markingDataOrder === d.id}
+                                className="mt-3 text-xs font-semibold px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60"
+                            >
+                                {markingDataOrder === d.id ? 'Marking…' : '✅ Mark as Delivered'}
+                            </button>
+                        </div>
+                    ))}
+                </>
+            )}
 
             <ConfirmModal
                 open={!!confirmTarget}
@@ -1609,11 +1664,18 @@ function OrderTimeline({ order }) {
 function MyOrders({ period, isSeller }) {
     const [confirmingItem, setConfirmingItem] = useState(null);
     const { scheduleReviewCheck } = useReviewPrompt();
+    const [dataOrders, setDataOrders] = useState([]);
+    const [reportTarget, setReportTarget] = useState(null);
 
     const { status, data: orders, retry: loadOrders } = useContentReady({
         load: () => api.get('/orders/mine', { params: { period } }).then((res) => res.data),
         deps: [period],
     });
+
+    const loadDataOrders = () => {
+        api.get('/data-orders/mine').then((res) => setDataOrders(res.data)).catch(() => setDataOrders([]));
+    };
+    useEffect(loadDataOrders, []);
 
     const handleConfirmReceived = async (orderId, itemId) => {
         if (!window.confirm('⚠️ Are you sure you have received this item? This action cannot be undone.')) {
@@ -1635,10 +1697,55 @@ function MyOrders({ period, isSeller }) {
 
     if (status === 'loading') return <SkeletonList />;
     if (status === 'error') return <ErrorState icon={ShoppingBag} text="Couldn't load your orders right now." onRetry={loadOrders} />;
-    if (orders.length === 0) return <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
+    if (orders.length === 0 && dataOrders.length === 0) return <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
 
     return (
         <div className="max-w-2xl mx-auto space-y-3">
+            {dataOrders.length > 0 && (
+                <>
+                    <div className="flex items-center gap-3 mb-1">
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
+                            Data Orders
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200 dark:bg-ink-600" />
+                    </div>
+                    {dataOrders.map((d) => (
+                        <div key={d.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                            <div className="flex justify-between items-start gap-3">
+                                <div>
+                                    <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">
+                                        {parseFloat(d.gb_amount)}GB {d.network}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">GHS {parseFloat(d.price).toFixed(2)}</p>
+                                </div>
+                                <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
+                                    d.status === 'delivered'
+                                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                                        : 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400'
+                                }`}>
+                                    {d.status === 'delivered' ? 'Received' : 'Pending'}
+                                </span>
+                            </div>
+                            {d.status === 'pending' && (
+                                <button
+                                    onClick={() => setReportTarget(d)}
+                                    className="mt-3 text-xs font-semibold text-red-500 dark:text-red-400 hover:underline"
+                                >
+                                    Report — haven't received this
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    {orders.length > 0 && (
+                        <div className="flex items-center gap-3 pt-2">
+                            <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
+                                Orders
+                            </span>
+                            <div className="flex-1 h-px bg-slate-200 dark:bg-ink-600" />
+                        </div>
+                    )}
+                </>
+            )}
             {orders.map((o) => (
                                 <div key={o.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
                     <OrderTimeline order={o} />
@@ -1683,6 +1790,12 @@ function MyOrders({ period, isSeller }) {
                     </p>
                 </div>
             ))}
+
+            <ReportModal
+                open={!!reportTarget}
+                onClose={() => setReportTarget(null)}
+                reportedUserId={reportTarget?.seller_id}
+            />
         </div>
     );
 }

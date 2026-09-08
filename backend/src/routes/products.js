@@ -32,6 +32,7 @@ router.get('/', async (req, res) => {
     const { search, category, itemCategory, school } = req.query;
     const categoryFilter = category || itemCategory;
 
+    const { network } = req.query;
     const conditions = [`p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')`];
     const values = [];
 
@@ -47,13 +48,17 @@ router.get('/', async (req, res) => {
         values.push(school);
         conditions.push(`u.school = $${values.length}`);
     }
+    if (network) {
+        values.push(network);
+        conditions.push(`p.network = $${values.length}`);
+    }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
     try {
         const result = await pool.query(
             `SELECT
-                p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
+                p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.network, p.primary_image, p.video_url, p.created_at,
                 p.rating, p.review_count,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
@@ -114,7 +119,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/products — create a listing
 router.post('/', requireAuth, async (req, res) => {
     const {
-        title, description, price, condition, category, stock, images, video,
+        title, description, price, condition, category, stock, images, video, network,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
     } = req.body;
 
@@ -153,11 +158,11 @@ router.post('/', requireAuth, async (req, res) => {
 
                 const productResult = await client.query(
             `INSERT INTO products
-                (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url,
+                (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url, network,
                  delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus)
-             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING id`,
-            [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl,
+            [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl, network || null,
              feeOnCampus, feeNearCampus, feeFarCampus]
         );
 

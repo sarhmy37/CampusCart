@@ -69,7 +69,7 @@ router.get('/net-earnings', async (req, res) => {
 router.get('/users', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, name, university_email, account_type, role, verified, banned, created_at
+            `SELECT id, name, university_email, account_type, role, verified, banned, is_data_seller, created_at
              FROM users ORDER BY created_at DESC`
         );
         res.json(result.rows);
@@ -356,6 +356,54 @@ router.post('/orders/:id/refund', async (req, res) => {
         await client.query('ROLLBACK');
         console.error('Admin refund order error:', err);
         res.status(500).json({ error: 'Something went wrong refunding this order' });
+    } finally {
+        client.release();
+    }
+});
+// POST /api/admin/users/:id/set-data-seller — exclusively assigns (or revokes) the
+// Mobile Data seller role. Only one user can ever hold this at a time: assigning it
+// to a new user clears it from whoever had it before and wipes their bundles.
+router.post('/users/:id/set-data-seller', async (req, res) => {
+    const { id } = req.params;
+    const { enabled } = req.body; // true = assign to this user, false = revoke from this user
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const targetResult = await client.query('SELECT id FROM users WHERE id = $1', [id]);
+        if (targetResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (enabled) {
+            // Revoke from whoever currently has it (should be at most one person)
+            const previousHolders = await client.query(
+                `SELECT id FROM users WHERE is_data_seller = true AND id != $1`,
+                [id]
+            );
+            for (const holder of previousHolders.rows) {
+                await client.query('DELETE FROM data_bundles WHERE seller_id = $1', [holder.id]);
+            }
+            await client.query('UPDATE users SET is_data_seller = false WHERE id != $1', [id]);
+            await client.query('UPDATE users SET is_data_seller = true WHERE id = $1', [id]);
+        } else {
+            await client.query('UPDATE users SET is_data_seller = false WHERE id = $1', [id]);
+            await client.query('DELETE FROM data_bundles WHERE seller_id = $1', [id]);
+        }
+
+        await client.query('COMMIT');
+
+        const updated = await pool.query(
+            'SELECT id, name, university_email, is_data_seller FROM users WHERE id = $1',
+            [id]
+        );
+        res.json(updated.rows[0]);
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Admin set data seller error:', err);
+        res.status(500).json({ error: 'Something went wrong updating data seller status' });
     } finally {
         client.release();
     }

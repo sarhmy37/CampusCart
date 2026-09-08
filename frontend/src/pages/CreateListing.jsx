@@ -4,8 +4,10 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
 import { clampFee, MAX_DELIVERY_FEE } from '../utils/distance';
-import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle } from 'lucide-react';
+import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
+const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
 const CLOUD_NAME = 'b7fch4rp';
@@ -39,10 +41,17 @@ const uploadToCloudinary = async (file, resourceType) => {
 };
 
 export default function CreateListing() {
+    const { user } = useAuth();
+    const isDataSeller = !!user?.is_data_seller;
+    const [listingFormCollapsed, setListingFormCollapsed] = useState(isDataSeller);
+    const [bundles, setBundles] = useState([]);
+    const [bundlesLoading, setBundlesLoading] = useState(false);
+    const [newBundle, setNewBundle] = useState({ network: 'MTN', gb_amount: '', price: '' });
+    const [savingBundle, setSavingBundle] = useState(false);
     const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [form, setForm] = useState({
-        title: '', description: '', price: '', category_id: '', condition: 'used', stock: 1,
+        title: '', description: '', price: '', category_id: '', condition: 'used', stock: 1, network: '',
     });
     const [deliveryPrices, setDeliveryPrices] = useState({
         delivery_fee_on_campus: '',
@@ -56,6 +65,8 @@ export default function CreateListing() {
     const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showDeliveryWarning, setShowDeliveryWarning] = useState(false);
+        const selectedCategory = categories.find((c) => String(c.id) === String(form.category_id));
+    const isMobileData = selectedCategory?.name === 'Mobile Data';
 
     const imageGalleryInputRef = useRef(null);
     const videoGalleryInputRef = useRef(null);
@@ -71,6 +82,19 @@ export default function CreateListing() {
     useEffect(() => {
         return () => { if (videoPreview) URL.revokeObjectURL(videoPreview); };
     }, [videoPreview]);
+
+        const loadBundles = () => {
+        if (!isDataSeller) return;
+        setBundlesLoading(true);
+        api.get('/data-bundles/mine')
+            .then((res) => setBundles(res.data))
+            .catch(() => setBundles([]))
+            .finally(() => setBundlesLoading(false));
+    };
+
+    useEffect(() => {
+        loadBundles();
+    }, [isDataSeller]);
 
     const handleAddPhotoClick = () => imageGalleryInputRef.current?.click();
 
@@ -145,6 +169,43 @@ export default function CreateListing() {
         setVideoPreview(null);
     };
 
+        const addBundle = async () => {
+        if (!newBundle.gb_amount || !newBundle.price) {
+            toast.error('Enter both GB amount and price');
+            return;
+        }
+        setSavingBundle(true);
+        try {
+            await api.post('/data-bundles', newBundle);
+            toast.success('Bundle added');
+            setNewBundle({ network: newBundle.network, gb_amount: '', price: '' });
+            loadBundles();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to add bundle');
+        } finally {
+            setSavingBundle(false);
+        }
+    };
+
+    const toggleBundleActive = async (bundle) => {
+        try {
+            await api.patch(`/data-bundles/${bundle.id}`, { active: !bundle.active });
+            loadBundles();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update bundle');
+        }
+    };
+
+    const deleteBundle = async (id) => {
+        try {
+            await api.delete(`/data-bundles/${id}`);
+            toast.success('Bundle removed');
+            loadBundles();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to remove bundle');
+        }
+    };
+
     // ---- DELIVERY PRICE HANDLING ----
     const handleDeliveryPriceChange = (field, value) => {
         // Allow free typing but clamp once it exceeds the max
@@ -169,6 +230,7 @@ export default function CreateListing() {
                 condition: form.condition,
                 stock: form.stock,
                 category: category ? category.name : '',
+                network: isMobileData ? form.network : null,
                 images: imageUrls,
                 video: videoUrl || '',
                 delivery_fee_on_campus: clampFee(deliveryPrices.delivery_fee_on_campus),
@@ -192,6 +254,11 @@ export default function CreateListing() {
 
         if (imageUrls.length === 0) {
             toast.error('Add at least one photo of the item');
+            return;
+        }
+
+        if (isMobileData && !form.network) {
+            toast.error('Please select a network for this Mobile Data listing');
             return;
         }
 
@@ -257,7 +324,118 @@ export default function CreateListing() {
                         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">New Listing</h1>
                         <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">Add the details buyers will see.</p>
 
-                        <form onSubmit={onSubmit} className="mt-5 space-y-4">
+                        {isDataSeller && (
+                            <div className="mt-5 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                                <div className="flex items-center gap-2.5 mb-1">
+                                    <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                                        <Wifi size={16} />
+                                    </div>
+                                    <div>
+                                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Mobile Data Bundles</h2>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                            Manage the GB packages buyers can purchase per network.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 grid grid-cols-3 gap-2 items-end">
+                                    <div>
+                                        <label className="text-[11px] font-semibold text-slate-500 dark:text-gold-300/60">Network</label>
+                                        <select
+                                            value={newBundle.network}
+                                            onChange={(e) => setNewBundle({ ...newBundle, network: e.target.value })}
+                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none"
+                                        >
+                                            {NETWORKS.map((n) => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[11px] font-semibold text-slate-500 dark:text-gold-300/60">GB</label>
+                                        <input
+                                            type="number"
+                                            min="0.5"
+                                            step="0.5"
+                                            value={newBundle.gb_amount}
+                                            onChange={(e) => setNewBundle({ ...newBundle, gb_amount: e.target.value })}
+                                            placeholder="1"
+                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[11px] font-semibold text-slate-500 dark:text-gold-300/60">Price (GHS)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={newBundle.price}
+                                            onChange={(e) => setNewBundle({ ...newBundle, price: e.target.value })}
+                                            placeholder="5.00"
+                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 text-sm focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={addBundle}
+                                    disabled={savingBundle}
+                                    className="w-full mt-2.5 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
+                                >
+                                    <Plus size={15} /> {savingBundle ? 'Adding…' : 'Add bundle'}
+                                </button>
+
+                                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-ink-600 space-y-2">
+                                    {bundlesLoading ? (
+                                        <div className="h-10 rounded-lg bg-slate-100 dark:bg-ink-700 animate-pulse" />
+                                    ) : bundles.length === 0 ? (
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 text-center py-3">No bundles yet. Add one above.</p>
+                                    ) : (
+                                        bundles.map((b) => (
+                                            <div
+                                                key={b.id}
+                                                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border ${
+                                                    b.active
+                                                        ? 'border-slate-200 dark:border-ink-600'
+                                                        : 'border-slate-200 dark:border-ink-600 opacity-50'
+                                                }`}
+                                            >
+                                                <div className="text-sm text-slate-700 dark:text-gold-100">
+                                                    <span className="font-semibold">{b.network}</span> · {parseFloat(b.gb_amount)}GB · GHS {parseFloat(b.price).toFixed(2)}
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleBundleActive(b)}
+                                                        className="text-[11px] font-semibold text-brand-600 dark:text-gold-400 px-2 py-1 rounded hover:bg-brand-50 dark:hover:bg-gold-900/30"
+                                                    >
+                                                        {b.active ? 'Deactivate' : 'Activate'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => deleteBundle(b.id)}
+                                                        className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {isDataSeller && (
+                            <button
+                                type="button"
+                                onClick={() => setListingFormCollapsed((c) => !c)}
+                                className="w-full flex items-center justify-between mt-5 px-1 py-2 text-sm font-semibold text-slate-500 dark:text-gold-300/60"
+                            >
+                                <span>Regular listing details (optional)</span>
+                                {listingFormCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            </button>
+                        )}
+
+                        <form onSubmit={onSubmit} className={`space-y-4 ${isDataSeller ? (listingFormCollapsed ? 'hidden' : 'mt-3') : 'mt-5'}`}>
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Title</label>
                                 <input
@@ -400,7 +578,7 @@ export default function CreateListing() {
                                     <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Category</label>
                                     <select
                                         value={form.category_id}
-                                        onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                                        onChange={(e) => setForm({ ...form, category_id: e.target.value, network: '' })}
                                         className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
                                     >
                                         <option value="">Select</option>
@@ -419,6 +597,21 @@ export default function CreateListing() {
                                     </select>
                                 </div>
                             </div>
+
+                            {isMobileData && (
+                                <div>
+                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Network</label>
+                                    <select
+                                        required
+                                        value={form.network}
+                                        onChange={(e) => setForm({ ...form, network: e.target.value })}
+                                        className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
+                                    >
+                                        <option value="">Select network</option>
+                                        {NETWORKS.map((n) => <option key={n} value={n}>{n}</option>)}
+                                    </select>
+                                </div>
+                            )}
 
                             {/* DELIVERY PRICES */}
                             <div className="border-t border-slate-100 dark:border-ink-600 pt-4">

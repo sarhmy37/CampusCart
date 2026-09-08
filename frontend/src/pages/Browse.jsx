@@ -5,7 +5,8 @@ import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
-import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search , Wallet } from 'lucide-react';
+import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search , Wallet, Wifi, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import {
     AdjustmentsHorizontalIcon,
     SparklesIcon,
@@ -22,11 +23,12 @@ import {
 } from '@heroicons/react/24/solid';
 import CategoryRequestModal from '../components/CategoryRequestModal';
 
-const ITEM_TYPES = ['Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sneakers', 'Other'];
+const ITEM_TYPES = ['Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sneakers', 'Mobile Data', 'Other'];
 
 const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their university email has been confirmed.';
 const VERIFIED_NOTE_TYPE_SPEED_MS = 40;
 const VERIFIED_NOTE_DELAY_MS = 500;
+const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
 
 const SCHOOLS = [
     { name: 'KNUST', lat: 6.6732, lng: -1.5654 },
@@ -93,6 +95,12 @@ export default function Browse() {
     const [openSheet, setOpenSheet] = useState(null);
     const search = searchParams.get('search') || '';
     const [showCategoryRequest, setShowCategoryRequest] = useState(false);
+    const [dataNetwork, setDataNetwork] = useState('');
+    const [dataBundles, setDataBundles] = useState([]);
+    const [dataBundlesLoading, setDataBundlesLoading] = useState(false);
+    const [confirmBundle, setConfirmBundle] = useState(null);
+    const [momoNumber, setMomoNumber] = useState('');
+    const [placingOrder, setPlacingOrder] = useState(false);
 
     const [progress, setProgress] = useState(0);
     const [isMobileViewport, setIsMobileViewport] = useState(
@@ -126,6 +134,18 @@ export default function Browse() {
             if (typeInterval) clearInterval(typeInterval);
         };
     }, [verifiedOnly]);
+
+        useEffect(() => {
+        if (itemCategory !== 'Mobile Data' || !dataNetwork) {
+            setDataBundles([]);
+            return;
+        }
+        setDataBundlesLoading(true);
+        api.get('/data-bundles/browse', { params: { network: dataNetwork } })
+            .then((res) => setDataBundles(res.data))
+            .catch(() => setDataBundles([]))
+            .finally(() => setDataBundlesLoading(false));
+    }, [itemCategory, dataNetwork]);
 
     useEffect(() => {
         const evaluate = () => {
@@ -335,6 +355,25 @@ export default function Browse() {
         }
     };
 
+        const handlePlaceDataOrder = async () => {
+        const digits = momoNumber.replace(/\D/g, '');
+        if (digits.length < 9) {
+            toast.error('Enter a valid mobile money number');
+            return;
+        }
+        setPlacingOrder(true);
+        try {
+            await api.post('/data-orders', { bundle_id: confirmBundle.id, momo_number: digits });
+            toast.success('Order placed! You will receive your data once confirmed.');
+            setConfirmBundle(null);
+            setMomoNumber('');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to place order');
+        } finally {
+            setPlacingOrder(false);
+        }
+    };
+
     const handleMobileTabChange = (tab) => {
         if (tab === 'verified') {
             setVerifiedOnly(!verifiedOnly);
@@ -349,6 +388,7 @@ export default function Browse() {
 
     const selectCategory = (value) => {
         setItemCategory(value);
+        if (value !== 'Mobile Data') setDataNetwork('');
         setOpenSheet(null);
     };
 
@@ -494,7 +534,7 @@ export default function Browse() {
                             <div className="relative inline-flex items-center">
                                 <select
                                     value={itemCategory}
-                                    onChange={(e) => setItemCategory(e.target.value)}
+                                    onChange={(e) => selectCategory(e.target.value)}
                                     className="appearance-none bg-white/10 text-white text-sm font-semibold pl-4 pr-6 py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
                                 >
                                     <option value="" className="text-slate-900">All categories</option>
@@ -567,7 +607,7 @@ export default function Browse() {
                             <div key="categories" className="relative inline-flex items-center">
                                 <select
                                     value={itemCategory}
-                                    onChange={(e) => setItemCategory(e.target.value)}
+                                    onChange={(e) => selectCategory(e.target.value)}
                                     className={`appearance-none inline-flex items-center text-sm pl-8 pr-6 py-1.5 rounded-full border transition-all cursor-pointer ${
                                         active
                                             ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600 font-bold'
@@ -636,6 +676,64 @@ export default function Browse() {
                 </svg>
 
                 <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-32 sm:pb-10">
+                    {itemCategory === 'Mobile Data' ? (
+                        <div className="grid sm:grid-cols-[160px_1fr] gap-6">
+                            {/* NETWORK PICKER — left side */}
+                            <div className="flex sm:flex-col gap-2">
+                                {NETWORKS.map((n) => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setDataNetwork(n)}
+                                        className={`flex-1 sm:flex-none flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+                                            dataNetwork === n
+                                                ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
+                                                : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
+                                        }`}
+                                    >
+                                        <Wifi size={15} />
+                                        {n}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* BUNDLES — right side */}
+                            <div>
+                                {!dataNetwork ? (
+                                    <div className="text-center py-16 text-slate-400 dark:text-gold-200/40">
+                                        <Wifi className="mx-auto mb-3" size={32} />
+                                        <p>Pick a network to see available data bundles.</p>
+                                    </div>
+                                ) : dataBundlesLoading ? (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                        {Array.from({ length: 6 }).map((_, i) => (
+                                            <div key={i} className="aspect-square rounded-2xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+                                        ))}
+                                    </div>
+                                ) : dataBundles.length === 0 ? (
+                                    <div className="text-center py-16 text-slate-400 dark:text-gold-200/40">
+                                        <p>No {dataNetwork} bundles available right now.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                        {dataBundles.map((b) => (
+                                            <button
+                                                key={b.id}
+                                                onClick={() => setConfirmBundle(b)}
+                                                className="group relative bg-white dark:bg-ink-800 rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden hover:shadow-lg dark:hover:shadow-gold-900/20 hover:-translate-y-0.5 transition-all duration-300 p-4 flex flex-col items-center text-center"
+                                            >
+                                                <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center mb-2">
+                                                    <Wifi size={18} />
+                                                </div>
+                                                <p className="font-extrabold text-slate-900 dark:text-gold-50 text-lg">{parseFloat(b.gb_amount)}GB</p>
+                                                <p className="text-brand-700 dark:text-gold-400 font-bold text-sm mt-1">GHS {parseFloat(b.price).toFixed(2)}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                    <>
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
                         {itemCategory && (
                             <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
@@ -727,6 +825,8 @@ export default function Browse() {
                             </div>
                         </>
                     )}
+                    </>
+                    )}
                 </div>
             </section>
 
@@ -757,6 +857,50 @@ export default function Browse() {
                 onSelect={selectSchool}
                 onClose={() => setOpenSheet(null)}
             />
+                        {confirmBundle && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => !placingOrder && setConfirmBundle(null)} />
+                    <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                        <div className="w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center mb-3">
+                            <Wifi size={20} />
+                        </div>
+                        <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">
+                            {parseFloat(confirmBundle.gb_amount)}GB {confirmBundle.network} — GHS {parseFloat(confirmBundle.price).toFixed(2)}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1.5">
+                            Enter the mobile money number to receive this data. You'll be sent a prompt to approve the payment.
+                        </p>
+
+                        <input
+                            type="tel"
+                            inputMode="numeric"
+                            required
+                            placeholder="e.g. 0551234567"
+                            value={momoNumber}
+                            onChange={(e) => setMomoNumber(e.target.value.replace(/\D/g, ''))}
+                            className="w-full mt-4 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                        />
+
+                        <div className="flex gap-2 mt-5">
+                            <button
+                                onClick={() => setConfirmBundle(null)}
+                                disabled={placingOrder}
+                                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handlePlaceDataOrder}
+                                disabled={placingOrder}
+                                className="flex-1 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60 flex items-center justify-center gap-1.5"
+                            >
+                                {placingOrder ? <Loader2 size={14} className="animate-spin" /> : null}
+                                {placingOrder ? 'Placing…' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <CategoryRequestModal
                 open={showCategoryRequest}
                 onClose={() => setShowCategoryRequest(false)}
