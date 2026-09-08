@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const { initializeTransaction, verifyWebhookSignature } = require('../utils/paystack');
 const { sendOrderSMS } = require('../utils/mailer');
 const { calcDeliveryFee } = require('../utils/distance');
+const { getSellerFeeRate } = require('../utils/plans');
 
 const router = express.Router();
 
@@ -48,7 +49,7 @@ router.post('/', requireAuth, async (req, res) => {
             const qty = Number(quantity) || 1;
 
             const productResult = await client.query(
-                `SELECT p.id, p.title, p.price, p.stock, p.seller_id, u.school,
+                `SELECT p.id, p.title, p.price, p.stock, p.seller_id, u.school, u.plan, u.plan_expires_at,
                         p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus
                  FROM products p JOIN users u ON u.id = p.seller_id
                  WHERE p.id = $1 FOR UPDATE OF p`,
@@ -74,7 +75,8 @@ router.post('/', requireAuth, async (req, res) => {
             }
 
             const lineTotal = parseFloat(product.price) * qty;
-            const sellerFee = Math.round(lineTotal * SELLER_FEE_RATE * 100) / 100;
+            const sellerFeeRate = getSellerFeeRate(product.plan, product.plan_expires_at);
+            const sellerFee = Math.round(lineTotal * sellerFeeRate * 100) / 100;
             const sellerEarnings = Math.round((lineTotal - sellerFee) * 100) / 100;
 
             subtotal += lineTotal;
@@ -214,6 +216,18 @@ router.post('/webhook', async (req, res) => {
     if (event.event !== 'charge.success') return;
 
     const reference = event.data.reference;
+
+    // Subscription payments use a 'sub_' prefixed reference — hand those off
+    // to the subscriptions module instead of processing them as an order.
+    if (reference.startsWith('sub_')) {
+        const { processSubscriptionWebhookEvent } = require('./subscriptions');
+        try {
+            await processSubscriptionWebhookEvent(event);
+        } catch (err) {
+            console.error('Subscription webhook processing error:', err);
+        }
+        return;
+    }
 
     try {
         const orderResult = await pool.query('SELECT * FROM orders WHERE payment_reference = $1', [reference]);
@@ -478,9 +492,10 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
 
     try {
         const itemResult = await pool.query(
-            `SELECT oi.*, o.buyer_id 
+            `SELECT oi.*, o.buyer_id, u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at
              FROM order_items oi
              JOIN orders o ON oi.order_id = o.id
+             JOIN users u ON u.id = oi.seller_id
              WHERE oi.id = $1`,
             [itemId]
         );
@@ -505,8 +520,9 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         // 2. Buyer 2% fee
         const buyerFee = basePrice * 0.02;
 
-        // 3. Seller 1.5% fee
-        const sellerFee = basePrice * 0.015;
+        // 3. Seller fee — 0% on an active paid plan, 1.5% on Free
+        const sellerFeeRate = getSellerFeeRate(item.seller_plan, item.seller_plan_expires_at);
+        const sellerFee = basePrice * sellerFeeRate;
 
         // 4. Admin's 20% share of the delivery fee
         const deliveryShareResult = await pool.query(

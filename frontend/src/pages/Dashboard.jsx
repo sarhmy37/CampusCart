@@ -876,6 +876,11 @@ function Deliveries() {
 function PayoutSettings({ period }) {
     const { user } = useAuth();
     const { theme } = useTheme();
+
+    // Same "active paid plan" rule used on the backend (utils/plans.js) —
+    // active plan = 0% platform fee, otherwise 1.5%.
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
     const [ghsToUsdRate, setGhsToUsdRate] = useState(null);
     const [changePct, setChangePct] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -1080,7 +1085,9 @@ function PayoutSettings({ period }) {
                         <p className="text-3xl font-bold mt-1 tabular-nums" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
                             GHS {balance.toFixed(2)}
                         </p>
-                        <p className="text-xs opacity-80 mt-0.5">98.5% of your completed sales</p>
+                        <p className="text-xs opacity-80 mt-0.5">
+                            {isPlanActive ? '100% of your completed sales' : '98.5% of your completed sales'}
+                        </p>
                     </div>
                     <div className="text-right shrink-0">
                         <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">USD</p>
@@ -1842,7 +1849,9 @@ function MySales() {
                                 <p className="font-semibold text-slate-800 dark:text-gold-100 mt-0.5">GHS {saleAmount.toFixed(2)}</p>
                             </div>
                             <div>
-                                <p className="text-slate-400 dark:text-gold-200/50">Platform fee (1.5%)</p>
+                                <p className="text-slate-400 dark:text-gold-200/50">
+                                    Platform fee{saleAmount > 0 ? ` (${((parseFloat(s.platform_fee) / saleAmount) * 100).toFixed(1)}%)` : ''}
+                                </p>
                                 <p className="font-semibold text-slate-800 dark:text-gold-100 mt-0.5">GHS {parseFloat(s.platform_fee).toFixed(2)}</p>
                             </div>
                             <div>

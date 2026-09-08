@@ -125,6 +125,8 @@ app.use('/api/data-orders', require('./routes/dataOrders'));
 
 app.use('/api/data-bundles', require('./routes/dataBundles'));
 
+app.use('/api/subscriptions', require('./routes/subscriptions'));
+
 // No /api prefix — this needs to be a clean, shareable URL like
 // https://your-api.onrender.com/store/:id
 app.use(storefrontRoutes);

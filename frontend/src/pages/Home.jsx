@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Reveal from '../components/Reveal';
 import { HERO_IMAGES, GALLERY } from '../data/media';
+import api from '../api/client';
 import HeroSlideshow from '../components/HeroSlideshow';
 import SellerRequiredModal from '../components/SellerRequiredModal';
 import { UserGroupIcon, StarIcon, CurrencyDollarIcon } from '@heroicons/react/24/solid';
@@ -161,7 +162,19 @@ const PLANS = [
 export default function Home() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [showSellerModal, setShowSellerModal] = useState(false);
+    const pricingRef = useRef(null);
+
+    // Scroll to the pricing section when arriving via a "View/Renew plan" link
+    // (e.g. from Settings' PlanCard). Clears the state after scrolling so a
+    // manual refresh or back-navigation doesn't re-trigger it.
+    useEffect(() => {
+        if (location.state?.scrollToPricing && pricingRef.current) {
+            pricingRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state, navigate, location.pathname]);
 
     // ── Hero heading typewriter cycle ──
     const [heroPhase, setHeroPhase] = useState('typing'); // 'typing' | 'deleting'
@@ -220,15 +233,36 @@ export default function Home() {
         }
     };
 
-        const handlePlanClick = (planName) => {
-        const currentPlan = (user?.plan || 'free').toLowerCase();
-        if (planName.toLowerCase() === 'free' && currentPlan !== 'free') {
-            alert(`You are on the ${user.plan} plan. You can only go back to Free when your current plan duration ends.`);
-            return;
-        }
-        // Proceed to checkout or whatever you want
-        handleBrowseClick(); // or navigate('/checkout?plan=' + planName)
-    };
+const handlePlanClick = async (planName) => {
+    const currentPlan = (user?.plan || 'free').toLowerCase();
+
+    if (planName.toLowerCase() === 'free' && currentPlan !== 'free') {
+        alert(`You are on the ${user.plan} plan. You can only go back to Free when your current plan duration ends.`);
+        return;
+    }
+
+    if (planName.toLowerCase() === 'free') {
+        handleBrowseClick();
+        return;
+    }
+
+    if (!user) {
+        navigate('/register');
+        return;
+    }
+
+    try {
+        setSubscribingPlan(planName);
+        const res = await api.post('/subscriptions/initiate', {
+            plan: planName.toLowerCase(),
+        });
+        window.location.href = res.data.authorization_url;
+    } catch (err) {
+        alert(err.response?.data?.error || 'Could not start payment. Please try again.');
+    } finally {
+        setSubscribingPlan(null);
+    }
+};
 
     const handleStartSellingClick = () => {
         if (!user) {
@@ -519,7 +553,7 @@ export default function Home() {
                 <div className="h-px bg-slate-200 dark:bg-ink-700" />
             </div>
 
-           <section className="relative overflow-hidden bg-slate-50 dark:bg-gradient-to-b dark:from-ink-900 dark:via-ink-800 dark:to-ink-900 py-16 sm:py-20">
+           <section ref={pricingRef} className="relative overflow-hidden bg-slate-50 dark:bg-gradient-to-b dark:from-ink-900 dark:via-ink-800 dark:to-ink-900 py-16 sm:py-20">
                 <div className="absolute -right-20 -top-24 w-72 h-72 bg-brand-500/10 dark:bg-gold-500/10 rounded-full blur-3xl" />
                 <div className="absolute -left-16 bottom-0 w-64 h-64 bg-accent-500/10 dark:bg-gold-700/10 rounded-full blur-3xl" />
 
@@ -605,13 +639,16 @@ export default function Home() {
                                         return (
                                             <button
                                                 onClick={() => handlePlanClick(plan.name)}
-                                                className={`w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition ${
+                                                disabled={subscribingPlan === plan.name}
+                                                className={`w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition disabled:opacity-60 disabled:cursor-not-allowed ${
                                                     plan.highlight
                                                         ? 'bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-600 dark:hover:bg-gold-400'
                                                         : 'bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/20'
                                                 }`}
                                             >
-                                                {plan.price === '0' ? 'Get started free' : `Choose ${plan.name}`}
+                                                {subscribingPlan === plan.name
+                                                    ? 'Redirecting…'
+                                                    : plan.price === '0' ? 'Get started free' : `Choose ${plan.name}`}
                                             </button>
                                         );
                                     })()}

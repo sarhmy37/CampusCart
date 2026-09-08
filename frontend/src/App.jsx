@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AppToaster from './components/AppToaster';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import SubscriptionCallback from './pages/SubscriptionCallback';
 import { WishlistProvider } from './context/WishlistContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -67,6 +68,7 @@ export default function App() {
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/privacy" element={<Privacy />} />
                         <Route path="/store/:id" element={<Store />} />
+                        <Route path="/subscription/callback" element={<ProtectedRoute><SubscriptionCallback /></ProtectedRoute>} />
                       </Routes>
                     </PullToRefresh>
                     <InstallButton />

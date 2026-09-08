@@ -274,7 +274,14 @@ export default function ProfileDrawer({ open, onClose }) {
 
     {/* 🆕 Plan badge */}
     {(() => {
-        const plan = user?.plan?.toLowerCase() || 'free';
+        // Mirrors backend's isPlanActive (utils/plans.js) — the stored
+        // user.plan column never auto-reverts to 'free' on its own, so we
+        // must check plan_expires_at here too, or an expired subscriber
+        // would see their old plan badge forever.
+        const isActive = user?.plan && user.plan !== 'free' &&
+            user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+        const plan = isActive ? user.plan.toLowerCase() : 'free';
+
         if (plan === 'yearly') {
             return (
                 <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">

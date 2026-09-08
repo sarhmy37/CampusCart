@@ -64,13 +64,15 @@ router.get('/', async (req, res) => {
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place, u.location AS seller_location,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified,
-                u.avatar_url AS seller_avatar,
+                u.avatar_url AS seller_avatar, u.plan AS seller_plan,
                 c.name AS category
              FROM products p
              JOIN users u ON u.id = p.seller_id
              LEFT JOIN categories c ON c.id = p.category_id
              ${whereClause}
-             ORDER BY p.created_at DESC`,
+             ORDER BY
+                CASE WHEN u.plan != 'free' AND u.plan_expires_at > now() THEN 0 ELSE 1 END,
+                p.created_at DESC`,
             values
         );
         res.json(result.rows);
