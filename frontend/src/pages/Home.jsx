@@ -145,7 +145,7 @@ const PLANS = [
         name: 'Yearly',
         price: '240',
         period: '/year',
-        highlight: false,
+        highlight: true,
         buyerBenefits: [
             'Everything in Monthly',
             'Same-day dedicated support line',
@@ -218,6 +218,16 @@ export default function Home() {
         } else {
             navigate('/register');
         }
+    };
+
+        const handlePlanClick = (planName) => {
+        const currentPlan = (user?.plan || 'free').toLowerCase();
+        if (planName.toLowerCase() === 'free' && currentPlan !== 'free') {
+            alert(`You are on the ${user.plan} plan. You can only go back to Free when your current plan duration ends.`);
+            return;
+        }
+        // Proceed to checkout or whatever you want
+        handleBrowseClick(); // or navigate('/checkout?plan=' + planName)
     };
 
     const handleStartSellingClick = () => {
@@ -594,7 +604,7 @@ export default function Home() {
 
                                         return (
                                             <button
-                                                onClick={handleBrowseClick}
+                                                onClick={() => handlePlanClick(plan.name)}
                                                 className={`w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition ${
                                                     plan.highlight
                                                         ? 'bg-brand-500 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-600 dark:hover:bg-gold-400'

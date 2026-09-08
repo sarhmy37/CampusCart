@@ -6,7 +6,7 @@ import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
     MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
-    ChevronDown, ChevronRight, MessageCircle, Info, Shield, Search, Trash2
+    ChevronDown, ChevronRight, MessageCircle, Info, Shield, Search, Trash2 ,Star , Sparkles , CheckCircle 
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
@@ -243,35 +243,63 @@ export default function ProfileDrawer({ open, onClose }) {
                             <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-0.5">{user.school}</p>
                         )}
 
-                        <div className="flex items-center gap-1 sm:gap-2 mt-2 flex-wrap">
-                            {user.verified ? (
-                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
-                                    <BadgeCheck className="w-[11px] h-[11px] sm:hidden" />
-                                    <BadgeCheck className="hidden sm:inline w-[13px] h-[13px]" />
-                                    Verified student
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-amber-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
-                                    <ShieldAlert className="w-[11px] h-[11px] sm:hidden" />
-                                    <ShieldAlert className="hidden sm:inline w-[13px] h-[13px]" />
-                                    Not yet verified
-                                </span>
-                            )}
+<div className="flex items-center gap-1 sm:gap-2 mt-2 flex-wrap">
+    {user.verified ? (
+        <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+            <BadgeCheck className="w-[11px] h-[11px] sm:hidden" />
+            <BadgeCheck className="hidden sm:inline w-[13px] h-[13px]" />
+            Verified student
+        </span>
+    ) : (
+        <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-amber-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+            <ShieldAlert className="w-[11px] h-[11px] sm:hidden" />
+            <ShieldAlert className="hidden sm:inline w-[13px] h-[13px]" />
+            Not yet verified
+        </span>
+    )}
 
-                            {user.account_type === 'seller' ? (
-                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
-                                    <Store className="w-[11px] h-[11px] sm:hidden" />
-                                    <Store className="hidden sm:inline w-[13px] h-[13px]" />
-                                    Status: Seller
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-blue-50 dark:bg-emerald-950/40 text-green-600 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
-                                    <ShoppingBag className="w-[11px] h-[11px] sm:hidden" />
-                                    <ShoppingBag className="hidden sm:inline w-[13px] h-[13px]" />
-                                    Status: Buyer
-                                </span>
-                            )}
-                        </div>
+    {user.account_type === 'seller' ? (
+        <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+            <Store className="w-[11px] h-[11px] sm:hidden" />
+            <Store className="hidden sm:inline w-[13px] h-[13px]" />
+            Status: Seller
+        </span>
+    ) : (
+        <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-blue-50 dark:bg-emerald-950/40 text-green-600 dark:text-emerald-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+            <ShoppingBag className="w-[11px] h-[11px] sm:hidden" />
+            <ShoppingBag className="hidden sm:inline w-[13px] h-[13px]" />
+            Status: Buyer
+        </span>
+    )}
+
+    {/* 🆕 Plan badge */}
+    {(() => {
+        const plan = user?.plan?.toLowerCase() || 'free';
+        if (plan === 'yearly') {
+            return (
+                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+                    <Sparkles className="w-[11px] h-[11px] sm:hidden" />
+                    <Sparkles className="hidden sm:inline w-[13px] h-[13px]" />
+                    Yearly Plan
+                </span>
+            );
+        } else if (plan === 'monthly') {
+            return (
+                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+                    <Star className="w-[11px] h-[11px] sm:hidden" />
+                    <Star className="hidden sm:inline w-[13px] h-[13px]" />
+                    Monthly Plan
+                </span>
+            );
+    } else {
+        return (
+            <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-gray-50 dark:bg-gray-800/30 text-gray-600 dark:text-gray-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
+                Free Plan
+            </span>
+        );
+    }
+    })()}
+</div>
 
                         {!user.verified && (
                             <button
