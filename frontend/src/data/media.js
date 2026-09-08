@@ -129,7 +129,14 @@ export const PRELOAD_VIDEOS = [
     SNEAKERS_VIDEO,
 ];
 
-// Network logos (for Mobile Data picker)
-export const MTN_LOGO = cloudinaryImage('mtn.jpg');
-export const VODAFONE_LOGO = cloudinaryImage('voda.png');
-export const AIRTELTIGO_LOGO = cloudinaryImage('airtel.jpg');
+// Network logos (for Mobile Data picker) — e_trim strips the flat-color
+// padding baked into the source files. Actual box-fitting (which isn't a
+// fixed square — it's 1/3 of a button's width by its full height) is left
+// to object-cover in CSS, so we don't double-crop and risk clipping the logo.
+function cloudinaryNetworkLogo(filename) {
+    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/e_trim/${filename}`;
+}
+
+export const MTN_LOGO = cloudinaryNetworkLogo('mtn.jpg');
+export const VODAFONE_LOGO = cloudinaryNetworkLogo('voda.png');
+export const AIRTELTIGO_LOGO = cloudinaryNetworkLogo('airtel.jpg');
