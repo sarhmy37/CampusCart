@@ -696,11 +696,11 @@ export default function Browse() {
             : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
     }`}
 >
-    <span className="w-1/3 flex justify-center shrink-0">
+    <span className="w-1/3 self-stretch shrink-0">
         <img
             src={NETWORK_IMAGES[n]}
             alt={n}
-            className="w-5 h-5 object-contain"
+            className="w-full h-full object-contain"
         />
     </span>
     <span className="w-2/3 text-left truncate">{n}</span>
