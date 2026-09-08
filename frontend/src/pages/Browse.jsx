@@ -700,10 +700,10 @@ export default function Browse() {
         <img
             src={NETWORK_IMAGES[n]}
             alt={n}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-cover rounded-lg"
         />
     </span>
-    <span className="w-2/3 text-left truncate">{n}</span>
+    <span className="w-2/3 text-left truncate pl-3">{n}</span>
 </button>
                                 ))}
                             </div>
