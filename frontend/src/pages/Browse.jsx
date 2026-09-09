@@ -712,6 +712,15 @@ export default function Browse() {
             <section className="relative overflow-hidden min-h-[calc(100vh-3.5rem)] bg-slate-100 dark:from-ink-900 dark:via-ink-950 dark:to-ink-900 dark:bg-gradient-to-b">
                 {/* Decorative overlays — hidden in light mode, shown only in dark mode */}
                 <div
+                    className="absolute inset-0 pointer-events-none opacity-[0.4] dark:hidden"
+                    style={{
+                        backgroundImage: `
+                            repeating-linear-gradient(0deg, rgba(15,23,42,0.05) 0px, rgba(15,23,42,0.05) 1px, transparent 1px, transparent 56px),
+                            repeating-linear-gradient(90deg, rgba(15,23,42,0.05) 0px, rgba(15,23,42,0.05) 1px, transparent 1px, transparent 56px)
+                        `,
+                    }}
+                />
+                <div
                     className="absolute inset-0 pointer-events-none opacity-[0.5] dark:opacity-[0.35] hidden dark:block"
                     style={{
                         backgroundImage: `
