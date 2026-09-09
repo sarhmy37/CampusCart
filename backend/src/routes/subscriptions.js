@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { initializeTransaction, paystackRequest } = require('../utils/paystack');
+const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -116,6 +117,15 @@ async function activateSubscriptionIfValid(reference, paystackStatus, amountPese
     } finally {
         client.release();
     }
+
+    const planLabel = subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1);
+    await insertNotification(
+        subscription.user_id,
+        'subscription_activated',
+        `Your ${planLabel} plan is now active! It's valid until ${endsAt.toLocaleDateString()}.`,
+        subscription.id,
+        '/settings'
+    ).catch((err) => console.error('Subscription notification error:', err));
 
     return { found: true, status: 'active', plan: subscription.plan };
 }

@@ -544,7 +544,7 @@ export default function Browse() {
                             </h1>
                             {renderBudgetInput()}
                         </div>
-                        <div className="flex items-center justify-end gap-3 mt-1">
+                        <div className={`flex items-center mt-1 ${isPlanActive ? 'justify-between' : 'justify-end'}`}>
                             {isPlanActive && (
                                 <button
                                     type="button"

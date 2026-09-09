@@ -12,7 +12,7 @@ import ReportModal from '../components/ReportModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
-    Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight, ChevronDown
+    Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight, ChevronDown , Bookmark
 } from 'lucide-react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import EditListingModal from '../components/EditListingModal';
@@ -127,6 +127,7 @@ const TAB_LABELS = {
     sales: 'Sales',
     payouts: 'Payouts',
     reports: 'Reports',
+    saved: 'Saved',
 };
 
 const TAB_ICONS = {
@@ -137,6 +138,7 @@ const TAB_ICONS = {
     sales: TrendingUp,
     payouts: Wallet,
     reports: Flag,
+    saved: Bookmark,
 };
 
 export default function Dashboard() {
@@ -181,9 +183,12 @@ export default function Dashboard() {
 
     const stats = pageData || { listings: 0, orders: 0, sales: 0, completed: 0, pending: 0 };
 
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+
     const tabs = isSeller
         ? ['overview', 'listings', 'payouts', 'orders', 'deliveries', 'sales', 'reports']
-        : ['orders', 'reports'];
+        : [...(isPlanActive ? ['saved'] : []), 'orders', 'reports'];
 
    /* // Lock page scroll on mobile only — desktop still relies on normal page
     // scroll for the full tab content. Self-aware: if a child modal already
@@ -291,6 +296,7 @@ export default function Dashboard() {
         if (t === 'sales') return <MySales />;
         if (t === 'payouts') return <PayoutSettings period={period} />;
         if (t === 'reports') return <MyReports />;
+        if (t === 'saved') return <SavedSearches />;
         return null;
     };
 
@@ -1981,6 +1987,79 @@ function MyReports() {
                             </p>
                         </div>
                     </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// ─── SAVED SEARCHES ───────────────────────────────────────────────────────
+function SavedSearches() {
+    const [deletingId, setDeletingId] = useState(null);
+
+    const { status, data: searches, retry: load } = useContentReady({
+        load: () => api.get('/saved-searches/mine').then((res) => res.data),
+    });
+
+    const handleDelete = async (id) => {
+        setDeletingId(id);
+        try {
+            await api.delete(`/saved-searches/${id}`);
+            toast.success('Saved search removed');
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to remove this search');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    if (status === 'loading') return <SkeletonList />;
+    if (status === 'error') return <ErrorState icon={Bookmark} text="Couldn't load your saved searches right now." onRetry={load} />;
+    if (searches.length === 0) {
+        return (
+            <EmptyState
+                icon={Bookmark}
+                text="No saved searches yet. Save a search from the Browse page to get notified when new matching listings appear."
+                cta="Browse listings"
+                ctaLink="/browse"
+            />
+        );
+    }
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-2">
+            {searches.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {s.keyword && (
+                                <span className="text-xs font-semibold bg-slate-100 dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full">
+                                    "{s.keyword}"
+                                </span>
+                            )}
+                            {s.category && (
+                                <span className="text-xs font-semibold bg-slate-100 dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full">
+                                    {s.category}
+                                </span>
+                            )}
+                            {s.school && (
+                                <span className="text-xs font-semibold bg-slate-100 dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full">
+                                    📍 {s.school}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1.5">
+                            Saved {new Date(s.created_at).toLocaleDateString()}
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => handleDelete(s.id)}
+                        disabled={deletingId === s.id}
+                        className="shrink-0 text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition disabled:opacity-50"
+                    >
+                        <Trash2 size={18} />
+                    </button>
                 </div>
             ))}
         </div>

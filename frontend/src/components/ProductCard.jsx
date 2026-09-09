@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle, MapPin } from 'lucide-react';
+import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle, MapPin, Sparkles } from 'lucide-react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -63,6 +63,10 @@ export default function ProductCard({ product }) {
         e.stopPropagation();
         toggleItem(product);
     };
+
+    const sellerPlanActive = product.seller_plan && product.seller_plan !== 'free' &&
+        product.seller_plan_expires_at && new Date(product.seller_plan_expires_at) > new Date();
+    const sellerPlan = sellerPlanActive ? product.seller_plan.toLowerCase() : null;
 
     let stockLabel = null;
     let stockColor = 'text-slate-400 dark:text-gold-200/50';
@@ -202,6 +206,12 @@ export default function ProductCard({ product }) {
                     <MapPin size={10} className="shrink-0" />
                     {product.seller_meeting_place || 'Meeting place not set'}
                     {product.seller_verified && <CheckBadgeIcon className="w-2.5 h-2.5 text-emerald-500 shrink-0" />}
+                    {sellerPlan === 'premium' && (
+                        <Sparkles className="w-2.5 h-2.5 text-purple-500 fill-purple-500 shrink-0" title="Premium Seller" />
+                    )}
+                    {sellerPlan === 'pro' && (
+                        <Star className="w-2.5 h-2.5 text-blue-500 fill-blue-500 shrink-0" title="Pro Seller" />
+                    )}
                 </p>
 
                 {stockLabel && (
