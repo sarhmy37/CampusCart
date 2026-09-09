@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Check, CheckCheck, MoreVertical, Trash2, ChevronLeft } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import { wallpaperToStyle } from '../data/wallpapers';
 import ChatSettingsMenu from './ChatSettingsMenu';
 import WallpaperPicker from './WallpaperPicker';
