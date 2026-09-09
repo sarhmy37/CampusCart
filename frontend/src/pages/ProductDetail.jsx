@@ -25,6 +25,7 @@ import {
     Truck,
     Tag,
     PlayCircle,
+    Sparkles,
 } from 'lucide-react';
 
 function isRecentlyActive(lastActive) {
@@ -125,6 +126,10 @@ export default function ProductDetail() {
     const isOutOfStock = stock <= 0;
     const isOwner = user && user.id === product.seller_id;
 
+    const sellerPlanActive = product.seller_plan && product.seller_plan !== 'free' &&
+        product.seller_plan_expires_at && new Date(product.seller_plan_expires_at) > new Date();
+    const sellerPlan = sellerPlanActive ? product.seller_plan.toLowerCase() : null;
+
     // ====== DISCOUNT CALCULATION ======
     const oldPrice = product.old_price ? parseFloat(product.old_price) : null;
     const currentPrice = parseFloat(product.price);
@@ -223,12 +228,26 @@ export default function ProductDetail() {
                     )}
                 </div>
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-bold text-slate-900 dark:text-gold-50 truncate">{sellerName}</p>
                         {product.seller_verified && (
                             <ShieldCheck size={14} className="text-brand-600 dark:text-gold-400 shrink-0" />
                         )}
                     </div>
+                    {sellerPlan && (
+                        <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            sellerPlan === 'premium'
+                                ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        }`}>
+                            {sellerPlan === 'premium' ? (
+                                <Sparkles className="w-[11px] h-[11px]" />
+                            ) : (
+                                <Star className="w-[11px] h-[11px]" />
+                            )}
+                            {sellerPlan === 'premium' ? 'Premium Seller' : 'Pro Seller'}
+                        </span>
+                    )}
                     {product.seller_verified ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
                             Verified student

@@ -12,6 +12,7 @@ import {
     Handshake,
     Sparkles,
     ArrowRight,
+    Star,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -114,6 +115,7 @@ const PLANS = [
         price: '0',
         period: 'forever',
         highlight: false,
+        icon: null,
         buyerBenefits: [
             'Browse and message any seller',
             'Save items you like',
@@ -130,6 +132,7 @@ const PLANS = [
         price: '25',
         period: '/month',
         highlight: true,
+        icon: 'pro',
         buyerBenefits: [
             '24-hour priority support',
             'See new listings first',
@@ -147,6 +150,7 @@ const PLANS = [
         price: '240',
         period: '/year',
         highlight: false,
+        icon: 'premium',
         buyerBenefits: [
             'Everything in Pro',
             'Same-day dedicated support line',
@@ -593,7 +597,15 @@ const handlePlanClick = async (planName) => {
                                         </span>
                                     )}
 
-                                    <h3 className="text-sm sm:text-lg font-extrabold text-slate-900 dark:text-white text-center">{plan.name}</h3>
+                                    <h3 className="flex items-center justify-center gap-1.5 text-sm sm:text-lg font-extrabold text-slate-900 dark:text-white text-center">
+                                        {plan.icon === 'premium' && (
+                                            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 fill-purple-500 shrink-0" />
+                                        )}
+                                        {plan.icon === 'pro' && (
+                                            <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 fill-blue-500 shrink-0" />
+                                        )}
+                                        {plan.name}
+                                    </h3>
                                     <div className="flex items-end justify-center gap-1 mt-1 sm:mt-2">
                                         <span className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">GHS {plan.price}</span>
                                         <span className="text-slate-500 dark:text-white/50 text-[10px] sm:text-sm mb-0.5 sm:mb-1">{plan.period}</span>
