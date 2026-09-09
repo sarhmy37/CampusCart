@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Square, Check, CheckCheck, MoreVertical } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { X, Send, ChevronDown, Loader2, Paperclip, Mic, Check, CheckCheck, MoreVertical, Trash2, ChevronLeft } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
+import toast from 'react-hot-toast';
 import { wallpaperToStyle } from '../data/wallpapers';
 import ChatSettingsMenu from './ChatSettingsMenu';
 import WallpaperPicker from './WallpaperPicker';
@@ -48,6 +48,8 @@ function getDateLabel(dateStr) {
 
 export default function ChatPanel() {
     const { user } = useAuth();
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
     const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone } = useChat();
     const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
@@ -55,6 +57,10 @@ export default function ChatPanel() {
     const [isDragging, setIsDragging] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingSeconds, setRecordingSeconds] = useState(0);
+    const [slideX, setSlideX] = useState(0);
+    const [isCancelZone, setIsCancelZone] = useState(false);
+    const cancelledRef = useRef(false);
+    const recordStartXRef = useRef(0);
     const [showSettingsMenu, setShowSettingsMenu] = useState(false);
     const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -279,6 +285,10 @@ export default function ChatPanel() {
             recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
             recorder.onstop = () => {
                 stream.getTracks().forEach((t) => t.stop());
+                if (cancelledRef.current) {
+                    audioChunksRef.current = [];
+                    return;
+                }
                 const actualType = recorder.mimeType || 'audio/webm';
                 const extension = actualType.includes('mp4') ? 'm4a'
                     : actualType.includes('ogg') ? 'ogg'
@@ -290,7 +300,6 @@ export default function ChatPanel() {
                     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                 }, 100);
             };
-
             recorder.start();
             mediaRecorderRef.current = recorder;
             setIsRecording(true);
@@ -305,6 +314,42 @@ export default function ChatPanel() {
         mediaRecorderRef.current?.stop();
         setIsRecording(false);
         clearInterval(recordingTimerRef.current);
+    };
+
+    const CANCEL_THRESHOLD = -90;
+
+    const handleMicPressStart = (e) => {
+        e.preventDefault();
+        const point = e.touches ? e.touches[0] : e;
+        recordStartXRef.current = point.clientX;
+        cancelledRef.current = false;
+        setSlideX(0);
+        setIsCancelZone(false);
+        startRecording();
+
+        const onMove = (moveEvent) => {
+            const movePoint = moveEvent.touches ? moveEvent.touches[0] : moveEvent;
+            const diff = Math.min(0, movePoint.clientX - recordStartXRef.current);
+            setSlideX(diff);
+            const nowInCancelZone = diff <= CANCEL_THRESHOLD;
+            setIsCancelZone(nowInCancelZone);
+            cancelledRef.current = nowInCancelZone;
+        };
+
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onUp);
+            stopRecording();
+            setSlideX(0);
+            setIsCancelZone(false);
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
     };
 
     // ─── RENDER ────────────────────────────────────────────────────────────
@@ -363,7 +408,13 @@ export default function ChatPanel() {
                     <div className="flex items-center gap-2 sm:gap-3">
                         <div className="relative shrink-0">
                             <button
-                                onClick={() => setShowSettingsMenu((v) => !v)}
+                                onClick={() => {
+                                    if (!isPlanActive) {
+                                        toast.error('Chat settings are for Pro and Premium members');
+                                        return;
+                                    }
+                                    setShowSettingsMenu((v) => !v);
+                                }}
                                 className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-200/50 transition"
                                 title="Chat settings"
                             >
@@ -594,18 +645,33 @@ export default function ChatPanel() {
                 {/* ─── COMPOSER ───────────────────────────────────────────── */}
                 <div className="border-t border-slate-100 dark:border-ink-600 shrink-0">
                     {isRecording ? (
-                        <div className="flex items-center gap-3 px-4 py-3">
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                            <span className="text-sm font-medium text-slate-600 dark:text-gold-200 flex-1">
-                                Recording… {formatDuration(recordingSeconds)}
-                            </span>
-                            <button
-                                onClick={stopRecording}
-                                className="p-2.5 rounded-full bg-red-500 text-white transition shrink-0"
-                                title="Stop and send"
+                        <div className="relative flex items-center gap-3 px-4 py-3 overflow-hidden">
+                            <div
+                                className={`flex items-center justify-center w-9 h-9 rounded-full shrink-0 transition-colors ${
+                                    isCancelZone
+                                        ? 'bg-red-500 text-white'
+                                        : 'bg-slate-100 dark:bg-ink-700 text-slate-400 dark:text-gold-200/50'
+                                }`}
                             >
-                                <Square size={16} />
-                            </button>
+                                <Trash2 size={16} />
+                            </div>
+
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                            <span className="text-sm font-medium text-slate-600 dark:text-gold-200 tabular-nums shrink-0">
+                                {formatDuration(recordingSeconds)}
+                            </span>
+
+                            <div
+                                className="flex-1 flex items-center justify-end gap-0.5 text-slate-400 dark:text-gold-200/50 text-xs font-medium select-none"
+                                style={{
+                                    transform: `translateX(${slideX}px)`,
+                                    transition: slideX === 0 ? 'transform 0.2s ease-out' : 'none',
+                                }}
+                            >
+                                <ChevronLeft size={14} className="opacity-50" />
+                                <ChevronLeft size={14} className="opacity-80 -ml-2.5" />
+                                <span className="ml-1 whitespace-nowrap">Slide to cancel</span>
+                            </div>
                         </div>
                     ) : (
                         <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-3">
@@ -639,10 +705,11 @@ export default function ChatPanel() {
                             ) : (
                                 <button
                                     type="button"
-                                    onClick={startRecording}
+                                    onMouseDown={handleMicPressStart}
+                                    onTouchStart={handleMicPressStart}
                                     disabled={uploading}
                                     className="p-2.5 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 transition shrink-0 disabled:opacity-40"
-                                    title="Record a voice note"
+                                    title="Hold to record a voice note"
                                 >
                                     <Mic size={16} />
                                 </button>
