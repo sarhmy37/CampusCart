@@ -404,19 +404,19 @@ export default function ProfileDrawer({ open, onClose }) {
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
 
-                    {/* PREMIUM FEATURE — placeholder, waiting on label/icon/route */}
-                    <button
-                        onClick={() => { onClose(); navigate('/PLACEHOLDER'); }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
-                            planTier === 'premium'
-                                ? 'bg-gradient-to-r from-violet-100 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/40 hover:from-violet-200 hover:to-purple-200 dark:hover:from-purple-900/70 dark:hover:to-purple-800/60 text-violet-800 dark:text-purple-300'
-                                : planTier === 'pro'
-                                ? 'bg-gradient-to-r from-blue-100 to-sky-100 dark:from-blue-900/50 dark:to-blue-800/40 hover:from-blue-200 hover:to-sky-200 dark:hover:from-blue-900/70 dark:hover:to-blue-800/60 text-blue-800 dark:text-blue-300'
-                                : 'bg-slate-100 dark:bg-ink-700 hover:bg-slate-50 dark:hover:bg-ink-600 text-slate-800 dark:text-gold-100'
-                        }`}
-                    >
-                        <Sparkles size={17} /> Placeholder label
-                    </button>
+                    {/* PREMIUM/PRO BENEFITS — only shown to active paid subscribers */}
+                    {planTier !== 'free' && (
+                        <button
+                            onClick={() => { onClose(); navigate('/PLACEHOLDER'); }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
+                                planTier === 'premium'
+                                    ? 'bg-gradient-to-r from-violet-100 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/40 hover:from-violet-200 hover:to-purple-200 dark:hover:from-purple-900/70 dark:hover:to-purple-800/60 text-violet-800 dark:text-purple-300'
+                                    : 'bg-gradient-to-r from-blue-100 to-sky-100 dark:from-blue-900/50 dark:to-blue-800/40 hover:from-blue-200 hover:to-sky-200 dark:hover:from-blue-900/70 dark:hover:to-blue-800/60 text-blue-800 dark:text-blue-300'
+                            }`}
+                        >
+                            <Sparkles size={17} /> {planTier === 'premium' ? 'Premium Benefits' : 'Pro Benefits'}
+                        </button>
+                    )}
                     {/* CHAT / MESSAGING */}
                     <button
                         onClick={() => { onClose(); navigate('/chat'); }}

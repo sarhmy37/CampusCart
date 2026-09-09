@@ -33,6 +33,22 @@ const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their universit
 const VERIFIED_NOTE_TYPE_SPEED_MS = 40;
 const VERIFIED_NOTE_DELAY_MS = 500;
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
+
+const SERVICE_TYPES = [
+    { label: '💄 Makeup', keywords: ['makeup', 'make-up', 'mua'] },
+    { label: '💅 Nail fixing', keywords: ['nail'] },
+    { label: '💇 Hair styling/braiding', keywords: ['hair', 'braid', 'braiding', 'weave'] },
+    { label: '🖨️ Printing & photocopying', keywords: ['print', 'photocopy', 'photocopying'] },
+    { label: '🎨 Graphic design', keywords: ['graphic', 'flyer', 'poster', 'logo', 'invitation'] },
+    { label: '💻 Website development', keywords: ['website', 'web dev', 'web development'] },
+    { label: '📸 Photography', keywords: ['photography', 'photo shoot', 'photoshoot', 'photographer'] },
+    { label: '💈 Haircuts/barbering', keywords: ['haircut', 'barber', 'barbering'] },
+    { label: '🏃 Errand running', keywords: ['errand'] },
+    { label: '🎥 Video recording/editing', keywords: ['video', 'videography', 'editing'] },
+    { label: '👕 Custom T-shirts/hoodies', keywords: ['t-shirt', 'tshirt', 'hoodie', 'custom shirt', 'branding'] },
+    { label: '📱 Mobile app development', keywords: ['app dev', 'mobile app', 'app development'] },
+    { label: '📦 Pickup & delivery', keywords: ['pickup', 'delivery', 'courier'] },
+];
 const NETWORK_IMAGES = {
   MTN: MTN_LOGO,
   Telecel: VODAFONE_LOGO,
@@ -110,6 +126,7 @@ export default function Browse() {
     const search = searchParams.get('search') || '';
     const [showCategoryRequest, setShowCategoryRequest] = useState(false);
     const [dataNetwork, setDataNetwork] = useState('');
+    const [serviceType, setServiceType] = useState('');
     const [dataBundles, setDataBundles] = useState([]);
     const [dataBundlesLoading, setDataBundlesLoading] = useState(false);
     const [confirmBundle, setConfirmBundle] = useState(null);
@@ -815,23 +832,69 @@ export default function Browse() {
                         </div>
                     ) : itemCategory === 'Services' ? (
                         <>
-                            {loading ? (
-                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                                    {Array.from({ length: 6 }).map((_, i) => (
-                                        <div key={i} className="h-40 rounded-xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
-                                    ))}
-                                </div>
-                            ) : visibleProducts.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center text-center flex-1 min-h-[40vh] text-slate-400 dark:text-gold-200/40">
-                                    <p>No services available right now. Check back later!</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                                    {visibleProducts.map((p) => (
-                                        <ServiceCard key={p.id} service={p} />
-                                    ))}
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2 flex-wrap mb-5">
+                                <button
+                                    onClick={() => setServiceType('')}
+                                    className={`text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full border transition whitespace-nowrap ${
+                                        serviceType === ''
+                                            ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
+                                            : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
+                                    }`}
+                                >
+                                    All services
+                                </button>
+                                {SERVICE_TYPES.map((t) => (
+                                    <button
+                                        key={t.label}
+                                        onClick={() => setServiceType(serviceType === t.label ? '' : t.label)}
+                                        className={`text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full border transition whitespace-nowrap ${
+                                            serviceType === t.label
+                                                ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
+                                                : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
+                                        }`}
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {(() => {
+                                const activeType = SERVICE_TYPES.find((t) => t.label === serviceType);
+                                const serviceResults = activeType
+                                    ? visibleProducts.filter((p) => {
+                                        const text = `${p.title || ''} ${p.description || ''}`.toLowerCase();
+                                        return activeType.keywords.some((kw) => text.includes(kw));
+                                    })
+                                    : visibleProducts;
+
+                                if (loading) {
+                                    return (
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                            {Array.from({ length: 6 }).map((_, i) => (
+                                                <div key={i} className="h-40 rounded-xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+                                            ))}
+                                        </div>
+                                    );
+                                }
+                                if (serviceResults.length === 0) {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center text-center flex-1 min-h-[40vh] text-slate-400 dark:text-gold-200/40">
+                                            <p>
+                                                {activeType
+                                                    ? `No "${activeType.label}" services right now. Try another type.`
+                                                    : 'No services available right now. Check back later!'}
+                                            </p>
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                        {serviceResults.map((p) => (
+                                            <ServiceCard key={p.id} service={p} />
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </>
                     ) : (
                     <>
