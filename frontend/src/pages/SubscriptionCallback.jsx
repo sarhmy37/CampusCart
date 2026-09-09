@@ -23,16 +23,15 @@ export default function SubscriptionCallback() {
             return;
         }
 
-        let attempts = 0;
         let cancelled = false;
+        const MAX_RETRIES = 3; // only for transient network errors, not for waiting on a webhook
 
-        const poll = async () => {
+        const verify = async (attempt = 0) => {
             try {
-                const res = await api.get(`/subscriptions/status/${reference}`);
+                const res = await api.post(`/subscriptions/verify/${reference}`);
                 const subStatus = res.data.status;
 
                 if (subStatus === 'active') {
-                    // Refresh the logged-in user so plan/plan_expires_at reflect the upgrade
                     const meRes = await api.get('/auth/me');
                     localStorage.setItem('cc_user', JSON.stringify(meRes.data));
                     if (!cancelled) {
@@ -47,24 +46,19 @@ export default function SubscriptionCallback() {
                     return;
                 }
 
-                // still 'pending' — keep polling
-                attempts += 1;
-                if (attempts >= MAX_POLL_ATTEMPTS) {
-                    if (!cancelled) setStatus('timeout');
-                    return;
-                }
-                setTimeout(poll, POLL_INTERVAL_MS);
+                // Paystack itself says the transaction is still pending (rare —
+                // e.g. a bank/mobile-money confirmation still in flight).
+                if (!cancelled) setStatus('timeout');
             } catch (err) {
-                attempts += 1;
-                if (attempts >= MAX_POLL_ATTEMPTS) {
-                    if (!cancelled) setStatus('timeout');
-                    return;
+                if (attempt < MAX_RETRIES) {
+                    setTimeout(() => verify(attempt + 1), 1500);
+                } else if (!cancelled) {
+                    setStatus('timeout');
                 }
-                setTimeout(poll, POLL_INTERVAL_MS);
             }
         };
 
-        poll();
+        verify();
         return () => { cancelled = true; };
     }, [reference, setUser]);
 

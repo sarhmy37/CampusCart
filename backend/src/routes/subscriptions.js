@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { initializeTransaction } = require('../utils/paystack');
+const { initializeTransaction, paystackRequest } = require('../utils/paystack');
 
 const router = express.Router();
 
@@ -16,6 +16,7 @@ const PLAN_DURATIONS = {
     pro: { days: 30 },
     premium: { days: 365 },
 };
+
 // POST /api/subscriptions/initiate
 router.post('/initiate', requireAuth, async (req, res) => {
     const { plan } = req.body;
@@ -34,8 +35,6 @@ router.post('/initiate', requireAuth, async (req, res) => {
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const email = user.personal_email || user.university_email;
-        // 'sub_' prefix lets the shared webhook in orders.js tell subscription
-        // payments apart from order payments (which use 'cc_' + order id).
         const reference = `sub_${req.userId}_${crypto.randomBytes(6).toString('hex')}`;
 
         await pool.query(
@@ -62,14 +61,10 @@ router.post('/initiate', requireAuth, async (req, res) => {
     }
 });
 
-// Called by orders.js's webhook when event.data.reference starts with 'sub_'.
-// Not mounted as its own route — Paystack only has ONE webhook URL configured
-// (/api/orders/webhook), which already handles order payments.
-async function processSubscriptionWebhookEvent(event) {
-    if (event.event !== 'charge.success') return;
-
-    const { reference, status, amount } = event.data;
-
+// Shared activation logic — called from both the webhook and the direct-verify
+// endpoint below, so a payment can be confirmed via whichever path responds
+// first without double-processing (idempotent on subscription.status).
+async function activateSubscriptionIfValid(reference, paystackStatus, amountPesewas) {
     const subResult = await pool.query(
         'SELECT * FROM subscriptions WHERE paystack_reference = $1',
         [reference]
@@ -77,23 +72,25 @@ async function processSubscriptionWebhookEvent(event) {
     const subscription = subResult.rows[0];
 
     if (!subscription) {
-        console.warn(`Webhook: no subscription found for reference ${reference}`);
-        return;
+        console.warn(`Activation: no subscription found for reference ${reference}`);
+        return { found: false };
     }
 
-    // Idempotency — Paystack can send the same event more than once.
-    if (subscription.status === 'active') return;
+    // Idempotency — webhook and direct-verify can both fire for the same payment.
+    if (subscription.status === 'active') {
+        return { found: true, status: 'active', plan: subscription.plan };
+    }
 
-    if (status !== 'success') {
+    if (paystackStatus !== 'success') {
         await pool.query(`UPDATE subscriptions SET status = 'failed' WHERE id = $1`, [subscription.id]);
-        return;
+        return { found: true, status: 'failed' };
     }
 
     const expectedPesewas = Math.round(Number(subscription.amount) * 100);
-    if (amount !== expectedPesewas) {
-        console.error(`Webhook: amount mismatch for ${reference}. Expected ${expectedPesewas}, got ${amount}`);
+    if (amountPesewas !== expectedPesewas) {
+        console.error(`Activation: amount mismatch for ${reference}. Expected ${expectedPesewas}, got ${amountPesewas}`);
         await pool.query(`UPDATE subscriptions SET status = 'amount_mismatch' WHERE id = $1`, [subscription.id]);
-        return;
+        return { found: true, status: 'amount_mismatch' };
     }
 
     const duration = PLAN_DURATIONS[subscription.plan];
@@ -119,10 +116,54 @@ async function processSubscriptionWebhookEvent(event) {
     } finally {
         client.release();
     }
+
+    return { found: true, status: 'active', plan: subscription.plan };
 }
 
-// GET /api/subscriptions/status/:reference — used by the callback page to poll
-// until the webhook has finished activating the subscription.
+// Called by orders.js's webhook when event.data.reference starts with 'sub_'.
+// Not mounted as its own route — Paystack only has ONE webhook URL configured
+// (/api/orders/webhook), which already handles order payments.
+async function processSubscriptionWebhookEvent(event) {
+    if (event.event !== 'charge.success') return;
+    const { reference, status, amount } = event.data;
+    await activateSubscriptionIfValid(reference, status, amount);
+}
+
+// POST /api/subscriptions/verify/:reference — called directly by the callback
+// page right after Paystack redirects back, so activation doesn't have to
+// wait on the webhook (which can lag behind on a cold-starting free-tier
+// backend, or occasionally fail delivery). Asks Paystack itself whether the
+// payment succeeded, rather than trusting only our own webhook's timing.
+router.post('/verify/:reference', requireAuth, async (req, res) => {
+    const { reference } = req.params;
+
+    try {
+        const subCheck = await pool.query(
+            'SELECT id, user_id, status, plan FROM subscriptions WHERE paystack_reference = $1',
+            [reference]
+        );
+        const subscription = subCheck.rows[0];
+        if (!subscription) return res.status(404).json({ error: 'Subscription not found' });
+        if (subscription.user_id !== req.userId) return res.status(403).json({ error: 'Not your subscription' });
+
+        if (subscription.status === 'active') {
+            return res.json({ status: 'active', plan: subscription.plan });
+        }
+
+        const verifyRes = await paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`, {
+            method: 'GET',
+        });
+
+        const result = await activateSubscriptionIfValid(reference, verifyRes.data.status, verifyRes.data.amount);
+        res.json({ status: result.status || 'pending', plan: result.plan });
+    } catch (err) {
+        console.error('Direct verify error:', err);
+        res.status(500).json({ error: 'Could not verify payment' });
+    }
+});
+
+// GET /api/subscriptions/status/:reference — kept as a lightweight fallback
+// (e.g. re-checking status on a page refresh without re-hitting Paystack).
 router.get('/status/:reference', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(

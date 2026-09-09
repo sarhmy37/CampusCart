@@ -563,7 +563,7 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
 
         console.log(`[BUYER CONFIRMED] Item ${itemId}:`);
         console.log(`  - Product Price: GHS ${basePrice.toFixed(2)}`);
-        console.log(`  - Delivery Fee: GHS ${orderDeliveryFee.toFixed(2)}`);
+        console.log(`  - Delivery Fee (paid): GHS ${orderDeliveryFeePaid.toFixed(2)}`);
         console.log(`  - Buyer Fee (2%): GHS ${buyerFee.toFixed(2)}`);
         console.log(`  - Seller Fee (1.5%): GHS ${sellerFee.toFixed(2)}`);
         console.log(`  - Admin Delivery Share (20%): GHS ${adminDeliveryShare.toFixed(2)}`);

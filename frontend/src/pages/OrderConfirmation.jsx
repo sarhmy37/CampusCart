@@ -4,7 +4,8 @@ import api from '../api/client';
 import { CheckCircle2, Clock, XCircle, MapPin, Truck, ChevronLeft } from 'lucide-react';
 
 const STATUS_CONFIG = {
-    completed: { icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', label: 'Payment confirmed' },
+    paid: { icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', label: 'Payment confirmed' },
+    completed: { icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', label: 'Order completed' },
     pending: { icon: Clock, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/30', label: 'Payment pending' },
     cancelled: { icon: XCircle, color: 'text-slate-500 dark:text-slate-400', bg: 'bg-slate-100 dark:bg-ink-700', label: 'Order cancelled' },
     refunded: { icon: XCircle, color: 'text-red-500 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-950/30', label: 'Order refunded' },
