@@ -120,41 +120,43 @@ const PLANS = [
             'Leave and read reviews',
         ],
         sellerBenefits: [
-            'List as many items as you want',
+            'Up to 10 active listings',
             'Standard 1.5% fee per sale',
             'Basic store page',
         ],
     },
     {
-        name: 'Monthly',
+        name: 'Pro',
         price: '25',
         period: '/month',
         highlight: true,
         buyerBenefits: [
             '24-hour priority support',
             'See new listings first',
-            'Verified badge shown more often',
         ],
         sellerBenefits: [
             'Keep 100% of every sale — no platform fee',
-            'Upgraded store page with social sharing',
+            'Up to 30 active listings',
             'Listings shown first in search',
-            'Sales stats and insights',
+            'Pro Seller badge',
+            'Upgraded store page with social sharing',
         ],
     },
     {
-        name: 'Yearly',
+        name: 'Premium',
         price: '240',
         period: '/year',
         highlight: false,
         buyerBenefits: [
-            'Everything in Monthly',
+            'Everything in Pro',
             'Same-day dedicated support line',
         ],
         sellerBenefits: [
             'Keep 100% of every sale — no platform fee',
+            'Unlimited active listings',
+            'Listings shown first in search',
+            'Premium Seller badge',
             'Store page shown at the very top of search',
-            'Full sales reports you can download',
         ],
     },
 ];
@@ -164,6 +166,7 @@ export default function Home() {
     const navigate = useNavigate();
     const location = useLocation();
     const [showSellerModal, setShowSellerModal] = useState(false);
+    const [subscribingPlan, setSubscribingPlan] = useState(null);
     const pricingRef = useRef(null);
 
     // Scroll to the pricing section when arriving via a "View/Renew plan" link

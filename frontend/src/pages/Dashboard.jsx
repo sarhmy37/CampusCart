@@ -1548,8 +1548,12 @@ function MetricCard({ icon: Icon, label, value, highlight }) {
 
 // ─── MY LISTINGS ──────────────────────────────────────────────────────────
 function MyListings() {
+    const { user } = useAuth();
     const [editingProduct, setEditingProduct] = useState(null);
     const [search, setSearch] = useState('');
+
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
 
     const { status, data: products, retry: load } = useContentReady({
         load: () => api.get('/products/mine').then((res) => res.data),
@@ -1603,6 +1607,15 @@ function MyListings() {
                             <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${p.status === 'available' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-ink-600'}`} />
                             {p.status} · GHS {parseFloat(p.price).toFixed(2)}
                         </p>
+                        {isPlanActive ? (
+                            <p className="text-[11px] text-slate-400 dark:text-gold-200/40 mt-0.5">
+                                👁 {p.views_count ?? 0} views · {p.sold_count ?? 0} sold
+                            </p>
+                        ) : (
+                            <p className="text-[11px] text-brand-500 dark:text-gold-400 mt-0.5">
+                                Upgrade to Pro to see views & sales stats
+                            </p>
+                        )}
                     </div>
                     <button onClick={() => setEditingProduct(p)} className="text-slate-300 dark:text-gold-300/40 hover:text-brand-600 dark:hover:text-gold-400 p-1.5 transition">
                         <Pencil size={17} />

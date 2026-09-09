@@ -281,21 +281,22 @@ export default function ProfileDrawer({ open, onClose }) {
         const isActive = user?.plan && user.plan !== 'free' &&
             user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
         const plan = isActive ? user.plan.toLowerCase() : 'free';
+        const roleLabel = user?.account_type === 'seller' ? 'Seller' : 'Buyer';
 
-        if (plan === 'yearly') {
+        if (plan === 'premium') {
             return (
                 <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
                     <Sparkles className="w-[11px] h-[11px] sm:hidden" />
                     <Sparkles className="hidden sm:inline w-[13px] h-[13px]" />
-                    Yearly Plan
+                    Premium {roleLabel}
                 </span>
             );
-        } else if (plan === 'monthly') {
+        } else if (plan === 'pro') {
             return (
                 <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
                     <Star className="w-[11px] h-[11px] sm:hidden" />
                     <Star className="hidden sm:inline w-[13px] h-[13px]" />
-                    Monthly Plan
+                    Pro {roleLabel}
                 </span>
             );
     } else {

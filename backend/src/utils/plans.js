@@ -13,4 +13,30 @@ function getSellerFeeRate(plan, planExpiresAt) {
     return isPlanActive(plan, planExpiresAt) ? 0 : 0.015;
 }
 
-module.exports = { isPlanActive, getSellerFeeRate };
+const LISTING_LIMITS = {
+    free: 10,
+    pro: 30,
+    premium: Infinity,
+};
+
+function getListingLimit(plan, planExpiresAt) {
+    if (isPlanActive(plan, planExpiresAt)) {
+        return LISTING_LIMITS[plan] ?? LISTING_LIMITS.free;
+    }
+    return LISTING_LIMITS.free;
+}
+
+const DELIVERY_DISCOUNT_RATES = {
+    pro: 0.10,
+    premium: 0.18,
+};
+
+// Buyer-side delivery discount. Capped intentionally below 20% — sellers
+// keep a fixed 80% of the FULL (undiscounted) delivery fee, so any discount
+// above 20% would make the platform lose money on that order's delivery leg.
+function getDeliveryDiscountRate(plan, planExpiresAt) {
+    if (!isPlanActive(plan, planExpiresAt)) return 0;
+    return DELIVERY_DISCOUNT_RATES[plan] ?? 0;
+}
+
+module.exports = { isPlanActive, getSellerFeeRate, getListingLimit, getDeliveryDiscountRate };

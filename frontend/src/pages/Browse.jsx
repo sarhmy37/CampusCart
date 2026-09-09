@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/client';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import { Bookmark } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
@@ -86,7 +89,12 @@ const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
 
 export default function Browse() {
+    const { user } = useAuth();
     const [searchParams] = useSearchParams();
+    const [savingSearch, setSavingSearch] = useState(false);
+
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [activeCategory, setActiveCategory] = useState('');
@@ -260,6 +268,26 @@ export default function Browse() {
     const applyBudget = (e) => {
         if (e.key !== 'Enter') return;
         applyBudgetValue();
+    };
+
+        const handleSaveSearch = async () => {
+        if (!search && !itemCategory && !school) {
+            toast.error('Set a search, category, or school filter first');
+            return;
+        }
+        setSavingSearch(true);
+        try {
+            await api.post('/saved-searches', {
+                keyword: search || null,
+                category: itemCategory || null,
+                school: school || null,
+            });
+            toast.success("Saved! We'll notify you when a matching listing appears.");
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to save this search');
+        } finally {
+            setSavingSearch(false);
+        }
     };
 
     const isDemo = products.length === 0;
@@ -517,13 +545,25 @@ export default function Browse() {
                             </h1>
                             {renderBudgetInput()}
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowCategoryRequest(true)}
-                            className="block text-right w-full text-[11px] font-semibold text-white/70 hover:text-white underline underline-offset-2 transition mt-1"
-                        >
-                            Suggest a feature
-                        </button>
+                        <div className="flex items-center justify-end gap-3 mt-1">
+                            {isPlanActive && (
+                                <button
+                                    type="button"
+                                    onClick={handleSaveSearch}
+                                    disabled={savingSearch}
+                                    className="text-[11px] font-semibold text-white/90 hover:text-white underline underline-offset-2 transition disabled:opacity-60"
+                                >
+                                    {savingSearch ? 'Saving…' : '🔖 Save search'}
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowCategoryRequest(true)}
+                                className="text-[11px] font-semibold text-white/70 hover:text-white underline underline-offset-2 transition"
+                            >
+                                Suggest a feature
+                            </button>
+                        </div>
                     </div>
 
                     {/* ── DESKTOP ── */}
@@ -572,12 +612,24 @@ export default function Browse() {
                         <h1 className="text-xl sm:text-3xl font-extrabold text-white truncate">
                             {headerTitle}
                         </h1>
-                        <button
-                            onClick={() => setShowCategoryRequest(true)}
-                            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:bg-white/10 hover:text-white transition shrink-0"
-                        >
-                            Suggest a feature
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {isPlanActive && (
+                                <button
+                                    onClick={handleSaveSearch}
+                                    disabled={savingSearch}
+                                    className="inline-flex items-center gap-1.5 text-sm font-semibold px-3.5 py-1.5 rounded-full border border-white/30 text-white hover:bg-white/10 transition disabled:opacity-60"
+                                >
+                                    <Bookmark className="w-3.5 h-3.5" />
+                                    {savingSearch ? 'Saving…' : 'Save search'}
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setShowCategoryRequest(true)}
+                                className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:bg-white/10 hover:text-white transition"
+                            >
+                                Suggest a feature
+                            </button>
+                        </div>
                     </div>
                     <div className="hidden sm:block h-px bg-gradient-to-r from-gold-400/40 via-white/10 to-transparent mt-4" />
 

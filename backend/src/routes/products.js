@@ -3,6 +3,8 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { isSellerRestricted } = require('./sellers');
 const { clampFee } = require('../utils/distance');
+const { getListingLimit } = require('../utils/plans');
+const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -11,9 +13,10 @@ router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
-                    p.rating, p.review_count,
+                    p.rating, p.review_count, p.views_count,
                     p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
-                    c.name AS category
+                    c.name AS category,
+                    (SELECT COUNT(*) FROM order_items oi WHERE oi.product_id = p.id AND oi.buyer_confirmed_at IS NOT NULL) AS sold_count
              FROM products p
              LEFT JOIN categories c ON c.id = p.category_id
              WHERE p.seller_id = $1
@@ -85,6 +88,11 @@ router.get('/', async (req, res) => {
 // GET /api/products/:id — single product
 router.get('/:id', async (req, res) => {
     try {
+        // Fire-and-forget view counter — not awaited so a slow/failed increment
+        // never delays or breaks the page load for the person viewing the listing.
+        pool.query('UPDATE products SET views_count = views_count + 1 WHERE id = $1', [req.params.id])
+            .catch((err) => console.error('View count increment error:', err));
+
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.old_price, p.condition, p.stock, p.video_url, p.created_at,
@@ -136,6 +144,21 @@ router.post('/', requireAuth, async (req, res) => {
                 error: 'You have an overdue platform fee balance. Pay outstanding fees in Settings to create new listings.',
             });
         }
+
+        const userResult = await pool.query('SELECT plan, plan_expires_at FROM users WHERE id = $1', [req.userId]);
+        const seller = userResult.rows[0];
+        const limit = getListingLimit(seller?.plan, seller?.plan_expires_at);
+
+        if (limit !== Infinity) {
+            const countResult = await pool.query('SELECT COUNT(*) FROM products WHERE seller_id = $1', [req.userId]);
+            const currentCount = parseInt(countResult.rows[0].count, 10);
+            if (currentCount >= limit) {
+                return res.status(403).json({
+                    error: `You've reached your plan's limit of ${limit} listings. Upgrade your plan to list more.`,
+                    limit_reached: true,
+                });
+            }
+        }
     } catch (err) {
         console.error('Restriction check error:', err);
         return res.status(500).json({ error: 'Something went wrong checking your seller status' });
@@ -179,6 +202,35 @@ router.post('/', requireAuth, async (req, res) => {
 
         await client.query('COMMIT');
         res.status(201).json({ id: productId });
+
+        // Fire-and-forget: notify buyers whose saved search matches this new listing.
+        // Runs after the response is sent so it never delays the seller's create-listing flow.
+        (async () => {
+            try {
+                const sellerSchoolResult = await pool.query('SELECT school FROM users WHERE id = $1', [req.userId]);
+                const sellerSchool = sellerSchoolResult.rows[0]?.school;
+
+                const matches = await pool.query(
+                    `SELECT id, buyer_id FROM saved_searches
+                     WHERE (keyword IS NULL OR $1 ILIKE '%' || keyword || '%')
+                       AND (category IS NULL OR category = $2)
+                       AND (school IS NULL OR school = $3)`,
+                    [title, category || null, sellerSchool || null]
+                );
+
+                for (const match of matches.rows) {
+                    await insertNotification(
+                        match.buyer_id,
+                        'saved_search_match',
+                        `A new listing matches your saved search: "${title}"`,
+                        productId,
+                        `/product/${productId}`
+                    );
+                }
+            } catch (err) {
+                console.error('Saved search match error:', err);
+            }
+        })();
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Create product error:', err);

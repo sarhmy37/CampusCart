@@ -8,15 +8,14 @@ const router = express.Router();
 
 // Keep this in sync with PLANS in the frontend (src/pages/Home.jsx)
 const PLAN_PRICES = {
-    monthly: { amountGHS: 25, label: 'Monthly' },
-    yearly: { amountGHS: 240, label: 'Yearly' },
+    pro: { amountGHS: 25, label: 'Pro' },
+    premium: { amountGHS: 240, label: 'Premium' },
 };
 
 const PLAN_DURATIONS = {
-    monthly: { days: 30 },
-    yearly: { days: 365 },
+    pro: { days: 30 },
+    premium: { days: 365 },
 };
-
 // POST /api/subscriptions/initiate
 router.post('/initiate', requireAuth, async (req, res) => {
     const { plan } = req.body;

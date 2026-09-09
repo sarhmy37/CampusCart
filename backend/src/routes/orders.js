@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const { initializeTransaction, verifyWebhookSignature } = require('../utils/paystack');
 const { sendOrderSMS } = require('../utils/mailer');
 const { calcDeliveryFee } = require('../utils/distance');
+const { getDeliveryDiscountRate } = require('../utils/plans');
 const { getSellerFeeRate } = require('../utils/plans');
 
 const router = express.Router();
@@ -14,13 +15,7 @@ const ADMIN_DELIVERY_SHARE = 0.20; // 20% of delivery fee goes to Admin
 const SELLER_DELIVERY_SHARE = 0.80; // 80% of delivery fee goes to Seller
 const PAYSTACK_MARKUP_RATE = 0.02; // flat 2% added at Paystack checkout (Paystack's real cut is 1.95%, the extra 0.05% stays with admin)
 
-// Helper: insert a notification
-async function insertNotification(userId, type, message, relatedId = null, link = null) {
-    await pool.query(
-        `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
-        [userId, type, message, relatedId, link]
-    );
-}
+const { insertNotification } = require('../utils/notifications');
 
 // POST /api/orders — create pending order + get Paystack payment link
 router.post('/', requireAuth, async (req, res) => {
@@ -30,10 +25,12 @@ router.post('/', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Cart is empty' });
     }
 
-    const verifyCheck = await pool.query('SELECT verified FROM users WHERE id = $1', [req.userId]);
+    const verifyCheck = await pool.query('SELECT verified, plan, plan_expires_at FROM users WHERE id = $1', [req.userId]);
     if (!verifyCheck.rows[0]?.verified) {
         return res.status(403).json({ error: 'Please verify your email before placing an order', needs_verification: true });
     }
+    const buyerPlan = verifyCheck.rows[0].plan;
+    const buyerPlanExpiresAt = verifyCheck.rows[0].plan_expires_at;
 
     const client = await pool.connect();
     try {
@@ -92,15 +89,21 @@ router.post('/', requireAuth, async (req, res) => {
         }
 
         // ============ ONE DELIVERY FEE PER SELLER (not per item) ============
-        let deliveryFee = 0;
+        // deliveryFeeBySeller stays FULL/undiscounted — seller earnings below are
+        // calculated off this, so a buyer's plan discount never reduces what the
+        // seller receives. Only the buyer-facing total (deliveryFee) is discounted.
+        let deliveryFeeFull = 0;
         const deliveryFeeBySeller = {};
         if (delivery_method === 'delivery') {
             for (const [sellerId, info] of Object.entries(sellerDeliveryInfo)) {
                 const { fee } = calcDeliveryFee(buyer_lat, buyer_lng, info.school, info);
-                deliveryFee += fee;
+                deliveryFeeFull += fee;
                 deliveryFeeBySeller[sellerId] = fee;
             }
         }
+
+        const deliveryDiscountRate = getDeliveryDiscountRate(buyerPlan, buyerPlanExpiresAt);
+        const deliveryFee = Math.round(deliveryFeeFull * (1 - deliveryDiscountRate) * 100) / 100;
 
         // ============ 80/20 DELIVERY SPLIT LOGIC ============
         const creditedDeliveryFor = new Set();
@@ -128,11 +131,11 @@ router.post('/', requireAuth, async (req, res) => {
             await client.query('UPDATE users SET credit_balance = credit_balance - $1 WHERE id = $2', [creditApplied, req.userId]);
         }
 
-        const orderResult = await client.query(
-            `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, total_amount, credit_applied)
-             VALUES ($1, 'pending', $2, $3, $4, $5, $6)
+           const orderResult = await client.query(
+            `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, delivery_fee_full, total_amount, credit_applied)
+             VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7)
              RETURNING id`,
-            [req.userId, delivery_method || 'pickup', subtotal, deliveryFee, totalAmount, creditApplied]
+            [req.userId, delivery_method || 'pickup', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied]
         );
         const orderId = orderResult.rows[0].id;
 
@@ -526,14 +529,20 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
 
         // 4. Admin's 20% share of the delivery fee
         const deliveryShareResult = await pool.query(
-            `SELECT o.delivery_fee, oi.seller_id
+            `SELECT o.delivery_fee, o.delivery_fee_full, oi.seller_id
              FROM orders o
              JOIN order_items oi ON o.id = oi.order_id
              WHERE oi.id = $1`,
             [itemId]
         );
-        const orderDeliveryFee = parseFloat(deliveryShareResult.rows[0]?.delivery_fee || 0);
-        const adminDeliveryShare = Math.round(orderDeliveryFee * ADMIN_DELIVERY_SHARE * 100) / 100;
+        const orderDeliveryFeePaid = parseFloat(deliveryShareResult.rows[0]?.delivery_fee || 0);
+        // Older orders placed before this column existed won't have delivery_fee_full —
+        // fall back to the paid amount so the math still resolves (no discount assumed).
+        const orderDeliveryFeeFull = parseFloat(deliveryShareResult.rows[0]?.delivery_fee_full ?? orderDeliveryFeePaid);
+        // Seller's 80% is always off the FULL fee — a buyer's discount never costs the seller.
+        const sellerDeliveryShareForProfit = Math.round(orderDeliveryFeeFull * SELLER_DELIVERY_SHARE * 100) / 100;
+        // Admin keeps whatever's left of what the buyer actually paid, after the seller's fixed cut.
+        const adminDeliveryShare = Math.round((orderDeliveryFeePaid - sellerDeliveryShareForProfit) * 100) / 100;
 
         // 5. Gross admin profit = buyer fee + seller fee + admin's delivery share.
         //    Paystack's cut is NO LONGER subtracted here — it's now covered upfront by the
@@ -548,10 +557,9 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             [adminNetProfit, itemId]
         );
 
-        // 7. Seller earnings (98.5% of base price + 80% of delivery fee) — unchanged
+        // 7. Seller earnings — off the FULL delivery fee, unaffected by buyer discounts
         const sellerEarningsProduct = Math.round((basePrice - sellerFee) * 100) / 100;
-        const sellerDeliveryShare = Math.round(orderDeliveryFee * SELLER_DELIVERY_SHARE * 100) / 100;
-        const sellerEarnings = Math.round((sellerEarningsProduct + sellerDeliveryShare) * 100) / 100;
+        const sellerEarnings = Math.round((sellerEarningsProduct + sellerDeliveryShareForProfit) * 100) / 100;
 
         console.log(`[BUYER CONFIRMED] Item ${itemId}:`);
         console.log(`  - Product Price: GHS ${basePrice.toFixed(2)}`);
