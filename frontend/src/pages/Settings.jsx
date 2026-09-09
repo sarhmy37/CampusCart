@@ -63,7 +63,7 @@ export default function Settings() {
         ])
             .then(([listingsRes, reviewsRes, salesRes]) => {
                 setStoreStats({
-                    listingCount: listingsRes.data.filter((p) => p.status === 'available').length,
+                    listingCount: listingsRes.data.filter((p) => p.stock > 0).length,
                     avgRating: reviewsRes.data.avg_rating,
                     reviewCount: reviewsRes.data.total || 0,
                     salesCount: salesRes.data.length,

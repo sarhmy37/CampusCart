@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/client';
 import { Bookmark } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
@@ -781,7 +781,13 @@ export default function Browse() {
                                         {dataBundles.map((b) => (
                                             <button
                                                 key={b.id}
-                                                onClick={() => setConfirmBundle(b)}
+                                                onClick={() => {
+                                                    if (user && user.id === b.seller_id) {
+                                                        toast.error('You cannot purchase your own listing.');
+                                                        return;
+                                                    }
+                                                    setConfirmBundle(b);
+                                                }}
                                                 className="group relative bg-white dark:bg-ink-800 rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden hover:shadow-lg dark:hover:shadow-gold-900/20 hover:-translate-y-0.5 transition-all duration-300 p-4 flex flex-col items-center text-center"
                                             >
                                                 <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center mb-2">

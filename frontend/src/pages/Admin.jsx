@@ -7,9 +7,8 @@ import {
     Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
     Filter, X as XClose, Calendar, User, Tag as TagIcon, Layers, ArrowUpDown,
     Search, Mail, School, UserCheck, UserX, Users as UsersIcon,
-    ChevronLeft, ChevronRight, AlertTriangle, Wifi
+    ChevronLeft, ChevronRight, AlertTriangle, Wifi, Star, Sparkles
 } from 'lucide-react';
-
 const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'deleted chats'];
 
 const TAB_LABELS = {
@@ -729,7 +728,15 @@ function UsersTab({ filter, initialUsers, loading }) {
                     {filteredUsers.map((u) => (
                         <div key={u.id} className="flex items-center justify-between gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 flex-wrap">
                             <div className="min-w-0">
-                                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">{u.name}</p>
+                                <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">
+    {u.plan === 'premium' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date() && (
+        <Sparkles size={13} className="text-purple-500 fill-purple-500 shrink-0" />
+    )}
+    {u.plan === 'pro' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date() && (
+        <Star size={13} className="text-blue-500 fill-blue-500 shrink-0" />
+    )}
+    {u.name}
+</p>
                                 <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">{u.university_email}</p>
                                 {u.school && (
                                     <p className="text-xs text-slate-400 dark:text-gold-200/50 truncate">🏫 {u.school}</p>
