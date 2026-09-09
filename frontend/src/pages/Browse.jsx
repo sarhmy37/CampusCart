@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/client';
-import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { Bookmark } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
