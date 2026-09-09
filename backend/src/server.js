@@ -20,6 +20,8 @@ const sellerRoutes = require('./routes/sellers');
 
 const notificationRoutes = require('./routes/notifications');
 
+const bookingsRouter = require('./routes/bookings');
+
 const adminRoutes = require('./routes/admin');
 
 const adminAuthRoutes = require('./routes/adminAuth');
@@ -106,6 +108,8 @@ app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/orders', orderRoutes);
 
 app.use('/api/reports', reportRoutes);
+
+app.use('/api/bookings', bookingsRouter.router);
 
 app.use('/api/wishlist', wishlistRoutes);
 

@@ -232,6 +232,17 @@ router.post('/webhook', async (req, res) => {
         return;
     }
 
+    // Booking payments use a 'book_' prefixed reference
+    if (reference.startsWith('book_')) {
+        const { processBookingWebhookEvent } = require('./bookings');
+        try {
+            await processBookingWebhookEvent(event);
+        } catch (err) {
+            console.error('Booking webhook processing error:', err);
+        }
+        return;
+    }
+
     try {
         const orderResult = await pool.query('SELECT * FROM orders WHERE payment_reference = $1', [reference]);
         const order = orderResult.rows[0];

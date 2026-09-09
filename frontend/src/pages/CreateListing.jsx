@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
 import { clampFee, MAX_DELIVERY_FEE } from '../utils/distance';
-import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi } from 'lucide-react';
+import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi, Briefcase } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
@@ -44,6 +44,7 @@ export default function CreateListing() {
     const { user } = useAuth();
     const isDataSeller = !!user?.is_data_seller;
     const [listingFormCollapsed, setListingFormCollapsed] = useState(isDataSeller);
+    const [serviceFormCollapsed, setServiceFormCollapsed] = useState(true); // Start collapsed
     const [bundles, setBundles] = useState([]);
     const [bundlesLoading, setBundlesLoading] = useState(false);
     const [newBundle, setNewBundle] = useState({ network: 'MTN', gb_amount: '', price: '' });
@@ -65,11 +66,28 @@ export default function CreateListing() {
     const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showDeliveryWarning, setShowDeliveryWarning] = useState(false);
-        const selectedCategory = categories.find((c) => String(c.id) === String(form.category_id));
+
+    // ─── SERVICE PROVISION STATE ──────────────────────────────────────────
+    const [serviceForm, setServiceForm] = useState({
+        title: '',
+        description: '',
+        price: '',
+        duration: '',
+    });
+    const [serviceImageUrls, setServiceImageUrls] = useState([]);
+    const [servicePreviews, setServicePreviews] = useState([]);
+    const [serviceVideoUrl, setServiceVideoUrl] = useState(null);
+    const [serviceVideoPreview, setServiceVideoPreview] = useState(null);
+    const [serviceUploading, setServiceUploading] = useState(false);
+    const [serviceLoading, setServiceLoading] = useState(false);
+
+    const selectedCategory = categories.find((c) => String(c.id) === String(form.category_id));
     const isMobileData = selectedCategory?.name === 'Mobile Data';
 
     const imageGalleryInputRef = useRef(null);
     const videoGalleryInputRef = useRef(null);
+    const serviceImageInputRef = useRef(null);
+    const serviceVideoInputRef = useRef(null);
 
     useEffect(() => {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
@@ -83,7 +101,15 @@ export default function CreateListing() {
         return () => { if (videoPreview) URL.revokeObjectURL(videoPreview); };
     }, [videoPreview]);
 
-        const loadBundles = () => {
+    useEffect(() => {
+        return () => servicePreviews.forEach((p) => URL.revokeObjectURL(p));
+    }, [servicePreviews]);
+
+    useEffect(() => {
+        return () => { if (serviceVideoPreview) URL.revokeObjectURL(serviceVideoPreview); };
+    }, [serviceVideoPreview]);
+
+    const loadBundles = () => {
         if (!isDataSeller) return;
         setBundlesLoading(true);
         api.get('/data-bundles/mine')
@@ -96,6 +122,7 @@ export default function CreateListing() {
         loadBundles();
     }, [isDataSeller]);
 
+    // ─── REGULAR LISTING IMAGE HANDLERS ──────────────────────────────────
     const handleAddPhotoClick = () => imageGalleryInputRef.current?.click();
 
     const handleImageFilesSelected = async (e) => {
@@ -134,6 +161,7 @@ export default function CreateListing() {
         setImageUrls((prev) => prev.filter((_, i) => i !== index));
         setPreviews((prev) => prev.filter((_, i) => i !== index));
     };
+
     const handleAddVideoClick = () => videoGalleryInputRef.current?.click();
 
     const handleVideoSelected = async (e) => {
@@ -169,7 +197,83 @@ export default function CreateListing() {
         setVideoPreview(null);
     };
 
-        const addBundle = async () => {
+    // ─── SERVICE IMAGE HANDLERS ──────────────────────────────────────────
+    const handleServiceAddPhotoClick = () => serviceImageInputRef.current?.click();
+
+    const handleServiceImageFilesSelected = async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const totalImages = serviceImageUrls.length + files.length;
+        if (totalImages > MAX_IMAGES) {
+            toast.error(`You can only upload up to ${MAX_IMAGES} images.`);
+            e.target.value = '';
+            return;
+        }
+
+        const newPreviews = files.map((f) => URL.createObjectURL(f));
+        setServicePreviews((prev) => [...prev, ...newPreviews]);
+
+        setServiceUploading(true);
+        try {
+            const uploadedUrls = [];
+            for (const file of files) {
+                const url = await uploadToCloudinary(file, 'image');
+                uploadedUrls.push(url);
+            }
+            setServiceImageUrls((prev) => [...prev, ...uploadedUrls]);
+            toast.success(`Uploaded ${uploadedUrls.length} image(s)`);
+        } catch (err) {
+            toast.error('Failed to upload images to Cloudinary');
+            setServicePreviews((prev) => prev.slice(0, -newPreviews.length));
+        } finally {
+            setServiceUploading(false);
+            e.target.value = '';
+        }
+    };
+
+    const removeServiceImage = (index) => {
+        setServiceImageUrls((prev) => prev.filter((_, i) => i !== index));
+        setServicePreviews((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const handleServiceAddVideoClick = () => serviceVideoInputRef.current?.click();
+
+    const handleServiceVideoSelected = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+
+        if (!file.type.startsWith('video/')) {
+            toast.error('Please select a video file');
+            return;
+        }
+        if (file.size > MAX_VIDEO_BYTES) {
+            toast.error('Video must be under 20MB');
+            return;
+        }
+
+        setServiceVideoPreview(URL.createObjectURL(file));
+        setServiceUploading(true);
+        try {
+            const url = await uploadToCloudinary(file, 'video');
+            setServiceVideoUrl(url);
+            toast.success('Video uploaded successfully');
+        } catch (err) {
+            toast.error('Failed to upload video to Cloudinary');
+            setServiceVideoPreview(null);
+        } finally {
+            setServiceUploading(false);
+        }
+    };
+
+    const removeServiceVideo = () => {
+        setServiceVideoUrl(null);
+        setServiceVideoPreview(null);
+    };
+
+    // ─── DATA BUNDLE HANDLERS ────────────────────────────────────────────
+    const addBundle = async () => {
         if (!newBundle.gb_amount || !newBundle.price) {
             toast.error('Enter both GB amount and price');
             return;
@@ -206,9 +310,8 @@ export default function CreateListing() {
         }
     };
 
-    // ---- DELIVERY PRICE HANDLING ----
+    // ─── DELIVERY PRICE HANDLING ──────────────────────────────────────────
     const handleDeliveryPriceChange = (field, value) => {
-        // Allow free typing but clamp once it exceeds the max
         if (value !== '' && Number(value) > MAX_DELIVERY_FEE) {
             toast.error(`Delivery fee can't exceed GHS ${MAX_DELIVERY_FEE}`);
             value = String(MAX_DELIVERY_FEE);
@@ -218,6 +321,7 @@ export default function CreateListing() {
 
     const hasAnyDeliveryFee = Object.values(deliveryPrices).some((v) => Number(v) > 0);
 
+    // ─── SUBMIT REGULAR LISTING ───────────────────────────────────────────
     const submitListing = async () => {
         setLoading(true);
         try {
@@ -262,8 +366,6 @@ export default function CreateListing() {
             return;
         }
 
-        // If the seller set any delivery fee, warn them it may affect buyer interest
-        // before letting them confirm the post.
         if (hasAnyDeliveryFee) {
             setShowDeliveryWarning(true);
             return;
@@ -272,18 +374,162 @@ export default function CreateListing() {
         submitListing();
     };
 
+    // ─── SUBMIT SERVICE ───────────────────────────────────────────────────
+    const submitService = async () => {
+        if (!serviceForm.title.trim()) {
+            toast.error('Enter a service title');
+            return;
+        }
+        if (!serviceForm.price || parseFloat(serviceForm.price) <= 0) {
+            toast.error('Enter a valid price');
+            return;
+        }
+        if (serviceImageUrls.length === 0) {
+            toast.error('Add at least one photo of your service');
+            return;
+        }
+
+        setServiceLoading(true);
+        try {
+            const payload = {
+                title: serviceForm.title,
+                description: serviceForm.description || 'No description provided.',
+                price: toCharmPrice(serviceForm.price),
+                condition: 'new',
+                stock: 999, // Services are unlimited
+                category: 'Services',
+                network: null,
+                images: serviceImageUrls,
+                video: serviceVideoUrl || '',
+                delivery_fee_on_campus: 0,
+                delivery_fee_near_campus: 0,
+                delivery_fee_far_campus: 0,
+                // Extra metadata for services
+                service_duration: serviceForm.duration || null,
+            };
+
+            await api.post('/products', payload);
+            toast.success('Service created! It will appear in the Services category.');
+            // Reset service form
+            setServiceForm({ title: '', description: '', price: '', duration: '' });
+            setServiceImageUrls([]);
+            setServicePreviews([]);
+            setServiceVideoUrl(null);
+            setServiceVideoPreview(null);
+            navigate('/dashboard');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to create service');
+        } finally {
+            setServiceLoading(false);
+        }
+    };
+
+    const onServiceSubmit = async (e) => {
+        e.preventDefault();
+        submitService();
+    };
+
+    // ─── RENDER ────────────────────────────────────────────────────────────
+
+    // Reusable image upload UI for regular listings
+    const renderImageUpload = (
+        previewsArr,
+        imageUrlsArr,
+        uploadingFlag,
+        maxImages,
+        onAddClick,
+        onRemove,
+        label
+    ) => (
+        <div>
+            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">{label}</label>
+            <div className="grid grid-cols-3 gap-1.5 mt-1 w-full">
+                {previewsArr.map((src, i) => (
+                    <div key={src} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600">
+                        <img src={src} alt="" className="w-full h-full object-cover" />
+                        <button
+                            type="button"
+                            onClick={() => onRemove(i)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white flex items-center justify-center"
+                        >
+                            <X size={12} />
+                        </button>
+                        {i === 0 && (
+                            <span className="absolute bottom-1 left-1 bg-white/90 text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                                Cover
+                            </span>
+                        )}
+                    </div>
+                ))}
+                {uploadingFlag && previewsArr.length > 0 && imageUrlsArr.length < maxImages && (
+                    <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 text-brand-600 dark:text-gold-400 animate-spin" />
+                    </div>
+                )}
+                {imageUrlsArr.length < maxImages && !uploadingFlag && (
+                    <button
+                        type="button"
+                        onClick={onAddClick}
+                        className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition"
+                    >
+                        <ImagePlus size={20} />
+                        <span className="text-[11px] font-semibold">Add</span>
+                    </button>
+                )}
+            </div>
+            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {maxImages}. First is cover.</p>
+        </div>
+    );
+
+    // Reusable video upload UI
+    const renderVideoUpload = (
+        videoPreviewUrl,
+        videoUrl,
+        uploadingFlag,
+        onAddClick,
+        onRemove,
+        label
+    ) => (
+        <div>
+            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">{label}</label>
+            <div className="w-[calc(33.333%-0.375rem)] mt-1">
+                {uploadingFlag && !videoUrl && videoPreviewUrl ? (
+                    <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-black flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 text-brand-600 dark:text-gold-400 animate-spin" />
+                    </div>
+                ) : videoPreviewUrl ? (
+                    <div className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600 bg-black">
+                        <video src={videoPreviewUrl} controls className="w-full h-full object-cover" />
+                        <button
+                            type="button"
+                            onClick={onRemove}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white flex items-center justify-center z-10"
+                        >
+                            <X size={12} />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={onAddClick}
+                        className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition"
+                    >
+                        <VideoIcon size={20} />
+                        <span className="text-[11px] font-semibold">Add video</span>
+                    </button>
+                )}
+            </div>
+            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Optional. Up to 20MB.</p>
+        </div>
+    );
+
     return (
         <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2 relative overflow-hidden">
-            {/* MOBILE-ONLY background video, fills top 1/3 of screen.
-                bg-gradient-to-br sits on the SECTION itself (not just an overlay div),
-                so it shows immediately even before the video file has loaded — same
-                pattern as CartHeader in Cart.jsx and the Dashboard header video. */}
+            {/* MOBILE-ONLY background video */}
             <div className="absolute top-0 left-0 right-0 h-[38vh] lg:hidden overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-900 dark:to-gold-900">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={CREATE_LISTING_VIDEO} type="video/mp4" />
                 </video>
-                {/* Fades the bottom of the video into the form's background color,
-                    so there's no hard seam — the form overlaps the last bit of video. */}
                 <div className="absolute inset-0 bg-gradient-to-b from-ink-900/50 via-transparent to-slate-50 dark:from-ink-900/60 dark:via-transparent dark:to-ink-900" />
                 <button
                     onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
@@ -318,12 +564,14 @@ export default function CreateListing() {
                 </div>
             </div>
 
-            {/* RIGHT — form (mobile: sits below the 1/3-height video, in a card like Login) */}
-            <div className="relative z-10 flex items-center justify-center px-4 pt-[24vh] pb-16 lg:pt-16 lg:pb-16 bg-transparent lg:bg-slate-50 dark:lg:bg-ink-900">                <div className="w-full max-w-sm">
+            {/* RIGHT — form */}
+            <div className="relative z-10 flex items-center justify-center px-4 pt-[24vh] pb-16 lg:pt-16 lg:pb-16 bg-transparent lg:bg-slate-50 dark:lg:bg-ink-900">
+                <div className="w-full max-w-sm">
                     <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
                         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">New Listing</h1>
                         <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">Add the details buyers will see.</p>
 
+                        {/* ─── DATA SELLER SECTION ────────────────────────────── */}
                         {isDataSeller && (
                             <div className="mt-5 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
                                 <div className="flex items-center gap-2.5 mb-1">
@@ -424,6 +672,7 @@ export default function CreateListing() {
                             </div>
                         )}
 
+                        {/* ─── REGULAR LISTING TOGGLE ────────────────────────── */}
                         {isDataSeller && (
                             <button
                                 type="button"
@@ -435,6 +684,7 @@ export default function CreateListing() {
                             </button>
                         )}
 
+                        {/* ─── REGULAR LISTING FORM ──────────────────────────── */}
                         <form onSubmit={onSubmit} className={`space-y-4 ${isDataSeller ? (listingFormCollapsed ? 'hidden' : 'mt-3') : 'mt-5'}`}>
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Title</label>
@@ -459,94 +709,40 @@ export default function CreateListing() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Photos</label>
-                                    <div className="grid grid-cols-3 gap-1.5 mt-1 w-full">
-                                        {previews.map((src, i) => (
-                                            <div key={src} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600">
-                                                <img src={src} alt="" className="w-full h-full object-cover" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeImage(i)}
-                                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white flex items-center justify-center"
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                                {i === 0 && (
-                                                    <span className="absolute bottom-1 left-1 bg-white/90 text-[10px] font-semibold px-1.5 py-0.5 rounded">
-                                                        Cover
-                                                    </span>
-                                                )}
-                                            </div>
-                                        ))}
-                                        {uploading && previews.length > 0 && imageUrls.length < MAX_IMAGES && (
-                                            <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 flex items-center justify-center">
-                                                <Loader2 className="w-6 h-6 text-brand-600 dark:text-gold-400 animate-spin" />
-                                            </div>
-                                        )}
-                                        {imageUrls.length < MAX_IMAGES && !uploading && (
-                                            <button
-                                                type="button"
-                                                onClick={handleAddPhotoClick}
-                                                className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition"
-                                            >
-                                                <ImagePlus size={20} />
-                                                <span className="text-[11px] font-semibold">Add</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Up to {MAX_IMAGES}. First is cover.</p>
-
-                                    <input
-                                        ref={imageGalleryInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleImageFilesSelected}
-                                        className="hidden"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Video</label>
-                                    <div className="w-[calc(33.333%-0.375rem)] mt-1">
-                                        {uploading && !videoUrl && videoPreview ? (
-                                            <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-black flex items-center justify-center">
-                                                <Loader2 className="w-8 h-8 text-brand-600 dark:text-gold-400 animate-spin" />
-                                            </div>
-                                        ) : videoPreview ? (
-                                            <div className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-ink-600 bg-black">
-                                                <video src={videoPreview} controls className="w-full h-full object-cover" />
-                                                <button
-                                                    type="button"
-                                                    onClick={removeVideo}
-                                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white flex items-center justify-center z-10"
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                onClick={handleAddVideoClick}
-                                                className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40 hover:border-brand-400 dark:hover:border-gold-500 hover:text-brand-500 dark:hover:text-gold-400 cursor-pointer transition"
-                                            >
-                                                <VideoIcon size={20} />
-                                                <span className="text-[11px] font-semibold">Add video</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">Optional. Up to 20MB.</p>
-
-                                    <input
-                                        ref={videoGalleryInputRef}
-                                        type="file"
-                                        accept="video/*"
-                                        onChange={handleVideoSelected}
-                                        className="hidden"
-                                    />
-                                </div>
+                                {renderImageUpload(
+                                    previews,
+                                    imageUrls,
+                                    uploading,
+                                    MAX_IMAGES,
+                                    handleAddPhotoClick,
+                                    removeImage,
+                                    'Photos'
+                                )}
+                                {renderVideoUpload(
+                                    videoPreview,
+                                    videoUrl,
+                                    uploading,
+                                    handleAddVideoClick,
+                                    removeVideo,
+                                    'Video'
+                                )}
                             </div>
+
+                            <input
+                                ref={imageGalleryInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleImageFilesSelected}
+                                className="hidden"
+                            />
+                            <input
+                                ref={videoGalleryInputRef}
+                                type="file"
+                                accept="video/*"
+                                onChange={handleVideoSelected}
+                                className="hidden"
+                            />
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -674,6 +870,117 @@ export default function CreateListing() {
                                 {loading ? 'Publishing…' : 'Publish listing'}
                             </button>
                         </form>
+
+                        {/* ─── SERVICE PROVISION SECTION ────────────────────── */}
+                        <div className="mt-6 border-t border-slate-200 dark:border-ink-600 pt-4">
+                            <button
+                                type="button"
+                                onClick={() => setServiceFormCollapsed((c) => !c)}
+                                className="w-full flex items-center justify-between px-1 py-2 text-sm font-semibold text-slate-500 dark:text-gold-300/60"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Briefcase size={16} />
+                                    Service provision (for makeup, barbers, tutors, etc.)
+                                </span>
+                                {serviceFormCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            </button>
+
+                            {!serviceFormCollapsed && (
+                                <form onSubmit={onServiceSubmit} className="mt-3 space-y-4">
+                                    <div>
+                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Service title</label>
+                                        <input
+                                            required
+                                            value={serviceForm.title}
+                                            onChange={(e) => setServiceForm({ ...serviceForm, title: e.target.value })}
+                                            placeholder="e.g. Professional makeup, Barbering, Tutoring"
+                                            className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Description</label>
+                                        <textarea
+                                            rows={3}
+                                            value={serviceForm.description}
+                                            onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
+                                            placeholder="What you offer, your experience, availability"
+                                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition resize-none"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {renderImageUpload(
+                                            servicePreviews,
+                                            serviceImageUrls,
+                                            serviceUploading,
+                                            MAX_IMAGES,
+                                            handleServiceAddPhotoClick,
+                                            removeServiceImage,
+                                            'Photos'
+                                        )}
+                                        {renderVideoUpload(
+                                            serviceVideoPreview,
+                                            serviceVideoUrl,
+                                            serviceUploading,
+                                            handleServiceAddVideoClick,
+                                            removeServiceVideo,
+                                            'Video'
+                                        )}
+                                    </div>
+
+                                    <input
+                                        ref={serviceImageInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleServiceImageFilesSelected}
+                                        className="hidden"
+                                    />
+                                    <input
+                                        ref={serviceVideoInputRef}
+                                        type="file"
+                                        accept="video/*"
+                                        onChange={handleServiceVideoSelected}
+                                        className="hidden"
+                                    />
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Price (GHS)</label>
+                                            <input
+                                                required
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={serviceForm.price}
+                                                onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })}
+                                                placeholder="e.g. 50"
+                                                className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Duration (optional)</label>
+                                            <input
+                                                type="text"
+                                                value={serviceForm.duration}
+                                                onChange={(e) => setServiceForm({ ...serviceForm, duration: e.target.value })}
+                                                placeholder="e.g. 2hrs, full day"
+                                                className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={serviceLoading || serviceUploading}
+                                        className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition disabled:opacity-60 shadow-sm"
+                                    >
+                                        {serviceLoading ? 'Creating service…' : 'Publish service'}
+                                    </button>
+                                </form>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

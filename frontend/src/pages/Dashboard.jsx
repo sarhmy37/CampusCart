@@ -1551,6 +1551,42 @@ function MetricCard({ icon: Icon, label, value, highlight }) {
         </div>
     );
 }
+function ListingItem({ product, isPlanActive, onEdit, onDelete, isService }) {
+    return (
+        <div className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 hover:shadow-sm transition">
+            <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
+                {product.primary_image && <img src={product.primary_image} className="w-full h-full object-cover" alt={product.title} />}
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate">{product.title}</p>
+                <p className="text-xs text-slate-400 dark:text-gold-200/50 capitalize mt-0.5">
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${product.status === 'available' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-ink-600'}`} />
+                    {product.status} · GHS {parseFloat(product.price).toFixed(2)}
+                    {isService && (
+                        <span className="ml-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
+                            Service
+                        </span>
+                    )}
+                </p>
+                {isPlanActive ? (
+                    <p className="text-[11px] text-slate-400 dark:text-gold-200/40 mt-0.5">
+                        👁 {product.views_count ?? 0} views · {product.sold_count ?? 0} sold
+                    </p>
+                ) : (
+                    <p className="text-[11px] text-brand-500 dark:text-gold-400 mt-0.5">
+                        Upgrade to Pro to see views & sales stats
+                    </p>
+                )}
+            </div>
+            <button onClick={() => onEdit(product)} className="text-slate-300 dark:text-gold-300/40 hover:text-brand-600 dark:hover:text-gold-400 p-1.5 transition">
+                <Pencil size={17} />
+            </button>
+            <button onClick={() => onDelete(product.id)} className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition">
+                <Trash2 size={18} />
+            </button>
+        </div>
+    );
+}
 
 // ─── MY LISTINGS ──────────────────────────────────────────────────────────
 function MyListings() {
@@ -1580,12 +1616,41 @@ function MyListings() {
     if (status === 'error') return <ErrorState icon={Tag} text="Couldn't load your listings right now." onRetry={load} />;
     if (products.length === 0) return <EmptyState icon={Tag} text="You haven't listed anything yet." cta="List an item" ctaLink="/sell/new" />;
 
-    const filteredProducts = search.trim()
-        ? products.filter((p) => p.title.toLowerCase().includes(search.trim().toLowerCase()))
-        : products;
+    // Separate products from services
+    const regularProducts = products.filter((p) => p.category !== 'Services');
+    const services = products.filter((p) => p.category === 'Services');
+
+    const filterProducts = (list) => {
+        if (!search.trim()) return list;
+        return list.filter((p) => p.title.toLowerCase().includes(search.trim().toLowerCase()));
+    };
+
+    const filteredRegular = filterProducts(regularProducts);
+    const filteredServices = filterProducts(services);
+
+    // If nothing matches the search
+    if (filteredRegular.length === 0 && filteredServices.length === 0 && search.trim()) {
+        return (
+            <div className="max-w-2xl mx-auto">
+                <div className="relative mb-4">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search your listings…"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                    />
+                </div>
+                <p className="text-sm text-slate-400 dark:text-gold-200/50 text-center py-6">
+                    No listings match "{search}"
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto space-y-2">
+            {/* ─── SEARCH BAR ─── */}
             {products.length > 10 && (
                 <div className="relative mb-1">
                     <input
@@ -1597,40 +1662,49 @@ function MyListings() {
                     />
                 </div>
             )}
-            {filteredProducts.length === 0 && search.trim() && (
-                <p className="text-sm text-slate-400 dark:text-gold-200/50 text-center py-6">
-                    No listings match "{search}"
-                </p>
+
+            {/* ─── REGULAR PRODUCTS ─── */}
+            {filteredRegular.length > 0 && (
+                <>
+                    <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
+                            Products
+                        </span>
+                        <div className="flex-1 h-px bg-slate-200 dark:bg-ink-600" />
+                    </div>
+                    {filteredRegular.map((p) => (
+                        <ListingItem
+                            key={p.id}
+                            product={p}
+                            isPlanActive={isPlanActive}
+                            onEdit={setEditingProduct}
+                            onDelete={remove}
+                        />
+                    ))}
+                </>
             )}
-            {filteredProducts.map((p) => (
-                <div key={p.id} className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 hover:shadow-sm transition">
-                    <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
-                        {p.primary_image && <img src={p.primary_image} className="w-full h-full object-cover" alt={p.title} />}
+
+            {/* ─── SERVICES ─── */}
+            {filteredServices.length > 0 && (
+                <>
+                    <div className="flex items-center gap-3 mt-4">
+                        <span className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                            Services
+                        </span>
+                        <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/50" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate">{p.title}</p>
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50 capitalize mt-0.5">
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${p.status === 'available' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-ink-600'}`} />
-                            {p.status} · GHS {parseFloat(p.price).toFixed(2)}
-                        </p>
-                        {isPlanActive ? (
-                            <p className="text-[11px] text-slate-400 dark:text-gold-200/40 mt-0.5">
-                                👁 {p.views_count ?? 0} views · {p.sold_count ?? 0} sold
-                            </p>
-                        ) : (
-                            <p className="text-[11px] text-brand-500 dark:text-gold-400 mt-0.5">
-                                Upgrade to Pro to see views & sales stats
-                            </p>
-                        )}
-                    </div>
-                    <button onClick={() => setEditingProduct(p)} className="text-slate-300 dark:text-gold-300/40 hover:text-brand-600 dark:hover:text-gold-400 p-1.5 transition">
-                        <Pencil size={17} />
-                    </button>
-                    <button onClick={() => remove(p.id)} className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition">
-                        <Trash2 size={18} />
-                    </button>
-                </div>
-            ))}
+                    {filteredServices.map((p) => (
+                        <ListingItem
+                            key={p.id}
+                            product={p}
+                            isPlanActive={isPlanActive}
+                            onEdit={setEditingProduct}
+                            onDelete={remove}
+                            isService
+                        />
+                    ))}
+                </>
+            )}
 
             <EditListingModal
                 product={editingProduct}
@@ -1692,6 +1766,8 @@ function MyOrders({ period, isSeller }) {
     const { scheduleReviewCheck } = useReviewPrompt();
     const [dataOrders, setDataOrders] = useState([]);
     const [reportTarget, setReportTarget] = useState(null);
+    const [serviceOrders, setServiceOrders] = useState([]);
+    const [confirmingBookingId, setConfirmingBookingId] = useState(null);
 
     const { status, data: orders, retry: loadOrders } = useContentReady({
         load: () => api.get('/orders/mine', { params: { period } }).then((res) => res.data),
@@ -1702,6 +1778,13 @@ function MyOrders({ period, isSeller }) {
         api.get('/data-orders/mine').then((res) => setDataOrders(res.data)).catch(() => setDataOrders([]));
     };
     useEffect(loadDataOrders, []);
+
+    const loadServiceOrders = () => {
+        api.get('/bookings/seller')
+            .then((res) => setServiceOrders(res.data))
+            .catch(() => setServiceOrders([]));
+    };
+    useEffect(loadServiceOrders, []);
 
     const handleConfirmReceived = async (orderId, itemId) => {
         if (!window.confirm('⚠️ Are you sure you have received this item? This action cannot be undone.')) {
@@ -1723,13 +1806,83 @@ function MyOrders({ period, isSeller }) {
 
     if (status === 'loading') return <SkeletonList />;
     if (status === 'error') return <ErrorState icon={ShoppingBag} text="Couldn't load your orders right now." onRetry={loadOrders} />;
-    if (orders.length === 0 && dataOrders.length === 0) return <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
+    if (orders.length === 0 && dataOrders.length === 0 && serviceOrders.length === 0) {
+        return <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
+    }
 
     return (
         <div className="max-w-2xl mx-auto space-y-3">
+            {/* ─── SERVICE ORDERS ─── */}
+            {serviceOrders.length > 0 && (
+                <>
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                            Service Bookings
+                        </span>
+                        <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/50" />
+                    </div>
+                    {serviceOrders.map((b) => (
+                        <div key={b.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                            <div className="flex justify-between items-start gap-3">
+                                <div>
+                                    <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">
+                                        {b.service_title}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
+                                        Buyer: {b.buyer_name} · {b.buyer_email}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
+                                        📅 {new Date(b.booking_date).toLocaleDateString()} · ⏰ {b.booking_time.slice(0, 5)}
+                                    </p>
+                                    {b.message && (
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1 italic">
+                                            "{b.message}"
+                                        </p>
+                                    )}
+                                </div>
+                                <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
+                                    b.status === 'confirmed'
+                                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                                        : 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400'
+                                }`}>
+                                    {b.status === 'confirmed' ? 'Confirmed ✅' : 'Awaiting payment'}
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2">
+                                Platform fee: GHS {parseFloat(b.platform_fee).toFixed(2)}
+                            </p>
+
+                            {/* ─── CONFIRM BUTTON FOR SELLER ─── */}
+                            {b.status === 'confirmed' && (
+                                <button
+                                    onClick={async () => {
+                                        if (!window.confirm('Confirm this booking? This will mark it as completed.')) return;
+                                        setConfirmingBookingId(b.id);
+                                        try {
+                                            await api.patch(`/bookings/${b.id}/confirm`);
+                                            toast.success('Booking confirmed!');
+                                            loadServiceOrders();
+                                        } catch (err) {
+                                            toast.error(err.response?.data?.error || 'Failed to confirm booking');
+                                        } finally {
+                                            setConfirmingBookingId(null);
+                                        }
+                                    }}
+                                    disabled={confirmingBookingId === b.id}
+                                    className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition disabled:opacity-60"
+                                >
+                                    {confirmingBookingId === b.id ? '...' : '✅ Confirm Booking'}
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </>
+            )}
+
+            {/* ─── DATA ORDERS ─── */}
             {dataOrders.length > 0 && (
                 <>
-                    <div className="flex items-center gap-3 mb-1">
+                    <div className="flex items-center gap-3 mt-4">
                         <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
                             Data Orders
                         </span>
@@ -1762,60 +1915,64 @@ function MyOrders({ period, isSeller }) {
                             )}
                         </div>
                     ))}
-                    {orders.length > 0 && (
-                        <div className="flex items-center gap-3 pt-2">
-                            <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
-                                Orders
-                            </span>
-                            <div className="flex-1 h-px bg-slate-200 dark:bg-ink-600" />
-                        </div>
-                    )}
                 </>
             )}
-            {orders.map((o) => (
-                                <div key={o.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
-                    <OrderTimeline order={o} />
-                    <div className="flex justify-between items-center mb-2">
-                        <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">Order #{o.id}</p>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[o.status] || 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50'}`}>
-                            {o.status}
+
+            {/* ─── REGULAR ORDERS ─── */}
+            {orders.length > 0 && (
+                <>
+                    <div className="flex items-center gap-3 pt-2">
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
+                            Orders
                         </span>
+                        <div className="flex-1 h-px bg-slate-200 dark:bg-ink-600" />
                     </div>
-
-                    <div className="mt-2 space-y-2">
-                        {o.items?.map((item) => (
-                            <div key={item.id} className="flex justify-between items-center border-t border-slate-100 dark:border-ink-600 pt-2 first:border-0 first:pt-0">
-                                <div className="flex-1">
-                                    <p className="text-sm text-slate-700 dark:text-gold-100">{item.title}</p>
-                                    <div className="flex items-center gap-3 mt-0.5">
-                                        <p className="text-xs text-slate-500 dark:text-gold-200/50">Qty: {item.quantity}</p>
-                                        <p className="text-xs font-semibold text-slate-600 dark:text-gold-200">GHS {parseFloat(item.price_at_purchase).toFixed(2)}</p>
-                                    </div>
-                                </div>
-                                
-                                {o.status === 'paid' && !item.buyer_confirmed_at && (
-                                    <button
-                                        onClick={() => handleConfirmReceived(o.id, item.id)}
-                                        disabled={confirmingItem === item.id}
-                                        className="shrink-0 ml-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60"
-                                    >
-                                        {confirmingItem === item.id ? '...' : '✅ Confirm Received'}
-                                    </button>
-                                )}
-                                {o.status === 'paid' && item.buyer_confirmed_at && (
-                                    <span className="shrink-0 ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                        ✓ Confirmed
-                                    </span>
-                                )}
+                    {orders.map((o) => (
+                        <div key={o.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                            <OrderTimeline order={o} />
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="font-semibold text-sm text-slate-800 dark:text-gold-100">Order #{o.id}</p>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[o.status] || 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50'}`}>
+                                    {o.status}
+                                </span>
                             </div>
-                        ))}
-                    </div>
 
-                    <p className="text-sm font-bold text-slate-900 dark:text-gold-50 mt-3 border-t border-slate-100 dark:border-ink-600 pt-3">
-                        Total: GHS {parseFloat(o.total_amount).toFixed(2)}
-                    </p>
-                </div>
-            ))}
+                            <div className="mt-2 space-y-2">
+                                {o.items?.map((item) => (
+                                    <div key={item.id} className="flex justify-between items-center border-t border-slate-100 dark:border-ink-600 pt-2 first:border-0 first:pt-0">
+                                        <div className="flex-1">
+                                            <p className="text-sm text-slate-700 dark:text-gold-100">{item.title}</p>
+                                            <div className="flex items-center gap-3 mt-0.5">
+                                                <p className="text-xs text-slate-500 dark:text-gold-200/50">Qty: {item.quantity}</p>
+                                                <p className="text-xs font-semibold text-slate-600 dark:text-gold-200">GHS {parseFloat(item.price_at_purchase).toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        {o.status === 'paid' && !item.buyer_confirmed_at && (
+                                            <button
+                                                onClick={() => handleConfirmReceived(o.id, item.id)}
+                                                disabled={confirmingItem === item.id}
+                                                className="shrink-0 ml-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60"
+                                            >
+                                                {confirmingItem === item.id ? '...' : '✅ Confirm Received'}
+                                            </button>
+                                        )}
+                                        {o.status === 'paid' && item.buyer_confirmed_at && (
+                                            <span className="shrink-0 ml-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                                ✓ Confirmed
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <p className="text-sm font-bold text-slate-900 dark:text-gold-50 mt-3 border-t border-slate-100 dark:border-ink-600 pt-3">
+                                Total: GHS {parseFloat(o.total_amount).toFixed(2)}
+                            </p>
+                        </div>
+                    ))}
+                </>
+            )}
 
             <ReportModal
                 open={!!reportTarget}

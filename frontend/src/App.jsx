@@ -17,6 +17,7 @@ import InstallButton from './components/InstallButton';
 import ChatPanel from './components/ChatPanel';
 import PullToRefresh from './components/PullToRefresh';
 import ChatHistory from './pages/ChatHistory';
+import ServiceDetail from './pages/ServiceDetail';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
 import Login from './pages/Login';
@@ -69,6 +70,7 @@ export default function App() {
                         <Route path="/chat" element={<ProtectedRoute><ChatHistory /></ProtectedRoute>} />
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/service/:id" element={<ServiceDetail />} />
                         <Route path="/store/:id" element={<Store />} />
                         <Route path="/help" element={<Help />} />
                         <Route path="/contact" element={<Contact />} />

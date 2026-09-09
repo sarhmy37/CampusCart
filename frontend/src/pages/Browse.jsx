@@ -10,6 +10,7 @@ import { DUMMY_PRODUCTS } from '../data/demoProducts';
 import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search , Wallet, Wifi, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { MTN_LOGO, VODAFONE_LOGO, AIRTELTIGO_LOGO } from '../data/media';
+import ServiceCard from '../components/ServiceCard';
 import {
     AdjustmentsHorizontalIcon,
     SparklesIcon,
@@ -26,7 +27,7 @@ import {
 } from '@heroicons/react/24/solid';
 import CategoryRequestModal from '../components/CategoryRequestModal';
 
-const ITEM_TYPES = ['Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sneakers', 'Mobile Data', 'Other'];
+const ITEM_TYPES = ['Mobile Data', 'Services' ,'Clothes', 'Gadgets', 'Stationery', 'Perfumes', 'Food', 'Sneakers',  'Other'];
 
 const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their university email has been confirmed.';
 const VERIFIED_NOTE_TYPE_SPEED_MS = 40;
@@ -801,6 +802,26 @@ export default function Browse() {
                                 )}
                             </div>
                         </div>
+                    ) : itemCategory === 'Services' ? (
+                        <>
+                            {loading ? (
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                    {Array.from({ length: 6 }).map((_, i) => (
+                                        <div key={i} className="h-40 rounded-xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+                                    ))}
+                                </div>
+                            ) : visibleProducts.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center text-center flex-1 min-h-[40vh] text-slate-400 dark:text-gold-200/40">
+                                    <p>No services available right now. Check back later!</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                    {visibleProducts.map((p) => (
+                                        <ServiceCard key={p.id} service={p} />
+                                    ))}
+                                </div>
+                            )}
+                        </>
                     ) : (
                     <>
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
