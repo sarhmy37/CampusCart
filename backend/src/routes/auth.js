@@ -35,6 +35,8 @@ function toPublicUser(row) {
         referral_code: row.referral_code,
         credit_balance: row.credit_balance,
         is_data_seller: row.is_data_seller,
+        plan: row.plan,
+        plan_expires_at: row.plan_expires_at,
     };
 }
 
