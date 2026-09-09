@@ -24,7 +24,9 @@ function requireAuth(req, res, next) {
             if (result.rows.length > 0) {
                 req.user = result.rows[0];
             }
-            pool.query('UPDATE users SET last_active_at = now() WHERE id = $1', [req.userId]).catch(() => {});
+            pool.query('UPDATE users SET last_active = now() WHERE id = $1', [req.userId]).catch((err) => {
+    console.error('last_active update error:', err.message);
+});
         }).catch(() => {});
 
         next();

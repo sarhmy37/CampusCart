@@ -200,15 +200,21 @@ export default function ProductDetail() {
     const relatedCategory = product.category || product.category_name;
 
     // ---- Glass Card Component ----
-    const GlassCard = ({ children, className = '' }) => (
-        <div className={`bg-white/70 dark:bg-ink-800/70 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] ${className}`}>
+    const GlassCard = ({ children, className = '', borderClass = 'border-white/30 dark:border-white/10' }) => (
+        <div className={`bg-white/70 dark:bg-ink-800/70 backdrop-blur-xl border ${borderClass} rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] ${className}`}>
             {children}
         </div>
     );
 
     // ---- Seller Card Component ----
+    const sellerBorderClass = sellerPlan === 'premium'
+        ? 'border-purple-300 dark:border-purple-500/40'
+        : sellerPlan === 'pro'
+        ? 'border-blue-300 dark:border-blue-500/40'
+        : 'border-white/30 dark:border-white/10';
+
     const SellerCard = () => (
-        <GlassCard>
+        <GlassCard borderClass={sellerBorderClass}>
             <p className="text-xs font-semibold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">Sold by</p>
             <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
@@ -248,17 +254,14 @@ export default function ProductDetail() {
                             {sellerPlan === 'premium' ? 'Premium Seller' : 'Pro Seller'}
                         </span>
                     )}
-                    {product.seller_verified ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
-                            Verified student
-                        </span>
-                    ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-gold-400 mt-0.5">
-                            Not yet verified
-                        </span>
-                    )}
-                    {!isDemo && (
+                          {!isDemo && (
                         <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5">
+                            {sellerPlan && (
+                                <>
+                                    {product.seller_sales_count ?? 0} {product.seller_sales_count === 1 ? 'sale' : 'sales'}
+                                    {' · '}
+                                </>
+                            )}
                             {formatLastActive(product.seller_last_active)}
                         </p>
                     )}

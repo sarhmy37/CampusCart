@@ -102,7 +102,8 @@ router.get('/:id', async (req, res) => {
                 u.meeting_place AS seller_meeting_place,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified, u.last_active AS seller_last_active,
                 u.avatar_url AS seller_avatar, u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at,
-                c.name AS category
+                c.name AS category,
+                (SELECT COUNT(*) FROM order_items oi WHERE oi.seller_id = u.id AND oi.buyer_confirmed_at IS NOT NULL) AS seller_sales_count
              FROM products p
              JOIN users u ON u.id = p.seller_id
              LEFT JOIN categories c ON c.id = p.category_id
