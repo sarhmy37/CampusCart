@@ -294,7 +294,7 @@ export default function Browse() {
     const baseProducts = isDemo ? DUMMY_PRODUCTS : products;
     const categoryFiltered = itemCategory
         ? baseProducts.filter((p) => (p.category || p.category_name) === itemCategory)
-        : baseProducts;
+        : baseProducts.filter((p) => (p.category || p.category_name) !== 'Services');
     const verifiedFiltered = verifiedOnly
         ? categoryFiltered.filter((p) => p.seller_verified)
         : categoryFiltered;
@@ -457,7 +457,9 @@ export default function Browse() {
         ...SCHOOLS.map((s) => ({ value: s.name, label: s.name })),
     ];
 
-    const headerTitle = search ? `Results for "${search}"` : 'Browse listings';
+    const headerTitle = itemCategory === 'Services'
+        ? 'Browse Services'
+        : search ? `Results for "${search}"` : 'Browse listings';
 
     const sectionPadding = isMobileViewport
         ? { paddingTop: lerp(32, 14, progress), paddingBottom: lerp(32, 14, progress) }
