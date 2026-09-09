@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { Bookmark } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
-import { SlidersHorizontal, ArrowLeft, X, ChevronDown, Check, Search , Wallet, Wifi, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, ChevronDown, Check, Search , Wallet, Wifi, Loader2 ,SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { MTN_LOGO, VODAFONE_LOGO, AIRTELTIGO_LOGO } from '../data/media';
 import ServiceCard from '../components/ServiceCard';
@@ -832,31 +833,10 @@ export default function Browse() {
                         </div>
                     ) : itemCategory === 'Services' ? (
                         <>
-                            <div className="flex items-center gap-2 flex-wrap mb-5">
-                                <button
-                                    onClick={() => setServiceType('')}
-                                    className={`text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full border transition whitespace-nowrap ${
-                                        serviceType === ''
-                                            ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
-                                            : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
-                                    }`}
-                                >
-                                    All services
-                                </button>
-                                {SERVICE_TYPES.map((t) => (
-                                    <button
-                                        key={t.label}
-                                        onClick={() => setServiceType(serviceType === t.label ? '' : t.label)}
-                                        className={`text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full border transition whitespace-nowrap ${
-                                            serviceType === t.label
-                                                ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
-                                                : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
-                                        }`}
-                                    >
-                                        {t.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <ServiceTypeDropdown
+                                value={serviceType}
+                                onChange={setServiceType}
+                            />
 
                             {(() => {
                                 const activeType = SERVICE_TYPES.find((t) => t.label === serviceType);
@@ -1155,6 +1135,68 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
                 })}
             </div>
         </>
+    );
+}
+
+function ServiceTypeDropdown({ value, onChange }) {
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef(null);
+    const selected = SERVICE_TYPES.find((t) => t.label === value);
+
+    useEffect(() => {
+        if (!open) return;
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [open]);
+
+    return (
+        <div ref={containerRef} className="relative mb-5">
+            <button
+                onClick={() => setOpen((o) => !o)}
+                className="w-full sm:w-auto min-w-[260px] flex items-center gap-2.5 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl px-4 py-2.5 hover:border-slate-300 dark:hover:border-ink-500 transition"
+            >
+                <SlidersHorizontal size={16} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                <span className="flex-1 text-left text-sm font-semibold text-slate-700 dark:text-gold-100 truncate">
+                    {selected ? selected.label : 'All services'}
+                </span>
+                <ChevronDown size={16} className={`text-slate-400 dark:text-gold-300/50 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {open && (
+                <div className="absolute z-20 mt-1.5 w-full sm:min-w-[280px] bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl shadow-lg max-h-72 overflow-y-auto">
+                    <button
+                        onClick={() => { onChange(''); setOpen(false); }}
+                        className={`w-full flex items-center justify-between text-left px-4 py-2.5 text-sm transition ${
+                            value === ''
+                                ? 'bg-brand-50 dark:bg-gold-900/30 text-brand-700 dark:text-gold-300 font-bold'
+                                : 'text-slate-700 dark:text-gold-100 font-medium hover:bg-slate-50 dark:hover:bg-ink-700'
+                        }`}
+                    >
+                        All services
+                        {value === '' && <Check size={15} className="text-brand-600 dark:text-gold-400" />}
+                    </button>
+                    {SERVICE_TYPES.map((t) => (
+                        <button
+                            key={t.label}
+                            onClick={() => { onChange(value === t.label ? '' : t.label); setOpen(false); }}
+                            className={`w-full flex items-center justify-between text-left px-4 py-2.5 text-sm transition ${
+                                value === t.label
+                                    ? 'bg-brand-50 dark:bg-gold-900/30 text-brand-700 dark:text-gold-300 font-bold'
+                                    : 'text-slate-700 dark:text-gold-100 font-medium hover:bg-slate-50 dark:hover:bg-ink-700'
+                            }`}
+                        >
+                            {t.label}
+                            {value === t.label && <Check size={15} className="text-brand-600 dark:text-gold-400" />}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
 
