@@ -15,6 +15,7 @@ import {
     Star,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const HERO_TEXTS = [
     'Buy and Sell within your campus,Safely.',
@@ -242,9 +243,13 @@ export default function Home() {
 
 const handlePlanClick = async (planName) => {
     const currentPlan = (user?.plan || 'free').toLowerCase();
+    const isCurrentPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
 
-    if (planName.toLowerCase() === 'free' && currentPlan !== 'free') {
-        alert(`You are on the ${user.plan} plan. You can only go back to Free when your current plan duration ends.`);
+    // Locked in on an active paid plan — can't switch to anything else
+    // (including Free or the other paid plan) until it expires.
+    if (isCurrentPlanActive && planName.toLowerCase() !== currentPlan) {
+        toast.error(`You're on the ${user.plan} plan until it expires — you can switch once it ends.`);
         return;
     }
 
@@ -265,7 +270,7 @@ const handlePlanClick = async (planName) => {
         });
         window.location.href = res.data.authorization_url;
     } catch (err) {
-        alert(err.response?.data?.error || 'Could not start payment. Please try again.');
+        toast.error(err.response?.data?.error || 'Could not start payment. Please try again.');
     } finally {
         setSubscribingPlan(null);
     }

@@ -169,6 +169,10 @@ export default function ProfileDrawer({ open, onClose }) {
         onClose();
     };
 
+    const planIsActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+    const planTier = planIsActive ? user.plan.toLowerCase() : 'free';
+
     return (
         <>
             {/* Backdrop */}
@@ -237,7 +241,15 @@ export default function ProfileDrawer({ open, onClose }) {
                     </div>
 
                     <div className="mt-3">
-                        <h2 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">{user.name}</h2>
+                        <h2 className="flex items-center gap-1.5 text-lg font-extrabold text-slate-900 dark:text-gold-50">
+                            {user.name}
+                            {planTier === 'premium' && (
+                                <Sparkles size={16} className="text-purple-500 fill-purple-500 shrink-0" />
+                            )}
+                            {planTier === 'pro' && (
+                                <Star size={16} className="text-blue-500 fill-blue-500 shrink-0" />
+                            )}
+                        </h2>
                         <p className="text-sm text-slate-500 dark:text-gold-200/60">{user.university_email}</p>
                         {user.school && (
                             <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-0.5">{user.school}</p>
@@ -272,41 +284,6 @@ export default function ProfileDrawer({ open, onClose }) {
         </span>
     )}
 
-    {/* 🆕 Plan badge */}
-    {(() => {
-        // Mirrors backend's isPlanActive (utils/plans.js) — the stored
-        // user.plan column never auto-reverts to 'free' on its own, so we
-        // must check plan_expires_at here too, or an expired subscriber
-        // would see their old plan badge forever.
-        const isActive = user?.plan && user.plan !== 'free' &&
-            user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
-        const plan = isActive ? user.plan.toLowerCase() : 'free';
-        const roleLabel = user?.account_type === 'seller' ? 'Seller' : 'Buyer';
-
-        if (plan === 'premium') {
-            return (
-                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
-                    <Sparkles className="w-[11px] h-[11px] sm:hidden" />
-                    <Sparkles className="hidden sm:inline w-[13px] h-[13px]" />
-                    Premium {roleLabel}
-                </span>
-            );
-        } else if (plan === 'pro') {
-            return (
-                <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
-                    <Star className="w-[11px] h-[11px] sm:hidden" />
-                    <Star className="hidden sm:inline w-[13px] h-[13px]" />
-                    Pro {roleLabel}
-                </span>
-            );
-    } else {
-        return (
-            <span className="inline-flex items-center gap-1 sm:gap-1.5 bg-gray-50 dark:bg-gray-800/30 text-gray-600 dark:text-gray-400 text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full">
-                Free Plan
-            </span>
-        );
-    }
-    })()}
 </div>
 
                         {!user.verified && (
@@ -427,6 +404,19 @@ export default function ProfileDrawer({ open, onClose }) {
                         <LayoutDashboard size={17} /> Dashboard
                     </button>
 
+                    {/* PREMIUM FEATURE — placeholder, waiting on label/icon/route */}
+                    <button
+                        onClick={() => { onClose(); navigate('/PLACEHOLDER'); }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
+                            planTier === 'premium'
+                                ? 'bg-gradient-to-r from-violet-100 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/40 hover:from-violet-200 hover:to-purple-200 dark:hover:from-purple-900/70 dark:hover:to-purple-800/60 text-violet-800 dark:text-purple-300'
+                                : planTier === 'pro'
+                                ? 'bg-gradient-to-r from-blue-100 to-sky-100 dark:from-blue-900/50 dark:to-blue-800/40 hover:from-blue-200 hover:to-sky-200 dark:hover:from-blue-900/70 dark:hover:to-blue-800/60 text-blue-800 dark:text-blue-300'
+                                : 'bg-slate-100 dark:bg-ink-700 hover:bg-slate-50 dark:hover:bg-ink-600 text-slate-800 dark:text-gold-100'
+                        }`}
+                    >
+                        <Sparkles size={17} /> Placeholder label
+                    </button>
                     {/* CHAT / MESSAGING */}
                     <button
                         onClick={() => { onClose(); navigate('/chat'); }}
