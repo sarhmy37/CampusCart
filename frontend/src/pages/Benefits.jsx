@@ -1,37 +1,21 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { DASHBOARD_VIDEO } from '../data/media';
 import Reveal from '../components/Reveal';
 import {
     ArrowLeft, Sparkles, Star, ShieldCheck, Zap, Eye, Tag,
     TrendingUp, Wallet, Store, Bookmark, Award, ChevronDown,
     ArrowRight, Clock, Gauge, MessageCircle, Percent, Layers,
-    Rocket, Gift, CheckBadgeIcon,
+    Rocket, Gift,
 } from 'lucide-react';
+
 const LISTING_LIMITS = { free: 10, pro: 30, premium: Infinity };
 
 const TIER_META = {
-    pro: {
-        label: 'Pro',
-        icon: Star,
-        iconBg: 'bg-blue-50 dark:bg-blue-900/30',
-        iconText: 'text-blue-600 dark:text-blue-400',
-        badgeBg: 'bg-blue-600',
-        soft: 'bg-blue-50 dark:bg-blue-950/30',
-        softBorder: 'border-blue-200 dark:border-blue-900/50',
-        gradient: 'from-ink-900 via-ink-800 to-blue-700 dark:to-blue-900',
-    },
-    premium: {
-        label: 'Premium',
-        icon: Sparkles,
-        iconBg: 'bg-purple-50 dark:bg-purple-900/30',
-        iconText: 'text-purple-600 dark:text-purple-400',
-        badgeBg: 'bg-purple-600',
-        soft: 'bg-purple-50 dark:bg-purple-950/30',
-        softBorder: 'border-purple-200 dark:border-purple-900/50',
-        gradient: 'from-ink-900 via-ink-800 to-purple-700 dark:to-purple-900',
-    },
+    pro: { label: 'Pro', icon: Star },
+    premium: { label: 'Premium', icon: Sparkles },
 };
 
 const SELLER_BENEFITS = [
@@ -127,10 +111,15 @@ export default function Benefits() {
     // ─── FREE PLAN — upsell teaser instead of the members' page ───
     if (!planTier) {
         return (
-            <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
-                <section className="relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            <div>
+                <section className="relative overflow-hidden">
+                    <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                        <source src={DASHBOARD_VIDEO} type="video/mp4" />
+                    </video>
+                    <div className="absolute inset-0 bg-gradient-to-br from-ink-900/80 via-ink-800/55 to-brand-600/35 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                     <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                     <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
+
                     <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-14 text-center">
                         <button
                             onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
@@ -160,69 +149,60 @@ export default function Benefits() {
     const Icon = meta.icon;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
-            {/* HEADER — same gradient hero pattern as Store/Help/Contact/Settings */}
-            <section className={`relative overflow-hidden bg-gradient-to-br ${meta.gradient}`}>
+        <div>
+            {/* HEADER — same video pattern as Dashboard */}
+            <section className="relative overflow-hidden">
+                <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                    <source src={DASHBOARD_VIDEO} type="video/mp4" />
+                </video>
+                <div className="absolute inset-0 bg-gradient-to-br from-ink-900/80 via-ink-800/55 to-brand-600/35 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-white/10 rounded-full blur-3xl" />
+                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
 
-                <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
-                    <button
-                        onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
-                        className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-3.5 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
-                    >
-                        <ArrowLeft size={15} /> Back
-                    </button>
+                <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-3">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-4 sm:gap-5">
+                            <button
+                                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+                                className="w-6 h-12 sm:w-8 sm:h-16 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
+                            >
+                                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </button>
 
-                    <div className="flex items-center gap-2 mt-6">
-                        <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/20">
-                            <Icon size={13} />
-                            {meta.label} Member
-                        </span>
+                            <div>
+                                <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/20">
+                                    <Icon size={13} />
+                                    {meta.label} Member
+                                </div>
+                                <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-3">
+                                    {user?.name}
+                                </h1>
+                                <p className="text-white/70 text-sm mt-1">{user?.school}</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-4">
-                        {user?.name}
-                    </h1>
-                    <p className="text-white/70 text-sm mt-1">{user?.school}</p>
-
                     <div className="grid grid-cols-3 gap-3 mt-8">
-                        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl sm:rounded-2xl p-2.5 sm:p-4">
-                            <Clock className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] text-white/80 mb-1 sm:mb-2" />
-                            <p className="text-lg sm:text-2xl font-extrabold text-white">{daysLeft}</p>
-                            <p className="text-[10px] sm:text-xs text-white/70">Days left</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl sm:rounded-2xl p-2.5 sm:p-4">
-                            <Tag className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] text-white/80 mb-1 sm:mb-2" />
-                            <p className="text-lg sm:text-2xl font-extrabold text-white">
-                                {loading ? '···' : listingCount}
-                            </p>
-                            <p className="text-[10px] sm:text-xs text-white/70">Listings</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl sm:rounded-2xl p-2.5 sm:p-4">
-                            <Wallet className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] text-white/80 mb-1 sm:mb-2" />
-                            <p className="text-lg sm:text-2xl font-extrabold text-white">
-                                {loading ? '···' : `GHS ${feeSaved.toFixed(0)}`}
-                            </p>
-                            <p className="text-[10px] sm:text-xs text-white/70">Fees saved</p>
-                        </div>
+                        <StatCard icon={Clock} label="Days left" value={daysLeft} />
+                        <StatCard icon={Tag} label="Listings" value={loading ? '···' : listingCount} />
+                        <StatCard icon={Wallet} label="Fees saved" value={loading ? '···' : `GHS ${feeSaved.toFixed(0)}`} />
                     </div>
                 </div>
             </section>
 
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-5">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-8 bg-white dark:bg-ink-900 space-y-5">
 
                 {/* ─── MEMBERSHIP STATEMENT — same style as SellerOverview earnings statement ─── */}
                 <Reveal>
-                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 sm:p-6 shadow-sm">
+                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 sm:p-6">
                         <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-slate-500 dark:text-gold-200/60">Membership</p>
-                            <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${meta.soft} ${meta.iconText}`}>
+                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400">
                                 <Icon size={12} /> {meta.label}
                             </span>
                         </div>
 
-                        <div className="mt-3 flex items-baseline gap-2">
+                        <div className="mt-3 flex items-baseline gap-2 flex-wrap">
                             <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-gold-50">
                                 Renews {new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                             </span>
@@ -239,7 +219,7 @@ export default function Benefits() {
                                 </div>
                                 <div className="h-2 rounded-full bg-slate-100 dark:bg-ink-700 overflow-hidden">
                                     <div
-                                        className={`h-full rounded-full ${meta.badgeBg} transition-all duration-700`}
+                                        className="h-full rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-700"
                                         style={{ width: `${listingUsagePct}%` }}
                                     />
                                 </div>
@@ -265,7 +245,6 @@ export default function Benefits() {
                                 title="View my store"
                                 desc="See your public storefront"
                                 onClick={() => navigate(`/store/${user.id}`)}
-                                meta={meta}
                             />
                         )}
                         <QuickAction
@@ -273,23 +252,21 @@ export default function Benefits() {
                             title="Priority support"
                             desc={planTier === 'premium' ? 'Same-day dedicated line' : '24-hour priority response'}
                             onClick={() => navigate('/contact')}
-                            meta={meta}
                         />
                         <QuickAction
                             icon={Gauge}
                             title="Manage subscription"
                             desc="Renew, view billing, or change plan"
                             onClick={() => navigate('/settings')}
-                            meta={meta}
                         />
                     </div>
                 </Reveal>
 
                 {/* ─── FULL BENEFITS BREAKDOWN ─── */}
-                <div className="pt-4">
+                <div className="pt-2">
                     <Reveal>
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className={`w-9 h-9 rounded-lg ${meta.iconBg} ${meta.iconText} flex items-center justify-center`}>
+                        <div className="flex items-center gap-2.5 mb-4">
+                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
                                 <ShieldCheck size={16} />
                             </div>
                             <h2 className="font-bold text-slate-900 dark:text-gold-50">
@@ -309,7 +286,7 @@ export default function Benefits() {
                                     </p>
                                     <div className="grid sm:grid-cols-2 gap-2.5">
                                         {groupItems.map((item) => (
-                                            <BenefitCard key={item.title} item={item} meta={meta} />
+                                            <BenefitCard key={item.title} item={item} />
                                         ))}
                                     </div>
                                 </Reveal>
@@ -318,37 +295,34 @@ export default function Benefits() {
                     </div>
                 </div>
 
-                {/* ─── PRO → PREMIUM UPSELL — same card language as pricing section on Home ─── */}
+                {/* ─── PRO → PREMIUM UPSELL ─── */}
                 {planTier === 'pro' && (
                     <Reveal delay={100}>
-                        <div className="relative overflow-hidden rounded-2xl border border-purple-200 dark:border-purple-900/50 bg-purple-50 dark:bg-purple-950/20 p-6 shadow-sm">
-                            <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-purple-200/40 dark:bg-purple-900/20 blur-3xl" />
-                            <div className="relative z-10">
-                                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300">
-                                    <Sparkles size={13} /> Go further with Premium
-                                </span>
-                                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-gold-50 mt-2">
-                                    Unlimited listings. Top store placement. Same-day support.
-                                </h3>
-                                <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-2 max-w-lg">
-                                    Everything you have on Pro, plus no listing cap at all and your store shown first, every time.
-                                </p>
-                                <button
-                                    onClick={() => navigate('/', { state: { scrollToPricing: true } })}
-                                    className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm transition"
-                                >
-                                    Upgrade to Premium <ArrowRight size={15} />
-                                </button>
+                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-center gap-2.5 mb-1">
+                                <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                                    <Sparkles size={16} />
+                                </div>
+                                <h2 className="font-bold text-slate-900 dark:text-gold-50">Go further with Premium</h2>
                             </div>
+                            <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-2 max-w-lg">
+                                Everything you have on Pro, plus no listing cap at all and your store shown first, every time.
+                            </p>
+                            <button
+                                onClick={() => navigate('/', { state: { scrollToPricing: true } })}
+                                className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-bold text-sm transition"
+                            >
+                                Upgrade to Premium <ArrowRight size={15} />
+                            </button>
                         </div>
                     </Reveal>
                 )}
 
-                {/* ─── FAQ — same accordion style as Help.jsx ─── */}
-                <div className="pt-4 pb-8">
+                {/* ─── FAQ ─── */}
+                <div className="pt-2 pb-4">
                     <Reveal>
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className={`w-9 h-9 rounded-lg ${meta.iconBg} ${meta.iconText} flex items-center justify-center`}>
+                        <div className="flex items-center gap-2.5 mb-4">
+                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
                                 <Gift size={16} />
                             </div>
                             <h2 className="font-bold text-slate-900 dark:text-gold-50">Good to know</h2>
@@ -370,6 +344,18 @@ export default function Benefits() {
     );
 }
 
+// ─── STAT CARD — matches Dashboard.jsx's StatCard exactly ─────────────────
+function StatCard({ icon: Icon, label, value }) {
+    return (
+        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl sm:rounded-2xl p-2.5 sm:p-4">
+            <Icon className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] text-white/80 mb-1 sm:mb-2" />
+            <p className="text-lg sm:text-2xl font-extrabold text-white">{value}</p>
+            <p className="text-[10px] sm:text-xs text-white/70">{label}</p>
+        </div>
+    );
+}
+
+// ─── RECEIPT-STYLE ROW — matches SellerOverview's StatementRow exactly ────
 function StatementRow({ label, value, highlight }) {
     return (
         <div className="flex items-baseline gap-2 py-1.5">
@@ -382,13 +368,13 @@ function StatementRow({ label, value, highlight }) {
     );
 }
 
-function QuickAction({ icon: Icon, title, desc, onClick, meta }) {
+function QuickAction({ icon: Icon, title, desc, onClick }) {
     return (
         <button
             onClick={onClick}
             className="text-left bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500 hover:shadow-sm rounded-2xl p-4 transition group"
         >
-            <div className={`w-9 h-9 rounded-lg ${meta.iconBg} ${meta.iconText} flex items-center justify-center mb-3`}>
+            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center mb-3">
                 <Icon size={16} />
             </div>
             <p className="font-bold text-sm text-slate-900 dark:text-gold-50 flex items-center gap-1.5">
@@ -400,11 +386,11 @@ function QuickAction({ icon: Icon, title, desc, onClick, meta }) {
     );
 }
 
-function BenefitCard({ item, meta }) {
+function BenefitCard({ item }) {
     const Icon = item.icon;
     return (
         <div className="flex items-start gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 hover:shadow-sm transition">
-            <div className={`w-9 h-9 rounded-lg ${meta.iconBg} ${meta.iconText} flex items-center justify-center shrink-0`}>
+            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center shrink-0">
                 <Icon size={16} />
             </div>
             <div className="min-w-0">
