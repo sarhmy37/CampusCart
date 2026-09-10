@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AppToaster from './components/AppToaster';
 import { AuthProvider } from './context/AuthContext';
@@ -40,12 +39,6 @@ import Contact from './pages/Contact';
 
 
 export default function App() {
-  useEffect(() => {
-    navigator.mediaDevices?.getUserMedia({ audio: true })
-      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
-      .catch(() => {});
-  }, []);
-
   return (
     <ThemeProvider>
       <AuthProvider>
