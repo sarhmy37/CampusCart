@@ -4,7 +4,11 @@ import { Star, X, ChevronDown } from 'lucide-react';
 import { useReviewPrompt } from '../context/ReviewPromptContext';
 
 export default function PostPurchaseReviewModal() {
-    const { groups, hasPending, submitReviews, skipAll } = useReviewPrompt();
+    const { groups: rawGroups, hasPending, submitReviews, skipAll } = useReviewPrompt();
+    // Guard against `groups` being undefined (e.g. while the pending-reviews
+    // request is loading, or if it fails) so this component can never crash
+    // the whole app on mount.
+    const groups = rawGroups || [];
     // { [product_id]: { rating: number, comment: string } }
     const [entries, setEntries] = useState({});
     const [expandedSellers, setExpandedSellers] = useState({});

@@ -8,46 +8,52 @@ const TRIGGER_DELAY_MS = 5000;
 
 export function ReviewPromptProvider({ children }) {
     const { user } = useAuth();
-    const [queue, setQueue] = useState([]); // [{ seller_id, seller_name, seller_avatar }, ...]
+    // [{ seller_id, seller_name, seller_avatar, products: [{ product_id, title }, ...] }, ...]
+    const [groups, setGroups] = useState([]);
     const timerRef = useRef(null);
 
     // Called right after a buyer confirms receipt of an item. Schedules a
-    // fetch of all pending sellers 5s later, so the prompt appears whichever
-    // page the buyer has navigated to by then.
+    // fetch of all pending products (grouped by seller) 5s later, so the
+    // prompt appears whichever page the buyer has navigated to by then.
     const scheduleReviewCheck = useCallback(() => {
         if (!user) return;
         clearTimeout(timerRef.current);
         timerRef.current = setTimeout(async () => {
             try {
-                const res = await api.get('/reviews/pending-sellers');
+                const res = await api.get('/reviews/pending-items');
                 if (res.data?.length > 0) {
-                    setQueue(res.data);
+                    setGroups(res.data);
                 }
             } catch { /* ignore */ }
         }, TRIGGER_DELAY_MS);
     }, [user]);
 
-    const currentPrompt = queue[0] || null;
+    const hasPending = groups.length > 0;
 
-    const advanceQueue = () => setQueue((prev) => prev.slice(1));
-
-    const submitReview = async (rating, comment) => {
-        if (!currentPrompt) return;
-        await api.post('/reviews', { seller_id: currentPrompt.seller_id, rating, comment: comment || null });
-        advanceQueue();
+    // The backend has no bulk-review endpoint — it reviews one product at a
+    // time (POST /reviews/product) — so submit every entry in parallel and
+    // let the modal's own try/catch show a single toast if any of them fail.
+    const submitReviews = async (payload) => {
+        await Promise.all(
+            payload.map(({ product_id, rating, comment }) =>
+                api.post('/reviews/product', { product_id, rating, comment: comment || null })
+            )
+        );
+        setGroups([]);
     };
 
-    const skipReview = async () => {
-        if (!currentPrompt) return;
-        try {
-            await api.post(`/reviews/${currentPrompt.seller_id}/skip`);
-        } catch { /* ignore */ }
-        advanceQueue();
+    // Likewise, skipping is per-seller (POST /reviews/:sellerId/skip) — skip
+    // every seller currently shown in the modal.
+    const skipAll = async () => {
+        await Promise.allSettled(
+            groups.map((g) => api.post(`/reviews/${g.seller_id}/skip`))
+        );
+        setGroups([]);
     };
 
     return (
         <ReviewPromptContext.Provider
-            value={{ currentPrompt, submitReview, skipReview, scheduleReviewCheck }}
+            value={{ groups, hasPending, submitReviews, skipAll, scheduleReviewCheck }}
         >
             {children}
         </ReviewPromptContext.Provider>
