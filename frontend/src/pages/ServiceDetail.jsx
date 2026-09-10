@@ -8,6 +8,28 @@ import {
     Loader2, Briefcase, MessageSquare, Tag, ArrowRight,
 } from 'lucide-react';
 
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function parseAvailability(raw) {
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+        return null;
+    } catch {
+        return null; // old plain-text duration values (e.g. "2hrs")
+    }
+}
+
+// "9:00 AM" -> "09:00" (24hr, for <input type="time"> min/max)
+function to24Hour(label) {
+    const [time, period] = label.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 export default function ServiceDetail() {
     const { id } = useParams();
     const { user } = useAuth();
@@ -47,13 +69,35 @@ export default function ServiceDetail() {
     const isOwner = user && user.id === service.seller_id;
     const images = service.images?.length ? service.images.map(i => i.image_url || i) : (service.primary_image ? [service.primary_image] : []);
     const hasRating = service.rating && parseFloat(service.rating) > 0;
-    const duration = service.service_duration || service.duration;
+    const availability = parseAvailability(service.service_duration || service.duration);
+    const legacyDuration = !availability ? (service.service_duration || service.duration) : null;
+
+    const availabilitySummary = availability
+        ? (availability.is247
+            ? 'Open 24/7'
+            : `${availability.days?.join(', ') || 'No days set'} · ${availability.openTime}–${availability.closeTime}`)
+        : (legacyDuration || 'Flexible timing');
+
+    const timeInputBounds = availability && !availability.is247
+        ? { min: to24Hour(availability.openTime), max: to24Hour(availability.closeTime) }
+        : {};
 
     const handleBook = async (e) => {
         e.preventDefault();
         if (!bookingDate || !bookingTime) {
             toast.error('Please select a date and time.');
             return;
+        }
+        if (availability && !availability.is247) {
+            const pickedDay = DAY_NAMES[new Date(bookingDate + 'T00:00:00').getDay()];
+            if (!availability.days?.includes(pickedDay)) {
+                toast.error(`This provider isn't available on ${pickedDay}s. Pick from: ${availability.days.join(', ')}`);
+                return;
+            }
+            if (bookingTime < timeInputBounds.min || bookingTime > timeInputBounds.max) {
+                toast.error(`This provider is only available ${availability.openTime}–${availability.closeTime}`);
+                return;
+            }
         }
         if (!user) {
             toast.error('Please log in to book this service.');
@@ -245,9 +289,9 @@ export default function ServiceDetail() {
                                     <Clock size={16} />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-[10px] text-slate-400 dark:text-gold-200/50 uppercase font-semibold">Duration</p>
+                                    <p className="text-[10px] text-slate-400 dark:text-gold-200/50 uppercase font-semibold">Availability</p>
                                     <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">
-                                        {duration || 'Flexible timing'}
+                                        {availabilitySummary}
                                     </p>
                                 </div>
                             </div>
@@ -291,9 +335,15 @@ export default function ServiceDetail() {
                                             type="time"
                                             value={bookingTime}
                                             onChange={e => setBookingTime(e.target.value)}
+                                            {...timeInputBounds}
                                             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                             required
                                         />
+                                        {availability && !availability.is247 && (
+                                            <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-1">
+                                                Available {availability.days.join(', ')} · {availability.openTime}–{availability.closeTime}
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-1">

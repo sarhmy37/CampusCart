@@ -48,30 +48,49 @@ router.get('/seller/:sellerId', async (req, res) => {
     }
 });
 
-// GET /api/reviews/pending-sellers — distinct sellers this buyer has completed a
-// purchase from, hasn't reviewed, and hasn't permanently skipped. Used to drive
-// the post-purchase review prompt queue.
-router.get('/pending-sellers', requireAuth, async (req, res) => {
+// GET /api/reviews/pending-items — this buyer's completed, unreviewed order items,
+// grouped by seller. Drives the post-purchase review prompt (one rating per product).
+router.get('/pending-items', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT DISTINCT u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar
+            `SELECT u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar,
+                    p.id AS product_id, p.title AS product_title
              FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
              JOIN users u ON u.id = oi.seller_id
+             JOIN products p ON p.id = oi.product_id
              WHERE o.buyer_id = $1
                AND oi.status = 'completed'
                AND NOT EXISTS (
-                   SELECT 1 FROM reviews r WHERE r.seller_id = oi.seller_id AND r.reviewer_id = $1
+                   SELECT 1 FROM product_reviews pr WHERE pr.product_id = oi.product_id AND pr.user_id = $1
                )
                AND NOT EXISTS (
                    SELECT 1 FROM review_skips rs WHERE rs.seller_id = oi.seller_id AND rs.buyer_id = $1
                )
-             ORDER BY u.name ASC`,
+             ORDER BY u.name ASC, p.title ASC`,
             [req.userId]
         );
-        res.json(result.rows);
+
+        // Group flat rows by seller
+        const groupsBySeller = new Map();
+        for (const row of result.rows) {
+            if (!groupsBySeller.has(row.seller_id)) {
+                groupsBySeller.set(row.seller_id, {
+                    seller_id: row.seller_id,
+                    seller_name: row.seller_name,
+                    seller_avatar: row.seller_avatar,
+                    products: [],
+                });
+            }
+            groupsBySeller.get(row.seller_id).products.push({
+                product_id: row.product_id,
+                title: row.product_title,
+            });
+        }
+
+        res.json(Array.from(groupsBySeller.values()));
     } catch (err) {
-        console.error('Get pending sellers error:', err);
+        console.error('Get pending items error:', err);
         res.status(500).json({ error: 'Something went wrong checking pending reviews' });
     }
 });

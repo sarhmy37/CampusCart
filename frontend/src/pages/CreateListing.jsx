@@ -4,10 +4,26 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
 import { clampFee, MAX_DELIVERY_FEE } from '../utils/distance';
-import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi, Briefcase } from 'lucide-react';
+import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi, Briefcase, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
+const WORKING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const generateTimeOptions = () => {
+    const times = [];
+    for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            const hh = String(h).padStart(2, '0');
+            const mm = String(m).padStart(2, '0');
+            const period = h < 12 ? 'AM' : 'PM';
+            const displayHour = h % 12 === 0 ? 12 : h % 12;
+            times.push({ value: `${hh}:${mm}`, label: `${displayHour}:${mm} ${period}` });
+        }
+    }
+    return times;
+};
+const TIME_OPTIONS = generateTimeOptions();
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
 const CLOUD_NAME = 'b7fch4rp';
@@ -72,8 +88,11 @@ export default function CreateListing() {
         title: '',
         description: '',
         price: '',
-        duration: '',
     });
+    const [is247, setIs247] = useState(false);
+    const [workingDays, setWorkingDays] = useState(
+        WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' }))
+    );
     const [serviceImageUrls, setServiceImageUrls] = useState([]);
     const [servicePreviews, setServicePreviews] = useState([]);
     const [serviceVideoUrl, setServiceVideoUrl] = useState(null);
@@ -272,6 +291,14 @@ export default function CreateListing() {
         setServiceVideoPreview(null);
     };
 
+    // ─── WORKING HOURS HANDLERS ────────────────────────────────────────
+    const toggleWorkingDay = (day) => {
+        setWorkingDays((prev) => prev.map((d) => (d.day === day ? { ...d, enabled: !d.enabled } : d)));
+    };
+
+    const updateWorkingDayTime = (day, field, value) => {
+        setWorkingDays((prev) => prev.map((d) => (d.day === day ? { ...d, [field]: value } : d)));
+    };
     // ─── DATA BUNDLE HANDLERS ────────────────────────────────────────────
     const addBundle = async () => {
         if (!newBundle.gb_amount || !newBundle.price) {
@@ -388,6 +415,19 @@ export default function CreateListing() {
             toast.error('Add at least one photo of your service');
             return;
         }
+        if (!is247 && workingDays.every((d) => !d.enabled)) {
+            toast.error('Select your working days, or choose Working 24/7');
+            return;
+        }
+
+        const schedule = is247
+            ? { is_24_7: true }
+            : {
+                is_24_7: false,
+                days: workingDays
+                    .filter((d) => d.enabled)
+                    .map(({ day, open, close }) => ({ day, open, close })),
+            };
 
         setServiceLoading(true);
         try {
@@ -404,14 +444,16 @@ export default function CreateListing() {
                 delivery_fee_on_campus: 0,
                 delivery_fee_near_campus: 0,
                 delivery_fee_far_campus: 0,
-                // Extra metadata for services
-                service_duration: serviceForm.duration || null,
+                // Extra metadata for services — stored as JSON in the existing duration column
+                service_duration: JSON.stringify(schedule),
             };
 
             await api.post('/products', payload);
             toast.success('Service created! It will appear in the Services category.');
             // Reset service form
-            setServiceForm({ title: '', description: '', price: '', duration: '' });
+            setServiceForm({ title: '', description: '', price: '' });
+            setIs247(false);
+            setWorkingDays(WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' })));
             setServiceImageUrls([]);
             setServicePreviews([]);
             setServiceVideoUrl(null);
@@ -945,30 +987,84 @@ export default function CreateListing() {
                                         className="hidden"
                                     />
 
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Price (GHS)</label>
-                                            <input
-                                                required
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={serviceForm.price}
-                                                onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })}
-                                                placeholder="e.g. 50"
-                                                className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
-                                            />
+                                    <div>
+                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Price (GHS)</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={serviceForm.price}
+                                            onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })}
+                                            placeholder="e.g. 50"
+                                            className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
+                                        />
+                                    </div>
+
+                                    {/* WORKING HOURS */}
+                                    <div className="border-t border-slate-100 dark:border-ink-600 pt-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Clock size={15} className="text-slate-500 dark:text-gold-300/60" />
+                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Working hours</label>
                                         </div>
-                                        <div>
-                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Duration (optional)</label>
+
+                                        {!is247 && (
+                                            <div className="space-y-2">
+                                                {workingDays.map((d) => (
+                                                    <div key={d.day} className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleWorkingDay(d.day)}
+                                                            className={`w-14 shrink-0 text-xs font-semibold py-2 rounded-lg border transition ${
+                                                                d.enabled
+                                                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                                                    : 'bg-white dark:bg-ink-800 border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-300/50'
+                                                            }`}
+                                                        >
+                                                            {d.day}
+                                                        </button>
+
+                                                        {d.enabled ? (
+                                                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                                <select
+                                                                    value={d.open}
+                                                                    onChange={(e) => updateWorkingDayTime(d.day, 'open', e.target.value)}
+                                                                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 text-xs focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none appearance-none"
+                                                                >
+                                                                    {TIME_OPTIONS.map((t) => (
+                                                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <span className="text-xs text-slate-400 dark:text-gold-200/40 shrink-0">to</span>
+                                                                <select
+                                                                    value={d.close}
+                                                                    onChange={(e) => updateWorkingDayTime(d.day, 'close', e.target.value)}
+                                                                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 text-xs focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none appearance-none"
+                                                                >
+                                                                    {TIME_OPTIONS.map((t) => (
+                                                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="flex-1 text-xs text-slate-300 dark:text-gold-300/30">Closed</span>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <label className="flex items-center gap-2.5 mt-3 cursor-pointer">
                                             <input
-                                                type="text"
-                                                value={serviceForm.duration}
-                                                onChange={(e) => setServiceForm({ ...serviceForm, duration: e.target.value })}
-                                                placeholder="e.g. 2hrs, full day"
-                                                className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
+                                                type="checkbox"
+                                                checked={is247}
+                                                onChange={(e) => setIs247(e.target.checked)}
+                                                className="w-4 h-4 rounded accent-emerald-600"
                                             />
-                                        </div>
+                                            <span className="text-sm font-medium text-slate-700 dark:text-gold-100">
+                                                Working 24/7
+                                            </span>
+                                        </label>
                                     </div>
 
                                     <button

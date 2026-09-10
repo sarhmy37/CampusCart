@@ -48,8 +48,13 @@ const SERVICE_TYPES = [
     { label: '👕 Custom T-shirts/hoodies', keywords: ['t-shirt', 'tshirt', 'hoodie', 'custom shirt', 'branding'] },
     { label: '📱 Mobile app development', keywords: ['app dev', 'mobile app', 'app development'] },
     { label: '📦 Pickup & delivery', keywords: ['pickup', 'delivery', 'courier'] },
+    { label: '📚 Tutoring/lessons', keywords: ['tutor', 'tutoring', 'lessons', 'coaching', 'extra classes'] },
+    { label: '🧺 Laundry', keywords: ['laundry', 'washing', 'ironing'] },
+    { label: '🔧 Phone/laptop repair', keywords: ['repair', 'phone repair', 'laptop repair', 'screen fix'] },
+    { label: '🎉 Event planning/MC', keywords: ['event planning', 'mc', 'emcee', 'host', 'party planning'] },
+    { label: '🧹 Cleaning services', keywords: ['cleaning', 'cleaner', 'housekeeping'] },
+    { label: '🧵 Tailoring/sewing', keywords: ['tailor', 'tailoring', 'sewing', 'seamstress'] },
 ];
-
 const NETWORK_IMAGES = {
     MTN: MTN_LOGO,
     Telecel: VODAFONE_LOGO,
@@ -883,7 +888,8 @@ export default function Browse() {
                         </>
                     ) : (
                         <>
-                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-2">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap flex-1">
                                 {itemCategory && (
                                     <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
                                         {itemCategory}
@@ -922,6 +928,15 @@ export default function Browse() {
                                         ✨ Newly posted
                                     </span>
                                 )}
+                            </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => selectCategory('Services')}
+                                    className="shrink-0 text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap mt-0.5"
+                                >
+                                    Browse services →
+                                </button>
                             </div>
 
                             {verifiedOnly && (

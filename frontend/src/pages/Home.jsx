@@ -26,6 +26,22 @@ const HERO_TYPE_SPEED_MS = 45;
 const HERO_DELETE_SPEED_MS = 25;
 const HERO_HOLD_MS = 8000;
 
+// ── CTA button label-swap animation timings ──
+// "Start selling" ⇄ "Offer Services" (arrow vibrates+grows, snaps back, flips 180°, slides out/in)
+// "Browse listings" ⇄ "Browse Services" (fast backspace + retype, no cursor)
+const CTA_HOLD_MS = 10000;      // how long each pair of labels sits before the next swap
+const CTA_VIBRATE_MS = 700;     // arrow vibrating while growing
+const CTA_SHRINK_MS = 100;      // arrow snapping back to normal size (fast)
+const CTA_ROTATE_MS = 450;      // arrow flipping 180°
+const CTA_SLIDE_MS = 500;       // old label sliding out / new label sliding in
+const CTA_DELETE_CHAR_MS = 20;  // per-character backspace speed (fast)
+const CTA_TYPE_CHAR_MS = 45;    // per-character type speed
+
+const SELL_LABEL_DEFAULT = 'Start selling';
+const SELL_LABEL_ALT = 'Offer Services';
+const BROWSE_LABEL_DEFAULT = 'Browse listings';
+const BROWSE_LABEL_ALT = 'Browse Services';
+
 function GalleryImage({ images, label }) {
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -215,6 +231,112 @@ export default function Home() {
         return () => clearTimeout(t);
     }, [heroPhase, heroDisplay]);
 
+    // ── CTA button label-swap animation ──
+    // "Start selling →" morphs into "Offer Services →" (and back), and once that
+    // finishes, "Browse listings" backspaces/retypes into "Browse Services" (and back).
+    // sellPhase drives the arrow + slide animation:
+    //   idle -> vibrate (arrow shakes + grows) -> shrink (snaps back fast)
+    //        -> rotate (arrow flips 180°) -> slide (old label slides out, new slides in) -> idle
+    const [sellPhase, setSellPhase] = useState('idle');
+    const [sellIsAlt, setSellIsAlt] = useState(false); // false: "Start selling", true: "Offer Services"
+    // browsePhase drives the typewriter swap: idle -> deleting -> typing -> idle
+    const [browsePhase, setBrowsePhase] = useState('idle');
+    const [browseDisplay, setBrowseDisplay] = useState(BROWSE_LABEL_DEFAULT);
+    const browseIsAltRef = useRef(false); // internal tracker, doesn't need to trigger renders
+
+    useEffect(() => {
+        let cancelled = false;
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        const deleteText = async (text) => {
+            let current = text;
+            while (current.length > 0) {
+                if (cancelled) return;
+                current = current.slice(0, -1);
+                setBrowseDisplay(current);
+                await sleep(CTA_DELETE_CHAR_MS);
+            }
+        };
+
+        const typeText = async (text) => {
+            let current = '';
+            while (current.length < text.length) {
+                if (cancelled) return;
+                current = text.slice(0, current.length + 1);
+                setBrowseDisplay(current);
+                await sleep(CTA_TYPE_CHAR_MS);
+            }
+        };
+
+        const runCycle = async () => {
+            while (!cancelled) {
+                await sleep(CTA_HOLD_MS);
+                if (cancelled) return;
+
+                // "Start selling" ⇄ "Offer Services"
+                setSellPhase('vibrate');
+                await sleep(CTA_VIBRATE_MS);
+                if (cancelled) return;
+
+                setSellPhase('shrink');
+                await sleep(CTA_SHRINK_MS);
+                if (cancelled) return;
+
+                setSellPhase('rotate');
+                await sleep(CTA_ROTATE_MS);
+                if (cancelled) return;
+
+                setSellPhase('slide');
+                await sleep(CTA_SLIDE_MS);
+                if (cancelled) return;
+
+                setSellIsAlt((prev) => !prev);
+                setSellPhase('idle');
+
+                // "Browse listings" ⇄ "Browse Services" — only starts once the above settles
+                const currentBrowseLabel = browseIsAltRef.current ? BROWSE_LABEL_ALT : BROWSE_LABEL_DEFAULT;
+                const nextBrowseLabel = browseIsAltRef.current ? BROWSE_LABEL_DEFAULT : BROWSE_LABEL_ALT;
+
+                setBrowsePhase('deleting');
+                await deleteText(currentBrowseLabel);
+                if (cancelled) return;
+
+                setBrowsePhase('typing');
+                await typeText(nextBrowseLabel);
+                if (cancelled) return;
+
+                browseIsAltRef.current = !browseIsAltRef.current;
+                setBrowsePhase('idle');
+            }
+        };
+
+        runCycle();
+        return () => { cancelled = true; };
+    }, []);
+
+    const sellCurrentLabel = sellIsAlt ? SELL_LABEL_ALT : SELL_LABEL_DEFAULT;
+    const sellNextLabel = sellIsAlt ? SELL_LABEL_DEFAULT : SELL_LABEL_ALT;
+
+    const sellRowStyle = {
+        transition: sellPhase === 'slide' ? `transform ${CTA_SLIDE_MS}ms ease-in-out` : 'none',
+        transform: sellPhase === 'slide' ? 'translateX(-50%)' : 'translateX(0%)',
+    };
+
+    const sellArrowStyle = (() => {
+        if (sellPhase === 'vibrate') {
+            // Held here (matching the keyframe's final frame) so the next phase
+            // has something to visibly shrink FROM.
+            return { transition: 'none', transform: 'scale(1.75) rotate(0deg)' };
+        }
+        if (sellPhase === 'shrink') {
+            return { transition: `transform ${CTA_SHRINK_MS}ms ease-in`, transform: 'scale(1) rotate(0deg)' };
+        }
+        if (sellPhase === 'rotate' || sellPhase === 'slide') {
+            return { transition: `transform ${CTA_ROTATE_MS}ms ease-in-out`, transform: 'scale(1) rotate(180deg)' };
+        }
+        return { transition: 'none', transform: 'scale(1) rotate(0deg)' };
+    })();
+
     // ── NEW: Navigate with auth check ──
     const handleNavigate = (path, requireSeller = false) => {
         if (!user) {
@@ -319,6 +441,24 @@ const handlePlanClick = async (planName) => {
                 .hero-cursor-blink {
                     animation: heroCursorBlink 1s step-end infinite;
                 }
+
+                @keyframes arrowVibrateGrow {
+                    0% { transform: scale(1) rotate(0deg); }
+                    10% { transform: scale(1.08) rotate(-8deg); }
+                    20% { transform: scale(1.16) rotate(8deg); }
+                    30% { transform: scale(1.25) rotate(-8deg); }
+                    40% { transform: scale(1.34) rotate(8deg); }
+                    50% { transform: scale(1.43) rotate(-6deg); }
+                    60% { transform: scale(1.52) rotate(6deg); }
+                    70% { transform: scale(1.61) rotate(-4deg); }
+                    80% { transform: scale(1.68) rotate(4deg); }
+                    90% { transform: scale(1.73) rotate(-2deg); }
+                    100% { transform: scale(1.75) rotate(0deg); }
+                }
+                .arrow-vibrate-grow {
+                    animation: arrowVibrateGrow ${CTA_VIBRATE_MS}ms ease-in forwards;
+                    transform-origin: center;
+                }
             `}</style>
 
             {/* HERO */}
@@ -366,21 +506,37 @@ const handlePlanClick = async (planName) => {
                     <Reveal delay={300}>
                         <div className="mt-8 flex flex-nowrap gap-2 sm:gap-3">
 
-                            {/* ── START SELLING ── */}
+                            {/* ── START SELLING / OFFER SERVICES ── */}
                             <button
                                 onClick={handleStartSellingClick}
-                                className="inline-flex items-center gap-1.5 sm:gap-2 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
+                                className="relative overflow-hidden inline-flex items-center justify-center w-[172px] sm:w-[212px] bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
                             >
-                                Start selling
-                                <ArrowRight className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" />
+                                <span className="flex" style={sellRowStyle}>
+                                    {/* current label — this is the one that vibrates/grows/rotates/slides out */}
+                                    <span className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0" style={{ width: '50%' }}>
+                                        {sellCurrentLabel}
+                                        <ArrowRight
+                                            className={`w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] shrink-0 ${sellPhase === 'vibrate' ? 'arrow-vibrate-grow' : ''}`}
+                                            style={sellArrowStyle}
+                                        />
+                                    </span>
+                                    {/* next label — waits offscreen, then slides in already facing right */}
+                                    <span className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0" style={{ width: '50%' }}>
+                                        {sellNextLabel}
+                                        <ArrowRight
+                                            className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] shrink-0"
+                                            style={{ transform: 'scale(1) rotate(0deg)' }}
+                                        />
+                                    </span>
+                                </span>
                             </button>
 
-                            {/* ── BROWSE LISTINGS ── */}
+                            {/* ── BROWSE LISTINGS / BROWSE SERVICES ── */}
                             <button
                                 onClick={handleBrowseClick}
                                 className="inline-flex items-center gap-1.5 sm:gap-2 bg-white/10 text-white font-semibold px-4 py-2 sm:px-6 sm:py-3 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-base whitespace-nowrap"
                             >
-                                Browse listings
+                                {browseDisplay}
                             </button>
 
                         </div>

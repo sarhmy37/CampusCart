@@ -309,7 +309,7 @@ export function ChatProvider({ children }) {
         if (!isOpen) setVisibleCount(INBOX_PAGE_SIZE);
     }, [isOpen]);
 
-    const unreadCount = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    const unreadCount = conversations.reduce((sum, c) => sum + (Number(c.unread_count) || 0), 0);
 
     return (
         <ChatContext.Provider
