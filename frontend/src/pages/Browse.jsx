@@ -299,6 +299,11 @@ export default function Browse() {
                 keyword: search || null,
                 category: itemCategory || null,
                 school: school || null,
+                price_min: priceRange?.min ?? null,
+                price_max: priceRange?.max === Infinity ? null : (priceRange?.max ?? null),
+                verified_only: verifiedOnly || false,
+                filter_type: filterType !== 'all' ? filterType : null,
+                service_type: serviceType || null,
             });
             toast.success("Saved! We'll notify you when a matching listing appears.");
         } catch (err) {

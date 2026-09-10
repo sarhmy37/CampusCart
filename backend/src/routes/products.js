@@ -182,7 +182,7 @@ router.post('/', requireAuth, async (req, res) => {
         const primaryImage = images[0];
         const videoUrl = video || null;
 
-                const productResult = await client.query(
+        const productResult = await client.query(
             `INSERT INTO products
                 (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url, network,
                  delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus)
@@ -208,15 +208,29 @@ router.post('/', requireAuth, async (req, res) => {
         // Runs after the response is sent so it never delays the seller's create-listing flow.
         (async () => {
             try {
-                const sellerSchoolResult = await pool.query('SELECT school FROM users WHERE id = $1', [req.userId]);
-                const sellerSchool = sellerSchoolResult.rows[0]?.school;
+                const sellerInfoResult = await pool.query('SELECT school, verified FROM users WHERE id = $1', [req.userId]);
+                const sellerSchool = sellerInfoResult.rows[0]?.school || null;
+                const sellerVerified = sellerInfoResult.rows[0]?.verified || false;
+
+                const productPrice = parseFloat(price);
 
                 const matches = await pool.query(
                     `SELECT id, buyer_id FROM saved_searches
-                     WHERE (keyword IS NULL OR $1 ILIKE '%' || keyword || '%')
-                       AND (category IS NULL OR category = $2)
-                       AND (school IS NULL OR school = $3)`,
-                    [title, category || null, sellerSchool || null]
+                     WHERE (keyword IS NULL OR $1 ILIKE '%' || keyword || '%' OR $2 ILIKE '%' || keyword || '%')
+                       AND (category IS NULL OR category = $3)
+                       AND (school IS NULL OR school = $4)
+                       AND (price_min IS NULL OR $5 >= price_min)
+                       AND (price_max IS NULL OR $5 <= price_max)
+                       AND (verified_only = FALSE OR $6 = TRUE)
+                       AND (filter_type IS NULL OR filter_type = 'all' OR filter_type = 'new')`,
+                    [
+                        title,
+                        description || '',
+                        category || null,
+                        sellerSchool,
+                        productPrice,
+                        sellerVerified,
+                    ]
                 );
 
                 for (const match of matches.rows) {
@@ -266,10 +280,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
         const feeNearCampus = delivery_fee_near_campus !== undefined ? clampFee(delivery_fee_near_campus) : undefined;
         const feeFarCampus = delivery_fee_far_campus !== undefined ? clampFee(delivery_fee_far_campus) : undefined;
 
-                // old_price is locked in at listing creation and never changes on edit —
+        // old_price is locked in at listing creation and never changes on edit —
         // every future discount is measured against that original price.
 
-               const result = await pool.query(
+        const result = await pool.query(
             `UPDATE products SET
                 title = COALESCE($1, title),
                 description = COALESCE($2, description),
@@ -311,11 +325,6 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
 });
 
-// ─── ADD THIS ROUTE to your existing backend/src/routes/products.js ───
-// Paste it anywhere among the other router.get(...) calls — placement
-// relative to '/:id' doesn't matter since this path has two segments
-// (/seller/:sellerId) and can't collide with the single-segment '/:id'.
-
 // GET /api/products/seller/:sellerId — a seller's public storefront listings
 router.get('/seller/:sellerId', async (req, res) => {
     try {
@@ -328,8 +337,6 @@ router.get('/seller/:sellerId', async (req, res) => {
         const seller = sellerResult.rows[0];
         if (!seller) return res.status(404).json({ error: 'Seller not found' });
 
-        // Same shape as the main browse listing — no status/stock filtering,
-        // matching how GET /api/products already behaves.
         const listingsResult = await pool.query(
             `SELECT p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image,
                     p.rating, p.review_count, p.created_at, c.name AS category

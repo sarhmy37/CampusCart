@@ -4,11 +4,12 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { DASHBOARD_VIDEO } from '../data/media';
 import Reveal from '../components/Reveal';
+import toast from 'react-hot-toast';
 import {
     ArrowLeft, Sparkles, Star, ShieldCheck, Zap, Eye, Tag,
     TrendingUp, Wallet, Store, Bookmark, Award, ChevronDown,
     ArrowRight, Clock, Gauge, MessageCircle, Percent, Layers,
-    Rocket, Gift, Check,
+    Rocket, Gift, Check, Trash2, X,
 } from 'lucide-react';
 
 const LISTING_LIMITS = { free: 10, pro: 30, premium: Infinity };
@@ -76,6 +77,12 @@ export default function Benefits() {
     const [grossSales, setGrossSales] = useState(0);
     const [openFaq, setOpenFaq] = useState(null);
 
+    // ─── SAVED SEARCHES ───
+    const [savedSearches, setSavedSearches] = useState([]);
+    const [savedLoading, setSavedLoading] = useState(false);
+    const [savedExpanded, setSavedExpanded] = useState(false);
+    const [deletingSearchId, setDeletingSearchId] = useState(null);
+
     const isSeller = user?.account_type === 'seller';
 
     const isPlanActive = user?.plan && user.plan !== 'free' &&
@@ -103,6 +110,34 @@ export default function Benefits() {
             setGrossSales(parseFloat(overviewRes.data?.gross_sales) || 0);
         }).finally(() => setLoading(false));
     }, [isSeller, planTier]);
+
+    // Fetch saved searches when the user expands the section (lazy)
+    const loadSavedSearches = () => {
+        setSavedLoading(true);
+        api.get('/saved-searches/mine')
+            .then((res) => setSavedSearches(res.data || []))
+            .catch(() => setSavedSearches([]))
+            .finally(() => setSavedLoading(false));
+    };
+
+    const handleToggleSaved = () => {
+        const next = !savedExpanded;
+        setSavedExpanded(next);
+        if (next && savedSearches.length === 0) loadSavedSearches();
+    };
+
+    const handleDeleteSearch = async (id) => {
+        setDeletingSearchId(id);
+        try {
+            await api.delete(`/saved-searches/${id}`);
+            toast.success('Saved search removed');
+            setSavedSearches((prev) => prev.filter((s) => s.id !== id));
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to remove this search');
+        } finally {
+            setDeletingSearchId(null);
+        }
+    };
 
     const feeSaved = grossSales * 0.015;
     const listingLimit = planTier ? LISTING_LIMITS[planTier] : LISTING_LIMITS.free;
@@ -159,7 +194,6 @@ export default function Benefits() {
                 <div className="absolute -right-20 -top-24 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
 
                 <div className="relative z-10 max-w-3xl mx-auto px-5 pt-8 pb-10">
-                    {/* top row */}
                     <div className="flex items-center justify-between gap-3">
                         <button
                             onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
@@ -173,13 +207,11 @@ export default function Benefits() {
                         </div>
                     </div>
 
-                    {/* name */}
                     <div className="mt-8">
                         <h1 className="text-2xl font-bold text-white tracking-tight">{user?.name}</h1>
                         <p className="text-white/50 text-xs mt-1">{user?.school}</p>
                     </div>
 
-                    {/* days left, big statement */}
                     <div className="mt-8 flex items-end gap-3">
                         <span className="text-6xl font-black text-white tabular-nums leading-none tracking-tighter">
                             {daysLeft}
@@ -194,7 +226,6 @@ export default function Benefits() {
                         </div>
                     </div>
 
-                    {/* quick inline stats */}
                     {isSeller && (
                         <div className="mt-8 grid grid-cols-3 gap-px bg-white/15 rounded-xl overflow-hidden ring-1 ring-white/15">
                             <HeaderStat label="Listings" value={loading ? '···' : listingCount} />
@@ -208,7 +239,7 @@ export default function Benefits() {
             {/* ─── BODY ─── */}
             <div className="max-w-3xl mx-auto px-5 pb-12">
 
-                {/* Listing usage bar — edge to edge, no card */}
+                {/* Listing usage bar */}
                 {isSeller && listingLimit !== Infinity && (
                     <Reveal>
                         <div className="pt-8">
@@ -230,7 +261,7 @@ export default function Benefits() {
                     </Reveal>
                 )}
 
-                {/* Statement — flatter, receipt-like */}
+                {/* Statement */}
                 {isSeller && (
                     <Reveal>
                         <div className="pt-8">
@@ -250,7 +281,164 @@ export default function Benefits() {
                     </Reveal>
                 )}
 
-                {/* Benefits — grouped, list-style, tight */}
+                {/* ─── MANAGE (moved to top) ─── */}
+                <Reveal delay={60}>
+                    <div className="pt-10">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
+                            Manage
+                        </p>
+                        <div className="divide-y divide-slate-100 dark:divide-ink-700">
+
+                            {isSeller && (
+                                <ActionRow
+                                    icon={Store}
+                                    title="View my store"
+                                    desc="See your public storefront"
+                                    onClick={() => navigate(`/store/${user.id}`)}
+                                />
+                            )}
+
+                            {/* ─── SAVED SEARCHES (expandable) ─── */}
+                            <div>
+                                <button
+                                    onClick={handleToggleSaved}
+                                    className="w-full flex items-center gap-3.5 py-3.5 text-left group"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-gold-300/70 flex items-center justify-center shrink-0 group-hover:bg-brand-50 dark:group-hover:bg-gold-900/60 group-hover:text-brand-600 dark:group-hover:text-gold-400 transition-colors">
+                                        <Bookmark size={15} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-slate-900 dark:text-gold-50">
+                                            Saved searches
+                                        </p>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                            {savedSearches.length > 0
+                                                ? `${savedSearches.length} saved`
+                                                : 'Get notified when new listings match'}
+                                        </p>
+                                    </div>
+                                    <ChevronDown
+                                        size={15}
+                                        className={`shrink-0 text-slate-300 dark:text-gold-300/40 transition-transform duration-200 ${
+                                            savedExpanded ? 'rotate-180 text-brand-600 dark:text-gold-400' : 'group-hover:text-brand-600 dark:group-hover:text-gold-400'
+                                        }`}
+                                    />
+                                </button>
+
+                                {/* Expandable content */}
+                                <div
+                                    className={`grid transition-all duration-200 ease-out ${
+                                        savedExpanded ? 'grid-rows-[1fr] opacity-100 pb-3' : 'grid-rows-[0fr] opacity-0'
+                                    }`}
+                                >
+                                    <div className="overflow-hidden">
+                                        {savedLoading ? (
+                                            <div className="space-y-2 pl-11">
+                                                {Array.from({ length: 2 }).map((_, i) => (
+                                                    <div key={i} className="h-10 rounded-lg bg-slate-100 dark:bg-ink-800 animate-pulse" />
+                                                ))}
+                                            </div>
+                                        ) : savedSearches.length === 0 ? (
+                                            <div className="pl-11 pr-2">
+                                                <p className="text-xs text-slate-400 dark:text-gold-200/50 py-2 leading-relaxed">
+                                                    No saved searches yet. Save a search from the Browse page to get notified the moment a matching listing appears.
+                                                </p>
+                                                <Link
+                                                    to="/browse"
+                                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 dark:text-gold-400 hover:gap-2 transition-all"
+                                                >
+                                                    Browse listings <ArrowRight size={12} />
+                                                </Link>
+                                            </div>
+                                        ) : (
+                                            <ul className="pl-11 pr-2 space-y-2">
+                                                {savedSearches.map((s) => {
+                                                    const hasPrice = s.price_min != null || s.price_max != null;
+                                                    const priceLabel = hasPrice
+                                                        ? `GHS ${s.price_min != null ? Number(s.price_min).toFixed(0) : '0'}${
+                                                              s.price_max != null
+                                                                  ? ` – ${Number(s.price_max).toFixed(0)}`
+                                                                  : '+'
+                                                          }`
+                                                        : null;
+                                                    const hasAny = s.keyword || s.category || s.school || hasPrice || s.verified_only || s.service_type;
+
+                                                    return (
+                                                        <li
+                                                            key={s.id}
+                                                            className="flex items-start gap-2 bg-slate-50 dark:bg-ink-800/60 rounded-lg px-3 py-2"
+                                                        >
+                                                            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap pt-0.5">
+                                                                {s.keyword && (
+                                                                    <span className="text-[11px] font-semibold bg-white dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full ring-1 ring-slate-100 dark:ring-ink-600">
+                                                                        "{s.keyword}"
+                                                                    </span>
+                                                                )}
+                                                                {s.category && (
+                                                                    <span className="text-[11px] font-semibold bg-white dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full ring-1 ring-slate-100 dark:ring-ink-600">
+                                                                        {s.category}
+                                                                    </span>
+                                                                )}
+                                                                {s.service_type && (
+                                                                    <span className="text-[11px] font-semibold bg-white dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full ring-1 ring-slate-100 dark:ring-ink-600">
+                                                                        {s.service_type}
+                                                                    </span>
+                                                                )}
+                                                                {s.school && (
+                                                                    <span className="text-[11px] font-semibold bg-white dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full ring-1 ring-slate-100 dark:ring-ink-600">
+                                                                        📍 {s.school}
+                                                                    </span>
+                                                                )}
+                                                                {priceLabel && (
+                                                                    <span className="text-[11px] font-semibold bg-white dark:bg-ink-700 text-slate-700 dark:text-gold-200 px-2 py-0.5 rounded-full ring-1 ring-slate-100 dark:ring-ink-600">
+                                                                        {priceLabel}
+                                                                    </span>
+                                                                )}
+                                                                {s.verified_only && (
+                                                                    <span className="text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full ring-1 ring-emerald-100 dark:ring-emerald-900/40">
+                                                                        ✓ Verified
+                                                                    </span>
+                                                                )}
+                                                                {!hasAny && (
+                                                                    <span className="text-[11px] text-slate-400 dark:text-gold-200/50 italic">
+                                                                        Empty search
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleDeleteSearch(s.id)}
+                                                                disabled={deletingSearchId === s.id}
+                                                                className="shrink-0 text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1 transition disabled:opacity-50"
+                                                                aria-label="Remove saved search"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <ActionRow
+                                icon={MessageCircle}
+                                title="Priority support"
+                                desc={planTier === 'premium' ? 'Same-day dedicated line' : '24-hour priority response'}
+                                onClick={() => navigate('/contact')}
+                            />
+                            <ActionRow
+                                icon={Gauge}
+                                title="Manage subscription"
+                                desc="Renew, view billing, or change plan"
+                                onClick={() => navigate('/settings')}
+                            />
+                        </div>
+                    </div>
+                </Reveal>
+
+                {/* ─── WHAT'S INCLUDED ─── */}
                 <div className="pt-10">
                     <Reveal>
                         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-1">
@@ -286,38 +474,7 @@ export default function Benefits() {
                     </div>
                 </div>
 
-                {/* Quick actions — minimal, inline */}
-                <Reveal delay={80}>
-                    <div className="pt-10">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
-                            Manage
-                        </p>
-                        <div className="divide-y divide-slate-100 dark:divide-ink-700">
-                            {isSeller && (
-                                <ActionRow
-                                    icon={Store}
-                                    title="View my store"
-                                    desc="See your public storefront"
-                                    onClick={() => navigate(`/store/${user.id}`)}
-                                />
-                            )}
-                            <ActionRow
-                                icon={MessageCircle}
-                                title="Priority support"
-                                desc={planTier === 'premium' ? 'Same-day dedicated line' : '24-hour priority response'}
-                                onClick={() => navigate('/contact')}
-                            />
-                            <ActionRow
-                                icon={Gauge}
-                                title="Manage subscription"
-                                desc="Renew, view billing, or change plan"
-                                onClick={() => navigate('/settings')}
-                            />
-                        </div>
-                    </div>
-                </Reveal>
-
-                {/* Pro → Premium upsell — subtle, not a card */}
+                {/* ─── PRO → PREMIUM UPSELL ─── */}
                 {planTier === 'pro' && (
                     <Reveal delay={100}>
                         <div className="pt-10">
@@ -346,7 +503,7 @@ export default function Benefits() {
                     </Reveal>
                 )}
 
-                {/* FAQ — flat, tight */}
+                {/* ─── GOOD TO KNOW ─── */}
                 <div className="pt-12">
                     <Reveal>
                         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
@@ -369,7 +526,7 @@ export default function Benefits() {
     );
 }
 
-// ─── HEADER STAT (inline, not a card) ────────────────────────────────
+// ─── HEADER STAT ────────────────────────────────────────────────
 function HeaderStat({ label, value }) {
     return (
         <div className="bg-white/5 backdrop-blur px-3 py-3 text-center">
@@ -379,7 +536,7 @@ function HeaderStat({ label, value }) {
     );
 }
 
-// ─── STATEMENT LINE ──────────────────────────────────────────────────
+// ─── STATEMENT LINE ──────────────────────────────────────────────
 function StatementLine({ label, value, highlight }) {
     return (
         <div className="flex items-baseline justify-between py-3">
@@ -395,7 +552,7 @@ function StatementLine({ label, value, highlight }) {
     );
 }
 
-// ─── BENEFIT ROW (list item, not card) ───────────────────────────────
+// ─── BENEFIT ROW ───────────────────────────────────────────────
 function BenefitRow({ item }) {
     const Icon = item.icon;
     return (
@@ -415,7 +572,7 @@ function BenefitRow({ item }) {
     );
 }
 
-// ─── ACTION ROW (minimal, not a card) ────────────────────────────────
+// ─── ACTION ROW ────────────────────────────────────────────────
 function ActionRow({ icon: Icon, title, desc, onClick }) {
     return (
         <button
@@ -437,7 +594,7 @@ function ActionRow({ icon: Icon, title, desc, onClick }) {
     );
 }
 
-// ─── FAQ ITEM (flat, tight) ──────────────────────────────────────────
+// ─── FAQ ITEM ─────────────────────────────────────────────────
 function FaqItem({ faq, open, onToggle }) {
     return (
         <div className="border-b border-slate-100 dark:border-ink-700 last:border-0">

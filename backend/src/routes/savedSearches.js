@@ -39,7 +39,10 @@ router.get('/mine', requireAuth, requireActivePlan, async (req, res) => {
 
 // POST /api/saved-searches
 router.post('/', requireAuth, requireActivePlan, async (req, res) => {
-    const { keyword, category, school } = req.body;
+    const {
+        keyword, category, school,
+        price_min, price_max, verified_only, filter_type, service_type,
+    } = req.body;
 
     if (!keyword && !category && !school) {
         return res.status(400).json({ error: 'Add at least a keyword, category, or school to save this search' });
@@ -52,9 +55,21 @@ router.post('/', requireAuth, requireActivePlan, async (req, res) => {
         }
 
         const result = await pool.query(
-            `INSERT INTO saved_searches (buyer_id, keyword, category, school)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [req.userId, keyword || null, category || null, school || null]
+            `INSERT INTO saved_searches
+                (buyer_id, keyword, category, school, price_min, price_max, verified_only, filter_type, service_type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING *`,
+            [
+                req.userId,
+                keyword || null,
+                category || null,
+                school || null,
+                price_min ?? null,
+                price_max ?? null,
+                verified_only || false,
+                filter_type || null,
+                service_type || null,
+            ]
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
