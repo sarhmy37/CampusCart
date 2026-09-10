@@ -133,13 +133,28 @@ router.post('/', requireAuth, async (req, res) => {
             await client.query('UPDATE users SET credit_balance = credit_balance - $1 WHERE id = $2', [creditApplied, req.userId]);
         }
 
-           const orderResult = await client.query(
-            `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, delivery_fee_full, total_amount, credit_applied)
-             VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7)
-             RETURNING id`,
-            [req.userId, delivery_method || 'pickup', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied]
+        const existingCartOrder = await client.query(
+            `SELECT id FROM orders WHERE buyer_id = $1 AND status = 'pending' AND payment_reference IS NULL FOR UPDATE`,
+            [req.userId]
         );
-        const orderId = orderResult.rows[0].id;
+
+        let orderId;
+        if (existingCartOrder.rows.length > 0) {
+            orderId = existingCartOrder.rows[0].id;
+            await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+            await client.query(
+                `UPDATE orders SET delivery_method = $1, subtotal = $2, delivery_fee = $3, delivery_fee_full = $4, total_amount = $5, credit_applied = $6 WHERE id = $7`,
+                [delivery_method || 'pickup', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, orderId]
+            );
+        } else {
+            const orderResult = await client.query(
+                `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, delivery_fee_full, total_amount, credit_applied)
+                 VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7)
+                 RETURNING id`,
+                [req.userId, delivery_method || 'pickup', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied]
+            );
+            orderId = orderResult.rows[0].id;
+        }
 
         for (const item of lineItems) {
             await client.query(
@@ -598,6 +613,96 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Item confirm error:', err);
         res.status(500).json({ error: 'Failed to confirm item receipt' });
+    }
+});
+
+// POST /api/orders/cart-sync — mirrors the buyer's current cart into a 'pending'
+// order so it shows up in their Orders tab immediately, before checkout.
+router.post('/cart-sync', requireAuth, async (req, res) => {
+    const { items } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+        await pool.query(
+            `DELETE FROM orders WHERE buyer_id = $1 AND status = 'pending' AND payment_reference IS NULL`,
+            [req.userId]
+        );
+        return res.json({ synced: true, cleared: true });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        let subtotal = 0;
+        const lineItems = [];
+        for (const { product_id, quantity } of items) {
+            const qty = Number(quantity) || 1;
+            const productResult = await client.query(
+                'SELECT id, title, price, seller_id FROM products WHERE id = $1',
+                [product_id]
+            );
+            const product = productResult.rows[0];
+            if (!product) continue;
+            subtotal += parseFloat(product.price) * qty;
+            lineItems.push({
+                product_id: product.id,
+                seller_id: product.seller_id,
+                title: product.title,
+                quantity: qty,
+                price_at_purchase: product.price,
+            });
+        }
+
+        const existing = await client.query(
+            `SELECT id FROM orders WHERE buyer_id = $1 AND status = 'pending' AND payment_reference IS NULL FOR UPDATE`,
+            [req.userId]
+        );
+
+        let orderId;
+        if (existing.rows.length > 0) {
+            orderId = existing.rows[0].id;
+            await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+            await client.query('UPDATE orders SET subtotal = $1, total_amount = $1 WHERE id = $2', [subtotal, orderId]);
+        } else {
+            const orderResult = await client.query(
+                `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, total_amount)
+                 VALUES ($1, 'pending', 'pickup', $2, $2)
+                 RETURNING id`,
+                [req.userId, subtotal]
+            );
+            orderId = orderResult.rows[0].id;
+        }
+
+        for (const item of lineItems) {
+            await client.query(
+                `INSERT INTO order_items (order_id, product_id, seller_id, title, quantity, price_at_purchase, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+                [orderId, item.product_id, item.seller_id, item.title, item.quantity, item.price_at_purchase]
+            );
+        }
+
+        await client.query('COMMIT');
+        res.json({ synced: true, order_id: orderId });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Cart sync error:', err);
+        res.status(500).json({ error: 'Failed to sync cart' });
+    } finally {
+        client.release();
+    }
+});
+
+// DELETE /api/orders/cart-sync — clears the pending cart-order (e.g. buyer emptied their cart)
+router.delete('/cart-sync', requireAuth, async (req, res) => {
+    try {
+        await pool.query(
+            `DELETE FROM orders WHERE buyer_id = $1 AND status = 'pending' AND payment_reference IS NULL`,
+            [req.userId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Cart clear error:', err);
+        res.status(500).json({ error: 'Failed to clear cart order' });
     }
 });
 
