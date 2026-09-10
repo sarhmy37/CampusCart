@@ -146,7 +146,8 @@ async function processBookingWebhookEvent(event) {
 router.get('/seller', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT b.*, p.title as service_title, u.name as buyer_name, u.email as buyer_email
+            `SELECT b.*, p.title as service_title, u.name as buyer_name,
+                    COALESCE(u.personal_email, u.university_email) as buyer_email
              FROM bookings b
              JOIN products p ON p.id = b.service_id
              JOIN users u ON u.id = b.buyer_id

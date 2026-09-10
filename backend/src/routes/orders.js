@@ -542,6 +542,15 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             [itemId]
         );
 
+        // If every item in this order is now confirmed, mark the whole order completed
+        const remainingResult = await pool.query(
+            `SELECT COUNT(*) FROM order_items WHERE order_id = $1 AND buyer_confirmed_at IS NULL`,
+            [item.order_id]
+        );
+        if (parseInt(remainingResult.rows[0].count, 10) === 0) {
+            await pool.query(`UPDATE orders SET status = 'completed' WHERE id = $1`, [item.order_id]);
+        }
+
         // ============ ADMIN NET PROFIT CALCULATION ============
         // 1. Base product price
         const basePrice = parseFloat(item.price_at_purchase);
