@@ -317,10 +317,12 @@ export default function Home() {
     const sellCurrentLabel = sellIsAlt ? SELL_LABEL_ALT : SELL_LABEL_DEFAULT;
     const sellNextLabel = sellIsAlt ? SELL_LABEL_DEFAULT : SELL_LABEL_ALT;
 
-    const sellRowStyle = {
-        transition: sellPhase === 'slide' ? `transform ${CTA_SLIDE_MS}ms ease-in-out` : 'none',
-        transform: sellPhase === 'slide' ? 'translateX(-50%)' : 'translateX(0%)',
-    };
+const sellRowStyle = {
+    display: 'flex',
+    width: '200%',
+    transition: sellPhase === 'slide' ? `transform ${CTA_SLIDE_MS}ms ease-in-out` : 'none',
+    transform: sellPhase === 'slide' ? 'translateX(-50%)' : 'translateX(0%)',
+};
 
     const sellArrowStyle = (() => {
         if (sellPhase === 'vibrate') {
