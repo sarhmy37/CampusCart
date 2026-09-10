@@ -8,7 +8,7 @@ import {
     ArrowLeft, Sparkles, Star, ShieldCheck, Zap, Eye, Tag,
     TrendingUp, Wallet, Store, Bookmark, Award, ChevronDown,
     ArrowRight, Clock, Gauge, MessageCircle, Percent, Layers,
-    Rocket, Gift,
+    Rocket, Gift, Check,
 } from 'lucide-react';
 
 const LISTING_LIMITS = { free: 10, pro: 30, premium: Infinity };
@@ -108,37 +108,37 @@ export default function Benefits() {
     const listingLimit = planTier ? LISTING_LIMITS[planTier] : LISTING_LIMITS.free;
     const listingUsagePct = listingLimit === Infinity ? 0 : Math.min(100, (listingCount / listingLimit) * 100);
 
-    // ─── FREE PLAN — upsell teaser instead of the members' page ───
+    // ─── FREE PLAN — upsell teaser ───
     if (!planTier) {
         return (
-            <div>
+            <div className="min-h-screen bg-white dark:bg-ink-900">
                 <section className="relative overflow-hidden">
                     <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                         <source src={DASHBOARD_VIDEO} type="video/mp4" />
                     </video>
-                    <div className="absolute inset-0 bg-gradient-to-br from-ink-900/80 via-ink-800/55 to-brand-600/35 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
-                    <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                    <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-ink-900/85 via-ink-800/60 to-brand-600/40 dark:from-ink-900/95 dark:via-ink-900/80 dark:to-gold-900/50" />
 
-                    <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-14 text-center">
+                    <div className="relative z-10 max-w-xl mx-auto px-5 py-16 text-center">
                         <button
                             onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
-                            className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-3.5 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm mb-8"
+                            className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-semibold mb-10 transition"
                         >
-                            <ArrowLeft size={15} /> Back
+                            <ArrowLeft size={14} /> Back
                         </button>
-                        <div className="w-14 h-14 mx-auto rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mb-5">
-                            <Sparkles size={24} className="text-white" />
+                        <div className="w-12 h-12 mx-auto rounded-full bg-white/15 backdrop-blur flex items-center justify-center mb-5 ring-1 ring-white/20">
+                            <Sparkles size={20} className="text-white" />
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">You're on the Free plan</h1>
-                        <p className="text-white/70 text-sm mt-2 max-w-md mx-auto">
-                            Upgrade to Pro or Premium to unlock 0% platform fees, priority placement, more listings, and dedicated support.
+                        <h1 className="text-3xl font-extrabold text-white tracking-tight leading-tight">
+                            You're on the Free plan
+                        </h1>
+                        <p className="text-white/60 text-sm mt-3 max-w-sm mx-auto leading-relaxed">
+                            Upgrade to unlock 0% platform fees, priority placement, more listings, and dedicated support.
                         </p>
                         <button
                             onClick={() => navigate('/', { state: { scrollToPricing: true } })}
-                            className="inline-flex items-center gap-2 mt-7 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-5 py-2.5 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition"
+                            className="inline-flex items-center gap-2 mt-8 bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-5 py-2.5 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition text-sm"
                         >
-                            View plans <ArrowRight size={16} />
+                            View plans <ArrowRight size={15} />
                         </button>
                     </div>
                 </section>
@@ -149,145 +149,136 @@ export default function Benefits() {
     const Icon = meta.icon;
 
     return (
-        <div>
-            {/* HEADER — same video pattern as Dashboard */}
+        <div className="bg-white dark:bg-ink-900 min-h-screen">
+            {/* ─── HEADER ─── */}
             <section className="relative overflow-hidden">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={DASHBOARD_VIDEO} type="video/mp4" />
                 </video>
-                <div className="absolute inset-0 bg-gradient-to-br from-ink-900/80 via-ink-800/55 to-brand-600/35 dark:from-ink-900/90 dark:via-ink-900/75 dark:to-gold-900/50" />
-                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
+                <div className="absolute inset-0 bg-gradient-to-br from-ink-900/85 via-ink-800/60 to-brand-600/40 dark:from-ink-900/95 dark:via-ink-900/80 dark:to-gold-900/50" />
+                <div className="absolute -right-20 -top-24 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
 
-                <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-3">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-4 sm:gap-5">
-                            <button
-                                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
-                                className="w-6 h-12 sm:w-8 sm:h-16 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-lg hover:bg-white/30 transition z-10"
-                            >
-                                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                            </button>
-
-                            <div>
-                                <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/20">
-                                    <Icon size={13} />
-                                    {meta.label} Member
-                                </div>
-                                <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-3">
-                                    {user?.name}
-                                </h1>
-                                <p className="text-white/70 text-sm mt-1">{user?.school}</p>
-                            </div>
+                <div className="relative z-10 max-w-3xl mx-auto px-5 pt-8 pb-10">
+                    {/* top row */}
+                    <div className="flex items-center justify-between gap-3">
+                        <button
+                            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+                            className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs font-semibold transition"
+                        >
+                            <ArrowLeft size={14} /> Back
+                        </button>
+                        <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur text-white text-[11px] font-bold px-2.5 py-1 rounded-full ring-1 ring-white/20">
+                            <Icon size={12} />
+                            {meta.label}
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 mt-8">
-                        <StatCard icon={Clock} label="Days left" value={daysLeft} />
-                        <StatCard icon={Tag} label="Listings" value={loading ? '···' : listingCount} />
-                        <StatCard icon={Wallet} label="Fees saved" value={loading ? '···' : `GHS ${feeSaved.toFixed(0)}`} />
+                    {/* name */}
+                    <div className="mt-8">
+                        <h1 className="text-2xl font-bold text-white tracking-tight">{user?.name}</h1>
+                        <p className="text-white/50 text-xs mt-1">{user?.school}</p>
                     </div>
+
+                    {/* days left, big statement */}
+                    <div className="mt-8 flex items-end gap-3">
+                        <span className="text-6xl font-black text-white tabular-nums leading-none tracking-tighter">
+                            {daysLeft}
+                        </span>
+                        <div className="pb-1.5">
+                            <p className="text-white/60 text-xs font-medium uppercase tracking-widest">
+                                {daysLeft === 1 ? 'day' : 'days'} left
+                            </p>
+                            <p className="text-white/40 text-[11px] mt-0.5">
+                                Renews {new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* quick inline stats */}
+                    {isSeller && (
+                        <div className="mt-8 grid grid-cols-3 gap-px bg-white/15 rounded-xl overflow-hidden ring-1 ring-white/15">
+                            <HeaderStat label="Listings" value={loading ? '···' : listingCount} />
+                            <HeaderStat label="Total views" value={loading ? '···' : totalViews} />
+                            <HeaderStat label="Fees saved" value={loading ? '···' : `GHS ${feeSaved.toFixed(0)}`} />
+                        </div>
+                    )}
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-8 bg-white dark:bg-ink-900 space-y-5">
+            {/* ─── BODY ─── */}
+            <div className="max-w-3xl mx-auto px-5 pb-12">
 
-                {/* ─── MEMBERSHIP STATEMENT — same style as SellerOverview earnings statement ─── */}
-                <Reveal>
-                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 sm:p-6">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-slate-500 dark:text-gold-200/60">Membership</p>
-                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400">
-                                <Icon size={12} /> {meta.label}
-                            </span>
-                        </div>
-
-                        <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-                            <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-gold-50">
-                                Renews {new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                            </span>
-                        </div>
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">
-                            {new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </p>
-
-                        {isSeller && listingLimit !== Infinity && (
-                            <div className="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-ink-600">
-                                <div className="flex items-center justify-between text-xs mb-2">
-                                    <span className="text-slate-500 dark:text-gold-200/60 font-semibold">Listing usage</span>
-                                    <span className="text-slate-700 dark:text-gold-100 font-bold">{listingCount} of {listingLimit}</span>
-                                </div>
-                                <div className="h-2 rounded-full bg-slate-100 dark:bg-ink-700 overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-700"
-                                        style={{ width: `${listingUsagePct}%` }}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {isSeller && (
-                            <div className="mt-5 pt-4 border-t border-dashed border-slate-200 dark:border-ink-600 space-y-0.5">
-                                <StatementRow label="Total views across listings" value={loading ? '···' : totalViews} />
-                                <StatementRow label="Gross sales while on this plan" value={loading ? '···' : `GHS ${grossSales.toFixed(2)}`} />
-                                <StatementRow label="Platform fee saved (1.5%)" value={loading ? '···' : `GHS ${feeSaved.toFixed(2)}`} highlight />
-                            </div>
-                        )}
-                    </div>
-                </Reveal>
-
-                {/* ─── QUICK ACTIONS ─── */}
-                <Reveal delay={80}>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {isSeller && (
-                            <QuickAction
-                                icon={Store}
-                                title="View my store"
-                                desc="See your public storefront"
-                                onClick={() => navigate(`/store/${user.id}`)}
-                            />
-                        )}
-                        <QuickAction
-                            icon={MessageCircle}
-                            title="Priority support"
-                            desc={planTier === 'premium' ? 'Same-day dedicated line' : '24-hour priority response'}
-                            onClick={() => navigate('/contact')}
-                        />
-                        <QuickAction
-                            icon={Gauge}
-                            title="Manage subscription"
-                            desc="Renew, view billing, or change plan"
-                            onClick={() => navigate('/settings')}
-                        />
-                    </div>
-                </Reveal>
-
-                {/* ─── FULL BENEFITS BREAKDOWN ─── */}
-                <div className="pt-2">
+                {/* Listing usage bar — edge to edge, no card */}
+                {isSeller && listingLimit !== Infinity && (
                     <Reveal>
-                        <div className="flex items-center gap-2.5 mb-4">
-                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                                <ShieldCheck size={16} />
+                        <div className="pt-8">
+                            <div className="flex items-center justify-between text-xs mb-2">
+                                <span className="font-semibold text-slate-500 dark:text-gold-200/60 uppercase tracking-wide text-[11px]">
+                                    Listing usage
+                                </span>
+                                <span className="text-slate-700 dark:text-gold-100 font-bold tabular-nums">
+                                    {listingCount} / {listingLimit}
+                                </span>
                             </div>
-                            <h2 className="font-bold text-slate-900 dark:text-gold-50">
-                                Everything included in your plan
-                            </h2>
+                            <div className="h-1.5 rounded-full bg-slate-100 dark:bg-ink-800 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-600 dark:from-gold-400 dark:to-gold-500 transition-all duration-700"
+                                    style={{ width: `${listingUsagePct}%` }}
+                                />
+                            </div>
                         </div>
                     </Reveal>
+                )}
 
-                    <div className="space-y-6">
+                {/* Statement — flatter, receipt-like */}
+                {isSeller && (
+                    <Reveal>
+                        <div className="pt-8">
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
+                                Since joining {meta.label}
+                            </p>
+                            <div className="divide-y divide-dashed divide-slate-200 dark:divide-ink-700">
+                                <StatementLine label="Gross sales" value={loading ? '···' : `GHS ${grossSales.toFixed(2)}`} />
+                                <StatementLine
+                                    label="Platform fee saved (1.5%)"
+                                    value={loading ? '···' : `GHS ${feeSaved.toFixed(2)}`}
+                                    highlight
+                                />
+                                <StatementLine label="Total views across listings" value={loading ? '···' : totalViews} />
+                            </div>
+                        </div>
+                    </Reveal>
+                )}
+
+                {/* Benefits — grouped, list-style, tight */}
+                <div className="pt-10">
+                    <Reveal>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-1">
+                            What's included
+                        </p>
+                        <h2 className="font-bold text-slate-900 dark:text-gold-50 text-lg">
+                            Everything in your plan
+                        </h2>
+                    </Reveal>
+
+                    <div className="mt-6 space-y-8">
                         {SELLER_BENEFITS.map((group, gi) => {
                             const groupItems = group.items.filter((item) => item.tiers.includes(planTier));
                             if (groupItems.length === 0) return null;
                             return (
-                                <Reveal key={group.category} delay={gi * 80}>
-                                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 mb-2.5">
-                                        {group.category}
-                                    </p>
-                                    <div className="grid sm:grid-cols-2 gap-2.5">
-                                        {groupItems.map((item) => (
-                                            <BenefitCard key={item.title} item={item} />
-                                        ))}
+                                <Reveal key={group.category} delay={gi * 60}>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-xs font-bold text-slate-900 dark:text-gold-100">
+                                                {group.category}
+                                            </span>
+                                            <div className="flex-1 h-px bg-slate-100 dark:bg-ink-700" />
+                                        </div>
+                                        <ul className="divide-y divide-slate-100 dark:divide-ink-700">
+                                            {groupItems.map((item) => (
+                                                <BenefitRow key={item.title} item={item} />
+                                            ))}
+                                        </ul>
                                     </div>
                                 </Reveal>
                             );
@@ -295,40 +286,74 @@ export default function Benefits() {
                     </div>
                 </div>
 
-                {/* ─── PRO → PREMIUM UPSELL ─── */}
+                {/* Quick actions — minimal, inline */}
+                <Reveal delay={80}>
+                    <div className="pt-10">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
+                            Manage
+                        </p>
+                        <div className="divide-y divide-slate-100 dark:divide-ink-700">
+                            {isSeller && (
+                                <ActionRow
+                                    icon={Store}
+                                    title="View my store"
+                                    desc="See your public storefront"
+                                    onClick={() => navigate(`/store/${user.id}`)}
+                                />
+                            )}
+                            <ActionRow
+                                icon={MessageCircle}
+                                title="Priority support"
+                                desc={planTier === 'premium' ? 'Same-day dedicated line' : '24-hour priority response'}
+                                onClick={() => navigate('/contact')}
+                            />
+                            <ActionRow
+                                icon={Gauge}
+                                title="Manage subscription"
+                                desc="Renew, view billing, or change plan"
+                                onClick={() => navigate('/settings')}
+                            />
+                        </div>
+                    </div>
+                </Reveal>
+
+                {/* Pro → Premium upsell — subtle, not a card */}
                 {planTier === 'pro' && (
                     <Reveal delay={100}>
-                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-                            <div className="flex items-center gap-2.5 mb-1">
-                                <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                                    <Sparkles size={16} />
+                        <div className="pt-10">
+                            <div className="rounded-2xl bg-gradient-to-br from-brand-50 to-white dark:from-ink-800 dark:to-ink-900 ring-1 ring-brand-100 dark:ring-ink-700 p-5">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 flex items-center justify-center shrink-0">
+                                        <Sparkles size={15} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-bold text-slate-900 dark:text-gold-50 text-sm">
+                                            Go further with Premium
+                                        </p>
+                                        <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-1 leading-relaxed">
+                                            Everything you have on Pro, plus no listing cap at all and your store shown first, every time.
+                                        </p>
+                                        <button
+                                            onClick={() => navigate('/', { state: { scrollToPricing: true } })}
+                                            className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-brand-700 dark:text-gold-400 hover:gap-2 transition-all"
+                                        >
+                                            Upgrade to Premium <ArrowRight size={13} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <h2 className="font-bold text-slate-900 dark:text-gold-50">Go further with Premium</h2>
                             </div>
-                            <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-2 max-w-lg">
-                                Everything you have on Pro, plus no listing cap at all and your store shown first, every time.
-                            </p>
-                            <button
-                                onClick={() => navigate('/', { state: { scrollToPricing: true } })}
-                                className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-bold text-sm transition"
-                            >
-                                Upgrade to Premium <ArrowRight size={15} />
-                            </button>
                         </div>
                     </Reveal>
                 )}
 
-                {/* ─── FAQ ─── */}
-                <div className="pt-2 pb-4">
+                {/* FAQ — flat, tight */}
+                <div className="pt-12">
                     <Reveal>
-                        <div className="flex items-center gap-2.5 mb-4">
-                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                                <Gift size={16} />
-                            </div>
-                            <h2 className="font-bold text-slate-900 dark:text-gold-50">Good to know</h2>
-                        </div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
+                            Good to know
+                        </p>
                     </Reveal>
-                    <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl px-5 shadow-sm">
+                    <div className="border-t border-slate-100 dark:border-ink-700">
                         {FAQ_ITEMS.map((faq, i) => (
                             <FaqItem
                                 key={faq.q}
@@ -344,81 +369,109 @@ export default function Benefits() {
     );
 }
 
-// ─── STAT CARD — matches Dashboard.jsx's StatCard exactly ─────────────────
-function StatCard({ icon: Icon, label, value }) {
+// ─── HEADER STAT (inline, not a card) ────────────────────────────────
+function HeaderStat({ label, value }) {
     return (
-        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl sm:rounded-2xl p-2.5 sm:p-4">
-            <Icon className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] text-white/80 mb-1 sm:mb-2" />
-            <p className="text-lg sm:text-2xl font-extrabold text-white">{value}</p>
-            <p className="text-[10px] sm:text-xs text-white/70">{label}</p>
+        <div className="bg-white/5 backdrop-blur px-3 py-3 text-center">
+            <p className="text-base sm:text-lg font-bold text-white tabular-nums leading-none">{value}</p>
+            <p className="text-[10px] text-white/50 mt-1.5 uppercase tracking-wider font-medium">{label}</p>
         </div>
     );
 }
 
-// ─── RECEIPT-STYLE ROW — matches SellerOverview's StatementRow exactly ────
-function StatementRow({ label, value, highlight }) {
+// ─── STATEMENT LINE ──────────────────────────────────────────────────
+function StatementLine({ label, value, highlight }) {
     return (
-        <div className="flex items-baseline gap-2 py-1.5">
-            <span className="text-sm text-slate-500 dark:text-gold-200/60 shrink-0">{label}</span>
-            <span className="flex-1 border-b border-dotted border-slate-300 dark:border-ink-600 translate-y-[-3px]" aria-hidden="true" />
-            <span className={`text-sm font-semibold tabular-nums shrink-0 ${highlight ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-gold-100'}`}>
+        <div className="flex items-baseline justify-between py-3">
+            <span className="text-xs text-slate-500 dark:text-gold-200/60">{label}</span>
+            <span className={`text-sm font-bold tabular-nums ${
+                highlight
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-900 dark:text-gold-50'
+            }`}>
                 {value}
             </span>
         </div>
     );
 }
 
-function QuickAction({ icon: Icon, title, desc, onClick }) {
+// ─── BENEFIT ROW (list item, not card) ───────────────────────────────
+function BenefitRow({ item }) {
+    const Icon = item.icon;
+    return (
+        <li className="flex items-start gap-3.5 py-3.5">
+            <div className="w-7 h-7 rounded-lg bg-brand-50 dark:bg-gold-900/60 text-brand-600 dark:text-gold-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Icon size={14} strokeWidth={2.25} />
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900 dark:text-gold-50 leading-snug">
+                    {item.title}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-gold-200/50 mt-1 leading-relaxed">
+                    {item.desc}
+                </p>
+            </div>
+        </li>
+    );
+}
+
+// ─── ACTION ROW (minimal, not a card) ────────────────────────────────
+function ActionRow({ icon: Icon, title, desc, onClick }) {
     return (
         <button
             onClick={onClick}
-            className="text-left bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 hover:border-slate-300 dark:hover:border-ink-500 hover:shadow-sm rounded-2xl p-4 transition group"
+            className="w-full flex items-center gap-3.5 py-3.5 text-left group"
         >
-            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center mb-3">
-                <Icon size={16} />
+            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-gold-300/70 flex items-center justify-center shrink-0 group-hover:bg-brand-50 dark:group-hover:bg-gold-900/60 group-hover:text-brand-600 dark:group-hover:text-gold-400 transition-colors">
+                <Icon size={15} />
             </div>
-            <p className="font-bold text-sm text-slate-900 dark:text-gold-50 flex items-center gap-1.5">
-                {title}
-                <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-            </p>
-            <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1">{desc}</p>
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 dark:text-gold-50">{title}</p>
+                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">{desc}</p>
+            </div>
+            <ArrowRight
+                size={15}
+                className="text-slate-300 dark:text-gold-300/30 group-hover:text-brand-600 dark:group-hover:text-gold-400 group-hover:translate-x-0.5 transition-all shrink-0"
+            />
         </button>
     );
 }
 
-function BenefitCard({ item }) {
-    const Icon = item.icon;
-    return (
-        <div className="flex items-start gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4 hover:shadow-sm transition">
-            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center shrink-0">
-                <Icon size={16} />
-            </div>
-            <div className="min-w-0">
-                <p className="font-bold text-sm text-slate-900 dark:text-gold-50">{item.title}</p>
-                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5 leading-relaxed">{item.desc}</p>
-            </div>
-        </div>
-    );
-}
-
+// ─── FAQ ITEM (flat, tight) ──────────────────────────────────────────
 function FaqItem({ faq, open, onToggle }) {
     return (
-        <div className="border-b border-slate-100 dark:border-ink-600 last:border-0">
+        <div className="border-b border-slate-100 dark:border-ink-700 last:border-0">
             <button
                 onClick={onToggle}
-                className="w-full flex items-center justify-between gap-3 py-4 text-left"
+                className="w-full flex items-center justify-between gap-4 py-4 text-left group"
             >
-                <span className="font-semibold text-sm text-slate-800 dark:text-gold-100">{faq.q}</span>
+                <span className={`text-sm transition-colors ${
+                    open
+                        ? 'font-bold text-slate-900 dark:text-gold-50'
+                        : 'font-medium text-slate-700 dark:text-gold-100/90 group-hover:text-slate-900 dark:group-hover:text-gold-50'
+                }`}>
+                    {faq.q}
+                </span>
                 <ChevronDown
                     size={16}
-                    className={`shrink-0 text-slate-400 dark:text-gold-300/50 transition-transform ${open ? 'rotate-180' : ''}`}
+                    className={`shrink-0 transition-transform duration-200 ${
+                        open
+                            ? 'rotate-180 text-brand-600 dark:text-gold-400'
+                            : 'text-slate-300 dark:text-gold-300/40'
+                    }`}
                 />
             </button>
-            {open && (
-                <p className="text-sm text-slate-500 dark:text-gold-200/60 leading-relaxed pb-4 pr-6">
-                    {faq.a}
-                </p>
-            )}
+            <div
+                className={`grid transition-all duration-200 ease-out ${
+                    open ? 'grid-rows-[1fr] opacity-100 pb-4' : 'grid-rows-[0fr] opacity-0'
+                }`}
+            >
+                <div className="overflow-hidden">
+                    <p className="text-xs text-slate-500 dark:text-gold-200/60 leading-relaxed pr-6">
+                        {faq.a}
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }
