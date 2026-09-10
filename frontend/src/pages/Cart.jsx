@@ -65,7 +65,7 @@ export default function Cart() {
     const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
     const sellerGroups = items.reduce((groups, item) => {
-        const key = item.seller_whatsapp || item.seller_name || 'unknown';
+        const key = item.seller_id || item.seller_whatsapp || item.seller_name || 'unknown';
         if (!groups[key]) {
             groups[key] = { sellerName: item.seller_name, whatsapp: item.seller_whatsapp, school: item.seller_school, items: [] };
         }
