@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Clock, Star, ShieldCheck, ArrowRight } from 'lucide-react';
+import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
 
 export default function ServiceCard({ service }) {
     const hasRating = service.rating && parseFloat(service.rating) > 0;
+
+    const isPlanActive = service.seller_plan && service.seller_plan !== 'free' &&
+        service.seller_plan_expires_at && new Date(service.seller_plan_expires_at) > new Date();
+    const planTier = isPlanActive ? service.seller_plan.toLowerCase() : null;
 
     return (
         <Link
@@ -30,15 +34,9 @@ export default function ServiceCard({ service }) {
                     Service
                 </span>
 
-                {/* Price pill */}
-                <span className="absolute bottom-2 right-2 bg-white/95 dark:bg-ink-900/90 backdrop-blur text-brand-700 dark:text-gold-400 text-xs font-extrabold px-2.5 py-1 rounded-full shadow-sm">
-                    GHS {parseFloat(service.price).toFixed(2)}
-                </span>
-
                 {/* Duration, if set */}
                 {service.service_duration && (
                     <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 bg-black/50 backdrop-blur text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                        <Clock size={10} />
                         {service.service_duration}
                     </span>
                 )}
@@ -46,9 +44,21 @@ export default function ServiceCard({ service }) {
 
             {/* BODY */}
             <div className="p-3.5">
-                <p className="font-bold text-sm text-slate-900 dark:text-gold-50 truncate">
-                    {service.title || service.name}
-                </p>
+                {/* TITLE + verified/premium badge */}
+                <div className="flex items-center gap-1">
+                    <p className="font-bold text-sm text-slate-900 dark:text-gold-50 truncate">
+                        {service.title || service.name}
+                    </p>
+                    {planTier === 'premium' && (
+                        <Sparkles size={12} className="text-purple-500 fill-purple-500 shrink-0" />
+                    )}
+                    {planTier === 'pro' && (
+                        <Star size={12} className="text-blue-500 fill-blue-500 shrink-0" />
+                    )}
+                    {service.seller_verified && (
+                        <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
+                    )}
+                </div>
 
                 {service.description && (
                     <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5 line-clamp-2 leading-snug">
@@ -56,37 +66,26 @@ export default function ServiceCard({ service }) {
                     </p>
                 )}
 
-                {/* SELLER ROW */}
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-ink-600">
-                    {service.seller_avatar ? (
-                        <img
-                            src={service.seller_avatar}
-                            alt=""
-                            className="w-6 h-6 rounded-full object-cover shrink-0"
-                        />
-                    ) : (
-                        <div className="w-6 h-6 rounded-full bg-brand-100 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center font-bold text-[10px] shrink-0">
-                            {service.seller_name?.[0]?.toUpperCase() || '?'}
-                        </div>
-                    )}
-                    <div className="min-w-0 flex-1">
+                {/* RATING + LOCATION */}
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-ink-600 space-y-1">
+                    {hasRating && (
                         <div className="flex items-center gap-1">
-                            <p className="text-xs font-semibold text-slate-700 dark:text-gold-200 truncate">
-                                {service.seller_name || 'Service provider'}
-                            </p>
-                            {service.seller_verified && (
-                                <ShieldCheck size={11} className="text-emerald-500 shrink-0" />
+                            <Star size={11} className="text-gold-400 fill-gold-400" />
+                            <span className="text-xs font-semibold text-slate-700 dark:text-gold-200">
+                                {parseFloat(service.rating).toFixed(1)}
+                            </span>
+                            {service.review_count > 0 && (
+                                <span className="text-[10px] text-slate-400 dark:text-gold-200/50">
+                                    ({service.review_count})
+                                </span>
                             )}
                         </div>
-                        {hasRating && (
-                            <div className="flex items-center gap-0.5">
-                                <Star size={10} className="text-gold-400 fill-gold-400" />
-                                <span className="text-[10px] text-slate-400 dark:text-gold-200/50">
-                                    {parseFloat(service.rating).toFixed(1)}
-                                    {service.review_count ? ` (${service.review_count})` : ''}
-                                </span>
-                            </div>
-                        )}
+                    )}
+                    <div className="flex items-center gap-1 text-slate-500 dark:text-gold-200/60">
+                        <MapPin size={11} className="shrink-0" />
+                        <span className="text-xs truncate">
+                            {service.seller_school || 'Location not specified'}
+                        </span>
                     </div>
                 </div>
 

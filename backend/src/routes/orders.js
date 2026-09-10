@@ -119,8 +119,10 @@ router.post('/', requireAuth, async (req, res) => {
         }
         // ====================================================
 
-        const buyerFee = Math.round(subtotal * BUYER_FEE_RATE * 100) / 100;
-        const preCreditTotal = subtotal + deliveryFee + buyerFee;
+        // Buyer-facing total shown/confirmed in-app is just subtotal + delivery —
+        // the 2% processing fee is applied once, only at the Paystack checkout step
+        // below (paystackAmount), so it's never double-counted.
+        const preCreditTotal = subtotal + deliveryFee;
 
         const buyerCreditResult = await client.query('SELECT credit_balance FROM users WHERE id = $1', [req.userId]);
         const availableCredit = parseFloat(buyerCreditResult.rows[0]?.credit_balance || 0);
@@ -165,7 +167,6 @@ router.post('/', requireAuth, async (req, res) => {
                 id: orderId,
                 subtotal,
                 delivery_fee: deliveryFee,
-                buyer_fee: buyerFee,
                 total_amount: 0,
                 credit_applied: creditApplied,
                 fully_paid_by_credit: true,
@@ -193,7 +194,6 @@ router.post('/', requireAuth, async (req, res) => {
             id: orderId,
             subtotal,
             delivery_fee: deliveryFee,
-            buyer_fee: buyerFee,
             total_amount: totalAmount,
             authorization_url: paystackRes.data.authorization_url,
         });

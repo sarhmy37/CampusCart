@@ -10,7 +10,6 @@ import { calcDeliveryFee, SCHOOL_COORDS, haversineKm } from '../utils/distance';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck, Loader2, Send, X, MessageCircle } from 'lucide-react';
 import { CART_VIDEO } from '../data/media';
 
-const SERVICE_FEE_RATE = 0.02;
 const FALLBACK_DELIVERY_FEE = 15;
 
 function formatWhatsAppNumber(raw) {
@@ -222,8 +221,9 @@ export default function Cart() {
         });
     }
 
-    const serviceFee = subtotal * SERVICE_FEE_RATE;
-    const grandTotal = subtotal + deliveryFee + serviceFee;
+    // The 2% payment-processing fee is applied once, at Paystack checkout —
+    // showing it here too would double-charge the buyer on screen.
+    const grandTotal = subtotal + deliveryFee;
 
     const handleAction = async () => {
         if (!user) return navigate('/login');
@@ -376,28 +376,26 @@ export default function Cart() {
                             <h3 className="font-bold text-slate-900 dark:text-gold-50 mb-4">Order summary</h3>
 
                             <div className="space-y-2 mb-5">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="flex gap-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
                                     <button
                                         onClick={() => setDeliveryMethod('pickup')}
-                                        className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${
+                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                                             deliveryMethod === 'pickup'
-                                                ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
-                                                : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
+                                                ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                                : 'text-slate-500 dark:text-gold-200/50'
                                         }`}
                                     >
-                                        <MapPin size={18} />
-                                        Meet on campus
+                                        <MapPin size={13} /> Meet on campus
                                     </button>
                                     <button
                                         onClick={() => setDeliveryMethod('delivery')}
-                                        className={`flex flex-col items-center gap-2 py-4 rounded-xl border text-sm font-semibold transition ${
+                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                                             deliveryMethod === 'delivery'
-                                                ? 'border-brand-500 dark:border-gold-500 bg-brand-50 dark:bg-gold-900/40 text-brand-700 dark:text-gold-300'
-                                                : 'border-slate-200 dark:border-ink-600 text-slate-500 dark:text-gold-200/50 hover:border-slate-300 dark:hover:border-ink-500'
+                                                ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                                : 'text-slate-500 dark:text-gold-200/50'
                                         }`}
                                     >
-                                        <Truck size={18} />
-                                        Delivery
+                                        <Truck size={13} /> Delivery
                                     </button>
                                 </div>
 
@@ -450,10 +448,16 @@ export default function Cart() {
                                 </div>
                             </div>
 
-                            <div className="border-t border-slate-100 dark:border-ink-600 mt-4 pt-4 flex items-center justify-between mb-6">
+                            <div className="border-t border-slate-100 dark:border-ink-600 mt-4 pt-4 flex items-center justify-between mb-1">
                                 <span className="font-semibold text-slate-900 dark:text-gold-50">Total</span>
                                 <span className="text-2xl font-extrabold text-slate-900 dark:text-gold-50">GHS {grandTotal.toFixed(2)}</span>
                             </div>
+                            {deliveryMethod === 'delivery' && (
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-5">
+                                    A 2% payment processing fee is added at checkout.
+                                </p>
+                            )}
+                            {deliveryMethod === 'pickup' && <div className="mb-6" />}
 
                             <button
                                 onClick={handleAction}

@@ -80,37 +80,73 @@ export default function ServiceDetail() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
-            {/* HEADER STRIP */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
-                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
-                <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-8">
-                    <Link
-                        to="/browse"
-                        className="inline-flex items-center gap-1.5 bg-white/10 text-white font-semibold px-3.5 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
+            {/* HEADER — video hero */}
+            <section className="relative overflow-hidden h-[52vh] min-h-[340px] sm:h-[58vh] sm:min-h-[420px]">
+                {service.video_url ? (
+                    <video
+                        key={service.video_url}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="absolute inset-0 w-full h-full object-cover"
                     >
-                        <ChevronLeft size={15} /> Back to browse
-                    </Link>
+                        <source src={service.video_url} type="video/mp4" />
+                    </video>
+                ) : images.length > 0 ? (
+                    <img
+                        src={images[0]}
+                        alt={service.title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900" />
+                )}
 
-                    <div className="flex items-center gap-2 mt-5 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                            <Briefcase size={12} /> Service
-                        </span>
-                        {hasRating && (
-                            <span className="inline-flex items-center gap-1 bg-white/15 text-white text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur">
-                                <Star size={12} className="text-gold-300 fill-gold-300" />
-                                {parseFloat(service.rating).toFixed(1)}
-                                {service.review_count ? ` (${service.review_count})` : ''}
-                            </span>
-                        )}
+                {/* Gradient overlays for legibility */}
+                <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-ink-900/25 to-ink-900/50 pointer-events-none" />
+                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+
+                {/* Back button */}
+                <div className="absolute top-0 left-0 right-0 z-10 px-4 sm:px-6 pt-6">
+                    <div className="max-w-5xl mx-auto">
+                        <Link
+                            to="/browse"
+                            className="inline-flex items-center gap-1.5 bg-white/10 text-white font-semibold px-3.5 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
+                        >
+                            <ChevronLeft size={15} /> Back to browse
+                        </Link>
                     </div>
+                </div>
 
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-3 max-w-2xl">
-                        {service.title || service.name}
-                    </h1>
-                    <p className="text-2xl sm:text-3xl font-black text-white mt-2">
-                        GHS {parseFloat(service.price).toFixed(2)}
-                    </p>
+                {/* Content, bottom-anchored */}
+                <div className="absolute bottom-0 left-0 right-0 z-10 px-4 sm:px-6 pb-6 sm:pb-8">
+                    <div className="max-w-5xl mx-auto">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                <Briefcase size={12} /> Service
+                            </span>
+                            {hasRating && (
+                                <span className="inline-flex items-center gap-1 bg-white/15 text-white text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur">
+                                    <Star size={12} className="text-gold-300 fill-gold-300" />
+                                    {parseFloat(service.rating).toFixed(1)}
+                                    {service.review_count ? ` (${service.review_count})` : ''}
+                                </span>
+                            )}
+                            {service.video_url && (
+                                <span className="inline-flex items-center gap-1 bg-white/15 text-white text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur">
+                                    🎥 Video
+                                </span>
+                            )}
+                        </div>
+
+                        <h1 className="text-2xl sm:text-4xl font-extrabold text-white mt-3 max-w-2xl drop-shadow-sm">
+                            {service.title || service.name}
+                        </h1>
+                        <p className="text-2xl sm:text-3xl font-black text-white mt-2 drop-shadow-sm">
+                            GHS {parseFloat(service.price).toFixed(2)}
+                        </p>
+                    </div>
                 </div>
             </section>
 

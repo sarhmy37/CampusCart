@@ -1154,6 +1154,32 @@ function ServiceTypeDropdown({ value, onChange }) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [open]);
 
+    // Lock background scroll (and pull-to-refresh) while the dropdown list
+    // is open, so touch/scroll gestures stay inside the list instead of
+    // moving the Browse page underneath it.
+    useEffect(() => {
+        if (open) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+    }, [open]);
+
     return (
         <div ref={containerRef} className="relative mb-5">
             <button

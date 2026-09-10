@@ -407,7 +407,7 @@ export default function ProfileDrawer({ open, onClose }) {
                     {/* PREMIUM/PRO BENEFITS — only shown to active paid subscribers */}
                     {planTier !== 'free' && (
                         <button
-                            onClick={() => { onClose(); navigate('/PLACEHOLDER'); }}
+                            onClick={() => { onClose(); navigate('/benefits'); }}
                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
                                 planTier === 'premium'
                                     ? 'bg-gradient-to-r from-violet-100 to-purple-100 dark:from-purple-900/50 dark:to-purple-800/40 hover:from-violet-200 hover:to-purple-200 dark:hover:from-purple-900/70 dark:hover:to-purple-800/60 text-violet-800 dark:text-purple-300'

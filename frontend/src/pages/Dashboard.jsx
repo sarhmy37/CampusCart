@@ -506,11 +506,14 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
         }
     }, [activeIndex]);
 
+    const [fitsWithoutScroll, setFitsWithoutScroll] = useState(false);
+
     const checkChevrons = () => {
         if (containerRef.current) {
             const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
             setShowLeftChevron(scrollLeft > 10);
             setShowRightChevron(scrollLeft < scrollWidth - clientWidth - 10);
+            setFitsWithoutScroll(scrollWidth <= clientWidth + 1);
         }
     };
 
@@ -641,7 +644,10 @@ function MobileTabRoll({ tabs, activeTab, onTabChange }) {
 
                     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent dark:via-white/5" />
 
-                    <div className="flex h-full items-center" style={{ minWidth: 'max-content', padding: '0 12px', gap: '4px' }}>
+                    <div
+                        className={`flex h-full items-center ${fitsWithoutScroll ? 'justify-center w-full' : ''}`}
+                        style={{ minWidth: fitsWithoutScroll ? undefined : 'max-content', padding: '0 12px', gap: '4px' }}
+                    >
                         {tabs.map((tab, index) => {
                             const isActive = tab === activeTab;
                             const Icon = TAB_ICONS[tab];

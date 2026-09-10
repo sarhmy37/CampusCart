@@ -8,6 +8,7 @@ import { WishlistProvider } from './context/WishlistContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ChatProvider } from './context/ChatContext';
+import Benefits from './pages/Benefits';
 import { ReviewPromptProvider } from './context/ReviewPromptContext';
 import PostPurchaseReviewModal from './components/PostPurchaseReviewModal';
 import AdminLogin from './pages/AdminLogin';
@@ -77,6 +78,7 @@ export default function App() {
                         <Route path="/chat" element={<ProtectedRoute><ChatHistory /></ProtectedRoute>} />
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/benefits" element={<ProtectedRoute><Benefits /></ProtectedRoute>} />
                         <Route path="/service/:id" element={<ServiceDetail />} />
                         <Route path="/store/:id" element={<Store />} />
                         <Route path="/help" element={<Help />} />

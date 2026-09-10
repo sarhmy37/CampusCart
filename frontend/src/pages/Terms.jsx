@@ -7,7 +7,7 @@ export default function Terms() {
     return (
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 bg-white dark:bg-ink-900 min-h-screen">
             <button
-                onClick={() => navigate('/', { state: { openProfile: true } })}
+                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
                 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-gold-200/60 hover:text-slate-700 dark:hover:text-gold-100 transition mb-6"
             >
                 <ArrowLeft size={16} /> Back
