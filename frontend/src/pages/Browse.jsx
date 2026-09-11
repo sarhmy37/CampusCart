@@ -383,7 +383,7 @@ export default function Browse() {
 
     const renderBudgetInput = () => (
         <div className="relative shrink-0">
-            <Wallet className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
+            <Wallet className="w-4 h-4 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
                 type="number"
                 min="1"
@@ -391,13 +391,13 @@ export default function Browse() {
                 onChange={(e) => setBudgetInput(e.target.value)}
                 onKeyDown={applyBudget}
                 placeholder="My budget (GHS)…"
-                className="bg-white/10 text-white placeholder-white/50 text-xs sm:text-sm font-medium pl-7 sm:pl-8 pr-8 sm:pr-9 py-1 sm:py-1.5 rounded-full border border-white/30 backdrop-blur focus:outline-none focus:border-white/60 w-32 sm:w-44"
+                className="bg-white/10 text-white placeholder-white/50 text-xs sm:text-sm font-medium pl-7 sm:pl-8 pr-8 sm:pr-9 py-1 sm:py-1.5 rounded-r-full border border-white/30 backdrop-blur focus:outline-none focus:border-white/60 w-32 sm:w-44"
             />
             <button
                 type="button"
                 onClick={applyBudgetValue}
                 aria-label="Apply budget filter"
-                className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/35 active:scale-90 text-white transition-all"
+                className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-r-full bg-white/20 hover:bg-white/35 active:scale-90 text-white transition-all"
             >
                 <Search className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
@@ -843,6 +843,16 @@ export default function Browse() {
                         </div>
                     ) : itemCategory === 'Services' ? (
                         <>
+                            <div className="flex justify-end mb-2">
+                                <button
+                                    type="button"
+                                    onClick={() => selectCategory('')}
+                                    className="inline-flex items-center gap-1 shrink-0 text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
+                                >
+                                    <ArrowLeft size={14} /> Browse listings
+                                </button>
+                            </div>
+
                             <ServiceTypeDropdown
                                 value={serviceType}
                                 onChange={setServiceType}

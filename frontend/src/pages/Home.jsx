@@ -904,13 +904,6 @@ const handlePlanClick = async (planName) => {
 <footer className="bg-white dark:bg-ink-900 border-t border-slate-200 dark:border-white/10 py-10">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-white/60">
-                <Link to="/terms" className="hover:text-slate-900 dark:hover:text-white transition">Terms of Service</Link>
-                <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white transition">Privacy Policy</Link>
-                <Link to="/help" className="hover:text-slate-900 dark:hover:text-white transition">Help Center</Link>
-                <Link to="/contact" className="hover:text-slate-900 dark:hover:text-white transition">Contact Us</Link>
-            </nav>
-
             <div className="flex items-center gap-2">
                 <span className="text-slate-400 dark:text-white/50 text-xs">🌍</span>
                 <select
@@ -923,6 +916,12 @@ const handlePlanClick = async (planName) => {
                     <option value="ZA" className="text-slate-900">South Africa (English)</option>
                 </select>
             </div>
+                        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-white/60">
+                <Link to="/terms" className="hover:text-slate-900 dark:hover:text-white transition">Terms of Service</Link>
+                <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white transition">Privacy Policy</Link>
+                <Link to="/help" className="hover:text-slate-900 dark:hover:text-white transition">Help Center</Link>
+                <Link to="/contact" className="hover:text-slate-900 dark:hover:text-white transition">Contact Us</Link>
+            </nav>
         </div>
 
         <div className="mt-6 pt-6 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

@@ -325,10 +325,10 @@ export default function ProductDetail() {
     const ActionCard = () => (
         <GlassCard>
             <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-700 dark:text-gold-400 text-xs font-semibold capitalize shrink-0">
+                <h1 className="text-xl font-extrabold text-slate-900 dark:text-gold-50 leading-snug">{product.title}</h1>
+               <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-700 dark:text-gold-400 text-xs font-semibold capitalize shrink-0">
                     {product.condition}
                 </span>
-                <h1 className="text-xl font-extrabold text-slate-900 dark:text-gold-50 leading-snug">{product.title}</h1>
             </div>
             {reviews?.avg_rating && (
                 <div className="flex items-center gap-1.5 mt-1 text-sm">
