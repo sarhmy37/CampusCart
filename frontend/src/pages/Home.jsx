@@ -502,7 +502,7 @@ const handlePlanClick = async (planName) => {
                             {/* ── START SELLING / OFFER SERVICES ── */}
                             <button
                                 onClick={handleStartSellingClick}
-                                className="relative overflow-hidden inline-flex items-center justify-center w-[172px] sm:w-[212px] bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
+                                className="relative overflow-hidden inline-flex items-center justify-center w-[150px] sm:w-[188px] bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-1.5 sm:px-6 sm:py-2 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
                             >
                                 {/* invisible spacer — gives the button its height; the two labels below are absolutely positioned on top of it */}
                                 <span className="invisible flex items-center justify-center gap-1.5 sm:gap-2">
@@ -544,7 +544,7 @@ const handlePlanClick = async (planName) => {
                             {/* ── BROWSE LISTINGS / BROWSE SERVICES ── */}
                             <button
                                 onClick={handleBrowseClick}
-                                className="inline-flex items-center gap-1.5 sm:gap-2 bg-white/10 text-white font-semibold px-4 py-2 sm:px-6 sm:py-3 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-base whitespace-nowrap"
+                                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 w-[150px] sm:w-[188px] bg-white/10 text-white font-semibold px-4 py-1.5 sm:px-6 sm:py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs sm:text-base whitespace-nowrap"
                             >
                                 {browseDisplay}
                             </button>
