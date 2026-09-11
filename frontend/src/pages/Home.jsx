@@ -29,7 +29,7 @@ const HERO_HOLD_MS = 8000;
 // ── CTA button label-swap animation timings ──
 // "Start selling" ⇄ "Offer Services" (arrow vibrates+grows, snaps back, flips 180°, slides out/in)
 // "Browse listings" ⇄ "Browse Services" (fast backspace + retype, no cursor)
-const CTA_HOLD_MS = 10000;      // how long each pair of labels sits before the next swap
+const CTA_HOLD_MS = 6000;      // how long each pair of labels sits before the next swap
 const CTA_VIBRATE_MS = 700;     // arrow vibrating while growing
 const CTA_SHRINK_MS = 100;      // arrow snapping back to normal size (fast)
 const CTA_ROTATE_MS = 450;      // arrow flipping 180°
@@ -470,7 +470,7 @@ const handlePlanClick = async (planName) => {
                 <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
 
                     <Reveal>
-                        <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20">
+                        <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/20">
                             <Sparkles size={13} />
                             Exclusively for university students
                         </span>

@@ -47,8 +47,8 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    const login = async (university_email, password) => {
-        const res = await api.post('/auth/login', { university_email, password });
+    const login = async (identifier, password) => {
+        const res = await api.post('/auth/login', { identifier, password });
         localStorage.setItem('cc_token', res.data.token);
         localStorage.setItem('cc_user', JSON.stringify(res.data.user));
         setUser(res.data.user);

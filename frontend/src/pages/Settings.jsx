@@ -13,6 +13,7 @@ import {
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { SETTINGS_VIDEO } from '../data/media';
 import StorePage from './Store';
+import PasswordStrength, { isPasswordValid } from '../components/PasswordStrength';
 
 
 const PLATFORM_FEE_RATE = 1.5;
@@ -243,6 +244,10 @@ export default function Settings() {
         e.preventDefault();
         if (next !== confirm) {
             toast.error("New passwords don't match");
+            return;
+        }
+        if (!isPasswordValid(next)) {
+            toast.error('Password must be 8+ characters with a letter, number, and symbol');
             return;
         }
         setSaving(true);
@@ -496,7 +501,7 @@ export default function Settings() {
                         </div>
                     </div>,
                     document.body
-                )};
+                )}
                 {/* APPEARANCE */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center justify-between">
@@ -696,12 +701,12 @@ export default function Settings() {
                             <input
                                 type={show ? 'text' : 'password'}
                                 required
-                                minLength={6}
                                 placeholder="New password"
                                 value={next}
                                 onChange={(e) => setNext(e.target.value)}
                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                             />
+                            <PasswordStrength password={next} />
                             <input
                                 type={show ? 'text' : 'password'}
                                 required

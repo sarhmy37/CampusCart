@@ -17,7 +17,7 @@ const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(
 export default function Login() {
     const { login } = useAuth();
     const navigate = useNavigate();
-    const [form, setForm] = useState({ university_email: '', password: '' });
+    const [form, setForm] = useState({ identifier: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -80,7 +80,7 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
         try {
-            const loggedInUser = await login(form.university_email, form.password);
+            const loggedInUser = await login(form.identifier, form.password);
             toast.success(`Welcome back, ${loggedInUser.name}!`);
             navigate('/');
         } catch (err) {
@@ -214,19 +214,19 @@ export default function Login() {
 
                         <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
                             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50 text-center lg:text-left">Welcome back</h1>
-                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1 text-center lg:text-left">Log in with your university email.</p>
+                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1 text-center lg:text-left">Log in with your email or username.</p>
 
                             <form onSubmit={onSubmit} className="mt-6 space-y-4">
                                 <div>
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">University Email</label>
+                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Email or Username</label>
                                     <div className="relative mt-1">
                                         <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
                                         <input
-                                            type="email"
+                                            type="text"
                                             required
-                                            value={form.university_email}
-                                            onChange={(e) => setForm({ ...form, university_email: e.target.value })}
-                                            placeholder="you@st.knust.edu.gh"
+                                            value={form.identifier}
+                                            onChange={(e) => setForm({ ...form, identifier: e.target.value })}
+                                            placeholder="you@st.knust.edu.gh or campusking"
                                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition"
                                         />
                                     </div>

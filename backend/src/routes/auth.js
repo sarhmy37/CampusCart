@@ -17,10 +17,19 @@ function signToken(user) {
     });
 }
 
+function validatePassword(pw) {
+    if (!pw || pw.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Za-z]/.test(pw)) return 'Password must include at least one letter';
+    if (!/[0-9]/.test(pw)) return 'Password must include at least one number';
+    if (!/[^A-Za-z0-9]/.test(pw)) return 'Password must include at least one special character (e.g. @, #, $)';
+    return null;
+}
+
 function toPublicUser(row) {
     return {
         id: row.id,
         name: row.name,
+        username: row.username,
         university_email: row.university_email,
         school: row.school,
         account_type: row.account_type,
@@ -87,14 +96,20 @@ function isAllowedEmailDomain(email) {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-    const { name, university_email, password, school, account_type, whatsapp, location, meeting_place, referral_code,
+    const { username, name, university_email, password, school, account_type, whatsapp, location, meeting_place, referral_code,
             bank_code, account_number, account_name, payout_method } = req.body;
 
-    if (!name || !university_email || !password) {
-        return res.status(400).json({ error: 'Name, university email, and password are required' });
+    const displayName = (username || name || '').trim();
+
+    if (!displayName || !university_email || !password) {
+        return res.status(400).json({ error: 'Username, university email, and password are required' });
     }
-    if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!/^[a-zA-Z0-9._]{3,20}$/.test(displayName)) {
+        return res.status(400).json({ error: 'Username must be 3–20 characters, letters/numbers/._ only' });
+    }
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+        return res.status(400).json({ error: passwordError });
     }
     if (!whatsapp) {
         return res.status(400).json({ error: 'WhatsApp number is required' });
@@ -138,6 +153,15 @@ router.post('/register', async (req, res) => {
             return res.status(409).json({ error: 'An account with this email already exists' });
         }
 
+        const usernameClash = await client.query(
+            'SELECT id FROM users WHERE LOWER(username) = LOWER($1)',
+            [displayName]
+        );
+        if (usernameClash.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'That username is already taken' });
+        }
+
         let referrerId = null;
         if (referral_code) {
             const referrerResult = await client.query('SELECT id FROM users WHERE referral_code = $1', [referral_code.toUpperCase()]);
@@ -153,9 +177,9 @@ router.post('/register', async (req, res) => {
 
         const passwordHash = await bcrypt.hash(password, 10);
         const result = await client.query(
-            `INSERT INTO users (name, university_email, password_hash, school, account_type, whatsapp, location, meeting_place, referral_code, referred_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-            [name, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, meeting_place || null, myReferralCode, referrerId]
+            `INSERT INTO users (name, username, university_email, password_hash, school, account_type, whatsapp, location, meeting_place, referral_code, referred_by)
+             VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+            [displayName, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, meeting_place || null, myReferralCode, referrerId]
         );
 
         const user = result.rows[0];
@@ -196,18 +220,24 @@ router.post('/register', async (req, res) => {
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
-    const { university_email, password } = req.body;
+    const { university_email, identifier, password } = req.body;
+    const loginId = (identifier || university_email || '').trim();
 
-    if (!university_email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+    if (!loginId || !password) {
+        return res.status(400).json({ error: 'Email/username and password are required' });
     }
 
     try {
-        const result = await pool.query('SELECT * FROM users WHERE university_email = $1', [university_email]);
+        const result = await pool.query(
+            `SELECT * FROM users
+             WHERE university_email = $1 OR LOWER(username) = LOWER($1)
+             LIMIT 1`,
+            [loginId]
+        );
         const user = result.rows[0];
 
         if (!user) {
-            return res.status(401).json({ error: 'Invalid email or password' });
+            return res.status(401).json({ error: 'Invalid email/username or password' });
         }
 
         // 👇 BAN CHECK
@@ -220,7 +250,7 @@ router.post('/login', async (req, res) => {
 
         const match = await bcrypt.compare(password, user.password_hash);
         if (!match) {
-            return res.status(401).json({ error: 'Invalid email or password' });
+            return res.status(401).json({ error: 'Invalid email/username or password' });
         }
 
         const token = signToken(user);
@@ -402,8 +432,9 @@ router.post('/reset-password', async (req, res) => {
     if (!university_email || !code || !new_password) {
         return res.status(400).json({ error: 'Email, code, and new password are required' });
     }
-    if (new_password.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    const resetPwError = validatePassword(new_password);
+    if (resetPwError) {
+        return res.status(400).json({ error: resetPwError });
     }
 
     try {
@@ -505,8 +536,9 @@ router.patch('/me/password', requireAuth, async (req, res) => {
     if (!code || !new_password) {
         return res.status(400).json({ error: 'Code and new password are required' });
     }
-    if (new_password.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    const changePwError = validatePassword(new_password);
+    if (changePwError) {
+        return res.status(400).json({ error: changePwError });
     }
 
     try {

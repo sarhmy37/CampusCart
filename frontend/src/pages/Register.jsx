@@ -6,6 +6,7 @@ import api from '../api/client';
 import { REGISTER_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, User, School, ShoppingBag, Store, Phone, ChevronDown, Landmark, Loader2, CheckCircle, XCircle, ArrowLeft, MapPin } from 'lucide-react';
 import { AcademicCapIcon } from '@heroicons/react/24/outline';
+import PasswordStrength, { isPasswordValid } from '../components/PasswordStrength';
 
 const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU'];
 
@@ -431,11 +432,10 @@ export default function Register() {
             toast.error("Passwords don't match");
             return;
         }
-        if (form.password.length < 6) {
-            toast.error('Password must be at least 6 characters');
+        if (!isPasswordValid(form.password)) {
+            toast.error('Password must be 8+ characters with a letter, number, and symbol');
             return;
         }
-
         if (accountType === 'buyer') {
             if (!buyerSchool) {
                 toast.error('Please select or wait for us to detect your nearest school.');
@@ -471,7 +471,7 @@ export default function Register() {
         setLoading(true);
         try {
             const payload = {
-                name: form.name,
+                username: form.name,
                 university_email: form.university_email,
                 password: form.password,
                 school: accountType === 'seller' ? form.school : buyerSchool,
@@ -665,7 +665,7 @@ export default function Register() {
 
                             <form onSubmit={onSubmit} className="mt-5 space-y-4">
                                 <div>
-                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Full Name</label>
+                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Username</label>
                                     <div className="relative mt-1">
                                         <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
                                         <input
@@ -673,7 +673,7 @@ export default function Register() {
                                             required
                                             value={form.name}
                                             onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                            placeholder="Kwame Asante"
+                                            placeholder="campusking"
                                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition"
                                         />
                                     </div>
@@ -983,6 +983,7 @@ export default function Register() {
                                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
+                                    <PasswordStrength password={form.password} />
                                 </div>
 
                                 <div>
