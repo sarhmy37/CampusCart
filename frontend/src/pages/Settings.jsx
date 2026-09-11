@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
     ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Truck,
-    Shield, ChevronRight, ChevronDown, ChevronLeft, Percent, Trash2, AlertTriangle, Moon, Sun, Gift,
+    Shield, ChevronRight, ChevronDown, ChevronLeft, Trash2, AlertTriangle, Moon, Sun, Gift,
     Store, Copy, Check, X
 } from 'lucide-react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
@@ -496,11 +496,7 @@ export default function Settings() {
                         </div>
                     </div>,
                     document.body
-                )}
-
-                {/* YOUR PLAN */}
-                <PlanCard user={user} />
-
+                )};
                 {/* APPEARANCE */}
                 <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center justify-between">
@@ -1052,80 +1048,6 @@ function DeliveryLocations() {
                     {adding ? 'Adding…' : 'Add'}
                 </button>
             </div>
-        </div>
-    );
-}
-
-function TermsBlock({ title, children }) {
-    return (
-        <div>
-            <p className="font-bold text-slate-800 dark:text-gold-100">{title}</p>
-            <p className="mt-1">{children}</p>
-        </div>
-    );
-}
-
-function PlanCard({ user }) {
-    const navigate = useNavigate();
-
-    const isActive = user?.plan && user.plan !== 'free' &&
-        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
-
-    const planLabel = isActive
-        ? (user.plan.charAt(0).toUpperCase() + user.plan.slice(1))
-        : 'Free';
-
-    const daysLeft = isActive
-        ? Math.max(0, Math.ceil((new Date(user.plan_expires_at) - new Date()) / (1000 * 60 * 60 * 24)))
-        : null;
-
-    // A plan the user paid for but that has lapsed — different message than never having subscribed
-    const isExpired = user?.plan && user.plan !== 'free' && !isActive;
-
-    return (
-        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
-                        <Percent size={16} />
-                    </div>
-                    <div>
-                        <h2 className="font-bold text-slate-900 dark:text-gold-50">Your plan</h2>
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
-                            {isActive
-                                ? `${planLabel} plan · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
-                                : isExpired
-                                ? `${planLabel[0].toUpperCase() + planLabel.slice(1)} plan expired`
-                                : "You're on the Free plan"}
-                        </p>
-                    </div>
-                </div>
-
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                    isActive
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                        : isExpired
-                        ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'
-                        : 'bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/50'
-                }`}>
-                    {isActive ? planLabel : isExpired ? 'Expired' : 'Free'}
-                </span>
-            </div>
-
-            {isActive && (
-                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-3">
-                    Renews or ends on {new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
-                </p>
-            )}
-
-            {(!isActive) && (
-                <button
-                    onClick={() => navigate('/', { state: { scrollToPricing: true } })}
-                    className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition"
-                >
-                    {isExpired ? 'Renew your plan' : 'View plans'}
-                </button>
-            )}
         </div>
     );
 }
