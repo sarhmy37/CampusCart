@@ -109,34 +109,6 @@ export default function Benefits() {
             toast.error(err.response?.data?.error || 'Could not undo cancellation');
         }
     };
-    const [showCancelModal, setShowCancelModal] = useState(false);
-    const [cancelling, setCancelling] = useState(false);
-
-    const isPendingCancel = user?.pending_plan === 'free';
-
-    const handleConfirmCancel = async () => {
-        setCancelling(true);
-        try {
-            await api.post('/subscriptions/cancel');
-            toast.success('Subscription cancelled — you keep access until it expires.');
-            setShowCancelModal(false);
-            window.location.reload();
-        } catch (err) {
-            toast.error(err.response?.data?.error || 'Could not cancel subscription');
-        } finally {
-            setCancelling(false);
-        }
-    };
-
-    const handleUndoCancel = async () => {
-        try {
-            await api.post('/subscriptions/undo-cancel');
-            toast.success('Cancellation undone');
-            window.location.reload();
-        } catch (err) {
-            toast.error(err.response?.data?.error || 'Could not undo cancellation');
-        }
-    };
 
     // ─── SAVED SEARCHES ───
     const [savedSearches, setSavedSearches] = useState([]);
