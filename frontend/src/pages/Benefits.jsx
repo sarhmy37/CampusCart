@@ -56,7 +56,11 @@ const FAQ_ITEMS = [
     },
     {
         q: 'Can I switch between Pro and Premium?',
-        a: 'You can switch once your current plan\'s duration ends. While a paid plan is active, you\'re locked into it until it expires — this keeps billing simple and predictable.',
+        a: 'Yes, anytime. Upgrading to Premium applies immediately. Downgrading to Pro keeps your Premium benefits until your current period ends, then switches you to Pro at renewal — you never lose what you\'ve already paid for.',
+    },
+    {
+        q: 'What if I cancel?',
+        a: 'You keep full access until your current period ends, then your account reverts to Free. No refunds for time already paid, but nothing is cut off early.',
     },
     {
         q: 'Is the 0% fee automatic?',
@@ -76,6 +80,63 @@ export default function Benefits() {
     const [totalViews, setTotalViews] = useState(0);
     const [grossSales, setGrossSales] = useState(0);
     const [openFaq, setOpenFaq] = useState(null);
+    const [collapsedCategories, setCollapsedCategories] = useState({});
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+
+    const isPendingCancel = user?.pending_plan === 'free';
+
+    const handleConfirmCancel = async () => {
+        setCancelling(true);
+        try {
+            await api.post('/subscriptions/cancel');
+            toast.success('Subscription cancelled — you keep access until it expires.');
+            setShowCancelModal(false);
+            window.location.reload();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Could not cancel subscription');
+        } finally {
+            setCancelling(false);
+        }
+    };
+
+    const handleUndoCancel = async () => {
+        try {
+            await api.post('/subscriptions/undo-cancel');
+            toast.success('Cancellation undone');
+            window.location.reload();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Could not undo cancellation');
+        }
+    };
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+
+    const isPendingCancel = user?.pending_plan === 'free';
+
+    const handleConfirmCancel = async () => {
+        setCancelling(true);
+        try {
+            await api.post('/subscriptions/cancel');
+            toast.success('Subscription cancelled — you keep access until it expires.');
+            setShowCancelModal(false);
+            window.location.reload();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Could not cancel subscription');
+        } finally {
+            setCancelling(false);
+        }
+    };
+
+    const handleUndoCancel = async () => {
+        try {
+            await api.post('/subscriptions/undo-cancel');
+            toast.success('Cancellation undone');
+            window.location.reload();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Could not undo cancellation');
+        }
+    };
 
     // ─── SAVED SEARCHES ───
     const [savedSearches, setSavedSearches] = useState([]);
@@ -434,6 +495,23 @@ export default function Benefits() {
                                 desc="Renew, view billing, or change plan"
                                 onClick={() => navigate('/settings')}
                             />
+
+                            {isPendingCancel ? (
+                                <ActionRow
+                                    icon={X}
+                                    title="Undo cancellation"
+                                    desc={`Ends ${new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} — keep your plan instead`}
+                                    onClick={handleUndoCancel}
+                                />
+                            ) : (
+                                <ActionRow
+                                    icon={X}
+                                    title="Cancel subscription"
+                                    desc="Keep access until your current period ends"
+                                    onClick={() => setShowCancelModal(true)}
+                                    danger
+                                />
+                            )}
                         </div>
                     </div>
                 </Reveal>
@@ -453,20 +531,38 @@ export default function Benefits() {
                         {SELLER_BENEFITS.map((group, gi) => {
                             const groupItems = group.items.filter((item) => item.tiers.includes(planTier));
                             if (groupItems.length === 0) return null;
+                            const isOpen = !collapsedCategories[group.category];
                             return (
                                 <Reveal key={group.category} delay={gi * 60}>
                                     <div>
-                                        <div className="flex items-center gap-2 mb-2">
+                                        <button
+                                            onClick={() => setCollapsedCategories((prev) => ({ ...prev, [group.category]: isOpen }))}
+                                            className="w-full flex items-center gap-2 mb-2 group"
+                                        >
                                             <span className="text-xs font-bold text-slate-900 dark:text-gold-100">
                                                 {group.category}
                                             </span>
                                             <div className="flex-1 h-px bg-slate-100 dark:bg-ink-700" />
+                                            <ChevronDown
+                                                size={15}
+                                                className={`shrink-0 text-slate-300 dark:text-gold-300/40 transition-transform duration-200 ${
+                                                    isOpen ? 'rotate-180 text-brand-600 dark:text-gold-400' : 'group-hover:text-brand-600 dark:group-hover:text-gold-400'
+                                                }`}
+                                            />
+                                        </button>
+                                        <div
+                                            className={`grid transition-all duration-200 ease-out ${
+                                                isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                                            }`}
+                                        >
+                                            <div className="overflow-hidden">
+                                                <ul className="divide-y divide-slate-100 dark:divide-ink-700">
+                                                    {groupItems.map((item) => (
+                                                        <BenefitRow key={item.title} item={item} />
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         </div>
-                                        <ul className="divide-y divide-slate-100 dark:divide-ink-700">
-                                            {groupItems.map((item) => (
-                                                <BenefitRow key={item.title} item={item} />
-                                            ))}
-                                        </ul>
                                     </div>
                                 </Reveal>
                             );
@@ -507,7 +603,7 @@ export default function Benefits() {
                 <div className="pt-12">
                     <Reveal>
                         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
-                            Good to know
+                            FAQ(Frequently Asked Questions)
                         </p>
                     </Reveal>
                     <div className="border-t border-slate-100 dark:border-ink-700">
@@ -522,6 +618,38 @@ export default function Benefits() {
                     </div>
                 </div>
             </div>
+
+            {showCancelModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCancelModal(false)} />
+                    <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-ink-600">
+                        <div className="text-center">
+                            <div className="w-14 h-14 mx-auto rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center mb-4">
+                                <X size={24} className="text-red-500 dark:text-red-400" />
+                            </div>
+                            <h3 className="font-extrabold text-slate-900 dark:text-gold-50 text-lg">Cancel subscription?</h3>
+                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1.5">
+                                You'll keep {meta?.label} access until {user?.plan_expires_at && new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, then your account moves to Free. No refund for time already paid.
+                            </p>
+                        </div>
+                        <div className="flex gap-2 mt-5">
+                            <button
+                                onClick={() => setShowCancelModal(false)}
+                                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                            >
+                                Keep plan
+                            </button>
+                            <button
+                                onClick={handleConfirmCancel}
+                                disabled={cancelling}
+                                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-60"
+                            >
+                                {cancelling ? 'Cancelling…' : 'Cancel plan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -573,22 +701,30 @@ function BenefitRow({ item }) {
 }
 
 // ─── ACTION ROW ────────────────────────────────────────────────
-function ActionRow({ icon: Icon, title, desc, onClick }) {
+function ActionRow({ icon: Icon, title, desc, onClick, danger }) {
     return (
         <button
             onClick={onClick}
             className="w-full flex items-center gap-3.5 py-3.5 text-left group"
         >
-            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-gold-300/70 flex items-center justify-center shrink-0 group-hover:bg-brand-50 dark:group-hover:bg-gold-900/60 group-hover:text-brand-600 dark:group-hover:text-gold-400 transition-colors">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                danger
+                    ? 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400 group-hover:bg-red-100 dark:group-hover:bg-red-950/50'
+                    : 'bg-slate-100 dark:bg-ink-700 text-slate-600 dark:text-gold-300/70 group-hover:bg-brand-50 dark:group-hover:bg-gold-900/60 group-hover:text-brand-600 dark:group-hover:text-gold-400'
+            }`}>
                 <Icon size={15} />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 dark:text-gold-50">{title}</p>
+                <p className={`text-sm font-semibold ${danger ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-gold-50'}`}>{title}</p>
                 <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">{desc}</p>
             </div>
             <ArrowRight
                 size={15}
-                className="text-slate-300 dark:text-gold-300/30 group-hover:text-brand-600 dark:group-hover:text-gold-400 group-hover:translate-x-0.5 transition-all shrink-0"
+                className={`shrink-0 transition-all ${
+                    danger
+                        ? 'text-red-300 dark:text-red-400/40 group-hover:text-red-500 dark:group-hover:text-red-400 group-hover:translate-x-0.5'
+                        : 'text-slate-300 dark:text-gold-300/30 group-hover:text-brand-600 dark:group-hover:text-gold-400 group-hover:translate-x-0.5'
+                }`}
             />
         </button>
     );

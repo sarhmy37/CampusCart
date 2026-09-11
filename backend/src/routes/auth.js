@@ -46,12 +46,18 @@ function toPublicUser(row) {
         is_data_seller: row.is_data_seller,
         plan: row.plan,
         plan_expires_at: row.plan_expires_at,
+        pending_plan: row.pending_plan,
     };
 }
 
 function generateCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
+
+const PLAN_DURATIONS_MS = {
+    pro: 30 * 24 * 60 * 60 * 1000,
+    premium: 365 * 24 * 60 * 60 * 1000,
+};
 
 const REFERRAL_CREDIT = 10;
 
@@ -280,6 +286,31 @@ router.get('/me', requireAuth, async (req, res) => {
                 [code, req.userId]
             );
             user = updated.rows[0];
+        }
+
+        // Lazy plan expiry check — if the current period has passed:
+        //  - if a downgrade was scheduled (pending_plan), apply it and extend
+        //    a fresh period on the new (cheaper) plan instead of dropping to Free
+        //  - otherwise, revert to Free as before
+        const hasExpired = user.plan && user.plan !== 'free' &&
+            user.plan_expires_at && new Date(user.plan_expires_at) <= new Date();
+
+        if (hasExpired) {
+            if (user.pending_plan && user.pending_plan !== 'free') {
+                const duration = PLAN_DURATIONS_MS[user.pending_plan] || PLAN_DURATIONS_MS.pro;
+                const newExpiry = new Date(Date.now() + duration);
+                const updated = await pool.query(
+                    `UPDATE users SET plan = $1, plan_expires_at = $2, pending_plan = NULL WHERE id = $3 RETURNING *`,
+                    [user.pending_plan, newExpiry, req.userId]
+                );
+                user = updated.rows[0];
+            } else {
+                const updated = await pool.query(
+                    `UPDATE users SET plan = 'free', plan_expires_at = NULL, pending_plan = NULL WHERE id = $1 RETURNING *`,
+                    [req.userId]
+                );
+                user = updated.rows[0];
+            }
         }
 
         res.json(toPublicUser(user));

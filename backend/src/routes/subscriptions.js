@@ -65,7 +65,7 @@ router.post('/initiate', requireAuth, async (req, res) => {
 // Shared activation logic — called from both the webhook and the direct-verify
 // endpoint below, so a payment can be confirmed via whichever path responds
 // first without double-processing (idempotent on subscription.status).
-async function activateSubscriptionIfValid(reference, paystackStatus, amountPesewas) {
+async function activateSubscriptionIfValid(reference, paystackStatus, amountPesewas, authorizationCode) {
     const subResult = await pool.query(
         'SELECT * FROM subscriptions WHERE paystack_reference = $1',
         [reference]
@@ -102,8 +102,8 @@ async function activateSubscriptionIfValid(reference, paystackStatus, amountPese
     try {
         await client.query('BEGIN');
         await client.query(
-            `UPDATE subscriptions SET status = 'active', starts_at = $1, ends_at = $2 WHERE id = $3`,
-            [startsAt, endsAt, subscription.id]
+            `UPDATE subscriptions SET status = 'active', starts_at = $1, ends_at = $2, authorization_code = COALESCE($4, authorization_code) WHERE id = $3`,
+            [startsAt, endsAt, subscription.id, authorizationCode || null]
         );
         await client.query(
             `UPDATE users SET plan = $1, plan_expires_at = $2 WHERE id = $3`,
@@ -135,8 +135,8 @@ async function activateSubscriptionIfValid(reference, paystackStatus, amountPese
 // (/api/orders/webhook), which already handles order payments.
 async function processSubscriptionWebhookEvent(event) {
     if (event.event !== 'charge.success') return;
-    const { reference, status, amount } = event.data;
-    await activateSubscriptionIfValid(reference, status, amount);
+    const { reference, status, amount, authorization } = event.data;
+    await activateSubscriptionIfValid(reference, status, amount, authorization?.authorization_code);
 }
 
 // POST /api/subscriptions/verify/:reference — called directly by the callback
@@ -164,7 +164,7 @@ router.post('/verify/:reference', requireAuth, async (req, res) => {
             method: 'GET',
         });
 
-        const result = await activateSubscriptionIfValid(reference, verifyRes.data.status, verifyRes.data.amount);
+        const result = await activateSubscriptionIfValid(reference, verifyRes.data.status, verifyRes.data.amount, verifyRes.data.authorization?.authorization_code);
         res.json({ status: result.status || 'pending', plan: result.plan });
     } catch (err) {
         console.error('Direct verify error:', err);
@@ -186,6 +186,75 @@ router.get('/status/:reference', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Get subscription status error:', err);
         res.status(500).json({ error: 'Could not check subscription status' });
+    }
+});
+
+// POST /api/subscriptions/schedule-downgrade — Premium → Pro only. No charge now;
+// the switch applies automatically once the current period ends (handled lazily
+// in GET /api/auth/me, same pattern as the referral_code backfill there).
+router.post('/schedule-downgrade', requireAuth, async (req, res) => {
+    const { plan } = req.body;
+    if (plan !== 'pro') {
+        return res.status(400).json({ error: 'Only downgrading to Pro is supported here' });
+    }
+
+    try {
+        const userResult = await pool.query(
+            'SELECT plan, plan_expires_at FROM users WHERE id = $1',
+            [req.userId]
+        );
+        const user = userResult.rows[0];
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const isActivePremium = user.plan === 'premium' &&
+            user.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+        if (!isActivePremium) {
+            return res.status(400).json({ error: 'You need an active Premium plan to schedule a downgrade' });
+        }
+
+        await pool.query('UPDATE users SET pending_plan = $1 WHERE id = $2', ['pro', req.userId]);
+        res.json({ pending_plan: 'pro', effective_at: user.plan_expires_at });
+    } catch (err) {
+        console.error('Schedule downgrade error:', err);
+        res.status(500).json({ error: 'Could not schedule the downgrade' });
+    }
+});
+
+// POST /api/subscriptions/cancel — keeps access until period end, then reverts to Free.
+router.post('/cancel', requireAuth, async (req, res) => {
+    try {
+        const userResult = await pool.query(
+            'SELECT plan, plan_expires_at FROM users WHERE id = $1',
+            [req.userId]
+        );
+        const user = userResult.rows[0];
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const isActivePaid = user.plan && user.plan !== 'free' &&
+            user.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+        if (!isActivePaid) {
+            return res.status(400).json({ error: 'No active paid plan to cancel' });
+        }
+
+        await pool.query('UPDATE users SET pending_plan = $1 WHERE id = $2', ['free', req.userId]);
+        res.json({ pending_plan: 'free', effective_at: user.plan_expires_at });
+    } catch (err) {
+        console.error('Cancel subscription error:', err);
+        res.status(500).json({ error: 'Could not cancel subscription' });
+    }
+});
+
+// POST /api/subscriptions/undo-cancel — user changed their mind before period end.
+router.post('/undo-cancel', requireAuth, async (req, res) => {
+    try {
+        await pool.query(
+            `UPDATE users SET pending_plan = NULL WHERE id = $1 AND pending_plan = 'free'`,
+            [req.userId]
+        );
+        res.json({ message: 'Cancellation undone' });
+    } catch (err) {
+        console.error('Undo cancel error:', err);
+        res.status(500).json({ error: 'Could not undo cancellation' });
     }
 });
 

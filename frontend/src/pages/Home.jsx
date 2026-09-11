@@ -360,17 +360,22 @@ export default function Home() {
 
 const handlePlanClick = async (planName) => {
     const currentPlan = (user?.plan || 'free').toLowerCase();
+    const targetPlan = planName.toLowerCase();
     const isCurrentPlanActive = user?.plan && user.plan !== 'free' &&
         user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
 
-    // Locked in on an active paid plan — can't switch to anything else
-    // (including Free or the other paid plan) until it expires.
-    if (isCurrentPlanActive && planName.toLowerCase() !== currentPlan) {
+    const isPaidSwitch = isCurrentPlanActive &&
+        ((currentPlan === 'pro' && targetPlan === 'premium') ||
+         (currentPlan === 'premium' && targetPlan === 'pro'));
+
+    // Locked in on an active paid plan — can switch between Pro/Premium,
+    // but can't jump to Free or re-select the same plan until it expires.
+    if (isCurrentPlanActive && targetPlan !== currentPlan && !isPaidSwitch) {
         toast.error(`You're on the ${user.plan} plan until it expires — you can switch once it ends.`);
         return;
     }
 
-    if (planName.toLowerCase() === 'free') {
+    if (targetPlan === 'free') {
         handleBrowseClick();
         return;
     }
@@ -380,10 +385,26 @@ const handlePlanClick = async (planName) => {
         return;
     }
 
+    // Downgrade (Premium → Pro): schedule it for renewal, no payment now,
+    // keep current Premium benefits until the current period ends.
+    if (isPaidSwitch && currentPlan === 'premium' && targetPlan === 'pro') {
+        try {
+            setSubscribingPlan(planName);
+            await api.post('/subscriptions/schedule-downgrade', { plan: targetPlan });
+            toast.success(`You'll switch to Pro on ${new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}. You keep Premium until then.`);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Could not schedule the downgrade. Please try again.');
+        } finally {
+            setSubscribingPlan(null);
+        }
+        return;
+    }
+
+    // Upgrade (Pro → Premium) or a fresh subscription: charge now.
     try {
         setSubscribingPlan(planName);
         const res = await api.post('/subscriptions/initiate', {
-            plan: planName.toLowerCase(),
+            plan: targetPlan,
         });
         window.location.href = res.data.authorization_url;
     } catch (err) {
@@ -810,6 +831,34 @@ const handlePlanClick = async (planName) => {
                                     {(() => {
                                         const currentPlan = (user?.plan || 'free').toLowerCase();
                                         const isCurrent = plan.name.toLowerCase() === currentPlan;
+                                        const pendingPlan = user?.pending_plan?.toLowerCase();
+                                        const pendingDate = user?.plan_expires_at
+                                            ? new Date(user.plan_expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                                            : '';
+
+                                        // This card IS the plan already scheduled to take effect at renewal.
+                                        if (pendingPlan && plan.name.toLowerCase() === pendingPlan) {
+                                            return (
+                                                <button
+                                                    disabled
+                                                    className="w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 cursor-not-allowed"
+                                                >
+                                                    Starts {pendingDate}
+                                                </button>
+                                            );
+                                        }
+
+                                        // This card is the CURRENT plan, but a downgrade off it is already scheduled.
+                                        if (isCurrent && pendingPlan) {
+                                            return (
+                                                <button
+                                                    disabled
+                                                    className="w-full mt-3 sm:mt-6 py-1.5 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/50 cursor-not-allowed"
+                                                >
+                                                    Active until {pendingDate}
+                                                </button>
+                                            );
+                                        }
 
                                         if (isCurrent) {
                                             return (
@@ -834,7 +883,13 @@ const handlePlanClick = async (planName) => {
                                             >
                                                 {subscribingPlan === plan.name
                                                     ? 'Redirecting…'
-                                                    : plan.price === '0' ? 'Get started free' : `Choose ${plan.name}`}
+                                                    : plan.price === '0'
+                                                        ? 'Get started free'
+                                                        : currentPlan === 'pro' && plan.name === 'Premium'
+                                                            ? 'Upgrade to Premium'
+                                                            : currentPlan === 'premium' && plan.name === 'Pro'
+                                                                ? 'Downgrade to Pro'
+                                                                : `Choose ${plan.name}`}
                                             </button>
                                         );
                                     })()}
@@ -849,11 +904,18 @@ const handlePlanClick = async (planName) => {
 <footer className="bg-white dark:bg-ink-900 border-t border-slate-200 dark:border-white/10 py-10">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-white/60">
+                <Link to="/terms" className="hover:text-slate-900 dark:hover:text-white transition">Terms of Service</Link>
+                <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white transition">Privacy Policy</Link>
+                <Link to="/help" className="hover:text-slate-900 dark:hover:text-white transition">Help Center</Link>
+                <Link to="/contact" className="hover:text-slate-900 dark:hover:text-white transition">Contact Us</Link>
+            </nav>
+
             <div className="flex items-center gap-2">
                 <span className="text-slate-400 dark:text-white/50 text-xs">🌍</span>
                 <select
                     defaultValue="GH"
-                    className="bg-transparent text-slate-600 dark:text-white/70 text-xs font-medium border border-slate-200 dark:border-white/15 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-slate-400 dark:focus:border-white/30"
+                    className="appearance-none bg-transparent bg-no-repeat bg-[right_0.5rem_center] bg-[length:12px] text-slate-600 dark:text-white/70 text-xs font-medium border border-slate-200 dark:border-white/15 rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none focus:border-slate-400 dark:focus:border-white/30 bg-[url('data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%2364748b%22%20stroke-width=%222%22%3E%3Cpath%20d=%22M6%209l6%206%206-6%22/%3E%3C/svg%3E')] dark:bg-[url('data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22white%22%20stroke-opacity=%220.7%22%20stroke-width=%222%22%3E%3Cpath%20d=%22M6%209l6%206%206-6%22/%3E%3C/svg%3E')]"
                 >
                     <option value="GH" className="text-slate-900">Ghana (English)</option>
                     <option value="NG" className="text-slate-900">Nigeria (English)</option>
@@ -861,13 +923,6 @@ const handlePlanClick = async (planName) => {
                     <option value="ZA" className="text-slate-900">South Africa (English)</option>
                 </select>
             </div>
-
-            <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-white/60">
-                <Link to="/terms" className="hover:text-slate-900 dark:hover:text-white transition">Terms of Service</Link>
-                <Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white transition">Privacy Policy</Link>
-                <Link to="/help" className="hover:text-slate-900 dark:hover:text-white transition">Help Center</Link>
-                <Link to="/contact" className="hover:text-slate-900 dark:hover:text-white transition">Contact Us</Link>
-            </nav>
         </div>
 
         <div className="mt-6 pt-6 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

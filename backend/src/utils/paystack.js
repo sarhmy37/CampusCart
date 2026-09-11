@@ -64,10 +64,25 @@ function initiateTransfer({ recipient_code, amountGHS, reason, reference }) {
     });
 }
 
+function chargeAuthorization({ email, amountGHS, authorization_code, reference, metadata }) {
+    return paystackRequest('/transaction/charge_authorization', {
+        method: 'POST',
+        body: JSON.stringify({
+            email,
+            amount: Math.round(amountGHS * 100),
+            authorization_code,
+            reference,
+            currency: 'GHS',
+            metadata,
+        }),
+    });
+}
+
 module.exports = {
     paystackRequest,
     initializeTransaction,
     verifyWebhookSignature,
     createTransferRecipient,
     initiateTransfer,
+    chargeAuthorization,
 };

@@ -6,6 +6,8 @@ const cron = require('node-cron');
 
 const { checkOverdueOrders } = require('./jobs/overdueOrders');
 
+const { startSubscriptionRenewalJobs } = require('./jobs/subscriptionRenewals');
+
 const authRoutes = require('./routes/auth');
 
 const productRoutes = require('./routes/products');
@@ -153,3 +155,4 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 cron.schedule('0 8 * * *', checkOverdueOrders); // daily at 8am
+startSubscriptionRenewalJobs();

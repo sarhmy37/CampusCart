@@ -35,6 +35,8 @@ body::-webkit-scrollbar,
 }
 
 :root {
+  --safe-top: env(safe-area-inset-top);
+
   /* Light mode = same gold as dark mode */
   --brand-50: 253 248 236;
   --brand-100: 250 237 196;

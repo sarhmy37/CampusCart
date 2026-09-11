@@ -102,12 +102,12 @@ export default function ChatHistory() {
                         )}
                     </div>
                 ) : (
-                    <div className="space-y-1.5">
+                    <div className="divide-y divide-slate-200 dark:divide-ink-600 border-t border-b border-slate-200 dark:border-ink-600">
                         {filteredConversations.map((convo) => (
                             <button
                                 key={convo.id}
                                 onClick={() => handleOpenChat(convo)}
-                                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white dark:bg-ink-800 hover:bg-slate-50 dark:hover:bg-ink-700 border border-slate-200 dark:border-ink-600 transition text-left"
+                                className="w-full flex items-center gap-3 px-1 py-3.5 hover:bg-slate-50 dark:hover:bg-ink-700 transition text-left"
                             >
                                 {/* Avatar */}
                                 {convo.other_user_avatar ? (

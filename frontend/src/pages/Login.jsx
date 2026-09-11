@@ -226,7 +226,7 @@ export default function Login() {
                                             required
                                             value={form.identifier}
                                             onChange={(e) => setForm({ ...form, identifier: e.target.value })}
-                                            placeholder="you@st.knust.edu.gh or campusking"
+                                            placeholder="campusking"
                                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition"
                                         />
                                     </div>

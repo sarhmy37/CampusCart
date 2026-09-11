@@ -103,6 +103,17 @@ export default function CreateListing() {
     const selectedCategory = categories.find((c) => String(c.id) === String(form.category_id));
     const isMobileData = selectedCategory?.name === 'Mobile Data';
 
+    const hasListingInput = !!(
+        form.title || form.description || form.price ||
+        imageUrls.length > 0 || videoUrl ||
+        Object.values(deliveryPrices).some((v) => v)
+    );
+    const hasServiceInput = !!(
+        serviceForm.title || serviceForm.description || serviceForm.price ||
+        serviceImageUrls.length > 0 || serviceVideoUrl ||
+        is247 || workingDays.some((d) => d.enabled)
+    );
+
     const imageGalleryInputRef = useRef(null);
     const videoGalleryInputRef = useRef(null);
     const serviceImageInputRef = useRef(null);
@@ -715,7 +726,7 @@ export default function CreateListing() {
                         )}
 
                         {/* ─── REGULAR LISTING TOGGLE ────────────────────────── */}
-                        {isDataSeller && (
+                        {isDataSeller && !hasServiceInput && (
                             <button
                                 type="button"
                                 onClick={() => setListingFormCollapsed((c) => !c)}
@@ -727,6 +738,7 @@ export default function CreateListing() {
                         )}
 
                         {/* ─── REGULAR LISTING FORM ──────────────────────────── */}
+                        {!hasServiceInput && (
                         <form onSubmit={onSubmit} className={`space-y-4 ${isDataSeller ? (listingFormCollapsed ? 'hidden' : 'mt-3') : 'mt-5'}`}>
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Title</label>
@@ -912,8 +924,10 @@ export default function CreateListing() {
                                 {loading ? 'Publishing…' : 'Publish listing'}
                             </button>
                         </form>
+                        )}
 
                         {/* ─── SERVICE PROVISION SECTION ────────────────────── */}
+                        {!hasListingInput && (
                         <div className="mt-6 border-t border-slate-200 dark:border-ink-600 pt-4">
                             <button
                                 type="button"
@@ -1070,13 +1084,14 @@ export default function CreateListing() {
                                     <button
                                         type="submit"
                                         disabled={serviceLoading || serviceUploading}
-                                        className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition disabled:opacity-60 shadow-sm"
+                                        className="w-full py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60 shadow-sm"
                                     >
                                         {serviceLoading ? 'Creating service…' : 'Publish service'}
                                     </button>
                                 </form>
                             )}
                         </div>
+                        )}
                     </div>
                 </div>
             </div>

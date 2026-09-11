@@ -203,7 +203,7 @@ export default function Navbar() {
 
     return (
         <>
-        <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600">
+        <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600" style={{ paddingTop: 'var(--safe-top)' }}>
                     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
                 <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
@@ -359,9 +359,12 @@ export default function Navbar() {
                         </div>
                     )}
 
-                    {/* Notifications - Visible for EVERYONE (including admin) */}
+                    {/* Notifications - Visible for EVERYONE (including admin).
+                        On mobile (collapsed), swaps into view in place of Cart
+                        whenever there's an unread notification, so the badge
+                        is impossible to miss without expanding. */}
                     {user && (
-                        <div ref={notificationsRef} className={`relative ${mobileExpanded ? 'flex' : 'hidden'} sm:flex`}>
+                        <div ref={notificationsRef} className={`relative ${mobileExpanded || unreadCount > 0 ? 'flex' : 'hidden'} sm:flex`}>
                             <button
                                 onClick={toggleNotifications}
                                 className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
@@ -407,9 +410,11 @@ export default function Navbar() {
                         </div>
                     )}
 
-                    {/* Cart - HIDDEN for admin */}
+                    {/* Cart - HIDDEN for admin. On mobile (collapsed), hides in
+                        place of Notifications whenever there's an unread
+                        notification — swaps back once it's read/cleared. */}
                     {user && !isAdmin && (
-                        <Link to="/cart" className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition">
+                        <Link to="/cart" className={`relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition ${mobileExpanded || unreadCount === 0 ? 'flex' : 'hidden'} sm:flex`}>
                             <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                             {count > 0 && (
                                 <span className={badgeClass}>{formatBadgeCount(count)}</span>

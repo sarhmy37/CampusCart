@@ -64,7 +64,7 @@ export default function Store({ id: idProp, embedded = false }) {
     return (
         <div>
             {/* HEADER */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            <section className="relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900" style={{ paddingTop: 'var(--safe-top)' }}>
                 {seller.avatar_url && (
                     <div
                         className="absolute right-0 top-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 pointer-events-none"
