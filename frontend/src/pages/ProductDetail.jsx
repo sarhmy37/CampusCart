@@ -303,7 +303,7 @@ export default function ProductDetail() {
 
     // ---- Trust Strip Component ----
     const TrustStrip = () => (
-        <GlassCard>
+        <div className="pt-5 border-t border-slate-200/70 dark:border-white/10">
             <div className="space-y-3">
                 <div className="flex items-center gap-3">
                     <ShieldCheck size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
@@ -318,16 +318,18 @@ export default function ProductDetail() {
                     <p className="text-sm text-slate-600 dark:text-gold-100/80">Usually responds within a few hours</p>
                 </div>
             </div>
-        </GlassCard>
+        </div>
     );
 
     // ---- Action Card (Price + Buttons) ----
     const ActionCard = () => (
         <GlassCard>
-            <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-700 dark:text-gold-400 text-xs font-semibold capitalize">
-                {product.condition}
-            </span>
-            <h1 className="text-xl font-extrabold text-slate-900 dark:text-gold-50 mt-2 leading-snug">{product.title}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-gold-900 text-brand-700 dark:text-gold-400 text-xs font-semibold capitalize shrink-0">
+                    {product.condition}
+                </span>
+                <h1 className="text-xl font-extrabold text-slate-900 dark:text-gold-50 leading-snug">{product.title}</h1>
+            </div>
             {reviews?.avg_rating && (
                 <div className="flex items-center gap-1.5 mt-1 text-sm">
                     <Star size={14} className="fill-amber-400 text-amber-400" />
@@ -390,28 +392,30 @@ export default function ProductDetail() {
             </div>
 
             <div className="mt-4 flex flex-col gap-2.5">
-                <button
-                    onClick={handleBuyNow}
-                    disabled={isOutOfStock || isOwner}
-                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                        isOutOfStock || isOwner
-                            ? 'bg-slate-200/50 dark:bg-ink-700/50 text-slate-400 dark:text-gold-200/30 cursor-not-allowed backdrop-blur-sm'
-                            : 'bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-500 dark:to-gold-400 hover:scale-[1.02] active:scale-[0.98] text-white dark:text-ink-900 shadow-lg shadow-brand-500/25 dark:shadow-gold-500/25'
-                    }`}
-                >
-                    {isOutOfStock ? 'Out of Stock' : isOwner ? 'Your Own Listing' : 'Buy now'}
-                </button>
-                <button
-                    onClick={handleAddToCart}
-                    disabled={isOutOfStock || isOwner}
-                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition-all duration-200 ${
-                        isOutOfStock || isOwner
-                            ? 'border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-gold-200/30 cursor-not-allowed backdrop-blur-sm'
-                            : 'border-slate-200/50 dark:border-white/10 bg-white/50 dark:bg-ink-700/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-ink-600/80 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
-                    }`}
-                >
-                    <ShoppingCart size={18} /> {isOwner ? 'Cannot buy' : 'Add to cart'}
-                </button>
+                <div className="flex gap-2.5">
+                    <button
+                        onClick={handleBuyNow}
+                        disabled={isOutOfStock || isOwner}
+                        className={`flex-1 min-w-0 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                            isOutOfStock || isOwner
+                                ? 'bg-slate-200/50 dark:bg-ink-700/50 text-slate-400 dark:text-gold-200/30 cursor-not-allowed backdrop-blur-sm'
+                                : 'bg-gradient-to-r from-brand-600 to-accent-500 dark:from-gold-500 dark:to-gold-400 hover:scale-[1.02] active:scale-[0.98] text-white dark:text-ink-900 shadow-lg shadow-brand-500/25 dark:shadow-gold-500/25'
+                        }`}
+                    >
+                        {isOutOfStock ? 'Out of Stock' : isOwner ? 'Your Own Listing' : 'Buy now'}
+                    </button>
+                    <button
+                        onClick={handleAddToCart}
+                        disabled={isOutOfStock || isOwner}
+                        className={`flex-1 min-w-0 flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-sm transition-all duration-200 ${
+                            isOutOfStock || isOwner
+                                ? 'border-slate-200/50 dark:border-white/10 text-slate-400 dark:text-gold-200/30 cursor-not-allowed backdrop-blur-sm'
+                                : 'border-slate-200/50 dark:border-white/10 bg-white/50 dark:bg-ink-700/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-ink-600/80 hover:border-brand-400 dark:hover:border-gold-500 text-slate-700 dark:text-gold-100'
+                        }`}
+                    >
+                        <ShoppingCart size={18} /> {isOwner ? 'Cannot buy' : 'Add to cart'}
+                    </button>
+                </div>
                 <button
                     onClick={handleMessage}
                     disabled={isOwner}
@@ -616,8 +620,12 @@ export default function ProductDetail() {
             {similar.length > 0 && (
                 <div className="mt-12">
                     <h2 className="font-bold text-slate-900 dark:text-gold-50 text-lg mb-4">Similar listings</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {similar.map((p) => <ProductCard key={p.id} product={p} />)}
+                    <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory">
+                        {similar.map((p) => (
+                            <div key={p.id} className="w-40 sm:w-48 shrink-0 snap-start">
+                                <ProductCard product={p} />
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

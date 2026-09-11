@@ -81,7 +81,7 @@ export default function ProductCard({ product }) {
         if (stock === null) return null;
         if (stock <= 0) {
             return (
-                <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur">
+                <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/95 dark:bg-ink-900/90 backdrop-blur text-red-600 dark:text-red-400 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap shadow-sm">
                     Sold out
                 </span>
             );

@@ -237,7 +237,8 @@ router.get('/product/:productId', async (req, res) => {
 
     try {
         const reviewsResult = await pool.query(
-            `SELECT pr.*, u.name AS reviewer_name
+            `SELECT pr.*, u.name AS reviewer_name,
+                    (SELECT COUNT(*) FROM product_review_likes WHERE review_id = pr.id) AS like_count
              FROM product_reviews pr
              JOIN users u ON u.id = pr.user_id
              WHERE pr.product_id = $1
@@ -246,7 +247,23 @@ router.get('/product/:productId', async (req, res) => {
         );
         const reviews = reviewsResult.rows;
 
-        // Optionally check if viewer liked? Not needed for now.
+        for (const review of reviews) {
+            const commentsResult = await pool.query(
+                'SELECT id, commenter_name, content, created_at FROM product_review_comments WHERE review_id = $1 ORDER BY created_at ASC',
+                [review.id]
+            );
+            review.comments = commentsResult.rows;
+
+            if (viewerId) {
+                const likedResult = await pool.query(
+                    'SELECT 1 FROM product_review_likes WHERE review_id = $1 AND user_id = $2',
+                    [review.id, viewerId]
+                );
+                review.liked_by_me = likedResult.rows.length > 0;
+            } else {
+                review.liked_by_me = false;
+            }
+        }
 
         const ratings = reviews.map((r) => r.rating);
         const avg_rating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : null;
@@ -323,6 +340,56 @@ router.post('/product', requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Failed to submit review' });
     } finally {
         client.release();
+    }
+});
+
+// POST /api/reviews/product/:id/like — toggle like on a product review
+router.post('/product/:id/like', requireAuth, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const existing = await pool.query(
+            'SELECT id FROM product_review_likes WHERE review_id = $1 AND user_id = $2',
+            [id, req.userId]
+        );
+
+        if (existing.rows.length > 0) {
+            await pool.query('DELETE FROM product_review_likes WHERE review_id = $1 AND user_id = $2', [id, req.userId]);
+        } else {
+            await pool.query('INSERT INTO product_review_likes (review_id, user_id) VALUES ($1, $2)', [id, req.userId]);
+        }
+
+        const countResult = await pool.query('SELECT COUNT(*) FROM product_review_likes WHERE review_id = $1', [id]);
+        res.json({ like_count: parseInt(countResult.rows[0].count, 10), liked_by_me: existing.rows.length === 0 });
+    } catch (err) {
+        console.error('Toggle product review like error:', err);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
+// POST /api/reviews/product/:id/comments — add a comment to a product review
+router.post('/product/:id/comments', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+        return res.status(400).json({ error: 'Comment cannot be empty' });
+    }
+
+    try {
+        const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [req.userId]);
+        const commenterName = userResult.rows[0]?.name || 'Anonymous';
+
+        const result = await pool.query(
+            `INSERT INTO product_review_comments (review_id, commenter_id, commenter_name, content)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [id, req.userId, commenterName, content.trim()]
+        );
+
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Add product review comment error:', err);
+        res.status(500).json({ error: 'Something went wrong adding your comment' });
     }
 });
 

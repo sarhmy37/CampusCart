@@ -105,7 +105,7 @@ function ReviewCard({ review, onChanged }) {
         if (!user) return toast.error('Log in to like reviews');
         setLiking(true);
         try {
-            await api.post(`/reviews/${review.id}/like`);
+            await api.post(`/reviews/product/${review.id}/like`);
             onChanged();
         } catch {
             toast.error('Something went wrong');
@@ -120,7 +120,7 @@ function ReviewCard({ review, onChanged }) {
         if (!commentText.trim()) return;
         setSubmitting(true);
         try {
-            await api.post(`/reviews/${review.id}/comments`, { content: commentText.trim() });
+            await api.post(`/reviews/product/${review.id}/comments`, { content: commentText.trim() });
             setCommentText('');
             onChanged();
         } catch {
@@ -155,14 +155,14 @@ function ReviewCard({ review, onChanged }) {
                     }`}
                 >
                     <ThumbsUp size={13} className={review.liked_by_me ? 'fill-brand-600 dark:fill-gold-400' : ''} />
-                    {review.like_count > 0 ? review.like_count : 'Like'}
+                    {review.like_count || 0}
                 </button>
                 <button
                     onClick={() => setShowComments((s) => !s)}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 dark:text-gold-200/40 hover:text-slate-600 dark:hover:text-gold-200 transition"
                 >
                     <MessageSquare size={13} />
-                    {review.comments && review.comments.length > 0 ? review.comments.length : 'Comment'}
+                    {review.comments?.length || 0}
                 </button>
             </div>
 
