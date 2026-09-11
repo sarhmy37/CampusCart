@@ -317,13 +317,6 @@ export default function Home() {
     const sellCurrentLabel = sellIsAlt ? SELL_LABEL_ALT : SELL_LABEL_DEFAULT;
     const sellNextLabel = sellIsAlt ? SELL_LABEL_DEFAULT : SELL_LABEL_ALT;
 
-const sellRowStyle = {
-    display: 'flex',
-    width: '200%',
-    transition: sellPhase === 'slide' ? `transform ${CTA_SLIDE_MS}ms ease-in-out` : 'none',
-    transform: sellPhase === 'slide' ? 'translateX(-50%)' : 'translateX(0%)',
-};
-
     const sellArrowStyle = (() => {
         if (sellPhase === 'vibrate') {
             // Held here (matching the keyframe's final frame) so the next phase
@@ -420,13 +413,11 @@ const handlePlanClick = async (planName) => {
     // images looked like they were constantly reshuffling/flickering.
     const shuffledGallery = useMemo(
         () =>
-            GALLERY.map((g) => {
+            (GALLERY || []).map((g) => {
+                const images = g.images || [];
                 const mixedMedia = [
-                    { type: 'image', src: g.images[0] },
-                    { type: 'image', src: g.images[1] },
-                    { type: 'image', src: g.images[2] },
-                    { type: 'image', src: g.images[3] },
-                    { type: 'video', src: g.video },
+                    ...images.slice(0, 4).map((src) => ({ type: 'image', src })),
+                    ...(g.video ? [{ type: 'video', src: g.video }] : []),
                 ];
                 return { ...g, shuffled: [...mixedMedia].sort(() => Math.random() - 0.5) };
             }),
@@ -513,23 +504,40 @@ const handlePlanClick = async (planName) => {
                                 onClick={handleStartSellingClick}
                                 className="relative overflow-hidden inline-flex items-center justify-center w-[172px] sm:w-[212px] bg-white dark:bg-gold-500 text-brand-700 dark:text-ink-900 font-bold px-4 py-2 sm:px-6 sm:py-3 rounded-full hover:bg-brand-50 dark:hover:bg-gold-400 transition shadow-lg shadow-black/10 text-xs sm:text-base whitespace-nowrap"
                             >
-                                <span className="flex" style={sellRowStyle}>
-                                    {/* current label — this is the one that vibrates/grows/rotates/slides out */}
-                                    <span className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0" style={{ width: '50%' }}>
-                                        {sellCurrentLabel}
-                                        <ArrowRight
-                                            className={`w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] shrink-0 ${sellPhase === 'vibrate' ? 'arrow-vibrate-grow' : ''}`}
-                                            style={sellArrowStyle}
-                                        />
-                                    </span>
-                                    {/* next label — waits offscreen, then slides in already facing right */}
-                                    <span className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0" style={{ width: '50%' }}>
-                                        {sellNextLabel}
-                                        <ArrowRight
-                                            className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] shrink-0"
-                                            style={{ transform: 'scale(1) rotate(0deg)' }}
-                                        />
-                                    </span>
+                                {/* invisible spacer — gives the button its height; the two labels below are absolutely positioned on top of it */}
+                                <span className="invisible flex items-center justify-center gap-1.5 sm:gap-2">
+                                    {sellCurrentLabel}
+                                    <ArrowRight className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] shrink-0" />
+                                </span>
+
+                                {/* current label — slides out to the left */}
+                                <span
+                                    className="absolute inset-0 flex items-center justify-center gap-1.5 sm:gap-2"
+                                    style={{
+                                        transition: sellPhase === 'slide' ? `transform ${CTA_SLIDE_MS}ms ease-in-out` : 'none',
+                                        transform: sellPhase === 'slide' ? 'translateX(-100%)' : 'translateX(0%)',
+                                    }}
+                                >
+                                    {sellCurrentLabel}
+                                    <ArrowRight
+                                        className={`w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] shrink-0 ${sellPhase === 'vibrate' ? 'arrow-vibrate-grow' : ''}`}
+                                        style={sellArrowStyle}
+                                    />
+                                </span>
+
+                                {/* next label — starts fully offscreen to the right, slides in */}
+                                <span
+                                    className="absolute inset-0 flex items-center justify-center gap-1.5 sm:gap-2"
+                                    style={{
+                                        transition: sellPhase === 'slide' ? `transform ${CTA_SLIDE_MS}ms ease-in-out` : 'none',
+                                        transform: sellPhase === 'slide' ? 'translateX(0%)' : 'translateX(100%)',
+                                    }}
+                                >
+                                    {sellNextLabel}
+                                    <ArrowRight
+                                        className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] shrink-0"
+                                        style={{ transform: 'scale(1) rotate(0deg)' }}
+                                    />
                                 </span>
                             </button>
 
