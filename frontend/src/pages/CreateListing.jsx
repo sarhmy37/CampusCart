@@ -4,8 +4,88 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
 import { clampFee, MAX_DELIVERY_FEE } from '../utils/distance';
-import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi, Briefcase, Clock, MapPin } from 'lucide-react';
+import {
+    ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp,
+    Plus, Trash2, Wifi, Briefcase, Clock, MapPin, Map as MapIcon,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { SCHOOL_COORDS } from './Register';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Leaflet's default marker icon paths don't resolve correctly under most bundlers
+// (Vite/webpack) — point them at the CDN copies instead so pins actually render.
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Default map center when the seller hasn't picked a location yet (Kumasi / KNUST area).
+// Swap this for your own campus coordinates, or the school's SCHOOL_COORDS lookup, if you'd
+// rather center on the seller's registered school.
+const DEFAULT_MAP_CENTER = { lat: 6.6885, lng: -1.6244 };
+
+// Modal with a click-to-drop-pin map, used when the seller isn't physically at their
+// place of work and needs to manually mark it instead of using GPS.
+function LocationPickerMap({ initialPosition, onConfirm, onCancel }) {
+    const [position, setPosition] = useState(initialPosition || DEFAULT_MAP_CENTER);
+
+    function ClickCapture() {
+        useMapEvents({
+            click(e) {
+                setPosition({ lat: e.latlng.lat, lng: e.latlng.lng });
+            },
+        });
+        return null;
+    }
+
+    return (
+        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onCancel} />
+            <div className="relative w-full sm:max-w-lg bg-white dark:bg-ink-800 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+                <div className="p-4 border-b border-slate-100 dark:border-ink-600">
+                    <h3 className="font-bold text-slate-900 dark:text-gold-50 text-base">Set service location</h3>
+                    <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-1">
+                        Tap anywhere on the map to drop a pin at your actual place of work.
+                    </p>
+                </div>
+                <div className="h-80 sm:h-96">
+                    <MapContainer
+                        center={[position.lat, position.lng]}
+                        zoom={16}
+                        style={{ height: '100%', width: '100%' }}
+                    >
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                        <Marker position={[position.lat, position.lng]} />
+                        <ClickCapture />
+                    </MapContainer>
+                </div>
+                <div className="flex gap-2 p-4">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-700 dark:text-gold-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onConfirm(position)}
+                        className="flex-1 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 font-semibold text-sm hover:bg-brand-700 dark:hover:bg-gold-400 transition"
+                    >
+                        Confirm pin
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
 const WORKING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -95,6 +175,11 @@ export default function CreateListing() {
     );
     const [serviceLocation, setServiceLocation] = useState(null); // { lat, lng }
     const [locatingService, setLocatingService] = useState(false);
+    const [showLocationPicker, setShowLocationPicker] = useState(false);
+
+    // Center the map picker on the seller's registered campus when possible,
+    // so the first pin drop is already close to where they'll actually place it.
+    const pickerDefaultCenter = SCHOOL_COORDS[user?.school] || DEFAULT_MAP_CENTER;
 
     const captureServiceLocation = () => {
         if (!navigator.geolocation) {
@@ -499,6 +584,7 @@ export default function CreateListing() {
             setServicePreviews([]);
             setServiceVideoUrl(null);
             setServiceVideoPreview(null);
+            setServiceLocation(null);
             navigate('/dashboard');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to create service');
@@ -1115,32 +1201,46 @@ export default function CreateListing() {
                                     <div className="border-t border-slate-100 dark:border-ink-600 pt-4">
                                         <div className="flex items-center gap-2 mb-2">
                                             <MapPin size={15} className="text-slate-500 dark:text-gold-300/60" />
-                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Service location</label>
+                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">
+                                                Service location <span className="text-red-500">*</span>
+                                            </label>
                                         </div>
                                         <p className="text-xs text-slate-400 dark:text-gold-200/40 mb-2">
-                                            Buyers will see this pinned on a map so they know where to find you.
+                                            Buyers will see this pinned on a map so they know where to find you. Required.
                                         </p>
-                                        <button
-                                            type="button"
-                                            onClick={captureServiceLocation}
-                                            disabled={locatingService}
-                                            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition disabled:opacity-60 ${
-                                                serviceLocation
-                                                    ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
-                                                    : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-50 dark:hover:bg-ink-700'
-                                            }`}
-                                        >
-                                            {locatingService ? (
-                                                <Loader2 size={15} className="animate-spin" />
-                                            ) : (
-                                                <MapPin size={15} />
-                                            )}
-                                            {locatingService
-                                                ? 'Getting your location…'
-                                                : serviceLocation
-                                                    ? 'Location set ✓ Tap to update'
-                                                    : 'Use my current location'}
-                                        </button>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowLocationPicker(true)}
+                                                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                                            >
+                                                <MapIcon size={15} /> Set on map
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={captureServiceLocation}
+                                                disabled={locatingService}
+                                                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-sm font-semibold transition disabled:opacity-60 ${
+                                                    serviceLocation
+                                                        ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                                                        : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-50 dark:hover:bg-ink-700'
+                                                }`}
+                                            >
+                                                {locatingService ? (
+                                                    <Loader2 size={15} className="animate-spin" />
+                                                ) : (
+                                                    <MapPin size={15} />
+                                                )}
+                                                {locatingService ? 'Getting…' : 'Use my current location'}
+                                            </button>
+                                        </div>
+
+                                        {serviceLocation && (
+                                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
+                                                ✓ Location set — tap either button above to update it.
+                                            </p>
+                                        )}
                                     </div>
 
                                     <button
@@ -1195,6 +1295,19 @@ export default function CreateListing() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* SERVICE LOCATION PICKER MODAL */}
+            {showLocationPicker && (
+                <LocationPickerMap
+                    initialPosition={serviceLocation || pickerDefaultCenter}
+                    onConfirm={(pos) => {
+                        setServiceLocation(pos);
+                        setShowLocationPicker(false);
+                        toast.success('Location set');
+                    }}
+                    onCancel={() => setShowLocationPicker(false)}
+                />
             )}
         </div>
     );
