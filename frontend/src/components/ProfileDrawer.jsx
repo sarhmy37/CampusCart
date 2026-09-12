@@ -6,7 +6,7 @@ import { useChat } from '../context/ChatContext';
 import {
     X, BadgeCheck, ShieldAlert, Camera, Mail, Phone,
     MapPin, FileText, Settings, LogOut, Loader2, LayoutDashboard, Store, ShoppingBag, Clock,
-    ChevronDown, ChevronRight, MessageCircle, Info, Shield, Search, Trash2 ,Star , Sparkles , CheckCircle 
+    ChevronDown, ChevronRight, MessageCircle, Info, Shield, Search, Trash2 ,Star , Sparkles , CheckCircle, User
 } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import VerifyModal from './VerifyModal';
@@ -215,9 +215,7 @@ export default function ProfileDrawer({ open, onClose }) {
                             {avatarPreview || user.avatar_url ? (
                                 <img src={avatarPreview || user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                             ) : (
-                                <span className="text-[11px] font-semibold text-slate-400 dark:text-gold-300/50 text-center px-2 leading-tight">
-                                    Upload photo
-                                </span>
+                                <User size={36} className="text-slate-300 dark:text-gold-300/40" strokeWidth={1.5} />
                             )}
                             <div
                                 className={`absolute inset-0 bg-black/40 transition flex items-center justify-center ${
@@ -579,9 +577,7 @@ export default function ProfileDrawer({ open, onClose }) {
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <span className="text-xs font-semibold text-slate-400 dark:text-gold-300/50 text-center px-4">
-                                No photo yet
-                            </span>
+                            <User size={80} className="text-slate-300 dark:text-gold-300/40" strokeWidth={1.5} />
                         )}
                         {uploading && (
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
