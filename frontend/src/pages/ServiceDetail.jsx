@@ -23,9 +23,14 @@ function parseAvailability(raw) {
 }
 
 // "9:00 AM" -> "09:00" (24hr, for <input type="time"> min/max)
+// Defensive: returns undefined instead of throwing if label is missing/malformed,
+// since older/partial availability records may not have openTime/closeTime set.
 function to24Hour(label) {
+    if (!label || typeof label !== 'string') return undefined;
     const [time, period] = label.split(' ');
+    if (!time) return undefined;
     let [hours, minutes] = time.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return undefined;
     if (period === 'PM' && hours !== 12) hours += 12;
     if (period === 'AM' && hours === 12) hours = 0;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
@@ -96,10 +101,21 @@ export default function ServiceDetail() {
     const availability = parseAvailability(service.service_duration || service.duration);
     const legacyDuration = !availability ? (service.service_duration || service.duration) : null;
 
+    // Only treat the schedule as "set" if it actually has the fields we need.
+    const hasScheduledHours = !!(
+        availability &&
+        !availability.is247 &&
+        availability.days?.length &&
+        availability.openTime &&
+        availability.closeTime
+    );
+
     const availabilitySummary = availability
         ? (availability.is247
             ? 'Open 24/7'
-            : `${availability.days?.join(', ') || 'No days set'} · ${availability.openTime}–${availability.closeTime}`)
+            : hasScheduledHours
+                ? `${availability.days.join(', ')} · ${availability.openTime}–${availability.closeTime}`
+                : 'Hours not fully set')
         : (legacyDuration || 'Flexible timing');
 
     const exactLat = availability?.lat;
@@ -111,7 +127,7 @@ export default function ServiceDetail() {
     const serviceLng = hasExactLocation ? exactLng : schoolCoords?.lng;
     const hasServiceLocation = typeof serviceLat === 'number' && typeof serviceLng === 'number';
 
-    const timeInputBounds = availability && !availability.is247
+    const timeInputBounds = hasScheduledHours
         ? { min: to24Hour(availability.openTime), max: to24Hour(availability.closeTime) }
         : {};
 
@@ -121,13 +137,14 @@ export default function ServiceDetail() {
             toast.error('Please select a date and time.');
             return;
         }
-        if (availability && !availability.is247) {
+        if (hasScheduledHours) {
             const pickedDay = DAY_NAMES[new Date(bookingDate + 'T00:00:00').getDay()];
             if (!availability.days?.includes(pickedDay)) {
                 toast.error(`This provider isn't available on ${pickedDay}s. Pick from: ${availability.days.join(', ')}`);
                 return;
             }
-            if (bookingTime < timeInputBounds.min || bookingTime > timeInputBounds.max) {
+            if (timeInputBounds.min && timeInputBounds.max &&
+                (bookingTime < timeInputBounds.min || bookingTime > timeInputBounds.max)) {
                 toast.error(`This provider is only available ${availability.openTime}–${availability.closeTime}`);
                 return;
             }
@@ -433,7 +450,7 @@ export default function ServiceDetail() {
                                             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                             required
                                         />
-                                        {availability && !availability.is247 && (
+                                        {hasScheduledHours && (
                                             <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-1">
                                                 Available {availability.days.join(', ')} · {availability.openTime}–{availability.closeTime}
                                             </p>
