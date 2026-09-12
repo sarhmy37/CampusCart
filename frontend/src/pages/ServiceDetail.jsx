@@ -253,12 +253,12 @@ export default function ServiceDetail() {
                             )}
                         </div>
 
-                        <div className="flex items-stretch mt-3">
+                        <div className="flex items-stretch mt-3 h-16 sm:h-20">
                             {service.seller_avatar && (
                                 <img
                                     src={service.seller_avatar}
                                     alt={service.seller_name}
-                                    className="w-20 sm:w-24 object-cover rounded-r-full -ml-4 sm:-ml-6 shrink-0"
+                                    className="w-16 sm:w-20 h-full object-cover rounded-r-full -ml-4 sm:-ml-6 shrink-0"
                                 />
                             )}
                             <div className="ml-3 min-w-0">
