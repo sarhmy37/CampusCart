@@ -383,15 +383,15 @@ export default function Browse() {
 
     const renderBudgetInput = () => (
         <div className="relative shrink-0">
-            <Wallet className="w-4 h-4 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
+            <Wallet className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
                 type="number"
                 min="1"
                 value={budgetInput}
                 onChange={(e) => setBudgetInput(e.target.value)}
                 onKeyDown={applyBudget}
-                placeholder="My budget (GHS)…"
-                className="bg-white/10 text-white placeholder-white/50 text-xs sm:text-sm font-medium pl-7 sm:pl-8 pr-8 sm:pr-9 py-1 sm:py-1.5 rounded-r-full border border-white/30 backdrop-blur focus:outline-none focus:border-white/60 w-32 sm:w-44"
+                placeholder="My budget(GHS)…"
+                className="bg-white/10 text-white placeholder-white/50 text-xs sm:text-sm font-medium pl-7 sm:pl-8 pr-8 sm:pr-9 py-1 sm:py-1.5 rounded-full border border-white/30 backdrop-blur focus:outline-none focus:border-white/60 w-32 sm:w-44"
             />
             <button
                 type="button"

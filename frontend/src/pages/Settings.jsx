@@ -489,15 +489,25 @@ export default function Settings() {
                             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
                             onClick={() => setShowStorePreview(false)}
                         />
-                        <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <div className="relative bg-white dark:bg-ink-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
                             <button
-                                onClick={() => setShowStorePreview(false)}
-                                className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-900/60 hover:bg-slate-900/80 text-white backdrop-blur transition"
+                                onClick={(e) => { e.stopPropagation(); setShowStorePreview(false); }}
+                                className="absolute top-0 right-0 z-20 w-8 h-8 flex items-center justify-center rounded-bl-xl rounded-tr-2xl bg-slate-900/60 hover:bg-slate-900/80 text-white backdrop-blur transition"
                                 title="Close preview"
                             >
-                                <X size={18} />
+                                <X size={16} />
                             </button>
-                            {user?.id && <StorePage id={user.id} embedded />}
+                            <div
+                                className="overflow-y-auto rounded-2xl cursor-pointer"
+                                onClick={() => {
+                                    setShowStorePreview(false);
+                                    navigate(`/store/${user.id}`);
+                                }}
+                            >
+                                <div className="pointer-events-none">
+                                    {user?.id && <StorePage id={user.id} embedded />}
+                                </div>
+                            </div>
                         </div>
                     </div>,
                     document.body
