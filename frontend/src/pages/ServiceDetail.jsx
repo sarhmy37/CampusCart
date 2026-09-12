@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { SCHOOL_COORDS } from './Register';
 import {
     Star, MapPin, Clock, ChevronLeft, Calendar, ShieldCheck,
-    Loader2, Briefcase, MessageSquare, Tag, ArrowRight,
+    Loader2, Briefcase, MessageSquare, Tag, ArrowRight, Sparkles,
     Maximize2, Minimize2,
 } from 'lucide-react';
 
@@ -113,6 +113,9 @@ export default function ServiceDetail() {
     if (!service) return null;
 
     const isOwner = user && user.id === service.seller_id;
+    const sellerPlanActive = service.seller_plan && service.seller_plan !== 'free' &&
+        service.seller_plan_expires_at && new Date(service.seller_plan_expires_at) > new Date();
+    const sellerPlan = sellerPlanActive ? service.seller_plan.toLowerCase() : null;
     const images = service.images?.length ? service.images.map(i => i.image_url || i) : (service.primary_image ? [service.primary_image] : []);
     const hasRating = service.rating && parseFloat(service.rating) > 0;
     const availability = parseAvailability(service.service_duration || service.duration);
@@ -381,7 +384,13 @@ export default function ServiceDetail() {
                         )}
 
                         {/* PROVIDER CARD */}
-                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5 shadow-sm">
+                        <div className={`bg-white dark:bg-ink-800 border rounded-2xl p-5 shadow-sm ${
+                            sellerPlan === 'premium'
+                                ? 'border-purple-300 dark:border-purple-500/40'
+                                : sellerPlan === 'pro'
+                                ? 'border-blue-300 dark:border-blue-500/40'
+                                : 'border-slate-200 dark:border-ink-600'
+                        }`}>
                             <p className="text-xs font-bold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-3">
                                 Provided by
                             </p>
@@ -398,12 +407,26 @@ export default function ServiceDetail() {
                                     </div>
                                 )}
                                 <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
                                         <p className="font-bold text-slate-900 dark:text-gold-50 truncate">
                                             {service.seller_name || 'Unknown'}
                                         </p>
                                         {service.seller_verified && (
                                             <ShieldCheck size={15} className="text-emerald-500 shrink-0" />
+                                        )}
+                                        {sellerPlan && (
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                                sellerPlan === 'premium'
+                                                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                                                    : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                            }`}>
+                                                {sellerPlan === 'premium' ? (
+                                                    <Sparkles className="w-[11px] h-[11px]" />
+                                                ) : (
+                                                    <Star className="w-[11px] h-[11px]" />
+                                                )}
+                                                {sellerPlan === 'premium' ? 'Premium Seller' : 'Pro Seller'}
+                                            </span>
                                         )}
                                     </div>
                                     <p className="text-xs text-slate-400 dark:text-gold-200/50">
