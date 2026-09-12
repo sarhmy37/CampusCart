@@ -64,6 +64,28 @@ const SOCIAL_LINKS = [
     },
 ];
 
+function SocialHandlesRow({ seller }) {
+    const activeLinks = SOCIAL_LINKS.filter((link) => seller?.[link.key]);
+    if (activeLinks.length === 0) return null;
+
+    return (
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+            {activeLinks.map((link) => (
+                <a
+                    key={link.key}
+                    href={link.href(seller[link.key])}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={link.label}
+                    className={`p-2 rounded-lg text-white transition ${link.color} ${link.textColor || ''}`}
+                >
+                    {link.icon}
+                </a>
+            ))}
+        </div>
+    );
+}
+
 export default function StorePage({ id: idProp, embedded }) {
     const { id: idParam } = useParams();
     const id = idProp || idParam;
