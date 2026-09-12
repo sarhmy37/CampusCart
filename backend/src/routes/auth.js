@@ -85,6 +85,10 @@ const ALLOWED_EMAIL_DOMAINS = [
     'stu.ucc.edu.gh',
     'st.uew.edu.gh',
     'ashesi.edu.gh',
+    'ktu.edu.gh',
+    'live.gctu.edu.gh',
+    'gimpa.edu.gh',
+    'uenr.edu.gh',
 ];
 
 

@@ -74,7 +74,34 @@ const SCHOOLS = [
     { name: 'KsTU', lat: 6.6911, lng: -1.6100 },
     { name: 'CU', lat: 5.5663, lng: -0.2410 },
     { name: 'UMaT', lat: 5.3005, lng: -1.9900 },
+    { name: 'Ashesi', lat: 5.75972, lng: -0.21972 },
+    { name: 'KTU', lat: 6.0630, lng: -0.2642 },
+    { name: 'GCTU', lat: 5.5998, lng: -0.2362 },
+    { name: 'GIMPA', lat: 5.6380, lng: -0.1670 },
+    { name: 'UENR', lat: 7.3495, lng: -2.3435 },
 ];
+
+const SCHOOL_FULL_NAMES = {
+    KNUST: 'Kwame Nkrumah University of Science and Technology',
+    ATU: 'Accra Technical University',
+    UCC: 'University of Cape Coast',
+    UHAS: 'University of Health and Allied Sciences',
+    UG: 'University of Ghana',
+    UDS: 'University for Development Studies',
+    UMaT: 'University of Mines and Technology',
+    UEW: 'University of Education, Winneba',
+    UPSA: 'University of Professional Studies, Accra',
+    PentUni: 'Pentecost University',
+    KsTU: 'Kumasi Technical University',
+    CU: 'Central University',
+    Ashesi: 'Ashesi University',
+    KTU: 'Koforidua Technical University',
+    GCTU: 'Ghana Communication Technology University',
+    GIMPA: 'Ghana Institute of Management and Public Administration',
+    UENR: 'University of Energy and Natural Resources',
+};
+
+const schoolOptionLabel = (code) => `${code} — ${SCHOOL_FULL_NAMES[code] || code}`;
 
 const PRICE_RANGES = [
     { label: 'Below 100', min: 0, max: 100 },
@@ -483,7 +510,7 @@ export default function Browse() {
     const schoolOptions = [
         { value: '', label: 'All schools' },
         { value: 'nearby', label: locating ? 'Locating…' : '📍 Near me' },
-        ...SCHOOLS.map((s) => ({ value: s.name, label: s.name })),
+        ...SCHOOLS.map((s) => ({ value: s.name, label: schoolOptionLabel(s.name) })),
     ];
 
     const headerTitle = itemCategory === 'Services'
@@ -631,7 +658,7 @@ export default function Browse() {
                                     <option value="" className="text-slate-900">All schools</option>
                                     <option value="nearby" className="text-slate-900">{locating ? 'Locating…' : '📍 Near me'}</option>
                                     {SCHOOLS.map((s) => (
-                                        <option key={s.name} value={s.name} className="text-slate-900">{s.name}</option>
+                                        <option key={s.name} value={s.name} className="text-slate-900">{schoolOptionLabel(s.name)}</option>
                                     ))}
                                 </select>
                                 <ChevronDown className="pointer-events-none absolute right-2 w-3.5 h-3.5 text-white/70" />

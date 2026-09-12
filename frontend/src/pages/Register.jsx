@@ -8,7 +8,29 @@ import { Mail, Lock, Eye, EyeOff, User, School, ShoppingBag, Store, Phone, Chevr
 import { AcademicCapIcon } from '@heroicons/react/24/outline';
 import PasswordStrength, { isPasswordValid } from '../components/PasswordStrength';
 
-const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU'];
+const SCHOOLS = ['KNUST', 'ATU', 'UCC', 'UHAS', 'UG', 'UDS', 'UMaT', 'UEW', 'UPSA', 'PentUni', 'KsTU', 'CU', 'Ashesi', 'KTU', 'GCTU', 'GIMPA', 'UENR'];
+
+const SCHOOL_FULL_NAMES = {
+    KNUST: 'Kwame Nkrumah University of Science and Technology',
+    ATU: 'Accra Technical University',
+    UCC: 'University of Cape Coast',
+    UHAS: 'University of Health and Allied Sciences',
+    UG: 'University of Ghana',
+    UDS: 'University for Development Studies',
+    UMaT: 'University of Mines and Technology',
+    UEW: 'University of Education, Winneba',
+    UPSA: 'University of Professional Studies, Accra',
+    PentUni: 'Pentecost University',
+    KsTU: 'Kumasi Technical University',
+    CU: 'Central University',
+    Ashesi: 'Ashesi University',
+    KTU: 'Koforidua Technical University',
+    GCTU: 'Ghana Communication Technology University',
+    GIMPA: 'Ghana Institute of Management and Public Administration',
+    UENR: 'University of Energy and Natural Resources',
+};
+
+const schoolOptionLabel = (code) => `${code} — ${SCHOOL_FULL_NAMES[code] || code}`;
 
 // Meeting places per school, combining official on-campus spots and well-known
 // nearby student areas (source: 12 Ghana Universities meeting-places guide,
@@ -96,6 +118,31 @@ const PLACES_BY_SCHOOL = {
         'Dawhenya', 'Ningo-Prampram area', 'Accra-Aflao Highway corridor', 'Miotso community',
         'Tema-side corridor',
     ],
+    Ashesi: [
+        'Ashesi Main Gate', 'University Avenue', 'The Hive', 'The Grill', 'Bliss Lounge',
+        'Sports Centre', 'Student residence halls', 'Campus library',
+        'Berekuso township', 'Aburi road corridor',
+    ],
+    KTU: [
+        'KTU Main Gate', 'Koforidua - Nsutam Road', 'KTU Library', 'Lecture blocks',
+        'Student hostels', 'Campus commercial area',
+        'Koforidua town centre', 'Koforidua Shopping Mall area', 'Mile 50 area',
+    ],
+    GCTU: [
+        'GCTU Main Gate', 'Tesano Main Campus', 'Lecture halls', 'Campus library',
+        'Student hostels', 'Campus commercial area',
+        'Tesano township', 'North Kaneshie area',
+    ],
+    GIMPA: [
+        'GIMPA Main Gate', 'Greenhill Campus', 'GIMPA Business School', 'Lecture halls',
+        'Campus library', 'Student hostels',
+        'Legon Bypass', 'West Legon area', 'Achimota area',
+    ],
+    UENR: [
+        'UENR Main Gate', 'Main Campus', 'Dormaa Campus', 'Lecture halls',
+        'Campus library', 'Student hostels',
+        'Sunyani township', 'Sunyani Main Market area',
+    ],
 };
 
 // Campus coordinates, used only to find the nearest school to a buyer's
@@ -113,6 +160,11 @@ export const SCHOOL_COORDS = {
     CU: { lat: 5.5663, lng: -0.2410 },
     UG: { lat: 5.65083, lng: -0.18694 },      // added — University of Ghana, Legon
     UMaT: { lat: 5.3005, lng: -1.9900 },      // added — University of Mines and Technology, Tarkwa
+    Ashesi: { lat: 5.75972, lng: -0.21972 },
+    KTU: { lat: 6.0630, lng: -0.2642 },
+    GCTU: { lat: 5.5998, lng: -0.2362 },
+    GIMPA: { lat: 5.6380, lng: -0.1670 },
+    UENR: { lat: 7.3495, lng: -2.3435 },
 };
 
 function distanceKm(lat1, lon1, lat2, lon2) {
@@ -753,7 +805,7 @@ export default function Register() {
                                                     className="w-full pl-8 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
                                                 >
                                                     {SCHOOLS.map((s) => (
-                                                        <option key={s} value={s}>{s}</option>
+                                                        <option key={s} value={s}>{schoolOptionLabel(s)}</option>
                                                     ))}
                                                 </select>
                                                 <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
@@ -794,7 +846,7 @@ export default function Register() {
                                                 >
                                                     <option value="">{detectingSchool ? 'Detecting…' : 'Tap to detect'}</option>
                                                     {SCHOOLS.map((s) => (
-                                                        <option key={s} value={s}>{s}</option>
+                                                        <option key={s} value={s}>{schoolOptionLabel(s)}</option>
                                                     ))}
                                                 </select>
                                                 {detectingSchool ? (
