@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../api/client';
 import { CREATE_LISTING_VIDEO } from '../data/media';
 import { clampFee, MAX_DELIVERY_FEE } from '../utils/distance';
-import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi, Briefcase, Clock } from 'lucide-react';
+import { ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp, Plus, Trash2, Wifi, Briefcase, Clock, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
@@ -93,6 +93,28 @@ export default function CreateListing() {
     const [workingDays, setWorkingDays] = useState(
         WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' }))
     );
+    const [serviceLocation, setServiceLocation] = useState(null); // { lat, lng }
+    const [locatingService, setLocatingService] = useState(false);
+
+    const captureServiceLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error("Your device doesn't support location detection.");
+            return;
+        }
+        setLocatingService(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setServiceLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocatingService(false);
+                toast.success('Location captured');
+            },
+            () => {
+                toast.error("Couldn't get your location. Please try again.");
+                setLocatingService(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
     const [serviceImageUrls, setServiceImageUrls] = useState([]);
     const [servicePreviews, setServicePreviews] = useState([]);
     const [serviceVideoUrl, setServiceVideoUrl] = useState(null);
@@ -430,15 +452,23 @@ export default function CreateListing() {
             toast.error('Select your working days, or choose Working 24/7');
             return;
         }
+        if (!serviceLocation) {
+            toast.error('Please set your service location so buyers can find you.');
+            return;
+        }
 
-        const schedule = is247
-            ? { is_24_7: true }
-            : {
-                is_24_7: false,
-                days: workingDays
-                    .filter((d) => d.enabled)
-                    .map(({ day, open, close }) => ({ day, open, close })),
-            };
+        const schedule = {
+            ...(is247
+                ? { is_24_7: true }
+                : {
+                    is_24_7: false,
+                    days: workingDays
+                        .filter((d) => d.enabled)
+                        .map(({ day, open, close }) => ({ day, open, close })),
+                }),
+            lat: serviceLocation.lat,
+            lng: serviceLocation.lng,
+        };
 
         setServiceLoading(true);
         try {
@@ -1079,6 +1109,38 @@ export default function CreateListing() {
                                                 Working 24/7
                                             </span>
                                         </label>
+                                    </div>
+
+                                    {/* SERVICE LOCATION */}
+                                    <div className="border-t border-slate-100 dark:border-ink-600 pt-4">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <MapPin size={15} className="text-slate-500 dark:text-gold-300/60" />
+                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Service location</label>
+                                        </div>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/40 mb-2">
+                                            Buyers will see this pinned on a map so they know where to find you.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={captureServiceLocation}
+                                            disabled={locatingService}
+                                            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition disabled:opacity-60 ${
+                                                serviceLocation
+                                                    ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                                                    : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-50 dark:hover:bg-ink-700'
+                                            }`}
+                                        >
+                                            {locatingService ? (
+                                                <Loader2 size={15} className="animate-spin" />
+                                            ) : (
+                                                <MapPin size={15} />
+                                            )}
+                                            {locatingService
+                                                ? 'Getting your location…'
+                                                : serviceLocation
+                                                    ? 'Location set ✓ Tap to update'
+                                                    : 'Use my current location'}
+                                        </button>
                                     </div>
 
                                     <button

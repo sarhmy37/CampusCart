@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { SCHOOL_COORDS } from './Register';
 import {
     Star, MapPin, Clock, ChevronLeft, Calendar, ShieldCheck,
     Loader2, Briefcase, MessageSquare, Tag, ArrowRight,
@@ -41,6 +42,29 @@ export default function ServiceDetail() {
     const [bookingTime, setBookingTime] = useState('');
     const [message, setMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [buyerLocation, setBuyerLocation] = useState(null);
+    const [locatingBuyer, setLocatingBuyer] = useState(false);
+    const [buyerLocationError, setBuyerLocationError] = useState('');
+
+    const findMyLocation = () => {
+        if (!navigator.geolocation) {
+            setBuyerLocationError("Your device doesn't support location detection.");
+            return;
+        }
+        setLocatingBuyer(true);
+        setBuyerLocationError('');
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setBuyerLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocatingBuyer(false);
+            },
+            () => {
+                setBuyerLocationError("Couldn't get your location. You can still see the pin below.");
+                setLocatingBuyer(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
 
     useEffect(() => {
         setLoading(true);
@@ -77,6 +101,10 @@ export default function ServiceDetail() {
             ? 'Open 24/7'
             : `${availability.days?.join(', ') || 'No days set'} · ${availability.openTime}–${availability.closeTime}`)
         : (legacyDuration || 'Flexible timing');
+
+    const serviceLat = availability?.lat;
+    const serviceLng = availability?.lng;
+    const hasServiceLocation = typeof serviceLat === 'number' && typeof serviceLng === 'number';
 
     const timeInputBounds = availability && !availability.is247
         ? { min: to24Hour(availability.openTime), max: to24Hour(availability.closeTime) }
@@ -198,8 +226,68 @@ export default function ServiceDetail() {
                 <div className="grid md:grid-cols-3 gap-6">
                     {/* ─── LEFT: gallery + details ─── */}
                     <div className="md:col-span-2 space-y-5">
-                        {/* GALLERY */}
-                        {images.length > 0 && (
+                        {/* TRACK SERVICE — map + directions, replaces the old image gallery */}
+                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="p-4 pb-0 flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-1">
+                                        Track service
+                                    </p>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">
+                                        {service.seller_meeting_place
+                                            ? `${service.seller_meeting_place}, ${service.seller_school}`
+                                            : service.seller_school || 'Location not specified'}
+                                    </p>
+                                </div>
+                                {hasServiceLocation && (
+                                    <button
+                                        type="button"
+                                        onClick={findMyLocation}
+                                        disabled={locatingBuyer}
+                                        className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-brand-200 dark:border-gold-700 text-brand-600 dark:text-gold-400 hover:bg-brand-50 dark:hover:bg-gold-900/30 transition disabled:opacity-60"
+                                    >
+                                        {locatingBuyer ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
+                                        {locatingBuyer ? 'Locating…' : buyerLocation ? 'Update my location' : 'Show route from me'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {hasServiceLocation ? (
+                                <div className="mt-3 h-64 sm:h-72">
+                                    <iframe
+                                        title="Service location"
+                                        width="100%"
+                                        height="100%"
+                                        style={{ border: 0 }}
+                                        loading="lazy"
+                                        src={
+                                            buyerLocation
+                                                ? `https://www.google.com/maps?saddr=${buyerLocation.lat},${buyerLocation.lng}&daddr=${serviceLat},${serviceLng}&output=embed`
+                                                : `https://www.google.com/maps?q=${serviceLat},${serviceLng}&z=15&output=embed`
+                                        }
+                                    />
+                                </div>
+                            ) : (
+                                <div className="mt-3 h-40 flex flex-col items-center justify-center text-center px-4 text-slate-400 dark:text-gold-200/40">
+                                    <MapPin size={28} className="mb-2" />
+                                    <p className="text-sm">This provider hasn't set an exact location yet.</p>
+                                </div>
+                            )}
+
+                            {buyerLocationError && (
+                                <p className="text-xs text-red-500 dark:text-red-400 px-4 py-2">{buyerLocationError}</p>
+                            )}
+                            {hasServiceLocation && (
+                                <p className="text-[11px] text-slate-400 dark:text-gold-200/40 px-4 py-2.5">
+                                    {buyerLocation
+                                        ? 'Showing the shortest route from your current location.'
+                                        : 'Tap "Show route from me" to see directions from your location.'}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Photo thumbnails, now secondary to the map */}
+                        {images.length > 1 && (
                             <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
                                 <div className="aspect-[16/10] bg-slate-100 dark:bg-ink-700">
                                     <img
@@ -208,23 +296,21 @@ export default function ServiceDetail() {
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
-                                {images.length > 1 && (
-                                    <div className="flex gap-2 p-3 overflow-x-auto">
-                                        {images.map((src, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => setActiveImage(i)}
-                                                className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
-                                                    activeImage === i
-                                                        ? 'border-brand-600 dark:border-gold-500'
-                                                        : 'border-transparent opacity-60 hover:opacity-100'
-                                                }`}
-                                            >
-                                                <img src={src} alt="" className="w-full h-full object-cover" />
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="flex gap-2 p-3 overflow-x-auto">
+                                    {images.map((src, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setActiveImage(i)}
+                                            className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
+                                                activeImage === i
+                                                    ? 'border-brand-600 dark:border-gold-500'
+                                                    : 'border-transparent opacity-60 hover:opacity-100'
+                                            }`}
+                                        >
+                                            <img src={src} alt="" className="w-full h-full object-cover" />
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -296,6 +382,35 @@ export default function ServiceDetail() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* LOCATION MAP */}
+                        {SCHOOL_COORDS[service.seller_school] && (
+                            <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
+                                <div className="p-4 pb-0">
+                                    <p className="text-xs font-bold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-1">
+                                        Where to find this provider
+                                    </p>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">
+                                        {service.seller_meeting_place
+                                            ? `${service.seller_meeting_place}, ${service.seller_school}`
+                                            : service.seller_school}
+                                    </p>
+                                </div>
+                                <div className="mt-3 h-56">
+                                    <iframe
+                                        title="Provider location"
+                                        width="100%"
+                                        height="100%"
+                                        style={{ border: 0 }}
+                                        loading="lazy"
+                                        src={`https://www.google.com/maps?q=${SCHOOL_COORDS[service.seller_school].lat},${SCHOOL_COORDS[service.seller_school].lng}&z=15&output=embed`}
+                                    />
+                                </div>
+                                <p className="text-[11px] text-slate-400 dark:text-gold-200/40 px-4 py-2.5">
+                                    Approximate — pinned to the campus area, not the provider's exact address.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* ─── RIGHT: sticky booking card ─── */}
