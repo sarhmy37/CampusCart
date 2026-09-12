@@ -90,8 +90,23 @@ router.get('/:id', async (req, res) => {
     try {
         // Fire-and-forget view counter — not awaited so a slow/failed increment
         // never delays or breaks the page load for the person viewing the listing.
-        pool.query('UPDATE products SET views_count = views_count + 1 WHERE id = $1', [req.params.id])
-            .catch((err) => console.error('View count increment error:', err));
+        // Counts once per account: a logged-in viewer only bumps the count the
+        // first time they ever view this product (tracked in product_views).
+        // Not-logged-in visitors still increment on every view, since there's
+        // no account to dedupe against.
+        if (req.userId) {
+            pool.query(
+                'INSERT INTO product_views (product_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id',
+                [req.params.id, req.userId]
+            ).then((result) => {
+                if (result.rowCount > 0) {
+                    return pool.query('UPDATE products SET views_count = views_count + 1 WHERE id = $1', [req.params.id]);
+                }
+            }).catch((err) => console.error('View count increment error:', err));
+        } else {
+            pool.query('UPDATE products SET views_count = views_count + 1 WHERE id = $1', [req.params.id])
+                .catch((err) => console.error('View count increment error:', err));
+        }
 
         const productResult = await pool.query(
             `SELECT
