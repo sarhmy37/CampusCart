@@ -20,6 +20,9 @@ export function ThemeProvider({ children }) {
     });
 
     // Apply the class whenever theme changes — does NOT touch localStorage.
+    // Also keeps the OS status bar (theme-color meta tag) in sync, so it
+    // blends into the header background instead of showing as a stray
+    // black bar above it.
     useEffect(() => {
         const root = document.documentElement;
         if (theme === 'dark') {
@@ -27,8 +30,12 @@ export function ThemeProvider({ children }) {
         } else {
             root.classList.remove('dark');
         }
-    }, [theme]);
 
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) {
+            meta.setAttribute('content', theme === 'dark' ? '#0d0c0a' : '#ffffff');
+        }
+    }, [theme]);
     // Live-follow the system setting, but only while the user hasn't set an
     // explicit override. Attaches a real 'change' listener so flipping the
     // phone/OS setting updates the app immediately, without a reload.
