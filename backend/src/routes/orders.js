@@ -356,7 +356,11 @@ router.get('/mine', requireAuth, async (req, res) => {
 
         for (const order of orders) {
             const itemsResult = await pool.query(
-                'SELECT id, title, quantity, price_at_purchase, seller_id, buyer_confirmed_at FROM order_items WHERE order_id = $1',
+                `SELECT oi.id, oi.title, oi.quantity, oi.price_at_purchase, oi.seller_id, oi.buyer_confirmed_at,
+                        p.primary_image AS image
+                 FROM order_items oi
+                 LEFT JOIN products p ON p.id = oi.product_id
+                 WHERE oi.order_id = $1`,
                 [order.id]
             );
             order.items = itemsResult.rows;
@@ -417,19 +421,20 @@ router.get('/sales', requireAuth, async (req, res) => {
 // one of this seller's items, not yet marked completed by the buyer.
 router.get('/deliveries', requireAuth, async (req, res) => {
     try {
-        const result = await pool.query(
+         const result = await pool.query(
             `SELECT
                 o.id AS order_id, o.status, o.delivery_method, o.created_at,
                 o.delivered_at, o.delivered_by_seller_id,
                 u.name AS buyer_name, u.location AS buyer_location, u.whatsapp AS buyer_whatsapp,
                 COALESCE(
-                    json_agg(json_build_object('title', oi.title, 'quantity', oi.quantity))
+                    json_agg(json_build_object('title', oi.title, 'quantity', oi.quantity, 'image', p.primary_image))
                     FILTER (WHERE oi.id IS NOT NULL),
                     '[]'
                 ) AS items
              FROM orders o
              JOIN order_items oi ON oi.order_id = o.id AND oi.seller_id = $1
              JOIN users u ON u.id = o.buyer_id
+             LEFT JOIN products p ON p.id = oi.product_id
              WHERE o.status = 'paid'
              GROUP BY o.id, u.name, u.location, u.whatsapp
              ORDER BY o.created_at DESC`,

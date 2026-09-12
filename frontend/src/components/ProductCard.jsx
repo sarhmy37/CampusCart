@@ -202,9 +202,11 @@ export default function ProductCard({ product }) {
                     )}
                 </div>
 
-                <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5 truncate flex items-center gap-1">
+                <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-0.5 flex items-center gap-1 min-w-0">
                     <MapPin size={10} className="shrink-0" />
-                    {product.seller_meeting_place || 'Meeting place not set'}
+                    <span className="truncate min-w-0">
+                        {product.seller_location || product.seller_meeting_place || 'Location not set'}
+                    </span>
                     {product.seller_verified && <CheckBadgeIcon className="w-2.5 h-2.5 text-emerald-500 shrink-0" />}
                     {sellerPlan === 'premium' && (
                         <Sparkles className="w-2.5 h-2.5 text-purple-500 fill-purple-500 shrink-0" title="Premium Seller" />

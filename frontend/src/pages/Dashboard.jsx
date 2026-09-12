@@ -814,15 +814,23 @@ function Deliveries() {
                             </div>
                         )}
 
-                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-ink-600 space-y-1">
+                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-ink-600 space-y-2">
                             {d.items.map((item, i) => (
-                                <p key={i} className="text-xs text-slate-600 dark:text-gold-100/80">{item.title} × {item.quantity}</p>
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
+                                        {item.image && (
+                                            <img src={item.image} className="w-full h-full object-cover" alt={item.title} />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs text-slate-600 dark:text-gold-100/80 truncate">{item.title} × {item.quantity}</p>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50 capitalize mt-0.5">
+                                            Method: {d.delivery_method === 'delivery' ? 'Delivery' : 'Campus pickup'}
+                                        </p>
+                                    </div>
+                                </div>
                             ))}
                         </div>
-
-                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-2 capitalize">
-                            Method: {d.delivery_method === 'delivery' ? 'Delivery' : 'Campus pickup'}
-                        </p>
 
                         {!d.delivered_at && (
                             <button
@@ -1944,17 +1952,22 @@ function MyOrders({ period, isSeller }) {
                             </div>
 
                             <div className="mt-2 space-y-2">
-                                {o.items?.map((item) => (
-                                    <div key={item.id} className="flex justify-between items-center border-t border-slate-100 dark:border-ink-600 pt-2 first:border-0 first:pt-0">
-                                        <div className="flex-1">
-                                            <p className="text-sm text-slate-700 dark:text-gold-100">{item.title}</p>
-                                            <div className="flex items-center gap-3 mt-0.5">
-                                                <p className="text-xs text-slate-500 dark:text-gold-200/50">Qty: {item.quantity}</p>
-                                                <p className="text-xs font-semibold text-slate-600 dark:text-gold-200">GHS {parseFloat(item.price_at_purchase).toFixed(2)}</p>
-                                            </div>
-                                        </div>
-                                        
-                                        {o.status === 'paid' && !item.buyer_confirmed_at && (
+{o.items?.map((item) => (
+    <div key={item.id} className="flex items-center gap-3 border-t border-slate-100 dark:border-ink-600 pt-2 first:border-0 first:pt-0">
+        <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
+            {item.image && (
+                <img src={item.image} className="w-full h-full object-cover" alt={item.title} />
+            )}
+        </div>
+        <div className="flex-1 min-w-0">
+            <p className="text-sm text-slate-700 dark:text-gold-100 truncate">{item.title}</p>
+            <div className="flex items-center gap-3 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-gold-200/50">Qty: {item.quantity}</p>
+                <p className="text-xs font-semibold text-slate-600 dark:text-gold-200">GHS {parseFloat(item.price_at_purchase).toFixed(2)}</p>
+            </div>
+        </div>
+
+        {o.status === 'paid' && !item.buyer_confirmed_at && (
                                             <button
                                                 onClick={() => handleConfirmReceived(o.id, item.id)}
                                                 disabled={confirmingItem === item.id}
