@@ -7,6 +7,7 @@ import { SCHOOL_COORDS } from './Register';
 import {
     Star, MapPin, Clock, ChevronLeft, Calendar, ShieldCheck,
     Loader2, Briefcase, MessageSquare, Tag, ArrowRight,
+    Maximize2, Minimize2,
 } from 'lucide-react';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -50,6 +51,22 @@ export default function ServiceDetail() {
     const [buyerLocation, setBuyerLocation] = useState(null);
     const [locatingBuyer, setLocatingBuyer] = useState(false);
     const [buyerLocationError, setBuyerLocationError] = useState('');
+    const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+
+    // Escape-to-close + lock background scroll while the map is full screen
+    useEffect(() => {
+        if (!isMapFullscreen) return;
+        const handleKey = (e) => {
+            if (e.key === 'Escape') setIsMapFullscreen(false);
+        };
+        document.addEventListener('keydown', handleKey);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.removeEventListener('keydown', handleKey);
+            document.body.style.overflow = prevOverflow;
+        };
+    }, [isMapFullscreen]);
 
     const findMyLocation = () => {
         if (!navigator.geolocation) {
@@ -282,6 +299,7 @@ export default function ServiceDetail() {
                                         height="100%"
                                         style={{ border: 0 }}
                                         loading="lazy"
+                                        className="dark:invert dark:hue-rotate-180 dark:brightness-95 dark:contrast-125"
                                         src={
                                             buyerLocation
                                                 ? `https://www.google.com/maps?saddr=${buyerLocation.lat},${buyerLocation.lng}&daddr=${serviceLat},${serviceLng}&output=embed`
@@ -300,13 +318,24 @@ export default function ServiceDetail() {
                                 <p className="text-xs text-red-500 dark:text-red-400 px-4 py-2">{buyerLocationError}</p>
                             )}
                             {hasServiceLocation && (
-                                <p className="text-[11px] text-slate-400 dark:text-gold-200/40 px-4 py-2.5">
-                                    {buyerLocation
-                                        ? 'Showing the shortest route from your current location.'
-                                        : hasExactLocation
-                                            ? 'Tap "Show route from me" to see directions from your location.'
-                                            : "This is an approximate pin based on the provider's school — they haven't set an exact location yet."}
-                                </p>
+                                <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+                                    <p className="text-[11px] text-slate-400 dark:text-gold-200/40">
+                                        {buyerLocation
+                                            ? 'Showing the shortest route from your current location.'
+                                            : hasExactLocation
+                                                ? 'Tap "Show route from me" to see directions from your location.'
+                                                : "This is an approximate pin based on the provider's school — they haven't set an exact location yet."}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsMapFullscreen(true)}
+                                        className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 dark:text-gold-200/50 hover:text-brand-600 dark:hover:text-gold-400 hover:bg-slate-100 dark:hover:bg-ink-700 transition"
+                                        aria-label="View map full screen"
+                                        title="View full screen"
+                                    >
+                                        <Maximize2 size={14} />
+                                    </button>
+                                </div>
                             )}
                         </div>
 
@@ -500,6 +529,33 @@ export default function ServiceDetail() {
                     </div>
                 </div>
             </div>
+
+            {/* Full screen map overlay */}
+            {isMapFullscreen && hasServiceLocation && (
+                <div className="fixed inset-0 z-50 bg-black">
+                    <button
+                        type="button"
+                        onClick={() => setIsMapFullscreen(false)}
+                        className="absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-full bg-white/95 dark:bg-ink-800/95 text-slate-700 dark:text-gold-100 shadow-md backdrop-blur hover:bg-white dark:hover:bg-ink-800 transition"
+                        aria-label="Exit full screen"
+                        title="Minimize"
+                    >
+                        <Minimize2 size={15} /> Minimize
+                    </button>
+                    <iframe
+                        title="Service location full screen"
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        className="dark:invert dark:hue-rotate-180 dark:brightness-95 dark:contrast-125"
+                        src={
+                            buyerLocation
+                                ? `https://www.google.com/maps?saddr=${buyerLocation.lat},${buyerLocation.lng}&daddr=${serviceLat},${serviceLng}&output=embed`
+                                : `https://www.google.com/maps?q=${serviceLat},${serviceLng}&z=15&output=embed`
+                        }
+                    />
+                </div>
+            )}
         </div>
     );
 }
