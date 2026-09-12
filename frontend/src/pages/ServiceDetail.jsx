@@ -192,7 +192,7 @@ export default function ServiceDetail() {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
             {/* HEADER — video hero */}
-            <section className="relative overflow-hidden h-[42vh] min-h-[280px] sm:h-[46vh] sm:min-h-[340px]">
+            <section className="relative overflow-hidden h-[46vh] min-h-[300px] sm:h-[52vh] sm:min-h-[380px]">
                 {service.video_url ? (
                     <video
                         key={service.video_url}
