@@ -102,8 +102,13 @@ export default function ServiceDetail() {
             : `${availability.days?.join(', ') || 'No days set'} · ${availability.openTime}–${availability.closeTime}`)
         : (legacyDuration || 'Flexible timing');
 
-    const serviceLat = availability?.lat;
-    const serviceLng = availability?.lng;
+    const exactLat = availability?.lat;
+    const exactLng = availability?.lng;
+    const hasExactLocation = typeof exactLat === 'number' && typeof exactLng === 'number';
+
+    const schoolCoords = SCHOOL_COORDS[service.seller_school];
+    const serviceLat = hasExactLocation ? exactLat : schoolCoords?.lat;
+    const serviceLng = hasExactLocation ? exactLng : schoolCoords?.lng;
     const hasServiceLocation = typeof serviceLat === 'number' && typeof serviceLng === 'number';
 
     const timeInputBounds = availability && !availability.is247
@@ -281,7 +286,9 @@ export default function ServiceDetail() {
                                 <p className="text-[11px] text-slate-400 dark:text-gold-200/40 px-4 py-2.5">
                                     {buyerLocation
                                         ? 'Showing the shortest route from your current location.'
-                                        : 'Tap "Show route from me" to see directions from your location.'}
+                                        : hasExactLocation
+                                            ? 'Tap "Show route from me" to see directions from your location.'
+                                            : "This is an approximate pin based on the provider's school — they haven't set an exact location yet."}
                                 </p>
                             )}
                         </div>
@@ -383,34 +390,6 @@ export default function ServiceDetail() {
                             </div>
                         </div>
 
-                        {/* LOCATION MAP */}
-                        {SCHOOL_COORDS[service.seller_school] && (
-                            <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
-                                <div className="p-4 pb-0">
-                                    <p className="text-xs font-bold text-slate-400 dark:text-gold-200/50 uppercase tracking-wide mb-1">
-                                        Where to find this provider
-                                    </p>
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">
-                                        {service.seller_meeting_place
-                                            ? `${service.seller_meeting_place}, ${service.seller_school}`
-                                            : service.seller_school}
-                                    </p>
-                                </div>
-                                <div className="mt-3 h-56">
-                                    <iframe
-                                        title="Provider location"
-                                        width="100%"
-                                        height="100%"
-                                        style={{ border: 0 }}
-                                        loading="lazy"
-                                        src={`https://www.google.com/maps?q=${SCHOOL_COORDS[service.seller_school].lat},${SCHOOL_COORDS[service.seller_school].lng}&z=15&output=embed`}
-                                    />
-                                </div>
-                                <p className="text-[11px] text-slate-400 dark:text-gold-200/40 px-4 py-2.5">
-                                    Approximate — pinned to the campus area, not the provider's exact address.
-                                </p>
-                            </div>
-                        )}
                     </div>
 
                     {/* ─── RIGHT: sticky booking card ─── */}
