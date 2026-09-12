@@ -253,12 +253,27 @@ export default function ServiceDetail() {
                             )}
                         </div>
 
-                        <h1 className="text-2xl sm:text-4xl font-extrabold text-white mt-3 max-w-2xl drop-shadow-sm">
-                            {service.title || service.name}
-                        </h1>
-                        <p className="text-2xl sm:text-3xl font-black text-white mt-2 drop-shadow-sm">
-                            GHS {parseFloat(service.price).toFixed(2)}
-                        </p>
+<div className="flex items-stretch mt-3">
+    {service.seller_avatar ? (
+        <img
+            src={service.seller_avatar}
+            alt={service.seller_name}
+            className="w-20 sm:w-24 object-cover rounded-r-full -ml-4 sm:-ml-6 shrink-0"
+        />
+    ) : (
+        <div className="w-20 sm:w-24 flex items-center justify-center bg-brand-600 text-white font-bold text-2xl rounded-r-full -ml-4 sm:-ml-6 shrink-0">
+            {service.seller_name?.[0]?.toUpperCase() || '?'}
+        </div>
+    )}
+    <div className="ml-3 min-w-0">
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-white max-w-2xl drop-shadow-sm">
+            {service.title || service.name}
+        </h1>
+        <p className="text-2xl sm:text-3xl font-black text-white mt-2 drop-shadow-sm">
+            GHS {parseFloat(service.price).toFixed(2)}
+        </p>
+    </div>
+</div>
                     </div>
                 </div>
             </section>
