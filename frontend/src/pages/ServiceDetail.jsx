@@ -192,7 +192,7 @@ export default function ServiceDetail() {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
             {/* HEADER — video hero */}
-            <section className="relative overflow-hidden h-[52vh] min-h-[340px] sm:h-[58vh] sm:min-h-[420px]">
+            <section className="relative overflow-hidden h-[42vh] min-h-[280px] sm:h-[46vh] sm:min-h-[340px]">
                 {service.video_url ? (
                     <video
                         key={service.video_url}
@@ -225,9 +225,9 @@ export default function ServiceDetail() {
                     <div className="max-w-5xl mx-auto">
                         <Link
                             to="/browse"
-                            className="inline-flex items-center gap-1.5 bg-white/10 text-white font-semibold px-3.5 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
+                            className="inline-flex items-center gap-1 bg-white/10 text-white font-semibold px-3.5 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
                         >
-                            <ChevronLeft size={15} /> Back to browse
+                            <ChevronLeft size={15} /> Browse
                         </Link>
                     </div>
                 </div>
@@ -263,7 +263,7 @@ export default function ServiceDetail() {
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4 pb-8">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-1 sm:pt-2 pb-8">
                 <div className="grid md:grid-cols-3 gap-6">
                     {/* ─── LEFT: gallery + details ─── */}
                     <div className="md:col-span-2 space-y-5">
