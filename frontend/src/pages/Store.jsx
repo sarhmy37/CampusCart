@@ -2,9 +2,62 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import ProductCard from '../components/ProductCard';
-import { ArrowLeft, Star, Tag, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Star, Tag, Sparkles } from 'lucide-react';
+import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 
-export default function Store({ id: idProp, embedded = false }) {
+const SOCIAL_LINKS = [
+    {
+        key: 'social_tiktok',
+        label: 'TikTok',
+        color: 'bg-black hover:bg-slate-800',
+        href: (v) => `https://www.tiktok.com/@${v.replace('@', '')}`,
+        icon: (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M16.6 5.82c-1-.87-1.6-2.14-1.6-3.52h-3.15v13.4c0 1.62-1.3 2.93-2.92 2.93a2.92 2.92 0 0 1-2.92-2.93 2.92 2.92 0 0 1 2.92-2.92c.3 0 .58.04.85.13V9.75a6.13 6.13 0 0 0-.85-.06A6.1 6.1 0 0 0 3.02 15.8 6.1 6.1 0 0 0 9.13 21.9a6.1 6.1 0 0 0 6.1-6.1V8.57a9.14 9.14 0 0 0 5.31 1.7V7.1a5.97 5.97 0 0 1-3.94-1.28z"/>
+            </svg>
+        ),
+    },
+    {
+        key: 'social_whatsapp',
+        label: 'WhatsApp',
+        color: 'bg-[#25D366] hover:bg-[#1da851]',
+        href: (v) => `https://wa.me/${v.replace(/\D/g, '')}`,
+        icon: (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M12.004 2C6.486 2 2 6.486 2 12.004c0 1.86.505 3.678 1.462 5.272L2 22l4.83-1.44a10.001 10.001 0 0 0 5.174 1.44h.004c5.518 0 10.004-4.486 10.004-10.004C22.008 6.486 17.522 2 12.004 2z"/>
+            </svg>
+        ),
+    },
+    {
+        key: 'social_instagram',
+        label: 'Instagram',
+        color: 'bg-gradient-to-br from-[#feda75] via-[#d62976] to-[#4f5bd5] hover:opacity-90',
+        href: (v) => `https://instagram.com/${v.replace('@', '')}`,
+        icon: (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M12 2c-2.72 0-3.06.01-4.13.06-1.06.05-1.79.22-2.43.47-.66.26-1.22.6-1.77 1.16-.56.55-.9 1.11-1.16 1.77-.25.64-.42 1.37-.47 2.43C2.01 8.94 2 9.28 2 12s.01 3.06.06 4.13c.05 1.06.22 1.79.47 2.43.26.66.6 1.22 1.16 1.77.55.56 1.11.9 1.77 1.16.64.25 1.37.42 2.43.47C8.94 21.99 9.28 22 12 22s3.06-.01 4.13-.06c1.06-.05 1.79-.22 2.43-.47.66-.26 1.22-.6 1.77-1.16.56-.55.9-1.11 1.16-1.77.25-.64.42-1.37.47-2.43.05-1.07.06-1.41.06-4.13s-.01-3.06-.06-4.13c-.05-1.06-.22-1.79-.47-2.43a4.9 4.9 0 0 0-1.16-1.77 4.9 4.9 0 0 0-1.77-1.16c-.64-.25-1.37-.42-2.43-.47C15.06 2.01 14.72 2 12 2Z"/>
+            </svg>
+        ),
+    },
+    {
+        key: 'social_snapchat',
+        label: 'Snapchat',
+        color: 'bg-[#FFFC00] hover:bg-[#e6e300]',
+        textColor: 'text-black',
+        href: (v) => `https://snapchat.com/add/${v.replace('@', '')}`,
+        icon: (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M12.006 2.001C9.875 2.001 8.05 3.254 6.874 5.328c-.858 1.38-1.372 3.053-1.58 4.883-.211 1.86-.042 3.544.458 4.897-.36.082-.744.132-1.142.132-1.63 0-3.114-.709-3.114-2.188 0-.554.286-1.006.601-1.273.5-.5 1.5-.7 1.5-2.05 0-.6-.4-1.1-.9-1.2 0 0 .8-2.5 3-2.5 1.5 0 2.5 1 3.5 1s2-1 3.5-1c2.2 0 3 2.5 3 2.5-.5.1-.9.6-.9 1.2 0 1.35 1 1.55 1.5 2.05.315.267.601.719.601 1.273 0 1.479-1.484 2.188-3.114 2.188-.398 0-.782-.05-1.142-.132.5 1.353.669 3.037.458 4.897 5.077 4.487.709.306 1.262.489 1.694.625 4.548-.382-.789-.773-1.647-1.157-2.608z"/>
+            </svg>
+        ),
+    },
+    {
+        key: 'social_facebook',
+        label: 'Facebook',
+        color: 'bg-[#1877F2] hover:bg-[#0d65d9]',
+        href: (v) => (v.startsWith('http') ? v : `https://facebook.com/${v}`),
+        icon: (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
     const { id: idParam } = useParams();
     const id = idProp || idParam;
     const [seller, setSeller] = useState(null);
@@ -43,6 +96,10 @@ export default function Store({ id: idProp, embedded = false }) {
             </div>
         );
     }
+
+    const sellerPlanActive = seller?.plan && seller.plan !== 'free' &&
+        seller?.plan_expires_at && new Date(seller.plan_expires_at) > new Date();
+    const sellerPlan = sellerPlanActive ? seller.plan.toLowerCase() : null;
 
     if (notFound || !seller) {
         return (
@@ -108,12 +165,22 @@ export default function Store({ id: idProp, embedded = false }) {
                             <div className="flex items-center gap-2 flex-wrap">
                                 <h1 className="text-xl sm:text-2xl font-extrabold text-white truncate">{seller.name}</h1>
                                 {seller.verified && (
-                                    <span className="inline-flex items-center gap-1 bg-white/15 text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white/20">
-                                        <ShieldCheck size={12} /> Verified
+                                    <CheckBadgeIcon title="Verified seller" className="w-5 h-5 text-emerald-400 shrink-0" />
+                                )}
+                                {sellerPlan && (
+                                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                                        sellerPlan === 'premium'
+                                            ? 'bg-purple-500/20 text-purple-100 border-purple-300/30'
+                                            : 'bg-blue-500/20 text-blue-100 border-blue-300/30'
+                                    }`}>
+                                        {sellerPlan === 'premium' ? <Sparkles size={12} /> : <Star size={12} />}
+                                        {sellerPlan === 'premium' ? 'Premium Seller' : 'Pro Seller'}
                                     </span>
                                 )}
                             </div>
-                            <p className="text-white/70 text-sm mt-1">{seller.school}</p>
+                            <p className="text-white/70 text-sm mt-1">
+                                {[seller.school, seller.location].filter(Boolean).join(' · ')}
+                            </p>
                         </div>
                     </div>
 
@@ -133,6 +200,8 @@ export default function Store({ id: idProp, embedded = false }) {
                             </span>
                         </div>
                     </div>
+
+                    <SocialHandlesRow seller={seller} />
                 </div>
             </section>
 

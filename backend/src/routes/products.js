@@ -329,7 +329,8 @@ router.delete('/:id', requireAuth, async (req, res) => {
 router.get('/seller/:sellerId', async (req, res) => {
     try {
         const sellerResult = await pool.query(
-            `SELECT id, name, school, avatar_url, verified, created_at
+            `SELECT id, name, school, location, avatar_url, verified, created_at, plan, plan_expires_at,
+                    social_tiktok, social_whatsapp, social_instagram, social_snapchat, social_facebook, social_twitter, social_telegram
              FROM users
              WHERE id = $1 AND account_type = 'seller'`,
             [req.params.sellerId]

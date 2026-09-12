@@ -47,6 +47,13 @@ function toPublicUser(row) {
         plan: row.plan,
         plan_expires_at: row.plan_expires_at,
         pending_plan: row.pending_plan,
+        social_tiktok: row.social_tiktok,
+        social_whatsapp: row.social_whatsapp,
+        social_instagram: row.social_instagram,
+        social_snapchat: row.social_snapchat,
+        social_facebook: row.social_facebook,
+        social_twitter: row.social_twitter,
+        social_telegram: row.social_telegram,
     };
 }
 
@@ -368,6 +375,56 @@ router.patch('/me', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Update profile error:', err);
         res.status(500).json({ error: 'Something went wrong updating your profile' });
+    }
+});
+
+// PATCH /api/auth/me/socials — update social handles, no cooldown
+router.patch('/me/socials', requireAuth, async (req, res) => {
+    const { social_tiktok, social_whatsapp, social_instagram, social_snapchat, social_facebook, social_twitter, social_telegram } = req.body;
+    try {
+        const result = await pool.query(
+            `UPDATE users SET
+                social_tiktok = $1,
+                social_whatsapp = $2,
+                social_instagram = $3,
+                social_snapchat = $4,
+                social_facebook = $5,
+                social_twitter = $6,
+                social_telegram = $7
+             WHERE id = $8
+             RETURNING *`,
+            [social_tiktok || null, social_whatsapp || null, social_instagram || null, social_snapchat || null,
+             social_facebook || null, social_twitter || null, social_telegram || null, req.userId]
+        );
+        res.json(toPublicUser(result.rows[0]));
+    } catch (err) {
+        console.error('Update socials error:', err);
+        res.status(500).json({ error: 'Something went wrong saving your social handles' });
+    }
+});
+
+// PATCH /api/auth/me/socials — update social handles, no cooldown
+router.patch('/me/socials', requireAuth, async (req, res) => {
+    const { social_tiktok, social_whatsapp, social_instagram, social_snapchat, social_facebook, social_twitter, social_telegram } = req.body;
+    try {
+        const result = await pool.query(
+            `UPDATE users SET
+                social_tiktok = $1,
+                social_whatsapp = $2,
+                social_instagram = $3,
+                social_snapchat = $4,
+                social_facebook = $5,
+                social_twitter = $6,
+                social_telegram = $7
+             WHERE id = $8
+             RETURNING *`,
+            [social_tiktok || null, social_whatsapp || null, social_instagram || null, social_snapchat || null,
+             social_facebook || null, social_twitter || null, social_telegram || null, req.userId]
+        );
+        res.json(toPublicUser(result.rows[0]));
+    } catch (err) {
+        console.error('Update socials error:', err);
+        res.status(500).json({ error: 'Something went wrong saving your social handles' });
     }
 });
 

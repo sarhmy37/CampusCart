@@ -38,6 +38,74 @@ export default function Settings() {
     const [storeStatsLoading, setStoreStatsLoading] = useState(false);
     const [socialsExpanded, setSocialsExpanded] = useState(false);
     const [showStorePreview, setShowStorePreview] = useState(false);
+    const [showHandlesModal, setShowHandlesModal] = useState(false);
+    const [savingHandles, setSavingHandles] = useState(false);
+    const [handles, setHandles] = useState({
+        social_tiktok: '', social_whatsapp: '', social_instagram: '', social_snapchat: '',
+        social_facebook: '', social_twitter: '', social_telegram: '',
+    });
+
+    useEffect(() => {
+        if (!user) return;
+        setHandles({
+            social_tiktok: user.social_tiktok || '',
+            social_whatsapp: user.social_whatsapp || '',
+            social_instagram: user.social_instagram || '',
+            social_snapchat: user.social_snapchat || '',
+            social_facebook: user.social_facebook || '',
+            social_twitter: user.social_twitter || '',
+            social_telegram: user.social_telegram || '',
+        });
+    }, [user]);
+
+    const handleSaveHandles = async () => {
+        setSavingHandles(true);
+        try {
+            const res = await api.patch('/auth/me/socials', handles);
+            setUser(res.data);
+            localStorage.setItem('cc_user', JSON.stringify(res.data));
+            toast.success('Social handles updated');
+            setShowHandlesModal(false);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update handles');
+        } finally {
+            setSavingHandles(false);
+        }
+    };
+    const [showHandlesModal, setShowHandlesModal] = useState(false);
+    const [savingHandles, setSavingHandles] = useState(false);
+    const [handles, setHandles] = useState({
+        social_tiktok: '', social_whatsapp: '', social_instagram: '', social_snapchat: '',
+        social_facebook: '', social_twitter: '', social_telegram: '',
+    });
+
+    useEffect(() => {
+        if (!user) return;
+        setHandles({
+            social_tiktok: user.social_tiktok || '',
+            social_whatsapp: user.social_whatsapp || '',
+            social_instagram: user.social_instagram || '',
+            social_snapchat: user.social_snapchat || '',
+            social_facebook: user.social_facebook || '',
+            social_twitter: user.social_twitter || '',
+            social_telegram: user.social_telegram || '',
+        });
+    }, [user]);
+
+    const handleSaveHandles = async () => {
+        setSavingHandles(true);
+        try {
+            const res = await api.patch('/auth/me/socials', handles);
+            setUser(res.data);
+            localStorage.setItem('cc_user', JSON.stringify(res.data));
+            toast.success('Social handles updated');
+            setShowHandlesModal(false);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update handles');
+        } finally {
+            setSavingHandles(false);
+        }
+    };
 
     const [pwStep, setPwStep] = useState(1);
     const [current, setCurrent] = useState('');
@@ -387,12 +455,20 @@ export default function Settings() {
                             <div className="mt-4">
                                 <div className="flex items-center justify-between mb-2.5">
                                     <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Share on:</span>
-                                    <button
-                                        onClick={() => setShowStorePreview(true)}
-                                        className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300 transition"
-                                    >
-                                        Preview →
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setShowHandlesModal(true)}
+                                            className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300 transition"
+                                        >
+                                            Add handles
+                                        </button>
+                                        <button
+                                            onClick={() => setShowStorePreview(true)}
+                                            className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300 transition"
+                                        >
+                                            Preview →
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="flex items-center flex-wrap gap-2">
 
@@ -480,6 +556,153 @@ export default function Settings() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* ADD SOCIAL HANDLES MODAL */}
+                {showHandlesModal && createPortal(
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowHandlesModal(false)} />
+                        <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto p-6">
+                            <button
+                                onClick={() => setShowHandlesModal(false)}
+                                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                            >
+                                <X size={18} />
+                            </button>
+                            <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">Add your social handles</h3>
+                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">All optional — shown on your store page.</p>
+
+                            <div className="mt-4 space-y-3">
+                                {[
+                                    { key: 'social_tiktok', label: 'TikTok', placeholder: '@yourhandle' },
+                                    { key: 'social_whatsapp', label: 'WhatsApp', placeholder: 'e.g. 0551234567' },
+                                    { key: 'social_instagram', label: 'Instagram', placeholder: '@yourhandle' },
+                                    { key: 'social_snapchat', label: 'Snapchat', placeholder: '@yourhandle' },
+                                    { key: 'social_facebook', label: 'Facebook', placeholder: 'Profile or page link' },
+                                    { key: 'social_twitter', label: 'Twitter / X', placeholder: '@yourhandle' },
+                                    { key: 'social_telegram', label: 'Telegram', placeholder: '@yourhandle' },
+                                ].map(({ key, label, placeholder }) => (
+                                    <div key={key}>
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">{label}</label>
+                                        <input
+                                            type="text"
+                                            value={handles[key]}
+                                            onChange={(e) => setHandles((h) => ({ ...h, [key]: e.target.value }))}
+                                            placeholder={placeholder}
+                                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={handleSaveHandles}
+                                disabled={savingHandles}
+                                className="w-full mt-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60"
+                            >
+                                {savingHandles ? 'Updating…' : 'Update'}
+                            </button>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* ADD SOCIAL HANDLES MODAL */}
+                {showHandlesModal && createPortal(
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowHandlesModal(false)} />
+                        <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto p-6">
+                            <button
+                                onClick={() => setShowHandlesModal(false)}
+                                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                            >
+                                <X size={18} />
+                            </button>
+                            <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">Add your social handles</h3>
+                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">All optional — shown on your store page.</p>
+
+                            <div className="mt-4 space-y-3">
+                                {[
+                                    { key: 'social_tiktok', label: 'TikTok', placeholder: '@yourhandle' },
+                                    { key: 'social_whatsapp', label: 'WhatsApp', placeholder: 'e.g. 0551234567' },
+                                    { key: 'social_instagram', label: 'Instagram', placeholder: '@yourhandle' },
+                                    { key: 'social_snapchat', label: 'Snapchat', placeholder: '@yourhandle' },
+                                    { key: 'social_facebook', label: 'Facebook', placeholder: 'Profile or page link' },
+                                    { key: 'social_twitter', label: 'Twitter / X', placeholder: '@yourhandle' },
+                                    { key: 'social_telegram', label: 'Telegram', placeholder: '@yourhandle' },
+                                ].map(({ key, label, placeholder }) => (
+                                    <div key={key}>
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">{label}</label>
+                                        <input
+                                            type="text"
+                                            value={handles[key]}
+                                            onChange={(e) => setHandles((h) => ({ ...h, [key]: e.target.value }))}
+                                            placeholder={placeholder}
+                                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={handleSaveHandles}
+                                disabled={savingHandles}
+                                className="w-full mt-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60"
+                            >
+                                {savingHandles ? 'Updating…' : 'Update'}
+                            </button>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
+                {/* ADD SOCIAL HANDLES MODAL */}
+                {showHandlesModal && createPortal(
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowHandlesModal(false)} />
+                        <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto p-6">
+                            <button
+                                onClick={() => setShowHandlesModal(false)}
+                                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-300/50 transition"
+                            >
+                                <X size={18} />
+                            </button>
+                            <h3 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">Add your social handles</h3>
+                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">All optional — shown on your store page.</p>
+
+                            <div className="mt-4 space-y-3">
+                                {[
+                                    { key: 'social_tiktok', label: 'TikTok', placeholder: '@yourhandle' },
+                                    { key: 'social_whatsapp', label: 'WhatsApp', placeholder: 'e.g. 0551234567' },
+                                    { key: 'social_instagram', label: 'Instagram', placeholder: '@yourhandle' },
+                                    { key: 'social_snapchat', label: 'Snapchat', placeholder: '@yourhandle' },
+                                    { key: 'social_facebook', label: 'Facebook', placeholder: 'Profile or page link' },
+                                    { key: 'social_twitter', label: 'Twitter / X', placeholder: '@yourhandle' },
+                                    { key: 'social_telegram', label: 'Telegram', placeholder: '@yourhandle' },
+                                ].map(({ key, label, placeholder }) => (
+                                    <div key={key}>
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-gold-300/60">{label}</label>
+                                        <input
+                                            type="text"
+                                            value={handles[key]}
+                                            onChange={(e) => setHandles((h) => ({ ...h, [key]: e.target.value }))}
+                                            placeholder={placeholder}
+                                            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={handleSaveHandles}
+                                disabled={savingHandles}
+                                className="w-full mt-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60"
+                            >
+                                {savingHandles ? 'Updating…' : 'Update'}
+                            </button>
+                        </div>
+                    </div>,
+                    document.body
                 )}
 
                 {/* STORE PREVIEW MODAL */}
