@@ -303,7 +303,7 @@ export default function ProductDetail() {
 
     // ---- Trust Strip Component ----
     const TrustStrip = () => (
-        <div className="pt-5 border-t border-slate-200/70 dark:border-white/10">
+        <div className="pt-5 pb-5 border-t border-b border-slate-200/70 dark:border-white/10">
             <div className="space-y-3">
                 <div className="flex items-center gap-3">
                     <ShieldCheck size={18} className="text-brand-600 dark:text-gold-400 shrink-0" />
