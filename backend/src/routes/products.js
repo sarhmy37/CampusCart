@@ -111,10 +111,10 @@ router.get('/:id', async (req, res) => {
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.old_price, p.condition, p.stock, p.video_url, p.created_at,
-                p.rating, p.review_count,
+                p.rating, p.review_count, p.service_duration,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
-                u.meeting_place AS seller_meeting_place, u.location AS seller_location,
+                u.meeting_place AS seller_meeting_place,
                 u.whatsapp AS seller_whatsapp, u.verified AS seller_verified, u.last_active AS seller_last_active,
                 u.avatar_url AS seller_avatar, u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at,
                 c.name AS category,
@@ -147,6 +147,7 @@ router.post('/', requireAuth, async (req, res) => {
     const {
         title, description, price, condition, category, stock, images, video, network,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
+        service_duration,
     } = req.body;
 
     if (!title || !price || !images || images.length === 0) {
@@ -200,11 +201,11 @@ router.post('/', requireAuth, async (req, res) => {
         const productResult = await client.query(
             `INSERT INTO products
                 (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url, network,
-                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus)
-             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus, service_duration)
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING id`,
             [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl, network || null,
-             feeOnCampus, feeNearCampus, feeFarCampus]
+             feeOnCampus, feeNearCampus, feeFarCampus, service_duration || null]
         );
 
         const productId = productResult.rows[0].id;
