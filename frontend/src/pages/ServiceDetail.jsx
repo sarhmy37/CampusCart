@@ -192,7 +192,7 @@ export default function ServiceDetail() {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
             {/* HEADER — video hero */}
-            <section className="relative overflow-hidden h-[46vh] min-h-[300px] sm:h-[52vh] sm:min-h-[380px]">
+            <section className="relative overflow-hidden h-[36vh] min-h-[240px] sm:h-[40vh] sm:min-h-[300px]">
                 {service.video_url ? (
                     <video
                         key={service.video_url}
@@ -253,32 +253,28 @@ export default function ServiceDetail() {
                             )}
                         </div>
 
-<div className="flex items-stretch mt-3">
-    {service.seller_avatar ? (
-        <img
-            src={service.seller_avatar}
-            alt={service.seller_name}
-            className="w-20 sm:w-24 object-cover rounded-r-full -ml-4 sm:-ml-6 shrink-0"
-        />
-    ) : (
-        <div className="w-20 sm:w-24 flex items-center justify-center bg-brand-600 text-white font-bold text-2xl rounded-r-full -ml-4 sm:-ml-6 shrink-0">
-            {service.seller_name?.[0]?.toUpperCase() || '?'}
-        </div>
-    )}
-    <div className="ml-3 min-w-0">
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-white max-w-2xl drop-shadow-sm">
-            {service.title || service.name}
-        </h1>
-        <p className="text-2xl sm:text-3xl font-black text-white mt-2 drop-shadow-sm">
-            GHS {parseFloat(service.price).toFixed(2)}
-        </p>
-    </div>
-</div>
+                        <div className="flex items-stretch mt-3">
+                            {service.seller_avatar && (
+                                <img
+                                    src={service.seller_avatar}
+                                    alt={service.seller_name}
+                                    className="w-20 sm:w-24 object-cover rounded-r-full -ml-4 sm:-ml-6 shrink-0"
+                                />
+                            )}
+                            <div className="ml-3 min-w-0">
+                                <h1 className="text-2xl sm:text-4xl font-extrabold text-white max-w-2xl drop-shadow-sm">
+                                    {service.title || service.name}
+                                </h1>
+                                <p className="text-2xl sm:text-3xl font-black text-white mt-2 drop-shadow-sm">
+                                    GHS {parseFloat(service.price).toFixed(2)}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-1 sm:pt-2 pb-8">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-0 pb-8">
                 <div className="grid md:grid-cols-3 gap-6">
                     {/* ─── LEFT: gallery + details ─── */}
                     <div className="md:col-span-2 space-y-5">
