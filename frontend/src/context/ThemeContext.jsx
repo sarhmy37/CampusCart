@@ -12,10 +12,6 @@ export function ThemeProvider({ children }) {
     const [theme, setThemeState] = useState(() => {
         const saved = localStorage.getItem('cc_theme');
         if (saved) return saved;
-
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
-        }
         return 'light';
     });
 
@@ -36,18 +32,6 @@ export function ThemeProvider({ children }) {
             meta.setAttribute('content', theme === 'dark' ? '#0d0c0a' : '#ffffff');
         }
     }, [theme]);
-    // Live-follow the system setting, but only while the user hasn't set an
-    // explicit override. Attaches a real 'change' listener so flipping the
-    // phone/OS setting updates the app immediately, without a reload.
-    useEffect(() => {
-        if (localStorage.getItem('cc_theme')) return; // user has an explicit override — don't fight it
-
-        const mq = window.matchMedia('(prefers-color-scheme: dark)');
-        const handleChange = (e) => setThemeState(e.matches ? 'dark' : 'light');
-
-        mq.addEventListener('change', handleChange);
-        return () => mq.removeEventListener('change', handleChange);
-    }, []);
 
     // Explicit user choice — this is what actually writes the override.
     const setTheme = (next) => {
