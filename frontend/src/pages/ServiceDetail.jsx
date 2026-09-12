@@ -216,6 +216,8 @@ export default function ServiceDetail() {
 
                 {/* Gradient overlays for legibility */}
                 <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-ink-900/25 to-ink-900/50 pointer-events-none" />
+                {/* Fade the hero into the page background, same treatment as the video panel on Create Listing */}
+                <div className="absolute inset-x-0 bottom-0 h-24 sm:h-32 bg-gradient-to-b from-transparent to-slate-50 dark:to-ink-900 pointer-events-none" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl pointer-events-none" />
 
                 {/* Back button */}
@@ -261,7 +263,7 @@ export default function ServiceDetail() {
                 </div>
             </section>
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4 pb-8">
                 <div className="grid md:grid-cols-3 gap-6">
                     {/* ─── LEFT: gallery + details ─── */}
                     <div className="md:col-span-2 space-y-5">
