@@ -508,7 +508,7 @@ export default function ServiceDetail() {
 
                     {/* ─── RIGHT: sticky booking card ─── */}
                     <div className="md:col-span-1">
-                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm sticky top-24">
+                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6 shadow-sm sticky top-24 overflow-hidden">
                             <div className="flex items-center gap-2.5 mb-1">
                                 <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                                     <Calendar size={16} />
@@ -531,7 +531,8 @@ export default function ServiceDetail() {
                                             value={bookingDate}
                                             onChange={e => setBookingDate(e.target.value)}
                                             min={new Date().toISOString().split('T')[0]}
-                                            className="w-full min-w-0 max-w-full box-border px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:[color-scheme:dark] focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                            style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
+                                            className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                             required
                                         />
                                     </div>
@@ -543,7 +544,8 @@ export default function ServiceDetail() {
                                             type="time"
                                             value={bookingTime}
                                             onChange={e => setBookingTime(e.target.value)}
-                                            className="w-full min-w-0 max-w-full box-border px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:[color-scheme:dark] focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                            style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
+                                            className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                             required
                                         />
                                         {hasScheduledHours && (
