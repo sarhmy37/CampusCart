@@ -29,13 +29,24 @@ router.post('/', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'You cannot book your own service.' });
         }
 
-        // 3. Check for double booking (optional)
+        // 3. Check for double booking — same service, same date, same time only.
+        // A 'confirmed' booking always blocks the slot. A 'pending_payment' booking
+        // only blocks it while it's still fresh (checkout in progress); if the buyer
+        // abandoned checkout more than 15 minutes ago, we treat the slot as free again
+        // instead of it staying blocked forever with no cleanup job.
         const existing = await pool.query(
-            `SELECT id FROM bookings WHERE service_id = $1 AND status IN ('pending_payment', 'confirmed')`,
-            [service_id]
+            `SELECT id FROM bookings
+             WHERE service_id = $1
+               AND booking_date = $2
+               AND booking_time = $3
+               AND (
+                   status = 'confirmed'
+                   OR (status = 'pending_payment' AND created_at > NOW() - INTERVAL '15 minutes')
+               )`,
+            [service_id, booking_date, booking_time]
         );
         if (existing.rows.length > 0) {
-            return res.status(409).json({ error: 'This service is currently booked or pending. Please try another time.' });
+            return res.status(409).json({ error: 'This time slot is currently booked or pending. Please try another time.' });
         }
 
         // 4. Insert booking with pending_payment status

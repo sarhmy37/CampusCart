@@ -524,40 +524,42 @@ export default function ServiceDetail() {
                                 </p>
                             ) : (
                                 <form onSubmit={handleBook} className="mt-5 space-y-3.5">
-                                    <div>
-                                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-1">
-                                            <Calendar size={13} /> Date
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={bookingDate}
-                                            onChange={e => setBookingDate(e.target.value)}
-                                            min={new Date().toISOString().split('T')[0]}
-                                            style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                                            className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
-                                            required
-                                        />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-1">
+                                                <Calendar size={13} /> Date
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={bookingDate}
+                                                onChange={e => setBookingDate(e.target.value)}
+                                                min={new Date().toISOString().split('T')[0]}
+                                                style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
+                                                className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-1">
+                                                <Clock size={13} /> Time
+                                            </label>
+                                            <input
+                                                type="time"
+                                                value={bookingTime}
+                                                onChange={e => setBookingTime(e.target.value)}
+                                                style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
+                                                className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                                required
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-1">
-                                            <Clock size={13} /> Time
-                                        </label>
-                                        <input
-                                            type="time"
-                                            value={bookingTime}
-                                            onChange={e => setBookingTime(e.target.value)}
-                                            style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                                            className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
-                                            required
-                                        />
-                                        {hasScheduledHours && (
-                                            <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-1">
-                                                {allSameHours
-                                                    ? `Available ${availability.days.map((d) => d.day).join(', ')} · ${formatTime12(availability.days[0].open)}–${formatTime12(availability.days[0].close)}`
-                                                    : 'Hours vary by day — check the details above'}
-                                            </p>
-                                        )}
-                                    </div>
+                                    {hasScheduledHours && (
+                                        <p className="text-[11px] text-slate-400 dark:text-gold-200/50 -mt-2">
+                                            {allSameHours
+                                                ? `Available ${availability.days.map((d) => d.day).join(', ')} · ${formatTime12(availability.days[0].open)}–${formatTime12(availability.days[0].close)}`
+                                                : 'Hours vary by day — check the details above'}
+                                        </p>
+                                    )}
                                     <div>
                                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-1">
                                             <MessageSquare size={13} /> Message (optional)
