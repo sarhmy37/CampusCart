@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { SCHOOL_COORDS } from './Register';
 import {
     Star, MapPin, Clock, ChevronLeft, ChevronRight, Calendar, ShieldCheck,
@@ -37,6 +38,7 @@ function formatTime12(time24) {
 export default function ServiceDetail() {
     const { id } = useParams();
     const { user } = useAuth();
+    const { theme } = useTheme();
     const navigate = useNavigate();
     const [service, setService] = useState(null);
     const [loading, setLoading] = useState(true);
