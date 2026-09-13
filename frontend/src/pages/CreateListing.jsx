@@ -168,6 +168,7 @@ export default function CreateListing() {
         title: '',
         description: '',
         price: '',
+        priceMax: '',
     });
     const [is247, setIs247] = useState(false);
     const [workingDays, setWorkingDays] = useState(
@@ -526,7 +527,11 @@ export default function CreateListing() {
             return;
         }
         if (!serviceForm.price || parseFloat(serviceForm.price) <= 0) {
-            toast.error('Enter a valid price');
+            toast.error('Enter a valid starting price');
+            return;
+        }
+        if (serviceForm.priceMax && parseFloat(serviceForm.priceMax) < parseFloat(serviceForm.price)) {
+            toast.error('The upper price can\'t be less than the starting price');
             return;
         }
         if (serviceImageUrls.length === 0) {
@@ -561,6 +566,7 @@ export default function CreateListing() {
                 title: serviceForm.title,
                 description: serviceForm.description || 'No description provided.',
                 price: toCharmPrice(serviceForm.price),
+                price_max: serviceForm.priceMax ? toCharmPrice(serviceForm.priceMax) : null,
                 condition: 'new',
                 stock: 999, // Services are unlimited
                 category: 'Services',
@@ -577,7 +583,7 @@ export default function CreateListing() {
             await api.post('/products', payload);
             toast.success('Service created! It will appear in the Services category.');
             // Reset service form
-            setServiceForm({ title: '', description: '', price: '' });
+            setServiceForm({ title: '', description: '', price: '', priceMax: '' });
             setIs247(false);
             setWorkingDays(WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' })));
             setServiceImageUrls([]);
@@ -1073,10 +1079,10 @@ export default function CreateListing() {
                                     <div>
                                         <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Description</label>
                                         <textarea
-                                            rows={3}
+                                            rows={4}
                                             value={serviceForm.description}
                                             onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
-                                            placeholder="What you offer, your experience, availability"
+                                            placeholder={'What you offer, your experience, availability.\n\nTip: if your service has different options (e.g. Box braids – GHS 80, Cornrows – GHS 50), list them here so buyers know what to expect.'}
                                             className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition resize-none"
                                         />
                                     </div>
@@ -1118,17 +1124,31 @@ export default function CreateListing() {
                                     />
 
                                     <div>
-                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Price (GHS)</label>
-                                        <input
-                                            required
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={serviceForm.price}
-                                            onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })}
-                                            placeholder="e.g. 50"
-                                            className="w-full mt-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
-                                        />
+                                        <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Price range (GHS)</label>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-0.5 mb-1.5">
+                                            What your service typically costs, from cheapest to priciest option.
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <input
+                                                required
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={serviceForm.price}
+                                                onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })}
+                                                placeholder="From e.g. 30"
+                                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={serviceForm.priceMax}
+                                                onChange={(e) => setServiceForm({ ...serviceForm, priceMax: e.target.value })}
+                                                placeholder="To (optional) e.g. 100"
+                                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* WORKING HOURS */}

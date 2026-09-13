@@ -62,7 +62,7 @@ router.get('/', async (req, res) => {
         const result = await pool.query(
             `SELECT
                 p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.network, p.primary_image, p.video_url, p.created_at,
-                p.rating, p.review_count,
+                p.rating, p.review_count, p.price_max, p.service_duration,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place, u.location AS seller_location,
@@ -111,7 +111,7 @@ router.get('/:id', async (req, res) => {
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.old_price, p.condition, p.stock, p.video_url, p.created_at,
-                p.rating, p.review_count, p.service_duration,
+                p.rating, p.review_count, p.service_duration, p.price_max,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place,
@@ -145,7 +145,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/products — create a listing
 router.post('/', requireAuth, async (req, res) => {
     const {
-        title, description, price, condition, category, stock, images, video, network,
+        title, description, price, price_max, condition, category, stock, images, video, network,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
         service_duration,
     } = req.body;
@@ -201,11 +201,11 @@ router.post('/', requireAuth, async (req, res) => {
         const productResult = await client.query(
             `INSERT INTO products
                 (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url, network,
-                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus, service_duration)
-             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus, service_duration, price_max)
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              RETURNING id`,
             [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl, network || null,
-             feeOnCampus, feeNearCampus, feeFarCampus, service_duration || null]
+             feeOnCampus, feeNearCampus, feeFarCampus, service_duration || null, price_max || null]
         );
 
         const productId = productResult.rows[0].id;

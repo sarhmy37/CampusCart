@@ -264,7 +264,9 @@ export default function ServiceDetail() {
                                     {service.title || service.name}
                                 </h1>
                                 <p className="text-2xl sm:text-3xl font-black text-white mt-2 drop-shadow-sm">
-                                    GHS {parseFloat(service.price).toFixed(2)}
+                                    {service.price_max && parseFloat(service.price_max) > parseFloat(service.price)
+                                        ? `GHS ${parseFloat(service.price).toFixed(2)} – ${parseFloat(service.price_max).toFixed(2)}`
+                                        : `GHS ${parseFloat(service.price).toFixed(2)}`}
                                 </p>
                             </div>
                         </div>
