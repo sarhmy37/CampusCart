@@ -1,8 +1,43 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
 
+function parseAvailability(raw) {
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+        return null;
+    } catch {
+        return null; // old plain-text duration values (e.g. "2hrs")
+    }
+}
+
+function formatTime12(time24) {
+    if (!time24 || typeof time24 !== 'string') return '';
+    const [hStr, mStr] = time24.split(':');
+    let h = parseInt(hStr, 10);
+    if (Number.isNaN(h)) return '';
+    const period = h < 12 ? 'AM' : 'PM';
+    const displayHour = h % 12 === 0 ? 12 : h % 12;
+    return `${displayHour}:${mStr} ${period}`;
+}
+
 export default function ServiceCard({ service }) {
     const hasRating = service.rating && parseFloat(service.rating) > 0;
+
+    const availability = parseAvailability(service.service_duration);
+    const legacyDuration = !availability ? service.service_duration : null;
+    const hasScheduledHours = !!(
+        availability && !availability.is_24_7 &&
+        Array.isArray(availability.days) && availability.days.length > 0
+    );
+    const durationLabel = availability
+        ? (availability.is_24_7
+            ? 'Open 24/7'
+            : hasScheduledHours
+                ? `${availability.days[0].day} ${formatTime12(availability.days[0].open)}–${formatTime12(availability.days[0].close)}${availability.days.length > 1 ? ` +${availability.days.length - 1}` : ''}`
+                : null)
+        : legacyDuration;
 
     const isPlanActive = service.seller_plan && service.seller_plan !== 'free' &&
         service.seller_plan_expires_at && new Date(service.seller_plan_expires_at) > new Date();
@@ -35,9 +70,9 @@ export default function ServiceCard({ service }) {
                 </span>
 
                 {/* Duration, if set */}
-                {service.service_duration && (
+                {durationLabel && (
                     <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 bg-black/50 backdrop-blur text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                        {service.service_duration}
+                        {durationLabel}
                     </span>
                 )}
             </div>
