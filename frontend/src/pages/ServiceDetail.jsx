@@ -23,18 +23,15 @@ function parseAvailability(raw) {
     }
 }
 
-// "9:00 AM" -> "09:00" (24hr, for <input type="time"> min/max)
-// Defensive: returns undefined instead of throwing if label is missing/malformed,
-// since older/partial availability records may not have openTime/closeTime set.
-function to24Hour(label) {
-    if (!label || typeof label !== 'string') return undefined;
-    const [time, period] = label.split(' ');
-    if (!time) return undefined;
-    let [hours, minutes] = time.split(':').map(Number);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return undefined;
-    if (period === 'PM' && hours !== 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+// "09:00" (24hr, as stored) -> "9:00 AM" (for display)
+function formatTime12(time24) {
+    if (!time24 || typeof time24 !== 'string') return '';
+    const [hStr, mStr] = time24.split(':');
+    let h = parseInt(hStr, 10);
+    if (Number.isNaN(h)) return '';
+    const period = h < 12 ? 'AM' : 'PM';
+    const displayHour = h % 12 === 0 ? 12 : h % 12;
+    return `${displayHour}:${mStr} ${period}`;
 }
 
 export default function ServiceDetail() {
@@ -124,17 +121,22 @@ export default function ServiceDetail() {
     // Only treat the schedule as "set" if it actually has the fields we need.
     const hasScheduledHours = !!(
         availability &&
-        !availability.is247 &&
-        availability.days?.length &&
-        availability.openTime &&
-        availability.closeTime
+        !availability.is_24_7 &&
+        Array.isArray(availability.days) &&
+        availability.days.length > 0
+    );
+
+    const allSameHours = hasScheduledHours && availability.days.every(
+        (d) => d.open === availability.days[0].open && d.close === availability.days[0].close
     );
 
     const availabilitySummary = availability
-        ? (availability.is247
+        ? (availability.is_24_7
             ? 'Open 24/7'
             : hasScheduledHours
-                ? `${availability.days.join(', ')} · ${availability.openTime}–${availability.closeTime}`
+                ? (allSameHours
+                    ? `${availability.days.map((d) => d.day).join(', ')} · ${formatTime12(availability.days[0].open)}–${formatTime12(availability.days[0].close)}`
+                    : availability.days.map((d) => `${d.day} ${formatTime12(d.open)}–${formatTime12(d.close)}`).join(', '))
                 : 'Hours not fully set')
         : (legacyDuration || 'Flexible timing');
 
@@ -147,10 +149,6 @@ export default function ServiceDetail() {
     const serviceLng = hasExactLocation ? exactLng : schoolCoords?.lng;
     const hasServiceLocation = typeof serviceLat === 'number' && typeof serviceLng === 'number';
 
-    const timeInputBounds = hasScheduledHours
-        ? { min: to24Hour(availability.openTime), max: to24Hour(availability.closeTime) }
-        : {};
-
     const handleBook = async (e) => {
         e.preventDefault();
         if (!bookingDate || !bookingTime) {
@@ -159,13 +157,13 @@ export default function ServiceDetail() {
         }
         if (hasScheduledHours) {
             const pickedDay = DAY_NAMES[new Date(bookingDate + 'T00:00:00').getDay()];
-            if (!availability.days?.includes(pickedDay)) {
-                toast.error(`This provider isn't available on ${pickedDay}s. Pick from: ${availability.days.join(', ')}`);
+            const dayInfo = availability.days.find((d) => d.day === pickedDay);
+            if (!dayInfo) {
+                toast.error(`This provider isn't available on ${pickedDay}s. Pick from: ${availability.days.map((d) => d.day).join(', ')}`);
                 return;
             }
-            if (timeInputBounds.min && timeInputBounds.max &&
-                (bookingTime < timeInputBounds.min || bookingTime > timeInputBounds.max)) {
-                toast.error(`This provider is only available ${availability.openTime}–${availability.closeTime}`);
+            if (bookingTime < dayInfo.open || bookingTime > dayInfo.close) {
+                toast.error(`This provider is only available ${formatTime12(dayInfo.open)}–${formatTime12(dayInfo.close)} on ${pickedDay}s`);
                 return;
             }
         }
@@ -239,9 +237,6 @@ export default function ServiceDetail() {
                 <div className="absolute bottom-0 left-0 right-0 z-10 px-4 sm:px-6 pb-20 sm:pb-24">
                     <div className="max-w-5xl mx-auto">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                <Briefcase size={12} /> Service
-                            </span>
                             {hasRating && (
                                 <span className="inline-flex items-center gap-1 bg-white/15 text-white text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur">
                                     <Star size={12} className="text-gold-300 fill-gold-300" />
@@ -455,7 +450,9 @@ export default function ServiceDetail() {
                                 <div className="min-w-0">
                                     <p className="text-[10px] text-slate-400 dark:text-gold-200/50 uppercase font-semibold">Location</p>
                                     <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">
-                                        {service.seller_school || 'Not specified'}
+                                        {service.seller_meeting_place
+                                            ? `${service.seller_meeting_place}, ${service.seller_school}`
+                                            : service.seller_school || 'Not specified'}
                                     </p>
                                 </div>
                             </div>
@@ -499,7 +496,7 @@ export default function ServiceDetail() {
                                             value={bookingDate}
                                             onChange={e => setBookingDate(e.target.value)}
                                             min={new Date().toISOString().split('T')[0]}
-                                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                            className="w-full min-w-0 max-w-full box-border px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                             required
                                         />
                                     </div>
@@ -511,13 +508,14 @@ export default function ServiceDetail() {
                                             type="time"
                                             value={bookingTime}
                                             onChange={e => setBookingTime(e.target.value)}
-                                            {...timeInputBounds}
-                                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                            className="w-full min-w-0 max-w-full box-border px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                             required
                                         />
                                         {hasScheduledHours && (
                                             <p className="text-[11px] text-slate-400 dark:text-gold-200/50 mt-1">
-                                                Available {availability.days.join(', ')} · {availability.openTime}–{availability.closeTime}
+                                                {allSameHours
+                                                    ? `Available ${availability.days.map((d) => d.day).join(', ')} · ${formatTime12(availability.days[0].open)}–${formatTime12(availability.days[0].close)}`
+                                                    : 'Hours vary by day — check the details above'}
                                             </p>
                                         )}
                                     </div>
