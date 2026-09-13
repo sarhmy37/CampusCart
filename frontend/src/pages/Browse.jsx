@@ -128,15 +128,7 @@ const TAB_ICONS = {
     categories: { outline: Squares2X2Icon, solid: Squares2X2IconSolid },
     nearby: { outline: MapPinIcon, solid: MapPinIconSolid },
     verified: { outline: CheckBadgeIcon, solid: CheckBadgeIconSolid },
-};
-
-// How many px of scroll it takes for the target to reach fully collapsed.
-const MOBILE_COLLAPSE_DISTANCE = 5;
-const SPRING_SMOOTHING = 0.1;
-
-const lerp = (from, to, t) => from + (to - from) * t;
-const clamp01 = (n) => Math.min(1, Math.max(0, n));
-
+}
 export default function Browse() {
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
@@ -166,12 +158,9 @@ export default function Browse() {
     const [momoNumber, setMomoNumber] = useState('');
     const [placingOrder, setPlacingOrder] = useState(false);
 
-    const [progress, setProgress] = useState(0);
     const [isMobileViewport, setIsMobileViewport] = useState(
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
     );
-    const targetProgressRef = useRef(0);
-    const scrollTickingRef = useRef(false);
 
     const [verifiedNoteText, setVerifiedNoteText] = useState('');
 
@@ -212,43 +201,10 @@ export default function Browse() {
     }, [itemCategory, dataNetwork]);
 
     useEffect(() => {
-        const evaluate = () => {
-            const mobile = window.innerWidth < 640;
-            setIsMobileViewport(mobile);
-            targetProgressRef.current = mobile ? clamp01(window.scrollY / MOBILE_COLLAPSE_DISTANCE) : 0;
-        };
-
-        const onScrollOrResize = () => {
-            if (scrollTickingRef.current) return;
-            scrollTickingRef.current = true;
-            window.requestAnimationFrame(() => {
-                evaluate();
-                scrollTickingRef.current = false;
-            });
-        };
-
+        const evaluate = () => setIsMobileViewport(window.innerWidth < 640);
         evaluate();
-        window.addEventListener('scroll', onScrollOrResize, { passive: true });
-        window.addEventListener('resize', onScrollOrResize);
-        return () => {
-            window.removeEventListener('scroll', onScrollOrResize);
-            window.removeEventListener('resize', onScrollOrResize);
-        };
-    }, []);
-
-    useEffect(() => {
-        let rafId;
-        const loop = () => {
-            setProgress((prev) => {
-                const target = targetProgressRef.current;
-                const diff = target - prev;
-                if (Math.abs(diff) < 0.0006) return target;
-                return prev + diff * SPRING_SMOOTHING;
-            });
-            rafId = window.requestAnimationFrame(loop);
-        };
-        rafId = window.requestAnimationFrame(loop);
-        return () => window.cancelAnimationFrame(rafId);
+        window.addEventListener('resize', evaluate);
+        return () => window.removeEventListener('resize', evaluate);
     }, []);
 
     useEffect(() => {
@@ -517,87 +473,29 @@ export default function Browse() {
         ? 'Browse Services'
         : search ? `Results for "${search}"` : 'Browse listings';
 
-    const sectionPadding = isMobileViewport
-        ? { paddingTop: lerp(32, 14, progress), paddingBottom: lerp(32, 14, progress) }
-        : undefined;
-
-    const imageOpacity = isMobileViewport ? 1 - progress : 1;
-
-    const btnPadX = lerp(10, 9, progress);
-    const btnPadY = lerp(4, 9, progress);
-    const btnIconSize = lerp(12, 14, progress);
-    const btnInnerGap = lerp(4, 0, progress);
-    const labelMaxWidth = lerp(40, 0, progress);
-    const labelOpacity = 1 - progress;
-
-    const rowAGap = lerp(0, 8, progress);
-    const rowATitleOpacity = progress;
-    const rowATitleFontSize = lerp(0, 16, progress);
-
-    const rowBMaxHeight = lerp(76, 0, progress);
-    const rowBOpacity = 1 - progress;
-    const rowBMarginTop = lerp(16, 0, progress);
-
     return (
         <div className="relative min-h-screen">
             {/* HEADER STRIP */}
             <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
-                <div className="absolute inset-0" style={{ opacity: imageOpacity }}>
+                <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
                     <div className="absolute inset-0 bg-gradient-to-br from-ink-900/65 via-ink-800/45 to-brand-600/25 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
                 </div>
-                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" style={{ opacity: imageOpacity }} />
-                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" style={{ opacity: imageOpacity }} />
-
-                <div
-                    className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10"
-                    style={sectionPadding}
-                >
-                    {/* ── MOBILE Row A: back button + title ── */}
-                    <div className="sm:hidden flex items-center" style={{ gap: `${rowAGap}px` }}>
+                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
+                <div className="absolute left-1/3 -bottom-20 w-56 h-56 bg-brand-300/20 dark:bg-gold-300/10 rounded-full blur-3xl" />
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+                    {/* ── MOBILE: back button + title + budget + category request, always shown ── */}
+                    <div className="sm:hidden">
                         <Link
                             to="/"
                             aria-label="Back to home"
-                            className="inline-flex items-center bg-white/10 text-white font-semibold rounded-full border border-white/30 hover:bg-white/20 active:scale-95 backdrop-blur shrink-0 transition-colors duration-200"
-                            style={{
-                                paddingLeft: btnPadX,
-                                paddingRight: btnPadX,
-                                paddingTop: btnPadY,
-                                paddingBottom: btnPadY,
-                                gap: `${btnInnerGap}px`,
-                            }}
+                            className="inline-flex items-center gap-1 bg-white/10 text-white font-semibold rounded-full border border-white/30 hover:bg-white/20 active:scale-95 backdrop-blur shrink-0 transition-colors duration-200 px-2.5 py-1"
                         >
-                            <ArrowLeft
-                                className="shrink-0"
-                                style={{ width: btnIconSize, height: btnIconSize }}
-                            />
-                            <span
-                                className="text-xs whitespace-nowrap overflow-hidden inline-block"
-                                style={{ maxWidth: labelMaxWidth, opacity: labelOpacity }}
-                            >
-                                Home
-                            </span>
+                            <ArrowLeft className="w-3 h-3 shrink-0" />
+                            <span className="text-xs whitespace-nowrap">Home</span>
                         </Link>
 
-                        <span
-                            className="font-extrabold text-white truncate"
-                            style={{ opacity: rowATitleOpacity, fontSize: `${rowATitleFontSize}px` }}
-                        >
-                            {headerTitle}
-                        </span>
-                    </div>
-
-                    {/* ── MOBILE Row B: original title + budget + category request ── */}
-                    <div
-                        className="sm:hidden overflow-hidden"
-                        style={{
-                            maxHeight: rowBMaxHeight,
-                            opacity: rowBOpacity,
-                            marginTop: rowBMarginTop,
-                            pointerEvents: progress > 0.6 ? 'none' : 'auto',
-                        }}
-                    >
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3 mt-4">
                             <h1 className="text-xl font-extrabold text-white truncate">
                                 {headerTitle}
                             </h1>
