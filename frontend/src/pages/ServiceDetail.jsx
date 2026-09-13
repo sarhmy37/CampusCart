@@ -387,34 +387,6 @@ export default function ServiceDetail() {
                             )}
                         </div>
 
-                        {/* Photo thumbnails, now secondary to the map */}
-                        {images.length > 1 && (
-                            <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl overflow-hidden shadow-sm">
-                                <div className="aspect-[16/10] bg-slate-100 dark:bg-ink-700">
-                                    <img
-                                        src={images[activeImage]}
-                                        alt={service.title}
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                                <div className="flex gap-2 p-3 overflow-x-auto">
-                                    {images.map((src, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setActiveImage(i)}
-                                            className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
-                                                activeImage === i
-                                                    ? 'border-brand-600 dark:border-gold-500'
-                                                    : 'border-transparent opacity-60 hover:opacity-100'
-                                            }`}
-                                        >
-                                            <img src={src} alt="" className="w-full h-full object-cover" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
                         {/* PROVIDER CARD */}
                         <div className={`bg-white dark:bg-ink-800 border rounded-2xl p-5 shadow-sm ${
                             sellerPlan === 'premium'
