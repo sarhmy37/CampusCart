@@ -236,7 +236,7 @@ export default function ServiceDetail() {
                 </div>
 
                 {/* Content, bottom-anchored */}
-                <div className="absolute bottom-0 left-0 right-0 z-10 px-4 sm:px-6 pb-6 sm:pb-8">
+                <div className="absolute bottom-0 left-0 right-0 z-10 px-4 sm:px-6 pb-20 sm:pb-24">
                     <div className="max-w-5xl mx-auto">
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">
