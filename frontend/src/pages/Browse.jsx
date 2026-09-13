@@ -238,7 +238,7 @@ export default function Browse() {
     const headerFadeStyle = {
         WebkitMaskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
         maskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
-        opacity: 1 - headerOpacityProgress * 0.8,
+        opacity: 1 - headerOpacityProgress * 0.9,
     };
 
     useEffect(() => {
