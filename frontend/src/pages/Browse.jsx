@@ -131,8 +131,8 @@ const TAB_ICONS = {
 };
 
 // How many px of scroll it takes for the target to reach fully collapsed.
-const MOBILE_COLLAPSE_DISTANCE = 15;
-const SPRING_SMOOTHING = 0.2;
+const MOBILE_COLLAPSE_DISTANCE = 10;
+const SPRING_SMOOTHING = 0.1;
 
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
