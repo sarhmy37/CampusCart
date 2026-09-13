@@ -1147,7 +1147,7 @@ export default function CreateListing() {
                                                             onClick={() => toggleWorkingDay(d.day)}
                                                             className={`w-14 shrink-0 text-xs font-semibold py-2 rounded-lg border transition ${
                                                                 d.enabled
-                                                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                                                    ? 'bg-brand-600 dark:bg-gold-500 border-brand-600 dark:border-gold-500 text-white dark:text-ink-900'
                                                                     : 'bg-white dark:bg-ink-800 border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-300/50'
                                                             }`}
                                                         >
@@ -1221,18 +1221,18 @@ export default function CreateListing() {
                                                 type="button"
                                                 onClick={captureServiceLocation}
                                                 disabled={locatingService}
-                                                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-sm font-semibold transition disabled:opacity-60 ${
+                                                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold text-center leading-tight transition disabled:opacity-60 ${
                                                     serviceLocation
                                                         ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
                                                         : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-50 dark:hover:bg-ink-700'
                                                 }`}
                                             >
                                                 {locatingService ? (
-                                                    <Loader2 size={15} className="animate-spin" />
+                                                    <Loader2 size={15} className="shrink-0 animate-spin" />
                                                 ) : (
-                                                    <MapPin size={15} />
+                                                    <MapPin size={15} className="shrink-0" />
                                                 )}
-                                                {locatingService ? 'Getting…' : 'Use my current location'}
+                                                <span>{locatingService ? 'Getting…' : 'Use current location'}</span>
                                             </button>
                                         </div>
 
