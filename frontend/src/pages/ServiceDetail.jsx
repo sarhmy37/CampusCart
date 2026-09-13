@@ -195,7 +195,7 @@ export default function ServiceDetail() {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
             {/* HEADER — video hero */}
-            <section className="relative overflow-hidden h-[36vh] min-h-[240px] sm:h-[40vh] sm:min-h-[300px]">
+            <section className="relative overflow-hidden h-[60vh] min-h-[400px] sm:h-[66vh] sm:min-h-[480px]">
                 {service.video_url ? (
                     <video
                         key={service.video_url}
@@ -236,7 +236,7 @@ export default function ServiceDetail() {
                 </div>
 
                 {/* Content, bottom-anchored */}
-                <div className="absolute bottom-0 left-0 right-0 z-10 px-4 sm:px-6 pb-6 sm:pb-8">
+                <div className="absolute bottom-0 left-0 right-0 z-10 px-4 sm:px-6 pb-2 sm:pb-3">
                     <div className="max-w-5xl mx-auto">
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">
