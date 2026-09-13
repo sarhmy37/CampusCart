@@ -147,7 +147,7 @@ export default function Browse() {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [activeCategory, setActiveCategory] = useState('');
-    const [itemCategory, setItemCategory] = useState('');
+    const [itemCategory, setItemCategory] = useState(() => searchParams.get('category') || '');
     const [school, setSchool] = useState('');
     const [locating, setLocating] = useState(false);
     const [verifiedOnly, setVerifiedOnly] = useState(false);

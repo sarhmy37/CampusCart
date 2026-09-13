@@ -66,6 +66,23 @@ export default function Navbar() {
     const [showProfile, setShowProfile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [mobileExpanded, setMobileExpanded] = useState(false);
+    const expandTimeoutRef = useRef(null);
+
+    const MOBILE_EXPAND_TIMEOUT_MS = 10000;
+
+    // Auto-collapse the mobile icon row after 10s of inactivity — any tap
+    // inside the nav (links, buttons, dropdown toggles) resets the timer,
+    // and it's cleared entirely once the row is manually collapsed.
+    useEffect(() => {
+        if (!mobileExpanded) {
+            clearTimeout(expandTimeoutRef.current);
+            return;
+        }
+        expandTimeoutRef.current = setTimeout(() => {
+            setMobileExpanded(false);
+        }, MOBILE_EXPAND_TIMEOUT_MS);
+        return () => clearTimeout(expandTimeoutRef.current);
+    }, [mobileExpanded]);
     const { theme } = useTheme();
 
     // 👇 Logo click counter (hidden — no visual indicator!)
@@ -245,13 +262,22 @@ export default function Navbar() {
                     </div>
                 )}
 
-                <nav className="flex items-center gap-0.5 sm:gap-2 shrink-0">
+                <nav
+                    className="flex items-center gap-0.5 sm:gap-2 shrink-0"
+                    onClickCapture={() => {
+                        if (mobileExpanded) {
+                            clearTimeout(expandTimeoutRef.current);
+                            expandTimeoutRef.current = setTimeout(() => setMobileExpanded(false), MOBILE_EXPAND_TIMEOUT_MS);
+                        }
+                    }}
+                >
                     {/* Mobile expand button - HIDDEN for admin */}
                     {user && !isAdmin && (
                         <button
                             onClick={() => setMobileExpanded((e) => !e)}
                             className="sm:hidden p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
                             title={mobileExpanded ? 'Hide' : 'More'}
+                            data-nav-icon
                         >
                             {mobileExpanded ? (
                                 <ChevronLeft className="w-4 h-4 text-slate-700 dark:text-gold-200" />
