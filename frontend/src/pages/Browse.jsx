@@ -227,8 +227,8 @@ export default function Browse() {
         };
     }, []);
 
-    const HEADER_FADE_DISTANCE = 220;
-    const HEADER_OPACITY_DISTANCE = 220;
+    const HEADER_FADE_DISTANCE = 110;
+    const HEADER_OPACITY_DISTANCE = 110;
     const headerMaskProgress = Math.min(headerScrollY / HEADER_FADE_DISTANCE, 1);
     const headerOpacityProgress = Math.min(
         Math.max((headerScrollY - HEADER_FADE_DISTANCE) / HEADER_OPACITY_DISTANCE, 0),
@@ -238,7 +238,7 @@ export default function Browse() {
     const headerFadeStyle = {
         WebkitMaskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
         maskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
-        opacity: 1 - headerOpacityProgress * 0.5,
+        opacity: 1 - headerOpacityProgress * 0.8,
     };
 
     useEffect(() => {
