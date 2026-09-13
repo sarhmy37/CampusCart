@@ -1794,11 +1794,12 @@ function MyOrders({ period, isSeller }) {
     useEffect(loadDataOrders, []);
 
     const loadServiceOrders = () => {
-        api.get('/bookings/seller')
+        const endpoint = isSeller ? '/bookings/seller' : '/bookings/buyer';
+        api.get(endpoint)
             .then((res) => setServiceOrders(res.data))
             .catch(() => setServiceOrders([]));
     };
-    useEffect(loadServiceOrders, []);
+    useEffect(loadServiceOrders, [isSeller]);
 
     const handleConfirmReceived = async (orderId, itemId) => {
         if (!window.confirm('⚠️ Are you sure you have received this item? This action cannot be undone.')) {
@@ -1843,7 +1844,7 @@ function MyOrders({ period, isSeller }) {
                                         {b.service_title}
                                     </p>
                                     <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
-                                        Buyer: {b.buyer_name} · {b.buyer_email}
+                                        {isSeller ? `Buyer: ${b.buyer_name} · ${b.buyer_email}` : `Seller: ${b.seller_name} · ${b.seller_email}`}
                                     </p>
                                     <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5">
                                         📅 {new Date(b.booking_date).toLocaleDateString()} · ⏰ {b.booking_time.slice(0, 5)}
@@ -1867,7 +1868,7 @@ function MyOrders({ period, isSeller }) {
                             </p>
 
                             {/* ─── CONFIRM BUTTON FOR SELLER ─── */}
-                            {b.status === 'confirmed' && (
+                            {isSeller && b.status === 'confirmed' && (
                                 <button
                                     onClick={async () => {
                                         if (!window.confirm('Confirm this booking? This will mark it as completed.')) return;

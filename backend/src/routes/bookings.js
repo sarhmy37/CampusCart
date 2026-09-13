@@ -153,6 +153,26 @@ async function processBookingWebhookEvent(event) {
     }
 }
 
+// GET /api/bookings/buyer – bookings the logged-in user has made
+router.get('/buyer', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT b.*, p.title as service_title, u.name as seller_name,
+                    COALESCE(u.personal_email, u.university_email) as seller_email
+             FROM bookings b
+             JOIN products p ON p.id = b.service_id
+             JOIN users u ON u.id = b.seller_id
+             WHERE b.buyer_id = $1 AND b.status IN ('pending_payment', 'confirmed', 'completed')
+             ORDER BY b.created_at DESC`,
+            [req.userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Fetch buyer bookings error:', err);
+        res.status(500).json({ error: 'Failed to fetch your bookings' });
+    }
+});
+
 // GET /api/bookings/seller – bookings for the logged-in seller
 router.get('/seller', requireAuth, async (req, res) => {
     try {
