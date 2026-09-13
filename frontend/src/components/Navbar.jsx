@@ -390,7 +390,7 @@ export default function Navbar() {
                         whenever there's an unread notification, so the badge
                         is impossible to miss without expanding. */}
                     {user && (
-                        <div ref={notificationsRef} className={`relative ${mobileExpanded || unreadCount > 0 ? 'flex' : 'hidden'} sm:flex`}>
+                        <div ref={notificationsRef} className={`relative ${mobileExpanded || unreadCount > 0 || showNotifications ? 'flex' : 'hidden'} sm:flex`}>
                             <button
                                 onClick={toggleNotifications}
                                 className="relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
@@ -440,7 +440,7 @@ export default function Navbar() {
                         place of Notifications whenever there's an unread
                         notification — swaps back once it's read/cleared. */}
                     {user && !isAdmin && (
-                        <Link to="/cart" className={`relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition ${mobileExpanded || unreadCount === 0 ? 'flex' : 'hidden'} sm:flex`}>
+                        <Link to="/cart" className={`relative p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition ${mobileExpanded || (unreadCount === 0 && !showNotifications) ? 'flex' : 'hidden'} sm:flex`}>
                             <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 dark:text-gold-200" />
                             {count > 0 && (
                                 <span className={badgeClass}>{formatBadgeCount(count)}</span>

@@ -455,6 +455,7 @@ export default function ProductDetail() {
                                             src={slide.video_url}
                                             controls
                                             playsInline
+                                            onEnded={() => setActiveImg((prev) => (prev + 1) % slides.length)}
                                             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out ${
                                                 isActive ? 'opacity-100' : 'opacity-0 pointer-events-none'
                                             }`}

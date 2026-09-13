@@ -32,6 +32,11 @@ export const HERO_IMAGES = [
     'PentUNI.jpg',
     'KsTU.png',
     'CU.jpg',
+    'Ashesi.jpg',
+    'KTU.jpg',
+    'GCTU.jpg',
+    'GIMPA.jpg',
+    'UENR.jpg',
 ].map(cloudinaryImage);
 
 export const BROWSE_HEADER_IMAGES = [
@@ -47,6 +52,11 @@ export const BROWSE_HEADER_IMAGES = [
     'KsTU.png',
     'CU.jpg',
     'UMAT.jpg',
+    'Ashesi.jpg',
+    'KTU.jpg',
+    'GCTU.jpg',
+    'GIMPA.jpg',
+    'UENR.jpg',
 ].map(cloudinaryImage);
 
 export const GALLERY = [
