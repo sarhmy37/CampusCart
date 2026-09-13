@@ -439,7 +439,7 @@ export default function ProductDetail() {
 
             <div className="grid lg:grid-cols-5 gap-8">
                 {/* IMAGES / VIDEO */}
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-3 min-w-0">
                     <div className="relative aspect-square bg-slate-100/50 dark:bg-ink-700/50 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-ink-900/50 group border border-white/30 dark:border-white/5">
                         {slides.every((s) => !s.image_url && !s.video_url) ? (
                             <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-ink-500">
