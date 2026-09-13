@@ -228,9 +228,9 @@ export default function ServiceDetail() {
                     <div className="max-w-5xl mx-auto">
                         <Link
                             to="/browse"
-                            className="inline-flex items-center gap-1 bg-white/10 text-white font-semibold px-3.5 py-1.5 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
+                            className="inline-flex items-center gap-1 bg-white/10 text-white font-semibold px-2.5 py-1 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-xs"
                         >
-                            <ChevronLeft size={15} /> Browse
+                            <ChevronLeft size={12} /> Browse
                         </Link>
                     </div>
                 </div>
