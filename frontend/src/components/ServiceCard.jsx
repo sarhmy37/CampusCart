@@ -68,13 +68,6 @@ export default function ServiceCard({ service }) {
                 <span className="absolute top-2 left-2 bg-emerald-600/90 backdrop-blur text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                     Service
                 </span>
-
-                {/* Duration, if set */}
-                {durationLabel && (
-                    <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 bg-black/50 backdrop-blur text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                        {durationLabel}
-                    </span>
-                )}
             </div>
 
             {/* BODY */}
@@ -116,11 +109,18 @@ export default function ServiceCard({ service }) {
                             )}
                         </div>
                     )}
-                    <div className="flex items-center gap-1 text-slate-500 dark:text-gold-200/60">
+                    <div className="flex items-center gap-1.5 text-slate-500 dark:text-gold-200/60">
                         <MapPin size={11} className="shrink-0" />
-                        <span className="text-xs truncate">
-                            {service.seller_school || 'Location not specified'}
-                        </span>
+                        <div className="min-w-0">
+                            <p className="text-[10px] leading-tight truncate">
+                                {service.seller_school || 'Location not specified'}
+                            </p>
+                            {service.seller_meeting_place && (
+                                <p className="text-[10px] leading-tight truncate text-slate-400 dark:text-gold-200/40">
+                                    {service.seller_meeting_place}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
