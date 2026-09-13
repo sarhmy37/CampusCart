@@ -195,8 +195,8 @@ router.post('/register', async (req, res) => {
         const passwordHash = await bcrypt.hash(password, 10);
         const result = await client.query(
             `INSERT INTO users (name, username, university_email, password_hash, school, account_type, whatsapp, location, meeting_place, referral_code, referred_by)
-             VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-            [displayName, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, meeting_place || null, myReferralCode, referrerId]
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+            [displayName, displayName, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, meeting_place || null, myReferralCode, referrerId]
         );
 
         const user = result.rows[0];

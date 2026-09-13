@@ -5,7 +5,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { SCHOOL_COORDS } from './Register';
 import {
-    Star, MapPin, Clock, ChevronLeft, Calendar, ShieldCheck,
+    Star, MapPin, Clock, ChevronLeft, ChevronRight, Calendar, ShieldCheck,
     Loader2, Briefcase, MessageSquare, Tag, ArrowRight, Sparkles,
     Maximize2, Minimize2,
 } from 'lucide-react';
@@ -207,7 +207,7 @@ export default function ServiceDetail() {
                     </video>
                 ) : images.length > 0 ? (
                     <img
-                        src={images[0]}
+                        src={images[activeImage]}
                         alt={service.title}
                         className="absolute inset-0 w-full h-full object-cover"
                     />
@@ -220,6 +220,39 @@ export default function ServiceDetail() {
                 {/* Fade the hero into the page background, same treatment as the video panel on Create Listing */}
                 <div className="absolute inset-x-0 bottom-0 h-24 sm:h-32 bg-gradient-to-b from-transparent to-slate-50 dark:to-ink-900 pointer-events-none" />
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+
+                {/* HERO IMAGE NAV — only when there's no video and more than one photo */}
+                {!service.video_url && images.length > 1 && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setActiveImage((i) => (i === 0 ? images.length - 1 : i - 1))}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-16 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-lg hover:bg-white/25 transition"
+                            aria-label="Previous image"
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveImage((i) => (i === images.length - 1 ? 0 : i + 1))}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-16 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-lg hover:bg-white/25 transition"
+                            aria-label="Next image"
+                        >
+                            <ChevronRight size={20} />
+                        </button>
+                        <div className="absolute bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+                            {images.map((_, i) => (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setActiveImage(i)}
+                                    className={`h-1.5 rounded-full transition-all ${activeImage === i ? 'w-5 bg-white' : 'w-1.5 bg-white/50'}`}
+                                    aria-label={`Go to image ${i + 1}`}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
 
                 {/* Back button */}
                 <div className="absolute top-0 left-0 right-0 z-10 px-4 sm:px-6 pt-6">
@@ -551,7 +584,7 @@ export default function ServiceDetail() {
                                             'Log in to book'
                                         ) : (
                                             <>
-                                                Pay & Book <ArrowRight size={15} />
+                                                Pay(GHS 2) & Book <ArrowRight size={15} />
                                             </>
                                         )}
                                     </button>
