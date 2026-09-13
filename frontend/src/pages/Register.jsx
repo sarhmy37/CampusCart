@@ -541,8 +541,8 @@ export default function Register() {
                 payload.payout_method = payoutMethod;
             }
 
-            await register(payload);
-            toast.success(`Account created! Welcome to Tre-X, ${user.name}`);
+            const newUser = await register(payload);
+            toast.success(`Account created! Welcome to Tre-X, ${newUser.name}`);
             navigate('/');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Registration failed');
