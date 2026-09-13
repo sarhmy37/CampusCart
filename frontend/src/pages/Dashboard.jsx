@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -144,10 +144,24 @@ const TAB_ICONS = {
 export default function Dashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const isSeller = user?.account_type === 'seller';
-    const [tab, setTab] = useState(isSeller ? 'payouts' : 'orders');
+    const requestedTab = searchParams.get('tab');
+    const [tab, setTab] = useState(requestedTab || (isSeller ? 'payouts' : 'orders'));
     const [period, setPeriod] = useState('month');
     const [showProfile, setShowProfile] = useState(false);
+
+    // Arriving from a notification link like /dashboard?tab=orders — jump to
+    // that tab once, then clear the param so later tab switches don't fight
+    // the URL and a refresh doesn't keep forcing you back to it.
+    useEffect(() => {
+        if (requestedTab) {
+            setTab(requestedTab);
+            setVisitedTabs((prev) => (prev.has(requestedTab) ? prev : new Set(prev).add(requestedTab)));
+            setSearchParams({}, { replace: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Gates the WHOLE dashboard (header video + stats) behind one loading
     // screen — nothing pops in piece by piece. The page only reveals once

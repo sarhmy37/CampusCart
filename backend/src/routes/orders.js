@@ -280,7 +280,7 @@ router.post('/webhook', async (req, res) => {
                 'payment_flagged',
                 `We noticed a mismatch with your recent payment (Order #${order.id}). Our team has been notified and will review it shortly.`,
                 order.id,
-                `/orders/${order.id}`
+                `/dashboard?tab=orders`
             );
             return;
         }

@@ -249,13 +249,14 @@ router.post('/', requireAuth, async (req, res) => {
                     ]
                 );
 
+                const isServiceListing = category === 'Services';
                 for (const match of matches.rows) {
                     await insertNotification(
                         match.buyer_id,
                         'saved_search_match',
                         `A new listing matches your saved search: "${title}"`,
                         productId,
-                        `/product/${productId}`
+                        isServiceListing ? `/service/${productId}` : `/product/${productId}`
                     );
                 }
             } catch (err) {

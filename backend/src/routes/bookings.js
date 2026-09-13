@@ -136,7 +136,7 @@ async function processBookingWebhookEvent(event) {
             'booking_confirmed',
             `You have a new booking for "${serviceTitle}" on ${booking.booking_date} at ${booking.booking_time}. Please check the booking details.`,
             booking.id,
-            `/bookings/${booking.id}`
+            `/dashboard?tab=orders`
         );
 
         // Notify buyer
@@ -145,7 +145,7 @@ async function processBookingWebhookEvent(event) {
             'booking_confirmed',
             `Your booking for "${serviceTitle}" is confirmed! Date: ${booking.booking_date}, Time: ${booking.booking_time}.`,
             booking.id,
-            `/bookings/${booking.id}`
+            `/dashboard?tab=orders`
         );
 
     } catch (err) {
@@ -224,7 +224,7 @@ router.patch('/:id/confirm', requireAuth, async (req, res) => {
             'booking_completed',
             `Your booking for "${booking.service_title}" on ${booking.booking_date} at ${booking.booking_time} has been confirmed by the seller. You can now arrange the service.`,
             booking.id,
-            `/bookings/${booking.id}`
+            `/dashboard?tab=orders`
         );
 
         res.json({ success: true, message: 'Booking marked as completed.' });

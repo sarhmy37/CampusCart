@@ -117,6 +117,7 @@ export function NotificationProvider({ children }) {
             updatedStock[p.id] = current;
             const prev = previousStock[p.id];
             if (prev !== undefined && prev > 0 && current === 0) {
+                const isService = (p.category || p.category_name) === 'Services';
                 newNotifs.push({
                     id: `outofstock-${p.id}-${Date.now()}`,
                     productId: p.id,
@@ -124,6 +125,7 @@ export function NotificationProvider({ children }) {
                     title: p.title,
                     message: `Your listing "${p.title}" is now out of stock.`,
                     primary_image: p.primary_image,
+                    link: isService ? `/service/${p.id}` : `/product/${p.id}`,
                     read: false,
                     created_at: new Date().toISOString(),
                 });
@@ -154,16 +156,21 @@ export function NotificationProvider({ children }) {
 
             const newOnes = products.filter((p) => !seenIds.has(p.id));
             if (newOnes.length > 0) {
-                const newNotifs = newOnes.map((p) => ({
-                    id: p.id,
-                    type: 'new_listing',
-                    title: p.title,
-                    category: p.category || p.category_name,
-                    seller_name: p.seller_name,
-                    primary_image: p.primary_image,
-                    read: false,
-                    created_at: new Date().toISOString(),
-                }));
+                const newNotifs = newOnes.map((p) => {
+                    const isService = (p.category || p.category_name) === 'Services';
+                    return {
+                        id: p.id,
+                        type: 'new_listing',
+                        title: isService ? 'New service listed' : 'New product listed',
+                        message: p.seller_name ? `${p.title} — by ${p.seller_name}` : p.title,
+                        category: p.category || p.category_name,
+                        seller_name: p.seller_name,
+                        primary_image: p.primary_image,
+                        link: isService ? `/service/${p.id}` : `/product/${p.id}`,
+                        read: false,
+                        created_at: new Date().toISOString(),
+                    };
+                });
                 setProductNotifs((prev) => [...newNotifs, ...prev]);
 
                 if (newOnes.length === 1) {
