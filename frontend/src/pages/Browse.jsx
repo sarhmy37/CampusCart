@@ -161,7 +161,7 @@ export default function Browse() {
     const [isMobileViewport, setIsMobileViewport] = useState(
         typeof window !== 'undefined' ? window.innerWidth < 640 : false
     );
-
+    const [headerScrollY, setHeaderScrollY] = useState(0);
     const [verifiedNoteText, setVerifiedNoteText] = useState('');
 
     useEffect(() => {
@@ -206,6 +206,40 @@ export default function Browse() {
         window.addEventListener('resize', evaluate);
         return () => window.removeEventListener('resize', evaluate);
     }, []);
+
+    // Scroll-linked header fade: as the page scrolls, the bottom of the
+    // sticky header progressively fades to transparent (revealing the
+    // listings underneath). Past FADE_DISTANCE the whole header also
+    // starts dimming, up to a max of 50% opacity.
+    useEffect(() => {
+        let raf = null;
+        const handleScroll = () => {
+            if (raf) return;
+            raf = requestAnimationFrame(() => {
+                setHeaderScrollY(window.scrollY);
+                raf = null;
+            });
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            if (raf) cancelAnimationFrame(raf);
+        };
+    }, []);
+
+    const HEADER_FADE_DISTANCE = 220;
+    const HEADER_OPACITY_DISTANCE = 220;
+    const headerMaskProgress = Math.min(headerScrollY / HEADER_FADE_DISTANCE, 1);
+    const headerOpacityProgress = Math.min(
+        Math.max((headerScrollY - HEADER_FADE_DISTANCE) / HEADER_OPACITY_DISTANCE, 0),
+        1
+    );
+    const headerMaskStop = (1 - headerMaskProgress) * 100;
+    const headerFadeStyle = {
+        WebkitMaskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
+        maskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
+        opacity: 1 - headerOpacityProgress * 0.5,
+    };
 
     useEffect(() => {
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
@@ -476,7 +510,10 @@ export default function Browse() {
     return (
         <div className="relative min-h-screen">
             {/* HEADER STRIP */}
-            <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
+            <section
+                className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900"
+                style={headerFadeStyle}
+            >
                 <div className="absolute inset-0">
                     <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
                     <div className="absolute inset-0 bg-gradient-to-br from-ink-900/65 via-ink-800/45 to-brand-600/25 dark:from-ink-900/85 dark:via-ink-900/60 dark:to-gold-900/30" />
