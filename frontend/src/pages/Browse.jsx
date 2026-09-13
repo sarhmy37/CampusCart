@@ -131,7 +131,7 @@ const TAB_ICONS = {
 }
 export default function Browse() {
     const { user } = useAuth();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [savingSearch, setSavingSearch] = useState(false);
 
     const isPlanActive = user?.plan && user.plan !== 'free' &&
@@ -470,8 +470,16 @@ export default function Browse() {
         if (value !== 'Mobile Data') setDataNetwork('');
         if (value !== 'Services') setServiceType('');
         setOpenSheet(null);
-    };
 
+        const params = new URLSearchParams(searchParams);
+        if (value) {
+            params.set('category', value);
+        } else {
+            params.delete('category');
+        }
+        setSearchParams(params, { replace: true });
+    }
+    
     const selectSchool = (value) => {
         if (value === '') {
             setSchool('');
