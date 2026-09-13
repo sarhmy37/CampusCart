@@ -501,13 +501,13 @@ export default function ProductDetail() {
                         )}
                     </div>
                     {slides.length > 1 && (
-                        <div className="flex gap-2 mt-3">
-                            {slides.map((slide, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setActiveImg(i)}
-                                    className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 ${activeImg === i ? 'border-brand-500 dark:border-gold-500' : 'border-transparent'}`}
-                                >
+<div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+    {slides.map((slide, i) => (
+        <button
+            key={i}
+            onClick={() => setActiveImg(i)}
+            className={`relative w-16 h-16 shrink-0 rounded-lg overflow-hidden border-2 ${activeImg === i ? 'border-brand-500 dark:border-gold-500' : 'border-transparent'}`}
+        >
                                     {slide.video_url ? (
                                         <>
                                             <video src={slide.video_url} className="w-full h-full object-cover" muted />
