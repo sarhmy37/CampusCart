@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
 
-const SPLASH_DURATION_MS = 1600;
+const SPLASH_DURATION_MS = 2000;
 const FADE_OUT_MS = 300;
+const APP_VERSION = '1.0.0';
 
 export default function IntroSplash({ onFinish }) {
     const { theme } = useTheme();
@@ -20,35 +21,38 @@ export default function IntroSplash({ onFinish }) {
 
     return (
         <div
-            className={`fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900 transition-opacity duration-300 ${
+            className={`fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white dark:bg-ink-900 transition-opacity duration-300 ${
                 fadingOut ? 'opacity-0' : 'opacity-100'
             }`}
         >
             <style>{`
-                @keyframes introLogoPop {
-                    0% { opacity: 0; transform: scale(0.7); }
-                    60% { opacity: 1; transform: scale(1.06); }
-                    100% { opacity: 1; transform: scale(1); }
+                @keyframes introLogoPulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.06); }
                 }
-                .intro-logo-pop { animation: introLogoPop 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-
-                @keyframes introWordmarkRise {
-                    0% { opacity: 0; transform: translateY(8px); }
-                    100% { opacity: 1; transform: translateY(0); }
+                .intro-logo-pulse {
+                    animation: introLogoPulse 1400ms ease-in-out infinite;
+                    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.18));
                 }
-                .intro-wordmark-rise { animation: introWordmarkRise 500ms ease-out 300ms forwards; opacity: 0; }
+                .intro-wordmark-shadow {
+                    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.15));
+                }
             `}</style>
 
             <img
                 src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK}
                 alt="Tre-X"
-                className="intro-logo-pop h-16 w-auto object-contain"
+                className="intro-logo-pulse h-24 sm:h-28 w-auto object-contain"
             />
-            <div className="intro-wordmark-rise flex items-center font-black tracking-wider mt-3">
-                <span className="text-2xl text-white">Tre</span>
-                <span className="text-2xl text-white -ml-0.5">-</span>
-                <span className="text-3xl italic text-gold-400 leading-none -ml-1">X</span>
+            <div className="intro-wordmark-shadow flex items-center font-black tracking-wider mt-4">
+                <span className="text-3xl text-slate-900 dark:text-gold-200">Tre</span>
+                <span className="text-3xl text-slate-900 dark:text-gold-200 -ml-0.5">-</span>
+                <span className="text-4xl italic text-brand-600 dark:text-gold-400 leading-none -ml-1">X</span>
             </div>
+
+            <p className="absolute bottom-8 text-xs text-slate-300 dark:text-gold-300/30">
+                App version {APP_VERSION}
+            </p>
         </div>
     );
 }
