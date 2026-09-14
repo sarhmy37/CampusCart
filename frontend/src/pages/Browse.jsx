@@ -401,9 +401,7 @@ export default function Browse() {
             setSavingSearch(false);
         }
     };
-    const isServiceItem = (p) => (p.category || p.category_name) === 'Services';
-const searchProductResults = search ? visibleProducts.filter((p) => !isServiceItem(p)) : visibleProducts;
-const searchServiceResults = search ? visibleProducts.filter(isServiceItem) : [];
+
     const isDemo = products.length === 0;
     const baseProducts = isDemo ? DUMMY_PRODUCTS : products;
 const categoryFiltered = itemCategory
@@ -475,6 +473,10 @@ const categoryFiltered = itemCategory
             return stock > 0;
         });
     }
+
+    const isServiceItem = (p) => (p.category || p.category_name) === 'Services';
+    const searchProductResults = search ? visibleProducts.filter((p) => !isServiceItem(p)) : visibleProducts;
+    const searchServiceResults = search ? visibleProducts.filter(isServiceItem) : [];
 
     const renderBudgetInput = () => (
         <div className="relative shrink-0">
