@@ -243,15 +243,86 @@ router.get('/users/:id/listings', async (req, res) => {
     }
 });
 
-// DELETE /api/admin/users/:id — permanently delete a user
+// DELETE /api/admin/users/:id — permanently delete a user and everything tied to them
 router.delete('/users/:id', async (req, res) => {
+    const userId = req.params.id;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        await client.query('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = $1)', [req.params.id]);
-        await client.query('DELETE FROM orders WHERE buyer_id = $1', [req.params.id]);
-        await client.query('DELETE FROM products WHERE seller_id = $1', [req.params.id]);
-        await client.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+
+        // Order matters. Children first, user last — or Postgres blocks with FK errors.
+
+        // Service bookings
+        await client.query('DELETE FROM bookings WHERE seller_id = $1 OR buyer_id = $1', [userId]);
+
+        // Business profiles
+        await client.query('DELETE FROM business_profiles WHERE user_id = $1', [userId]);
+
+        // Buyer delivery locations
+        await client.query('DELETE FROM buyer_delivery_locations WHERE buyer_id = $1', [userId]);
+
+        // Chat wallpaper overrides + wallpapers
+        await client.query('DELETE FROM chat_wallpaper_overrides WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM chat_wallpapers WHERE set_by = $1', [userId]);
+
+        // Conversation deletions
+        await client.query('DELETE FROM conversation_deletions WHERE user_id = $1', [userId]);
+
+        // Messages (by sender, or in any conversation this user is part of) + conversations
+        await client.query('DELETE FROM message_deletions WHERE user_id = $1', [userId]);
+        await client.query(
+            `DELETE FROM messages WHERE sender_id = $1
+              OR conversation_id IN (SELECT id FROM conversations WHERE buyer_id = $1 OR seller_id = $1)`,
+            [userId]
+        );
+        await client.query('DELETE FROM conversations WHERE buyer_id = $1 OR seller_id = $1', [userId]);
+
+        // Data orders + bundles
+        await client.query(
+            `UPDATE data_orders SET bundle_id = NULL
+             WHERE bundle_id IN (SELECT id FROM data_bundles WHERE seller_id = $1)`,
+            [userId]
+        );
+        await client.query('DELETE FROM data_orders WHERE seller_id = $1 OR buyer_id = $1', [userId]);
+        await client.query('DELETE FROM data_bundles WHERE seller_id = $1', [userId]);
+
+        // Email OTPs
+        await client.query('DELETE FROM email_otps WHERE user_id = $1', [userId]);
+
+        // Notifications
+        await client.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+
+        // Detach orders this user delivered, then wipe order_items + orders
+        await client.query('UPDATE orders SET delivered_by_seller_id = NULL WHERE delivered_by_seller_id = $1', [userId]);
+        await client.query(
+            `DELETE FROM order_items
+             WHERE seller_id = $1
+                OR order_id IN (SELECT id FROM orders WHERE buyer_id = $1)
+                OR product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            [userId]
+        );
+        await client.query('DELETE FROM orders WHERE buyer_id = $1', [userId]);
+
+        // Payout withdrawals
+        await client.query('DELETE FROM payout_withdrawals WHERE seller_id = $1', [userId]);
+
+        // Reviews (comments, likes, reviews)
+        await client.query('DELETE FROM product_review_comments WHERE commenter_id = $1', [userId]);
+        await client.query('DELETE FROM product_review_likes WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM product_reviews WHERE user_id = $1', [userId]);
+
+        // Product views
+        await client.query('DELETE FROM product_views WHERE user_id = $1', [userId]);
+
+        // Products
+        await client.query('DELETE FROM products WHERE seller_id = $1', [userId]);
+
+        // Reports
+        await client.query('DELETE FROM reports WHERE reported_user_id = $1', [userId]);
+
+        // Finally, the user
+        await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
         await client.query('COMMIT');
         res.json({ message: 'User deleted successfully' });
     } catch (err) {
@@ -360,6 +431,7 @@ router.post('/orders/:id/refund', async (req, res) => {
         client.release();
     }
 });
+
 // POST /api/admin/users/:id/set-data-seller — exclusively assigns (or revokes) the
 // Mobile Data seller role. Only one user can ever hold this at a time: assigning it
 // to a new user clears it from whoever had it before and wipes their bundles.
@@ -384,12 +456,22 @@ router.post('/users/:id/set-data-seller', async (req, res) => {
                 [id]
             );
             for (const holder of previousHolders.rows) {
+                await client.query(
+                    `UPDATE data_orders SET bundle_id = NULL
+                     WHERE bundle_id IN (SELECT id FROM data_bundles WHERE seller_id = $1)`,
+                    [holder.id]
+                );
                 await client.query('DELETE FROM data_bundles WHERE seller_id = $1', [holder.id]);
             }
             await client.query('UPDATE users SET is_data_seller = false WHERE id != $1', [id]);
             await client.query('UPDATE users SET is_data_seller = true WHERE id = $1', [id]);
         } else {
             await client.query('UPDATE users SET is_data_seller = false WHERE id = $1', [id]);
+            await client.query(
+                `UPDATE data_orders SET bundle_id = NULL
+                 WHERE bundle_id IN (SELECT id FROM data_bundles WHERE seller_id = $1)`,
+                [id]
+            );
             await client.query('DELETE FROM data_bundles WHERE seller_id = $1', [id]);
         }
 

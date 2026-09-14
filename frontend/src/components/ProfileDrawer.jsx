@@ -445,6 +445,14 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
                         )}
                     </button>
 
+                                        {/* SETTINGS */}
+                    <button
+                        onClick={() => { onClose(); navigate('/settings'); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-50 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
+                    >
+                        <Settings size={17} /> Settings
+                    </button>
+
                     {/* SUPPORT & ABOUT - DROPDOWN */}
                     <div className="rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden">
                         <button
@@ -497,14 +505,6 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
                             </div>
                         )}
                     </div>
-
-                    {/* SETTINGS */}
-                    <button
-                        onClick={() => { onClose(); navigate('/settings'); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-ink-700 hover:bg-slate-50 dark:hover:bg-ink-600 text-sm font-semibold text-slate-800 dark:text-gold-100 transition"
-                    >
-                        <Settings size={17} /> Settings
-                    </button>
 
                     {/* LOGOUT */}
                     <div className="pt-4 border-t border-slate-300 dark:border-ink-600">
