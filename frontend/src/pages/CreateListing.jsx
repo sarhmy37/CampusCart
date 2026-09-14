@@ -6,7 +6,7 @@ import { CREATE_LISTING_VIDEO } from '../data/media';
 import { clampFee, MAX_DELIVERY_FEE } from '../utils/distance';
 import {
     ImagePlus, VideoIcon, X, ArrowLeft, Loader2, Truck, AlertTriangle, ChevronDown, ChevronUp,
-    Plus, Trash2, Wifi, Briefcase, Clock, MapPin, Map as MapIcon,
+    Plus, Trash2, Wifi, Briefcase, Package, Clock, MapPin, Map as MapIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SCHOOL_COORDS } from './Register';
@@ -847,7 +847,7 @@ export default function CreateListing() {
                         )}
 
                         {/* ─── REGULAR LISTING TOGGLE ────────────────────────── */}
-<div className="flex gap-1 mt-5 mb-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
+<div className="flex gap-1 mt-5 mb-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit mx-auto">
     <button
         type="button"
         onClick={() => setActiveTab('product')}
@@ -857,7 +857,7 @@ export default function CreateListing() {
                 : 'text-slate-500 dark:text-gold-200/50'
         }`}
     >
-        Product listing
+        <Package size={13} /> Product listing
     </button>
     <button
         type="button"
@@ -868,7 +868,7 @@ export default function CreateListing() {
                 : 'text-slate-500 dark:text-gold-200/50'
         }`}
     >
-        Service listing
+        <Briefcase size={13} /> Service listing
     </button>
 </div>
 
