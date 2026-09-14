@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
-const { sendSupportReplyEmail } = require('../utils/email');
+const { sendSupportReplyEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
