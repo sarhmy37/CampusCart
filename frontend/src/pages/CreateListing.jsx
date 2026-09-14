@@ -1083,7 +1083,7 @@ export default function CreateListing() {
                                             rows={4}
                                             value={serviceForm.description}
                                             onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
-                                            placeholder={'What you offer, your experience, availability.\n\nTip: if your service has different options (e.g. Box braids – GHS 80, Cornrows – GHS 50), list them here so buyers know what to expect.'}
+                                            placeholder={'If your service has different options\n\n(e.g. Box braids – GHS 80, Cornrows – GHS 50), list them here so buyers know what to expect.'}
                                             className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition resize-none"
                                         />
                                     </div>
