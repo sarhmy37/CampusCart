@@ -139,8 +139,7 @@ const uploadToCloudinary = async (file, resourceType) => {
 export default function CreateListing() {
     const { user } = useAuth();
     const isDataSeller = !!user?.is_data_seller;
-    const [listingFormCollapsed, setListingFormCollapsed] = useState(isDataSeller);
-    const [serviceFormCollapsed, setServiceFormCollapsed] = useState(true); // Start collapsed
+    const [activeTab, setActiveTab] = useState('product'); // 'product' | 'service'
     const [bundles, setBundles] = useState([]);
     const [bundlesLoading, setBundlesLoading] = useState(false);
     const [newBundle, setNewBundle] = useState({ network: 'MTN', gb_amount: '', price: '' });
@@ -848,20 +847,34 @@ export default function CreateListing() {
                         )}
 
                         {/* ─── REGULAR LISTING TOGGLE ────────────────────────── */}
-                        {isDataSeller && !hasServiceInput && (
-                            <button
-                                type="button"
-                                onClick={() => setListingFormCollapsed((c) => !c)}
-                                className="w-full flex items-center justify-between mt-5 px-1 py-2 text-sm font-semibold text-slate-500 dark:text-gold-300/60"
-                            >
-                                <span>Regular listing details (optional)</span>
-                                {listingFormCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                            </button>
-                        )}
+<div className="flex gap-1 mt-5 mb-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit">
+    <button
+        type="button"
+        onClick={() => setActiveTab('product')}
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+            activeTab === 'product'
+                ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                : 'text-slate-500 dark:text-gold-200/50'
+        }`}
+    >
+        Product listing
+    </button>
+    <button
+        type="button"
+        onClick={() => setActiveTab('service')}
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+            activeTab === 'service'
+                ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                : 'text-slate-500 dark:text-gold-200/50'
+        }`}
+    >
+        Service listing
+    </button>
+</div>
 
                         {/* ─── REGULAR LISTING FORM ──────────────────────────── */}
-                        {!hasServiceInput && (
-                        <form onSubmit={onSubmit} className={`space-y-4 ${isDataSeller ? (listingFormCollapsed ? 'hidden' : 'mt-3') : 'mt-5'}`}>
+                        {activeTab === 'product' && (
+<form onSubmit={onSubmit} className="space-y-4 mt-3">
                             <div>
                                 <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Title</label>
                                 <input
@@ -1049,22 +1062,10 @@ export default function CreateListing() {
                         )}
 
                         {/* ─── SERVICE PROVISION SECTION ────────────────────── */}
-                        {!hasListingInput && (
-                        <div className="mt-6 border-t border-slate-200 dark:border-ink-600 pt-4">
-                            <button
-                                type="button"
-                                onClick={() => setServiceFormCollapsed((c) => !c)}
-                                className="w-full flex items-center justify-between px-1 py-2 text-sm font-semibold text-slate-500 dark:text-gold-300/60"
-                            >
-                                <span className="flex items-center gap-2">
-                                    <Briefcase size={16} />
-                                    Service provision (for makeup, barbers, tutors, etc.)
-                                </span>
-                                {serviceFormCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                            </button>
-
-                            {!serviceFormCollapsed && (
-                                <form onSubmit={onServiceSubmit} className="mt-3 space-y-4">
+{/* ─── SERVICE PROVISION SECTION ────────────────────── */}
+{activeTab === 'service' && (
+<div className="mt-3">
+    <form onSubmit={onServiceSubmit} className="space-y-4">
                                     <div>
                                         <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Service title</label>
                                         <input
@@ -1271,9 +1272,8 @@ export default function CreateListing() {
                                         {serviceLoading ? 'Creating service…' : 'Publish service'}
                                     </button>
                                 </form>
-                            )}
-                        </div>
-                        )}
+        </div>
+        )}
                     </div>
                 </div>
             </div>
