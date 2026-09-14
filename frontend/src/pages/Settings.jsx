@@ -423,12 +423,6 @@ export default function Settings() {
                                     <span className="text-xs font-semibold text-slate-500 dark:text-gold-200/60">Share on:</span>
                                     <div className="flex items-center gap-3">
                                         <button
-                                            onClick={() => setShowHandlesModal(true)}
-                                            className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300 transition"
-                                        >
-                                            Add handles
-                                        </button>
-                                        <button
                                             onClick={() => setShowStorePreview(true)}
                                             className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300 transition"
                                         >

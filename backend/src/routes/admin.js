@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { sendSupportReplyEmail } = require('../utils/email');
 
 const router = express.Router();
 
@@ -69,7 +70,7 @@ router.get('/net-earnings', async (req, res) => {
 router.get('/users', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, name, university_email, account_type, role, verified, banned, is_data_seller, created_at
+            `SELECT id, name, university_email, account_type, role, verified, banned, is_data_seller, created_at, plan, plan_expires_at
              FROM users ORDER BY created_at DESC`
         );
         res.json(result.rows);
@@ -409,8 +410,15 @@ router.get('/orders/overdue', async (req, res) => {
 });
 
 // POST /api/admin/orders/:id/refund
+// body: { percent: 25|50|75|100, noItemsReceived: boolean }
 router.post('/orders/:id/refund', async (req, res) => {
     const { id } = req.params;
+    const { percent, noItemsReceived } = req.body;
+
+    if (![25, 50, 75, 100].includes(percent)) {
+        return res.status(400).json({ error: 'Invalid refund percentage' });
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -420,18 +428,23 @@ router.post('/orders/:id/refund', async (req, res) => {
         if (!order) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
         if (order.status !== 'paid') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Only paid orders can be refunded this way' }); }
 
-        await client.query(`UPDATE orders SET status = 'refunded' WHERE id = $1`, [id]);
-        await client.query(`UPDATE order_items SET status = 'refunded' WHERE order_id = $1`, [id]);
-        await client.query('UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2', [order.total_amount, order.buyer_id]);
+        const subtotalRefund = parseFloat(order.subtotal) * (percent / 100);
+        const deliveryRefund = noItemsReceived ? parseFloat(order.delivery_fee) : 0;
+        const refundAmount = subtotalRefund + deliveryRefund;
+
+        const newStatus = percent === 100 ? 'refunded' : 'partially_refunded';
+        await client.query(`UPDATE orders SET status = $1 WHERE id = $2`, [newStatus, id]);
+        await client.query(`UPDATE order_items SET status = $1 WHERE order_id = $2`, [newStatus, id]);
+        await client.query('UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2', [refundAmount, order.buyer_id]);
 
         await client.query('COMMIT');
 
         await pool.query(
             `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
-            [order.buyer_id, 'order_refunded', `Order #${id} was refunded as GHS ${parseFloat(order.total_amount).toFixed(2)} credit to your account.`, id, '/dashboard?tab=orders']
+            [order.buyer_id, 'order_refunded', `Order #${id} was ${percent < 100 ? `partially (${percent}%)` : 'fully'} refunded as GHS ${refundAmount.toFixed(2)} credit to your account.`, id, '/dashboard?tab=orders']
         );
 
-        res.json({ message: 'Order refunded' });
+        res.json({ message: 'Order refunded', refundAmount });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Admin refund order error:', err);
@@ -497,6 +510,120 @@ router.post('/users/:id/set-data-seller', async (req, res) => {
         res.status(500).json({ error: 'Something went wrong updating data seller status' });
     } finally {
         client.release();
+    }
+});
+
+// POST /api/admin/users/:id/set-plan — manually grant/revoke Pro or Premium.
+// Uses the same durations as a normal purchase (Pro = 1 month, Premium = 1 year).
+// Passing 'free' clears the plan back to free immediately.
+router.post('/users/:id/set-plan', async (req, res) => {
+    const { id } = req.params;
+    const { plan } = req.body; // 'free' | 'pro' | 'premium'
+
+    if (!['free', 'pro', 'premium'].includes(plan)) {
+        return res.status(400).json({ error: 'Invalid plan' });
+    }
+
+    try {
+        let expiresAt = null;
+        if (plan === 'pro') {
+            expiresAt = new Date();
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
+        } else if (plan === 'premium') {
+            expiresAt = new Date();
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        }
+
+        const result = await pool.query(
+            `UPDATE users SET plan = $1, plan_expires_at = $2 WHERE id = $3
+             RETURNING id, name, university_email, plan, plan_expires_at`,
+            [plan, expiresAt, id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ error: 'User not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Admin set plan error:', err);
+        res.status(500).json({ error: 'Something went wrong updating this user\'s plan' });
+    }
+});
+
+// GET /api/admin/support — list all support requests, unresolved+paid-plan first
+router.get('/support', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT sr.id, sr.message, sr.status, sr.created_at,
+                    u.id AS user_id, u.name AS user_name, u.university_email AS user_email,
+                    u.plan, u.plan_expires_at
+             FROM support_requests sr
+             JOIN users u ON u.id = sr.user_id
+             ORDER BY
+                CASE WHEN sr.status = 'pending' THEN 0 ELSE 1 END,
+                CASE
+                    WHEN u.plan = 'premium' AND u.plan_expires_at > now() THEN 0
+                    WHEN u.plan = 'pro' AND u.plan_expires_at > now() THEN 1
+                    ELSE 2
+                END,
+                sr.created_at DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin get support requests error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching support requests' });
+    }
+});
+
+// PATCH /api/admin/support/:id — mark resolved (no reply)
+router.patch('/support/:id', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `UPDATE support_requests SET status = 'resolved' WHERE id = $1 RETURNING *`,
+            [req.params.id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ error: 'Request not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Admin update support request error:', err);
+        res.status(500).json({ error: 'Something went wrong updating this request' });
+    }
+});
+
+// POST /api/admin/support/:id/reply — send a reply, resolve, and email the user
+router.post('/support/:id/reply', async (req, res) => {
+    const { reply } = req.body;
+    if (!reply || !reply.trim()) {
+        return res.status(400).json({ error: 'Reply message is required' });
+    }
+
+    try {
+        const requestResult = await pool.query(
+            `SELECT sr.id, sr.message, sr.user_id, u.account_type, u.personal_email, u.university_email
+             FROM support_requests sr
+             JOIN users u ON u.id = sr.user_id
+             WHERE sr.id = $1`,
+            [req.params.id]
+        );
+        const request = requestResult.rows[0];
+        if (!request) return res.status(404).json({ error: 'Request not found' });
+
+        const destinationEmail = request.account_type === 'buyer'
+            ? request.university_email
+            : request.personal_email;
+
+        if (!destinationEmail) {
+            return res.status(400).json({ error: 'This user has no email on file to reply to' });
+        }
+
+        const updateResult = await pool.query(
+            `UPDATE support_requests SET admin_reply = $1, replied_at = now(), status = 'resolved' WHERE id = $2 RETURNING *`,
+            [reply.trim(), req.params.id]
+        );
+
+        await sendSupportReplyEmail(destinationEmail, request.message, reply.trim());
+
+        res.json(updateResult.rows[0]);
+    } catch (err) {
+        console.error('Admin reply support request error:', err);
+        res.status(500).json({ error: 'Something went wrong sending this reply' });
     }
 });
 

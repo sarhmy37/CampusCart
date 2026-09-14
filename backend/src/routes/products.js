@@ -74,7 +74,11 @@ router.get('/', async (req, res) => {
              LEFT JOIN categories c ON c.id = p.category_id
              ${whereClause}
              ORDER BY
-                CASE WHEN u.plan != 'free' AND u.plan_expires_at > now() THEN 0 ELSE 1 END,
+                CASE
+                    WHEN u.plan = 'premium' AND u.plan_expires_at > now() THEN 0
+                    WHEN u.plan = 'pro' AND u.plan_expires_at > now() THEN 1
+                    ELSE 2
+                END,
                 p.created_at DESC`,
             values
         );

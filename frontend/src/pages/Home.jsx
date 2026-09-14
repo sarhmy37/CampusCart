@@ -151,6 +151,7 @@ const PLANS = [
         highlight: true,
         icon: 'pro',
         buyerBenefits: [
+            '10% off delivery fees',
             '24-hour priority support',
             'See new listings first',
         ],
@@ -170,6 +171,7 @@ const PLANS = [
         icon: 'premium',
         buyerBenefits: [
             'Everything in Pro',
+            '18% off delivery fees',
             'Same-day dedicated support line',
         ],
         sellerBenefits: [

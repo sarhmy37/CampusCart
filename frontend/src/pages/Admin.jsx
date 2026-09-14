@@ -7,9 +7,9 @@ import {
     Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
     Filter, X as XClose, Calendar, User, Tag as TagIcon, Layers, ArrowUpDown,
     Search, Mail, School, UserCheck, UserX, Users as UsersIcon,
-    ChevronLeft, ChevronRight, AlertTriangle, Wifi, Star, Sparkles
+    ChevronLeft, ChevronRight, AlertTriangle, Wifi, Star, Sparkles, MessageCircle, Send
 } from 'lucide-react';
-const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'deleted chats'];
+const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'support', 'deleted chats'];
 
 const TAB_LABELS = {
     users: 'Users',
@@ -17,6 +17,7 @@ const TAB_LABELS = {
     orders: 'Orders',
     overdue: 'Overdue',
     reports: 'Reports',
+    support: 'Support',
     'deleted chats': 'Deleted Chats',
 };
 
@@ -26,6 +27,7 @@ const TAB_ICONS = {
     orders: ShoppingBag,
     overdue: AlertTriangle,
     reports: Flag,
+    support: MessageCircle,
     'deleted chats': Trash2,
 };
 
@@ -156,6 +158,7 @@ export default function Admin() {
                 {tab === 'orders' && <OrdersTab />}
                 {tab === 'overdue' && <OverdueOrdersTab />}
                 {tab === 'reports' && <ReportsTab />}
+                {tab === 'support' && <SupportTab />}
                 {tab === 'deleted chats' && <DeletedChatsTab />}
             </div>
         </div>
@@ -484,6 +487,17 @@ function UsersTab({ filter, initialUsers, loading }) {
         }
     };
 
+    const setPlan = async (id, plan) => {
+        try {
+            await api.post(`/admin/users/${id}/set-plan`, { plan });
+            toast.success(plan === 'free' ? 'Plan reverted to free' : `Granted ${plan}`);
+            const res = await api.get('/admin/users');
+            setUsers(res.data);
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to update plan');
+        }
+    };
+
     const setDataSeller = async (id, enabled) => {
         if (enabled && !window.confirm('This will remove Mobile Data seller access (and their bundles) from anyone else who currently has it. Continue?')) {
             return;
@@ -779,6 +793,20 @@ function UsersTab({ filter, initialUsers, loading }) {
                                     active={u.is_data_seller}
                                 >
                                     <Wifi size={15} />
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => setPlan(u.id, u.plan === 'pro' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date() ? 'free' : 'pro')}
+                                    title={u.plan === 'pro' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date() ? 'Revoke Pro' : 'Grant Pro (1 month)'}
+                                    active={u.plan === 'pro' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date()}
+                                >
+                                    <Star size={15} />
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => setPlan(u.id, u.plan === 'premium' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date() ? 'free' : 'premium')}
+                                    title={u.plan === 'premium' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date() ? 'Revoke Premium' : 'Grant Premium (1 year)'}
+                                    active={u.plan === 'premium' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date()}
+                                >
+                                    <Sparkles size={15} />
                                 </IconButton>
                                 <IconButton
                                     onClick={() => setSelectedUser(u)}
@@ -1389,7 +1417,10 @@ function OrderDetailModal({ order, loading, onClose }) {
 function OverdueOrdersTab() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [refundingId, setRefundingId] = useState(null);
+    const [refundTarget, setRefundTarget] = useState(null);
+    const [refundPercent, setRefundPercent] = useState(100);
+    const [noItemsReceived, setNoItemsReceived] = useState(false);
+    const [refunding, setRefunding] = useState(false);
 
     const load = () => {
         setLoading(true);
@@ -1400,20 +1431,29 @@ function OverdueOrdersTab() {
     };
     useEffect(load, []);
 
-    const handleRefund = async (id) => {
-        if (!window.confirm('Refund this order as credit to the buyer? This cannot be undone.')) return;
-        setRefundingId(id);
+    const openRefundModal = (order) => {
+        setRefundTarget(order);
+        setRefundPercent(100);
+        setNoItemsReceived(false);
+    };
+
+    const handleRefund = async () => {
+        if (!refundTarget) return;
+        setRefunding(true);
         try {
-            await api.post(`/admin/orders/${id}/refund`);
-            toast.success('Order refunded');
+            const res = await api.post(`/admin/orders/${refundTarget.id}/refund`, {
+                percent: refundPercent,
+                noItemsReceived,
+            });
+            toast.success(`Refunded GHS ${res.data.refundAmount.toFixed(2)}`);
+            setRefundTarget(null);
             load();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to refund order');
         } finally {
-            setRefundingId(null);
+            setRefunding(false);
         }
     };
-
     if (loading) return <SkeletonList />;
 
     if (orders.length === 0) {
@@ -1449,17 +1489,74 @@ function OverdueOrdersTab() {
                             <div className="text-right shrink-0">
                                 <p className="text-sm font-bold text-slate-900 dark:text-gold-50 mb-2">GHS {parseFloat(o.total_amount).toFixed(2)}</p>
                                 <button
-                                    onClick={() => handleRefund(o.id)}
-                                    disabled={refundingId === o.id}
-                                    className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition disabled:opacity-60"
+                                    onClick={() => openRefundModal(o)}
+                                    className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition"
                                 >
-                                    {refundingId === o.id ? 'Refunding…' : 'Refund'}
+                                    Refund
                                 </button>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {refundTarget && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => !refunding && setRefundTarget(null)} />
+                    <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                        <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">Refund order #{refundTarget.id}</h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1">
+                            {refundTarget.buyer_name} · GHS {parseFloat(refundTarget.total_amount).toFixed(2)} total
+                        </p>
+
+                        <p className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 mt-4 mb-2">Refund amount</p>
+                        <div className="grid grid-cols-4 gap-2">
+                            {[25, 50, 75, 100].map((p) => (
+                                <button
+                                    key={p}
+                                    onClick={() => setRefundPercent(p)}
+                                    className={`py-2 rounded-xl text-sm font-semibold border transition ${
+                                        refundPercent === p
+                                            ? 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 border-brand-600 dark:border-gold-500'
+                                            : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200'
+                                    }`}
+                                >
+                                    {p}%
+                                </button>
+                            ))}
+                        </div>
+
+                        <label className="flex items-start gap-2.5 mt-4 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={noItemsReceived}
+                                onChange={(e) => setNoItemsReceived(e.target.checked)}
+                                className="w-4 h-4 mt-0.5 rounded accent-brand-600 dark:accent-gold-500"
+                            />
+                            <span className="text-sm text-slate-700 dark:text-gold-100">
+                                Buyer received no items at all — also refund the delivery fee
+                            </span>
+                        </label>
+
+                        <div className="flex gap-2 mt-6">
+                            <button
+                                onClick={() => setRefundTarget(null)}
+                                disabled={refunding}
+                                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition disabled:opacity-60"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRefund}
+                                disabled={refunding}
+                                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition disabled:opacity-60"
+                            >
+                                {refunding ? 'Refunding…' : 'Confirm refund'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1588,6 +1685,170 @@ function ReportsTab() {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---------- SupportTab ----------
+function SupportTab() {
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState('pending');
+    const [replyTarget, setReplyTarget] = useState(null);
+    const [replyText, setReplyText] = useState('');
+    const [sendingReply, setSendingReply] = useState(false);
+
+    const load = () => {
+        setLoading(true);
+        api.get('/admin/support')
+            .then((res) => setRequests(res.data))
+            .catch(() => setRequests([]))
+            .finally(() => setLoading(false));
+    };
+    useEffect(load, []);
+
+    const openReplyModal = (request) => {
+        setReplyTarget(request);
+        setReplyText('');
+    };
+
+    const handleSendReply = async () => {
+        if (!replyText.trim() || !replyTarget) return;
+        setSendingReply(true);
+        try {
+            await api.post(`/admin/support/${replyTarget.id}/reply`, { reply: replyText.trim() });
+            toast.success('Reply sent');
+            setReplyTarget(null);
+            load();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to send reply');
+        } finally {
+            setSendingReply(false);
+        }
+    };
+
+    const filtered = requests.filter((r) => r.status === statusFilter);
+
+    const planBadge = (r) => {
+        const isActive = r.plan && r.plan !== 'free' && r.plan_expires_at && new Date(r.plan_expires_at) > new Date();
+        if (!isActive) return null;
+        if (r.plan === 'premium') {
+            return (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300">
+                    <Sparkles size={10} className="fill-purple-500 text-purple-500" /> Premium
+                </span>
+            );
+        }
+        if (r.plan === 'pro') {
+            return (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">
+                    <Star size={10} className="fill-blue-500 text-blue-500" /> Pro
+                </span>
+            );
+        }
+        return null;
+    };
+
+    if (loading) return <SkeletonList />;
+
+    return (
+        <div className="max-w-3xl mx-auto">
+            <div className="flex gap-1 mb-4 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
+                {['pending', 'resolved'].map((s) => (
+                    <button
+                        key={s}
+                        onClick={() => setStatusFilter(s)}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition ${
+                            statusFilter === s
+                                ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
+                                : 'text-slate-500 dark:text-gold-200/50'
+                        }`}
+                    >
+                        {s}
+                    </button>
+                ))}
+            </div>
+
+            {filtered.length === 0 ? (
+                <div className="text-center py-16">
+                    <MessageCircle className="mx-auto text-slate-300 dark:text-gold-300/30 mb-3" size={28} />
+                    <p className="text-sm text-slate-400 dark:text-gold-200/50">No {statusFilter} support requests.</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {filtered.map((r) => (
+                        <div key={r.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                            <div className="flex items-start justify-between gap-3 flex-wrap">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">{r.user_name}</p>
+                                        {planBadge(r)}
+                                    </div>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50">{r.user_email}</p>
+                                    <p className="text-sm text-slate-600 dark:text-gold-100/80 mt-2 bg-slate-50 dark:bg-ink-700 rounded-lg p-2.5">
+                                        {r.message}
+                                    </p>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1.5">
+                                        {new Date(r.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+
+                                {r.status === 'pending' && (
+                                    <button
+                                        onClick={() => openReplyModal(r)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-xs font-semibold transition"
+                                    >
+                                        <Send size={13} /> Reply
+                                    </button>
+                                )}
+                                {r.status !== 'pending' && <Tag color="emerald">Resolved</Tag>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {replyTarget && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => !sendingReply && setReplyTarget(null)} />
+                    <div className="relative bg-white dark:bg-ink-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
+                        <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">Reply to {replyTarget.user_name}</h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1 bg-slate-50 dark:bg-ink-700 rounded-lg p-2.5">
+                            {replyTarget.message}
+                        </p>
+
+                        <textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Type your reply..."
+                            rows={4}
+                            disabled={sendingReply}
+                            autoFocus
+                            className="w-full mt-4 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition resize-none disabled:opacity-60"
+                        />
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-1.5">
+                            This will be emailed to the user and mark the request as resolved.
+                        </p>
+
+                        <div className="flex gap-2 mt-4">
+                            <button
+                                onClick={() => setReplyTarget(null)}
+                                disabled={sendingReply}
+                                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition disabled:opacity-60"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSendReply}
+                                disabled={sendingReply || !replyText.trim()}
+                                className="flex-1 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60"
+                            >
+                                {sendingReply ? 'Sending…' : 'Send reply'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

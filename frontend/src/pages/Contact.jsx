@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Mail, MessageCircle, Phone, Clock } from 'lucide-react';
+import { ArrowLeft, Mail, MessageCircle, Clock, Send, Loader2, CheckCircle2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 function WhatsAppIcon(props) {
     return (
@@ -27,20 +31,41 @@ const CONTACT_METHODS = [
         href: 'mailto:support@trex.app',
         note: 'We reply within 1 business day',
     },
-    {
-        icon: Phone,
-        iconClass: 'text-brand-600 dark:text-gold-400',
-        label: 'Phone',
-        value: '+233 24 123 4567',
-        href: 'tel:+233241234567',
-        note: 'Mon–Fri, 9am–5pm GMT',
-    },
 ];
 
 export default function Contact() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
     const cameFromProfileDrawer = location.state?.fromProfileDrawer;
+    const [message, setMessage] = useState('');
+    const [sending, setSending] = useState(false);
+    const [sent, setSent] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!message.trim()) return;
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+        if (user.account_type !== 'buyer' && !user.personal_email) {
+            toast.error('Please add a personal email in your profile before contacting support');
+            navigate('/', { state: { openProfile: true } });
+            return;
+        }
+        setSending(true);
+        try {
+            await api.post('/support', { message: message.trim() });
+            setSent(true);
+            setMessage('');
+            toast.success("Message sent — we'll get back to you.");
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to send message');
+        } finally {
+            setSending(false);
+        }
+    };
 
     const handleBack = () => {
         if (cameFromProfileDrawer) {
@@ -92,6 +117,34 @@ export default function Contact() {
                         </div>
                     </a>
                 ))}
+
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
+                    <p className="font-bold text-slate-900 dark:text-gold-50 mb-3">Send us a message</p>
+                    {sent ? (
+                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-semibold py-3">
+                            <CheckCircle2 size={18} /> Message sent — we'll get back to you soon.
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit}>
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Tell us what's going on..."
+                                rows={4}
+                                disabled={sending}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition resize-none disabled:opacity-60"
+                            />
+                            <button
+                                type="submit"
+                                disabled={sending || !message.trim()}
+                                className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 font-semibold text-sm transition disabled:opacity-60"
+                            >
+                                {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                {sending ? 'Sending…' : 'Send message'}
+                            </button>
+                        </form>
+                    )}
+                </div>
 
                 <div className="flex items-start gap-3 bg-slate-100 dark:bg-ink-800/60 rounded-2xl p-4 mt-2">
                     <Clock size={16} className="text-slate-400 dark:text-gold-300/50 shrink-0 mt-0.5" />

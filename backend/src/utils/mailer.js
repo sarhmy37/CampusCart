@@ -94,4 +94,21 @@ async function sendOrderSMS(phoneNumber, message) {
     }
 }
 
-module.exports = { sendVerificationEmail, sendOrderSMS, sendPasswordResetEmail };
+async function sendSupportReplyEmail(toEmail, userMessage, reply) {
+    await sendBrevoEmail({
+        to: toEmail,
+        subject: 'Reply from Tre-X Support',
+        html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2 style="color:#1e293b;">We replied to your message</h2>
+                <p style="color:#475569; font-size:13px;">You wrote:</p>
+                <p style="color:#64748b; font-size:14px; background:#f8fafc; border-radius:8px; padding:12px;">${userMessage}</p>
+                <p style="color:#475569; font-size:13px; margin-top:20px;">Our reply:</p>
+                <p style="color:#1e293b; font-size:14px; background:#eef2ff; border-radius:8px; padding:12px;">${reply}</p>
+                <p style="color:#94a3b8; font-size:12px; margin-top:20px;">If you have more questions, just message us again in the app.</p>
+            </div>
+        `,
+    });
+}
+
+module.exports = { sendVerificationEmail, sendOrderSMS, sendPasswordResetEmail, sendSupportReplyEmail };

@@ -221,9 +221,18 @@ export default function Cart() {
         });
     }
 
+    // Mirrors backend DELIVERY_DISCOUNT_RATES in utils/plans.js — keep these in sync.
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+    const deliveryDiscountRate = isPlanActive
+        ? (user.plan.toLowerCase() === 'premium' ? 0.18 : user.plan.toLowerCase() === 'pro' ? 0.10 : 0)
+        : 0;
+    const deliveryDiscount = deliveryFee * deliveryDiscountRate;
+    const discountedDeliveryFee = deliveryFee - deliveryDiscount;
+
     // The 2% payment-processing fee is applied once, at Paystack checkout —
     // showing it here too would double-charge the buyer on screen.
-    const grandTotal = subtotal + deliveryFee;
+    const grandTotal = subtotal + discountedDeliveryFee;
 
     const handleAction = async () => {
         if (!user) return navigate('/login');
@@ -443,8 +452,28 @@ export default function Cart() {
                                     <span>GHS {subtotal.toFixed(2)}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm text-slate-500 dark:text-gold-200/60">
-                                    <span>Delivery</span>
-                                    <span>{deliveryFee > 0 ? `GHS ${deliveryFee.toFixed(2)}` : 'Free'}</span>
+                                    <span>
+                                        Delivery
+                                        {deliveryDiscountRate > 0 && deliveryFee > 0 && (
+                                            <span className="ml-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                                -{Math.round(deliveryDiscountRate * 100)}%
+                                            </span>
+                                        )}
+                                    </span>
+                                    {deliveryFee > 0 ? (
+                                        deliveryDiscountRate > 0 ? (
+                                            <span className="flex items-center gap-1.5">
+                                                <span className="text-xs text-slate-400 dark:text-gold-200/40 line-through">
+                                                    GHS {deliveryFee.toFixed(2)}
+                                                </span>
+                                                <span>GHS {discountedDeliveryFee.toFixed(2)}</span>
+                                            </span>
+                                        ) : (
+                                            <span>GHS {deliveryFee.toFixed(2)}</span>
+                                        )
+                                    ) : (
+                                        'Free'
+                                    )}
                                 </div>
                             </div>
 
