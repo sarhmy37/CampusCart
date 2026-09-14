@@ -111,6 +111,28 @@ function isAllowedEmailDomain(email) {
     return ALLOWED_EMAIL_DOMAINS.some((allowed) => domain === allowed);
 }
 
+// GET /api/auth/check-username?username=xxx — live availability check used
+// while typing on the signup form. Mirrors the same case-insensitive rule
+// enforced at registration time.
+router.get('/check-username', async (req, res) => {
+    const username = (req.query.username || '').trim();
+
+    if (!/^[a-zA-Z0-9._]{3,20}$/.test(username)) {
+        return res.json({ available: false, reason: 'invalid' });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT id FROM users WHERE LOWER(username) = LOWER($1)',
+            [username]
+        );
+        res.json({ available: result.rows.length === 0 });
+    } catch (err) {
+        console.error('Check username error:', err);
+        res.status(500).json({ error: 'Something went wrong checking username availability' });
+    }
+});
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
     const { username, name, university_email, password, school, account_type, whatsapp, location, meeting_place, referral_code,

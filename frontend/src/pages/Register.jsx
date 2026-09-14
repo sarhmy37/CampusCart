@@ -326,6 +326,8 @@ export default function Register() {
     const [validationResult, setValidationResult] = useState({ isValid: false, message: '', type: '' });
     const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+    const [usernameCheck, setUsernameCheck] = useState({ checking: false, available: null, message: '' });
+
     // --- Animated mobile logo state ---
     const [phase, setPhase] = useState('pulse'); // 'pulse' | 'typing-logo' | 'typing-tagline' | 'hold'
     const [logoText, setLogoText] = useState('');
@@ -471,12 +473,48 @@ export default function Register() {
         }
     }, [accountNumber, payoutMethod, bankCode, accountType]);
 
+    // Live username-availability check, debounced while typing.
+    useEffect(() => {
+        const name = form.name.trim();
+
+        if (!name) {
+            setUsernameCheck({ checking: false, available: null, message: '' });
+            return;
+        }
+        if (!/^[a-zA-Z0-9._]{3,20}$/.test(name)) {
+            setUsernameCheck({ checking: false, available: false, message: 'Use 3–20 letters, numbers, "." or "_" only' });
+            return;
+        }
+
+        setUsernameCheck((s) => ({ ...s, checking: true }));
+        const timer = setTimeout(() => {
+            api.get('/auth/check-username', { params: { username: name } })
+                .then((res) => {
+                    setUsernameCheck({
+                        checking: false,
+                        available: res.data.available,
+                        message: res.data.available ? 'Username is available' : 'That username is already taken',
+                    });
+                })
+                .catch(() => {
+                    setUsernameCheck({ checking: false, available: null, message: '' });
+                });
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [form.name]);
+
     const onSubmit = async (e) => {
         e.preventDefault();
 
         const digits = whatsappNumber.replace(/\D/g, '');
         if (digits.length !== 9) {
             toast.error('WhatsApp number must be exactly 9 digits after the country code.');
+            return;
+        }
+
+        if (usernameCheck.available === false) {
+            toast.error(usernameCheck.message || 'Please choose a different username');
             return;
         }
 
@@ -726,9 +764,39 @@ export default function Register() {
                                             value={form.name}
                                             onChange={(e) => setForm({ ...form, name: e.target.value })}
                                             placeholder="campusking"
-                                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition"
+                                            className={`w-full pl-10 pr-10 py-2.5 rounded-xl border focus:ring-2 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition ${
+                                                usernameCheck.checking
+                                                    ? 'border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-brand-100 dark:focus:ring-gold-900'
+                                                    : usernameCheck.available === true
+                                                    ? 'border-emerald-500 dark:border-emerald-400 focus:ring-emerald-100 dark:focus:ring-emerald-900'
+                                                    : usernameCheck.available === false
+                                                    ? 'border-red-500 dark:border-red-400 focus:ring-red-100 dark:focus:ring-red-900'
+                                                    : 'border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-brand-100 dark:focus:ring-gold-900'
+                                            }`}
                                         />
+                                        {usernameCheck.checking && (
+                                            <Loader2 size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" />
+                                        )}
+                                        {!usernameCheck.checking && usernameCheck.available === true && (
+                                            <CheckCircle size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500" />
+                                        )}
+                                        {!usernameCheck.checking && usernameCheck.available === false && (
+                                            <XCircle size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-red-500" />
+                                        )}
                                     </div>
+                                    {usernameCheck.message && (
+                                        <p className={`text-xs mt-1.5 flex items-center gap-1 ${
+                                            usernameCheck.available === true
+                                                ? 'text-emerald-600 dark:text-emerald-400'
+                                                : usernameCheck.available === false
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-slate-400 dark:text-gold-200/50'
+                                        }`}>
+                                            {usernameCheck.available === true && <CheckCircle size={12} />}
+                                            {usernameCheck.available === false && <XCircle size={12} />}
+                                            {usernameCheck.message}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>
