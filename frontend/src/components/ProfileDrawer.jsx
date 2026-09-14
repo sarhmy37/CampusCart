@@ -45,6 +45,7 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
         about: user?.about || '',
         personal_email: user?.personal_email || '',
         whatsapp: user?.whatsapp || '',
+        sms_number: user?.sms_number || '',
         location: user?.location || '',
     });
 
@@ -93,27 +94,7 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
         }
     }, [open]);
 
-    // 👇 If we were told to reopen with Support & About expanded (e.g.
-    // returning from Contact support), expand it and let the caller know
-    // it's been consumed so it doesn't reapply on the next manual open.
-    useEffect(() => {
-        if (open && initialSupportOpen) {
-            setSupportOpen(true);
-            onSupportOpened?.();
-        }
-    }, [open, initialSupportOpen]);
-
-    // 👇 If we were told to reopen with Support & About expanded (e.g.
-    // returning from Contact support), expand it and let the caller know
-    // it's been consumed so it doesn't reapply on the next manual open.
-    useEffect(() => {
-        if (open && initialSupportOpen) {
-            setSupportOpen(true);
-            onSupportOpened?.();
-        }
-    }, [open, initialSupportOpen]);
-
-    // 👇 If we were told to reopen with Support & About expanded (e.g.
+     // 👇 If we were told to reopen with Support & About expanded (e.g.
     // returning from Contact support), expand it and let the caller know
     // it's been consumed so it doesn't reapply on the next manual open.
     useEffect(() => {
@@ -372,6 +353,13 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
                                             placeholder="+233 ..."
                                         />
                                         <Field
+                                            icon={<Phone size={15} />}
+                                            label="SMS phone number"
+                                            value={form.sms_number}
+                                            onChange={(v) => setForm({ ...form, sms_number: v })}
+                                            placeholder="+233 ..."
+                                        />
+                                        <Field
                                             icon={<MapPin size={15} />}
                                             label="Location"
                                             value={form.location}
@@ -400,6 +388,7 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
                                         <InfoRow icon={<FileText size={15} />} label="About" value={user.about || 'Not added yet'} />
                                         <InfoRow icon={<Mail size={15} />} label="Personal email" value={user.personal_email || 'Not added yet'} />
                                         <InfoRow icon={<Phone size={15} />} label="WhatsApp" value={user.whatsapp || 'Not added yet'} />
+                                        <InfoRow icon={<Phone size={15} />} label="SMS phone number" value={user.sms_number || 'Not added yet'} />
                                         <InfoRow icon={<MapPin size={15} />} label="Location" value={user.location || 'Not added yet'} />
                                     </div>
                                 )}

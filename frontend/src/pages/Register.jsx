@@ -44,6 +44,18 @@ const PLACES_BY_SCHOOL = {
         'Central Classroom Block', 'Main Administration', 'Ahinsan Gate',
         'Ayeduase Junction', 'Ayeduase Market', 'Tech Junction', 'Ayeduase student-hostel area',
         'Kotei area', 'Kentinkrono area',
+        'Queen Elizabeth II Hall', 'Unity Hall', 'Independence Hall',
+        'Republic Hall', 'University Hall (Katanga)', 'Africa Hall',
+    ],
+    UG: [
+        'Main University Gate', 'University Avenue', 'University Square', 'Balme Library',
+        'Great Hall / Legon Hill', 'Open-Air Theatre', 'Central Cafeteria', 'Sports fields',
+        'UG Stadium', 'Banking Square', 'UG Medical Centre', 'Noguchi Memorial Institute area',
+        'Athletic Oval', 'UG Main Gate roadside', 'Okponglo', 'Madina', 'Haatso', 'East Legon',
+        'Night Market', 'Legon campus commercial/student areas',
+        'Legon Hall', 'Akuafo Hall', 'Commonwealth Hall', 'Volta Hall',
+        'Mensah Sarbah Hall', 'Limann Hall', 'Kwapong Hall',
+        'Elizabeth Sey Hall', 'Jean Akah Nelson Hall', 'Yankah Hall',
     ],
     ATU: [
         'Main Campus / Main Gate', 'Barnes Road', 'ATU Library – N Block', 'ATU Library – B-Tech Block',
@@ -55,21 +67,18 @@ const PLACES_BY_SCHOOL = {
         'Main / Old Site', 'Northern / New Site', 'Main Administration', 'UCC Main Library',
         'University Garden', 'University Zoo', 'Science area', 'Campus Broadcasting Centre',
         'Shopping centres on New Site', 'UCC Stadium / sports areas',
+        'SRC Area', 'Valco Hall Basketball Court',
         'UCC Main Gate area', 'Amamoma', 'Kotokuraba area', 'Cape Coast town centre',
         'Cape Coast Castle area', 'University commercial/student areas',
+        'Oguaa Hall', 'Atlantic Hall', 'Kwame Nkrumah Hall', 'Valco Hall',
+        'Casely Hayford Hall', 'Adehye Hall', 'SRC Hall',
     ],
     UHAS: [
         'UHAS Main Campus', 'Main Entrance', 'Sokode campus area', 'Asogli campus area',
         'UHAS CEDI Auditorium', 'Academic/lecture facilities', 'University health/clinical facilities',
         'Student residential areas',
         'Sokode', 'Ho township', 'Ho Central', 'Ho Market area', 'Sokode Junction / transport points',
-    ],
-    UG: [
-        'Main University Gate', 'University Avenue', 'University Square', 'Balme Library',
-        'Great Hall / Legon Hill', 'Open-Air Theatre', 'Central Cafeteria', 'Sports fields',
-        'UG Stadium', 'Banking Square', 'UG Medical Centre', 'Noguchi Memorial Institute area',
-        'UG Main Gate roadside', 'Okponglo', 'Madina', 'Haatso', 'East Legon',
-        'Legon campus commercial/student areas',
+        'Sokode Hall of Residence', 'Asogli Hall of Residence',
     ],
     UDS: [
         'Tamale/Dungu Campus Main Administration', 'Multipurpose Sports Complex', 'UDS Basic School',
@@ -78,13 +87,8 @@ const PLACES_BY_SCHOOL = {
         'City Campus', 'Nyankpala Campus',
         'Dungu', 'Sagnarigu', 'Tamale-Dungu Road', 'Tamale city/student areas',
         'Nyankpala township', 'Nyankpala campus entrance area',
-    ],
-    UMaT: [
-        'UMaT Main Gate', 'Administration/academic area', 'UMaT Library', 'Lecture/engineering facilities',
-        'Chamber of Mines Hall', 'K.T. Hall', 'Gold Refinery Hall', 'UMaT Basic School',
-        'Campus recreational areas',
-        'Tarkwa town', 'Tarkwa Main Market area', 'UMaT Main Gate bus stop',
-        'TNA Park / Tarkwa & Abosso Stadium', 'Tarkwa Senior High School area', 'Tarkwa transport/town centre',
+        'GUSSS Hostel (Tamale Campus)', 'Dungu Campus Hall',
+        'Union Hall (Nyankpala, all-male)', 'Mixed Hall (Nyankpala)',
     ],
     UEW: [
         'North Campus', 'Central Campus', 'South Campus', 'Osagyefo Library', 'North Campus Library',
@@ -93,18 +97,22 @@ const PLACES_BY_SCHOOL = {
         'North and South Campus dining halls', 'Sports facilities',
         'Winneba township', 'UEW North Campus area', 'UEW Central Campus area', 'UEW South Campus area',
         'Winneba market/town centre', 'Campus-side student commercial areas',
+        'Simpa Hall', 'Ghartey Hall', 'Aggrey Hall', 'University Hall',
+        'Ajumako Hall', 'GUSSS Halls',
     ],
     UPSA: [
         'UPSA Main Gate', 'UPSA Hostel Complex', 'UPSA Library', 'UPSA Business School',
         'UPSA Astroturf / sports area', 'Student activity areas', 'Campus commercial/student spaces',
         'East Legon', 'Madina', 'American House', 'Legon', 'Trinity Avenue / UPSA hostel area',
         'Accra-Madina road corridor',
+        'Hostel A', 'Matthew Opoku Prempeh Hostel', 'Amon Kotei Hostel',
     ],
     PentUni: [
         'Pentecost University Main Campus', 'Main Gate', 'Campus Cafeteria', 'Residence halls',
         'Lecture/academic areas', 'Student activity areas', 'Campus transport points',
         'Pentecost University bus stop', 'Kyeiwaa Junction', 'Ontario Hostel area', 'Clare Hostel area',
         'Sowutuom', 'Kwashieman', 'Lapaz',
+        'Yeboah Hall', 'Safo Hall', 'Arnan Hall',
     ],
     KsTU: [
         'Main Campus', 'Main Gate', 'KsTU Library', 'SRC area', 'Lecture/classroom areas',
@@ -118,29 +126,43 @@ const PLACES_BY_SCHOOL = {
         'Dawhenya', 'Ningo-Prampram area', 'Accra-Aflao Highway corridor', 'Miotso community',
         'Tema-side corridor',
     ],
+    UMaT: [
+        'UMaT Main Gate', 'Administration/academic area', 'UMaT Library', 'Lecture/engineering facilities',
+        'Chamber of Mines Hall', 'K.T. Hall', 'Gold Refinery Hall', 'UMaT Basic School',
+        'Campus recreational areas',
+        'Tarkwa town', 'Tarkwa Main Market area', 'UMaT Main Gate bus stop',
+        'TNA Park / Tarkwa & Abosso Stadium', 'Tarkwa Senior High School area', 'Tarkwa transport/town centre',
+    ],
     Ashesi: [
-        'Ashesi Main Gate', 'University Avenue', 'The Hive', 'The Grill', 'Bliss Lounge',
-        'Sports Centre', 'Student residence halls', 'Campus library',
+        'Ashesi Main Gate', 'University Avenue', 'Warren Library', 'Radichel Hall',
+        'King Engineering Building', 'Ashesi Bookshop', 'The Hive', 'The Grill',
+        'Bliss Lounge', 'Founders Plaza', 'Entrepreneurship, Innovation & Service Centre',
+        'Sports Centre', 'Natembea Health Centre', 'Student residence halls', 'Campus library',
         'Berekuso township', 'Aburi road corridor',
+        'Hosanna Hostel', 'Dufie Hostel', 'Tanko Hostel', 'Masere Hostel', 'Columbiana Hostel',
     ],
     KTU: [
         'KTU Main Gate', 'Koforidua - Nsutam Road', 'KTU Library', 'Lecture blocks',
-        'Student hostels', 'Campus commercial area',
+        'GETFund Hostel', 'Student hostels', 'Campus commercial area',
         'Koforidua town centre', 'Koforidua Shopping Mall area', 'Mile 50 area',
+        'Haleluya Hostel', 'Lords Hostel', 'Universal Hostel',
     ],
     GCTU: [
-        'GCTU Main Gate', 'Tesano Main Campus', 'Lecture halls', 'Campus library',
-        'Student hostels', 'Campus commercial area',
-        'Tesano township', 'North Kaneshie area',
+        'Tesano Main Campus', 'Abeka Campus', 'GCTU Main Gate', 'Silicon Valley Auditorium',
+        'GTUC Hostel Blocks A, B & C', 'International Students Hostel', 'Lecture halls',
+        'Campus library', 'Campus commercial area',
+        'Tesano township', 'Tesano Palace area', 'Abeka Hostel area', 'North Kaneshie area',
     ],
     GIMPA: [
-        'GIMPA Main Gate', 'Greenhill Campus', 'GIMPA Business School', 'Lecture halls',
-        'Campus library', 'Student hostels',
+        'GIMPA Main Gate', 'Greenhill Campus', 'GIMPA Main Library', 'Faculty of Law Library',
+        'GIMPA Business School', 'GIMPA Executive Conference Centre (GECC)', "Student's Hostel",
+        'Lecture halls', 'Campus library',
         'Legon Bypass', 'West Legon area', 'Achimota area',
     ],
     UENR: [
-        'UENR Main Gate', 'Main Campus', 'Dormaa Campus', 'Lecture halls',
-        'Campus library', 'Student hostels',
+        'Sunyani Campus (Main Administration & Library)', 'Nsoatre Campus (School of Engineering)',
+        'Dormaa Ahenkro Campus', 'UENR Main Gate', 'Lecture halls', 'Campus library',
+        'Student hostels',
         'Sunyani township', 'Sunyani Main Market area',
     ],
 };
@@ -191,18 +213,76 @@ function findNearestSchool(lat, lng) {
 }
 
 const COUNTRY_CODES = [
+    // West Africa
     { code: '+233', label: '+233 (Ghana)' },
     { code: '+234', label: '+234 (Nigeria)' },
+    { code: '+225', label: '+225 (Côte d\'Ivoire)' },
+    { code: '+221', label: '+221 (Senegal)' },
+    { code: '+223', label: '+223 (Mali)' },
+    { code: '+226', label: '+226 (Burkina Faso)' },
+    { code: '+227', label: '+227 (Niger)' },
+    { code: '+228', label: '+228 (Togo)' },
+    { code: '+229', label: '+229 (Benin)' },
+    { code: '+220', label: '+220 (Gambia)' },
+    { code: '+224', label: '+224 (Guinea)' },
+    { code: '+245', label: '+245 (Guinea-Bissau)' },
+    { code: '+232', label: '+232 (Sierra Leone)' },
+    { code: '+231', label: '+231 (Liberia)' },
+    { code: '+238', label: '+238 (Cape Verde)' },
+    { code: '+222', label: '+222 (Mauritania)' },
+
+    // East Africa
     { code: '+254', label: '+254 (Kenya)' },
     { code: '+256', label: '+256 (Uganda)' },
-    { code: '+27', label: '+27 (South Africa)' },
+    { code: '+255', label: '+255 (Tanzania)' },
     { code: '+250', label: '+250 (Rwanda)' },
+    { code: '+257', label: '+257 (Burundi)' },
     { code: '+251', label: '+251 (Ethiopia)' },
+    { code: '+253', label: '+253 (Djibouti)' },
+    { code: '+252', label: '+252 (Somalia)' },
+    { code: '+211', label: '+211 (South Sudan)' },
+    { code: '+249', label: '+249 (Sudan)' },
+    { code: '+291', label: '+291 (Eritrea)' },
+    { code: '+248', label: '+248 (Seychelles)' },
+    { code: '+230', label: '+230 (Mauritius)' },
+
+    // Central Africa
+    { code: '+237', label: '+237 (Cameroon)' },
+    { code: '+243', label: '+243 (DR Congo)' },
+    { code: '+242', label: '+242 (Congo)' },
+    { code: '+241', label: '+241 (Gabon)' },
+    { code: '+235', label: '+235 (Chad)' },
+    { code: '+236', label: '+236 (Central African Republic)' },
+    { code: '+240', label: '+240 (Equatorial Guinea)' },
+    { code: '+239', label: '+239 (São Tomé and Príncipe)' },
+
+    // Southern Africa
+    { code: '+27', label: '+27 (South Africa)' },
+    { code: '+260', label: '+260 (Zambia)' },
+    { code: '+263', label: '+263 (Zimbabwe)' },
+    { code: '+267', label: '+267 (Botswana)' },
+    { code: '+264', label: '+264 (Namibia)' },
+    { code: '+258', label: '+258 (Mozambique)' },
+    { code: '+265', label: '+265 (Malawi)' },
+    { code: '+266', label: '+266 (Lesotho)' },
+    { code: '+268', label: '+268 (Eswatini)' },
+    { code: '+244', label: '+244 (Angola)' },
+
+    // North Africa
+    { code: '+20', label: '+20 (Egypt)' },
+    { code: '+212', label: '+212 (Morocco)' },
+    { code: '+216', label: '+216 (Tunisia)' },
+    { code: '+213', label: '+213 (Algeria)' },
+    { code: '+218', label: '+218 (Libya)' },
+
+    // Outside Africa
     { code: '+1', label: '+1 (USA/Canada)' },
     { code: '+44', label: '+44 (UK)' },
+    { code: '+33', label: '+33 (France)' },
+    { code: '+49', label: '+49 (Germany)' },
     { code: '+91', label: '+91 (India)' },
-    { code: '+92', label: '+92 (Pakistan)' },
-    { code: '+61', label: '+61 (Australia)' },
+    { code: '+971', label: '+971 (UAE)' },
+    { code: '+86', label: '+86 (China)' },
 ];
 
 // Mobile money is a fixed, known set of 3 networks in Ghana — it has nothing
@@ -277,6 +357,8 @@ export default function Register() {
     });
     const [whatsappCode, setWhatsappCode] = useState('+233');
     const [whatsappNumber, setWhatsappNumber] = useState('');
+    const [smsCode, setSmsCode] = useState('+233');
+    const [smsNumber, setSmsNumber] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -401,6 +483,12 @@ export default function Register() {
         setForm({ ...form, whatsapp: code + cleaned });
     };
 
+    const updateSms = (code, number) => {
+        const cleaned = number.replace(/\D/g, '');
+        setSmsNumber(cleaned);
+        setForm({ ...form, sms_number: code + cleaned });
+    };
+
     const updateSellerSchool = (newSchool) => {
         const places = PLACES_BY_SCHOOL[newSchool] || [];
         setForm((f) => ({
@@ -513,6 +601,12 @@ export default function Register() {
             return;
         }
 
+        const smsDigits = smsNumber.replace(/\D/g, '');
+        if (smsDigits.length !== 9) {
+            toast.error('SMS phone number must be exactly 9 digits after the country code.');
+            return;
+        }
+
         if (usernameCheck.available === false) {
             toast.error(usernameCheck.message || 'Please choose a different username');
             return;
@@ -567,6 +661,7 @@ export default function Register() {
                 school: accountType === 'seller' ? form.school : buyerSchool,
                 account_type: accountType,
                 whatsapp: form.whatsapp,
+                sms_number: form.sms_number,
                 meeting_place: accountType === 'seller' ? form.meeting_place : null,
                 location: accountType === 'buyer' ? buyerExtraInfo : null,
                 referral_code: searchParams.get('ref') || null,
@@ -857,6 +952,50 @@ export default function Register() {
                                     </div>
                                     <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">
                                         Enter exactly 9 digits after the country code (no spaces).
+                                    </p>
+                                </div>
+
+                                {/* SMS PHONE NUMBER */}
+                                <div>
+                                    <label className="text-sm font-semibold text-slate-700 dark:text-gold-100">Phone Number (for SMS alerts)</label>
+                                    <div className="flex mt-1 gap-1.5">
+                                        <div className="relative w-32">
+                                            <select
+                                                value={smsCode}
+                                                onChange={(e) => {
+                                                    const newCode = e.target.value;
+                                                    setSmsCode(newCode);
+                                                    updateSms(newCode, smsNumber);
+                                                }}
+                                                className="w-full pl-2 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
+                                            >
+                                                {COUNTRY_CODES.map((c) => (
+                                                    <option key={c.code} value={c.code}>{c.label}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40 pointer-events-none" />
+                                        </div>
+                                        <div className="relative flex-1">
+                                            <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-200/40" />
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                required
+                                                value={smsNumber}
+                                                onChange={(e) => {
+                                                    const digits = e.target.value.replace(/\D/g, '');
+                                                    if (digits.length <= 9) {
+                                                        setSmsNumber(digits);
+                                                        updateSms(smsCode, digits);
+                                                    }
+                                                }}
+                                                placeholder="e.g. 24 123 4567"
+                                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-200/30 transition"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">
+                                        We'll text you delivery updates here. Can be the same as your WhatsApp number.
                                     </p>
                                 </div>
 

@@ -33,6 +33,72 @@ const VERIFIED_NOTE_FULL = 'Verified sellers are recommended — their universit
 const VERIFIED_NOTE_TYPE_SPEED_MS = 40;
 const VERIFIED_NOTE_DELAY_MS = 500;
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
+const SUBCATEGORIES = {
+    Clothes: [
+        { label: 'T-Shirts', keywords: ['t-shirt', 'tshirt', 'tee', 't shirt', 'polo', 'jersey', 'crew neck', 'graphic tee'] },
+        { label: 'Shirts', keywords: ['shirt', 'button-up', 'button up', 'dress shirt', 'flannel', 'long sleeve'] },
+        { label: 'Jeans', keywords: ['jeans', 'denim', 'skinny jeans', 'baggy jeans', 'straight leg'] },
+        { label: 'Trousers', keywords: ['trouser', 'pants', 'chinos', 'slacks', 'khakis', 'cargo pants', 'joggers'] },
+        { label: 'Shorts', keywords: ['shorts', 'denim shorts', 'cargo shorts', 'boxer shorts'] },
+        { label: 'Dresses', keywords: ['dress', 'gown', 'maxi dress', 'gown dress', 'sundress', 'bodycon'] },
+        { label: 'Skirts', keywords: ['skirt', 'mini skirt', 'midi skirt', 'pencil skirt'] },
+        { label: 'Jackets/Hoodies', keywords: ['jacket', 'hoodie', 'sweater', 'cardigan', 'sweatshirt', 'coat', 'bomber', 'denim jacket', 'windbreaker', 'pullover'] },
+        { label: 'Traditional wear', keywords: ['kente', 'smock', 'traditional', 'batakari', 'ankara', 'kaba', 'slit', 'agbada', 'african print'] },
+        { label: 'Underwear', keywords: ['underwear', 'boxers', 'briefs', 'bra', 'panties', 'lingerie', 'singlet'] },
+        { label: 'Activewear', keywords: ['gym wear', 'sportswear', 'leggings', 'tights', 'tracksuit', 'jogging suit'] },
+        { label: 'Suits/Formal', keywords: ['suit', 'blazer', 'tuxedo', 'formal wear', 'waistcoat', 'vest'] },
+    ],
+    Gadgets: [
+        { label: 'Phones', keywords: ['phone', 'iphone', 'samsung', 'smartphone', 'android', 'tecno', 'infinix', 'itel', 'huawei', 'xiaomi', 'redmi', 'galaxy'] },
+        { label: 'Laptops', keywords: ['laptop', 'macbook', 'notebook', 'chromebook', 'hp laptop', 'dell', 'lenovo', 'thinkpad', 'ultrabook'] },
+        { label: 'Headphones', keywords: ['headphone', 'earbud', 'earphone', 'airpod', 'earpiece', 'bluetooth headset', 'headset'] },
+        { label: 'Chargers & Cables', keywords: ['charger', 'cable', 'adapter', 'power bank', 'powerbank', 'usb cable', 'type-c', 'lightning cable', 'fast charger'] },
+        { label: 'Accessories', keywords: ['case', 'cover', 'screen protector', 'accessory', 'phone case', 'tempered glass', 'pop socket', 'stylus'] },
+        { label: 'Smartwatches', keywords: ['smartwatch', 'watch', 'fitness tracker', 'apple watch', 'smart band'] },
+        { label: 'Speakers', keywords: ['speaker', 'bluetooth speaker', 'jbl', 'soundbar', 'woofer'] },
+        { label: 'Tablets', keywords: ['tablet', 'ipad', 'tab', 'e-reader', 'kindle'] },
+        { label: 'Cameras', keywords: ['camera', 'dslr', 'gopro', 'webcam', 'camcorder', 'action cam'] },
+        { label: 'Gaming', keywords: ['console', 'playstation', 'ps4', 'ps5', 'xbox', 'controller', 'gaming', 'joystick'] },
+        { label: 'Computer Parts', keywords: ['ram', 'ssd', 'hard drive', 'hdd', 'flash drive', 'memory card', 'mouse', 'keyboard', 'monitor', 'graphics card', 'motherboard'] },
+    ],
+    Stationery: [
+        { label: 'Notebooks', keywords: ['notebook', 'exercise book', 'exam pad', 'jotter', 'sketch pad', 'diary', 'planner'] },
+        { label: 'Pens & Pencils', keywords: ['pen', 'pencil', 'biro', 'marker pen', 'highlighter', 'eraser', 'sharpener', 'mechanical pencil'] },
+        { label: 'Files & Folders', keywords: ['file', 'folder', 'ring binder', 'document holder', 'envelope', 'clip board'] },
+        { label: 'Textbooks', keywords: ['textbook', 'book', 'past questions', 'reference book', 'novel', 'course material'] },
+        { label: 'Calculators', keywords: ['calculator', 'scientific calculator', 'casio'] },
+        { label: 'Art supplies', keywords: ['art', 'paint', 'marker', 'drawing', 'crayon', 'sketching', 'canvas', 'paintbrush'] },
+        { label: 'Office supplies', keywords: ['stapler', 'staples', 'tape', 'glue', 'scissors', 'ruler', 'paper clip', 'sticky note', 'correction fluid'] },
+        { label: 'Printing supplies', keywords: ['ink', 'toner', 'printer paper', 'a4 paper', 'cartridge'] },
+        { label: 'Bags', keywords: ['school bag', 'backpack', 'lunch bag', 'pencil case', 'pouch'] },
+    ],
+    Perfumes: [
+        { label: 'Men', keywords: ['men', 'male', 'for him', "men's perfume", 'cologne'] },
+        { label: 'Women', keywords: ['women', 'female', 'for her', "women's perfume"] },
+        { label: 'Unisex', keywords: ['unisex', 'shared scent'] },
+        { label: 'Body sprays', keywords: ['body spray', 'deodorant', 'antiperspirant', 'mist'] },
+        { label: 'Oils', keywords: ['oil', 'attar', 'oud', 'perfume oil', 'concentrated oil'] },
+        { label: 'Body care', keywords: ['lotion', 'body cream', 'shower gel', 'body wash', 'body mist', 'body butter'] },
+    ],
+    Food: [
+        { label: 'Snacks', keywords: ['snack', 'chips', 'biscuit', 'chin chin', 'plantain chips', 'popcorn', 'nuts', 'gari'] },
+        { label: 'Drinks', keywords: ['drink', 'juice', 'water', 'soda', 'smoothie', 'malt', 'soft drink', 'zobo', 'sobolo'] },
+        { label: 'Homemade meals', keywords: ['meal', 'jollof', 'food', 'homemade', 'waakye', 'banku', 'fufu', 'rice', 'stew', 'soup', 'kenkey'] },
+        { label: 'Baked goods', keywords: ['bread', 'cake', 'pastry', 'baked', 'meat pie', 'doughnut', 'donut', 'cupcake', 'cookies'] },
+        { label: 'Fruits', keywords: ['fruit', 'banana', 'orange', 'mango', 'pineapple', 'watermelon', 'apple'] },
+        { label: 'Local delicacies', keywords: ['kelewele', 'yam', 'boiled egg', 'kebab', 'khebab', 'shawarma', 'suya', 'fried rice'] },
+    ],
+    Sneakers: [
+        { label: 'Running', keywords: ['running', 'jogger', 'trainer', 'runner shoe'] },
+        { label: 'Casual', keywords: ['casual', 'canvas', 'low top', 'high top'] },
+        { label: 'Basketball', keywords: ['basketball', 'jordan', 'lebron', 'kd shoe'] },
+        { label: 'Slides & Sandals', keywords: ['slide', 'sandal', 'slipper', 'flip flop', 'crocs'] },
+        { label: 'Boots', keywords: ['boot', 'timberland', 'chelsea boot', 'combat boot'] },
+        { label: 'Official/Loafers', keywords: ['loafer', 'official shoe', 'oxford', 'dress shoe', 'moccasin'] },
+        { label: 'Brands', keywords: ['nike', 'adidas', 'puma', 'vans', 'converse', 'new balance', 'yeezy'] },
+    ],
+    Other: [],
+};
 
 const SERVICE_TYPES = [
     { label: '💄 Makeup', keywords: ['makeup', 'make-up', 'mua'] },
@@ -145,6 +211,7 @@ export default function Browse() {
     const [verifiedOnly, setVerifiedOnly] = useState(false);
     const [priceRange, setPriceRange] = useState(null);
     const [budgetInput, setBudgetInput] = useState('');
+    const [subCategory, setSubCategory] = useState('');
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('all');
     const [openSheet, setOpenSheet] = useState(null);
@@ -340,10 +407,17 @@ export default function Browse() {
     const categoryFiltered = itemCategory
         ? baseProducts.filter((p) => (p.category || p.category_name) === itemCategory)
         : baseProducts.filter((p) => (p.category || p.category_name) !== 'Services');
-    const verifiedFiltered = verifiedOnly
-        ? categoryFiltered.filter((p) => p.seller_verified)
+    const activeSubCategory = (SUBCATEGORIES[itemCategory] || []).find((s) => s.label === subCategory);
+    const subCategoryFiltered = activeSubCategory
+        ? categoryFiltered.filter((p) => {
+            const text = `${p.title || ''} ${p.description || ''}`.toLowerCase();
+            return activeSubCategory.keywords.some((kw) => text.includes(kw));
+        })
         : categoryFiltered;
 
+    const verifiedFiltered = verifiedOnly
+        ? subCategoryFiltered.filter((p) => p.seller_verified)
+        : subCategoryFiltered;
     let filteredByType = verifiedFiltered;
     if (filterType === 'new') {
         const threeDaysAgo = new Date();
@@ -465,9 +539,10 @@ export default function Browse() {
         }
     };
 
-    const selectCategory = (value) => {
-        setItemCategory(value);
-        if (value !== 'Mobile Data') setDataNetwork('');
+const selectCategory = (value) => {
+    setItemCategory(value);
+    setSubCategory('');
+    if (value !== 'Mobile Data') setDataNetwork('');
         if (value !== 'Services') setServiceType('');
         setOpenSheet(null);
 
@@ -541,9 +616,9 @@ export default function Browse() {
                         </Link>
 
                         <div className="flex items-center justify-between gap-3 mt-4">
-                            <h1 className="text-xl font-extrabold text-white truncate">
-                                {headerTitle}
-                            </h1>
+<h1 className="flex-1 min-w-0 text-xl font-extrabold text-white truncate">
+    {headerTitle}
+</h1>
                             {renderBudgetInput()}
                         </div>
                         <div className={`flex items-center mt-1 ${isPlanActive ? 'justify-between' : 'justify-end'}`}>
@@ -888,7 +963,15 @@ export default function Browse() {
                                     </span>
                                 )}
 
-                                {verifiedOnly && (
+                         {itemCategory && (
+                                <SubcategoryScroller
+                                    options={SUBCATEGORIES[itemCategory] || []}
+                                    value={subCategory}
+                                    onChange={setSubCategory}
+                                />
+                            )}
+
+                            {verifiedOnly && (
                                     <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
                                         <CheckBadgeIconSolid className="w-3 h-3" /> Verified
                                     </span>
@@ -974,7 +1057,7 @@ export default function Browse() {
             </section>
 
             {/* ─── MOBILE BOTTOM TABS ──────────────────────────────────── */}
-            <div className="block sm:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-[max(14px,env(safe-area-inset-bottom))] pt-2">
+            <div className="block sm:hidden fixed bottom-0 left-0 right-0 z-40">
                 <BrowseGlassTabs
                     tabs={MOBILE_TABS}
                     isTabActive={isTabActive}
@@ -1060,81 +1143,61 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
     };
 
     return (
-        <>
-            <div
-                className="relative w-full rounded-2xl border border-white/50 dark:border-white/10 bg-white/65 dark:bg-ink-900/55 shadow-[0_10px_30px_-6px_rgba(15,23,42,0.35)] overflow-hidden"
-                style={{
-                    backdropFilter: 'blur(24px) saturate(180%)',
-                    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                }}
-            >
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent dark:from-white/10" />
-                <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/40 dark:ring-white/5" />
+        <div
+            className="relative w-full border-t border-white/50 dark:border-white/10 bg-white/65 dark:bg-ink-900/55 shadow-[0_-4px_20px_-6px_rgba(15,23,42,0.25)] overflow-hidden"
+            style={{
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                paddingBottom: 'env(safe-area-inset-bottom)',
+            }}
+        >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/50 to-transparent dark:from-white/10" />
 
-                <div className="relative flex items-stretch h-[50px] px-1.5">
-                    {tabs.map((tab) => {
-                        const active = isTabActive(tab);
-                        const Icon = active ? TAB_ICONS[tab].solid : TAB_ICONS[tab].outline;
-                        const label = getTabLabel(tab);
-
-                        return (
-                            <button
-                                key={tab}
-                                onClick={() => onTabChange(tab)}
-                                className="relative flex-1 min-w-0 my-1 mx-0.5"
-                            >
-                                <span
-                                    className={`flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-2xl transition-all duration-300 ease-out active:scale-[0.94] ${
-                                        active
-                                            ? 'bg-white/40 dark:bg-white/10 shadow-[0_1px_4px_rgba(15,23,42,0.06)]'
-                                            : 'bg-transparent'
-                                    }`}
-                                >
-                                    <Icon
-                                        className={`w-[17px] h-[17px] transition-colors duration-300 ${
-                                            active
-                                                ? 'text-brand-700 dark:text-gold-400'
-                                                : 'text-slate-500 dark:text-gold-200/50'
-                                        }`}
-                                    />
-                                    <span
-                                        className={`text-[9.5px] leading-none truncate max-w-full px-0.5 transition-all duration-300 ${
-                                            active
-                                                ? 'font-bold text-brand-700 dark:text-gold-400'
-                                                : 'font-medium text-slate-500 dark:text-gold-200/50'
-                                        }`}
-                                    >
-                                        {label}
-                                    </span>
-                                </span>
-
-                                {active && (
-                                    <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-[3.5px] w-6 rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-300" />
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            <div className="flex justify-center gap-1.5 mt-2">
+            <div className="relative flex items-stretch h-[56px]">
                 {tabs.map((tab) => {
                     const active = isTabActive(tab);
+                    const Icon = active ? TAB_ICONS[tab].solid : TAB_ICONS[tab].outline;
+                    const label = getTabLabel(tab);
+
                     return (
                         <button
                             key={tab}
                             onClick={() => onTabChange(tab)}
-                            aria-label={`Go to ${BROWSE_TAB_LABELS[tab] || tab}`}
-                            className={`h-1.5 rounded-full transition-all duration-300 ${
-                                active
-                                    ? 'w-4 bg-brand-600 dark:bg-gold-500'
-                                    : 'w-1.5 bg-slate-300 dark:bg-ink-600 hover:bg-slate-400 dark:hover:bg-ink-500'
-                            }`}
-                        />
+                            className="relative flex-1 min-w-0"
+                        >
+                            <span
+                                className={`flex h-full w-full flex-col items-center justify-center gap-0.5 transition-all duration-300 ease-out active:scale-[0.94] ${
+                                    active
+                                        ? 'bg-white/40 dark:bg-white/10'
+                                        : 'bg-transparent'
+                                }`}
+                            >
+                                <Icon
+                                    className={`w-[17px] h-[17px] transition-colors duration-300 ${
+                                        active
+                                            ? 'text-brand-700 dark:text-gold-400'
+                                            : 'text-slate-500 dark:text-gold-200/50'
+                                    }`}
+                                />
+                                <span
+                                    className={`text-[9.5px] leading-none truncate max-w-full px-0.5 transition-all duration-300 ${
+                                        active
+                                            ? 'font-bold text-brand-700 dark:text-gold-400'
+                                            : 'font-medium text-slate-500 dark:text-gold-200/50'
+                                    }`}
+                                >
+                                    {label}
+                                </span>
+                            </span>
+
+                            {active && (
+                                <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-[3.5px] w-6 rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-300" />
+                            )}
+                        </button>
                     );
                 })}
             </div>
-        </>
+        </div>
     );
 }
 
@@ -1222,6 +1285,33 @@ function ServiceTypeDropdown({ value, onChange }) {
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+function SubcategoryScroller({ options, value, onChange }) {
+    if (!options || options.length === 0) return null;
+    const pillClass = (active) =>
+        `shrink-0 text-xs sm:text-sm font-semibold px-3.5 py-1.5 rounded-full border transition whitespace-nowrap ${
+            active
+                ? 'bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 border-brand-600 dark:border-gold-600'
+                : 'bg-white dark:bg-ink-800 text-slate-700 dark:text-gold-200 border-slate-200 dark:border-ink-600 hover:bg-slate-50 dark:hover:bg-ink-700'
+        }`;
+
+    return (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 mb-4 -mx-1 px-1">
+            <button onClick={() => onChange('')} className={pillClass(value === '')}>
+                All
+            </button>
+            {options.map((opt) => (
+                <button
+                    key={opt.label}
+                    onClick={() => onChange(value === opt.label ? '' : opt.label)}
+                    className={pillClass(value === opt.label)}
+                >
+                    {opt.label}
+                </button>
+            ))}
         </div>
     );
 }

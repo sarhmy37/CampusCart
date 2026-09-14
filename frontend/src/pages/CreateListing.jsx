@@ -89,6 +89,20 @@ function LocationPickerMap({ initialPosition, onConfirm, onCancel }) {
 
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
 const WORKING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DURATION_OPTIONS = [
+    { label: '5 minutes', value: 5 },
+    { label: '10 minutes', value: 10 },
+    { label: '15 minutes', value: 15 },
+    { label: '30 minutes', value: 30 },
+    { label: '45 minutes', value: 45 },
+    { label: '1 hour', value: 60 },
+    { label: '1.5 hours', value: 90 },
+    { label: '2 hours', value: 120 },
+    { label: '3 hours', value: 180 },
+    { label: '4 hours', value: 240 },
+    { label: 'Half day (6 hours)', value: 360 },
+    { label: 'Full day', value: 1440 },
+];
 
 const generateTimeOptions = () => {
     const times = [];
@@ -104,6 +118,7 @@ const generateTimeOptions = () => {
     return times;
 };
 const TIME_OPTIONS = generateTimeOptions();
+const DELIVERY_FEE_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1); // 1–50
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
 const CLOUD_NAME = 'b7fch4rp';
@@ -174,6 +189,7 @@ export default function CreateListing() {
         WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' }))
     );
     const [serviceLocation, setServiceLocation] = useState(null); // { lat, lng }
+    const [serviceDuration, setServiceDuration] = useState(60); // minutes per booking
     const [locatingService, setLocatingService] = useState(false);
     const [showLocationPicker, setShowLocationPicker] = useState(false);
 
@@ -557,6 +573,7 @@ export default function CreateListing() {
                 }),
             lat: serviceLocation.lat,
             lng: serviceLocation.lng,
+            duration_minutes: serviceDuration,
         };
 
         setServiceLoading(true);
@@ -590,6 +607,7 @@ export default function CreateListing() {
             setServiceVideoUrl(null);
             setServiceVideoPreview(null);
             setServiceLocation(null);
+            setServiceDuration(60);
             navigate('/dashboard');
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to create service');
@@ -1011,42 +1029,42 @@ export default function CreateListing() {
                                 <div className="grid grid-cols-3 gap-2">
                                     <div>
                                         <label className="text-[11px] font-semibold text-slate-500 dark:text-gold-200/60">On campus</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={MAX_DELIVERY_FEE}
-                                            step="0.5"
+                                        <select
                                             value={deliveryPrices.delivery_fee_on_campus}
                                             onChange={(e) => handleDeliveryPriceChange('delivery_fee_on_campus', e.target.value)}
-                                            placeholder="0"
-                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
-                                        />
+                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
+                                        >
+                                            <option value="">Free</option>
+                                            {DELIVERY_FEE_OPTIONS.map((v) => (
+                                                <option key={v} value={v}>GHS {v}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div>
                                         <label className="text-[11px] font-semibold text-slate-500 dark:text-gold-200/60">Just outside</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={MAX_DELIVERY_FEE}
-                                            step="0.5"
+                                        <select
                                             value={deliveryPrices.delivery_fee_near_campus}
                                             onChange={(e) => handleDeliveryPriceChange('delivery_fee_near_campus', e.target.value)}
-                                            placeholder="0"
-                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
-                                        />
+                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
+                                        >
+                                            <option value="">Free</option>
+                                            {DELIVERY_FEE_OPTIONS.map((v) => (
+                                                <option key={v} value={v}>GHS {v}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div>
                                         <label className="text-[11px] font-semibold text-slate-500 dark:text-gold-200/60">Far</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={MAX_DELIVERY_FEE}
-                                            step="0.5"
+                                        <select
                                             value={deliveryPrices.delivery_fee_far_campus}
                                             onChange={(e) => handleDeliveryPriceChange('delivery_fee_far_campus', e.target.value)}
-                                            placeholder="0"
-                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
-                                        />
+                                            className="w-full mt-1 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
+                                        >
+                                            <option value="">Free</option>
+                                            {DELIVERY_FEE_OPTIONS.map((v) => (
+                                                <option key={v} value={v}>GHS {v}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -1150,6 +1168,26 @@ export default function CreateListing() {
                                                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition"
                                             />
                                         </div>
+                                    </div>
+
+                                    {/* BOOKING DURATION */}
+                                    <div className="border-t border-slate-100 dark:border-ink-600 pt-4">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Clock size={15} className="text-slate-500 dark:text-gold-300/60" />
+                                            <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Time per booking</label>
+                                        </div>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/40 mb-2">
+                                            How long one booking takes you. We use this to stop buyers from booking a time you're still busy with someone else.
+                                        </p>
+                                        <select
+                                            value={serviceDuration}
+                                            onChange={(e) => setServiceDuration(Number(e.target.value))}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white transition appearance-none"
+                                        >
+                                            {DURATION_OPTIONS.map((d) => (
+                                                <option key={d.value} value={d.value}>{d.label}</option>
+                                            ))}
+                                        </select>
                                     </div>
 
                                     {/* WORKING HOURS */}

@@ -68,19 +68,21 @@ export default function ServiceCard({ service }) {
             {/* BODY */}
             <div className="p-3.5">
                 {/* TITLE + verified/premium badge */}
-                <div className="flex items-center gap-1">
-                    <p className="font-bold text-sm text-slate-900 dark:text-gold-50 truncate">
+                <div className="flex items-start gap-1">
+                    <p className="font-bold text-sm text-slate-900 dark:text-gold-50 line-clamp-2 leading-snug flex-1 min-w-0">
                         {service.title || service.name}
                     </p>
-                    {planTier === 'premium' && (
-                        <Sparkles size={12} className="text-purple-500 fill-purple-500 shrink-0" />
-                    )}
-                    {planTier === 'pro' && (
-                        <Star size={12} className="text-blue-500 fill-blue-500 shrink-0" />
-                    )}
-                    {service.seller_verified && (
-                        <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
-                    )}
+                    <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                        {planTier === 'premium' && (
+                            <Sparkles size={12} className="text-purple-500 fill-purple-500 shrink-0" />
+                        )}
+                        {planTier === 'pro' && (
+                            <Star size={12} className="text-blue-500 fill-blue-500 shrink-0" />
+                        )}
+                        {service.seller_verified && (
+                            <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
+                        )}
+                    </div>
                 </div>
 
                 {service.description && (

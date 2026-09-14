@@ -502,8 +502,9 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
         const sellerResult = await pool.query('SELECT name FROM users WHERE id = $1', [req.userId]);
         const sellerName = sellerResult.rows[0]?.name || 'The seller';
 
-        const buyerResult = await pool.query('SELECT location FROM users WHERE id = $1', [order.buyer_id]);
+        const buyerResult = await pool.query('SELECT location, sms_number FROM users WHERE id = $1', [order.buyer_id]);
         const buyerLocation = buyerResult.rows[0]?.location || 'your specified location';
+        const buyerSmsNumber = buyerResult.rows[0]?.sms_number;
 
         await pool.query(
             `UPDATE orders SET delivered_at = now(), delivered_by_seller_id = $1, last_delivery_reminder_at = now() WHERE id = $2`,
@@ -512,6 +513,11 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
 
         const message = `${sellerName} has marked your order as delivered to ${buyerLocation}. Please go to your Orders tab to confirm you've received it.`;
         await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id, '/dashboard?tab=orders');
+
+        if (buyerSmsNumber) {
+            sendOrderSMS(buyerSmsNumber, `Tre-X: Your order has been marked as delivered to ${buyerLocation}. Open the app to confirm you've received it.`)
+                .catch((err) => console.error('Delivery SMS failed:', err));
+        }
 
         res.json({ success: true, message: 'Marked as delivered. The buyer has been notified.' });
     } catch (err) {
@@ -541,6 +547,9 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         if (item.buyer_id !== req.userId) {
             return res.status(403).json({ error: 'You are not the buyer of this item' });
         }
+
+        const sellerSmsResult = await pool.query('SELECT sms_number FROM users WHERE id = $1', [item.seller_id]);
+        const sellerSmsNumber = sellerSmsResult.rows[0]?.sms_number;
 
         await pool.query(
             `UPDATE order_items SET buyer_confirmed_at = now(), status = 'completed' WHERE id = $1`,
@@ -618,6 +627,11 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             item.order_id,
             '/dashboard?tab=payouts'
         );
+
+        if (sellerSmsNumber) {
+            sendOrderSMS(sellerSmsNumber, `Tre-X: Buyer confirmed receipt of "${item.title}". GHS ${sellerEarnings.toFixed(2)} is now available in your Payouts tab.`)
+                .catch((err) => console.error('Delivery confirm SMS failed:', err));
+        }
 
         res.json({
             success: true,

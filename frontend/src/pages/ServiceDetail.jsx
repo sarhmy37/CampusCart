@@ -51,6 +51,7 @@ export default function ServiceDetail() {
     const [locatingBuyer, setLocatingBuyer] = useState(false);
     const [buyerLocationError, setBuyerLocationError] = useState('');
     const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+    const [bookingBlocked, setBookingBlocked] = useState(false);
 
     // Escape-to-close + lock background scroll while the map is full screen
     useEffect(() => {
@@ -187,6 +188,7 @@ export default function ServiceDetail() {
             });
             window.location.href = data.authorization_url;
         } catch (err) {
+            if (err.response?.status === 409) setBookingBlocked(true);
             toast.error(err.response?.data?.error || 'Something went wrong. Please try again.');
             setSubmitting(false);
         }
@@ -440,30 +442,15 @@ export default function ServiceDetail() {
                         </div>
 
                         {/* INFO PILLS */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="flex items-center gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl p-3.5">
-                                <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center shrink-0">
-                                    <MapPin size={16} />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] text-slate-400 dark:text-gold-200/50 uppercase font-semibold">Location</p>
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">
-                                        {service.seller_meeting_place
-                                            ? `${service.seller_meeting_place}, ${service.seller_school}`
-                                            : service.seller_school || 'Not specified'}
-                                    </p>
-                                </div>
+                        <div className="flex items-start gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl p-3.5">
+                            <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center shrink-0">
+                                <Clock size={16} />
                             </div>
-                            <div className="flex items-center gap-3 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl p-3.5">
-                                <div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center shrink-0">
-                                    <Clock size={16} />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] text-slate-400 dark:text-gold-200/50 uppercase font-semibold">Availability</p>
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-gold-100 truncate">
-                                        {availabilitySummary}
-                                    </p>
-                                </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] text-slate-400 dark:text-gold-200/50 uppercase font-semibold">Availability</p>
+                                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">
+                                    {availabilitySummary}
+                                </p>
                             </div>
                         </div>
 
@@ -493,10 +480,10 @@ export default function ServiceDetail() {
                                             <input
                                                 type="date"
                                                 value={bookingDate}
-                                                onChange={e => setBookingDate(e.target.value)}
+                                                onChange={e => { setBookingDate(e.target.value); setBookingBlocked(false); }}
                                                 min={new Date().toISOString().split('T')[0]}
                                                 style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                                                className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                                className="block w-full min-w-0 max-w-full h-[46px] px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                                 required
                                             />
                                         </div>
@@ -507,9 +494,9 @@ export default function ServiceDetail() {
                                             <input
                                                 type="time"
                                                 value={bookingTime}
-                                                onChange={e => setBookingTime(e.target.value)}
+                                                onChange={e => { setBookingTime(e.target.value); setBookingBlocked(false); }}
                                                 style={{ colorScheme: theme, boxSizing: 'border-box', WebkitAppearance: 'none', appearance: 'none' }}
-                                                className="block w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                                                className="block w-full min-w-0 max-w-full h-[46px] px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
                                                 required
                                             />
                                         </div>
@@ -536,9 +523,9 @@ export default function ServiceDetail() {
 
                                     <button
                                         type="submit"
-                                        disabled={submitting || !user}
+                                        disabled={submitting || !user || bookingBlocked}
                                         className={`w-full py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 ${
-                                            submitting || !user
+                                            submitting || !user || bookingBlocked
                                                 ? 'bg-slate-200 dark:bg-ink-600 text-slate-400 dark:text-gold-200/40 cursor-not-allowed'
                                                 : 'bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 hover:bg-brand-700 dark:hover:bg-gold-400 shadow-sm'
                                         }`}
@@ -549,6 +536,8 @@ export default function ServiceDetail() {
                                             </>
                                         ) : !user ? (
                                             'Log in to book'
+                                        ) : bookingBlocked ? (
+                                            'Pick another time'
                                         ) : (
                                             <>
                                                 Pay(GHS 2) & Book <ArrowRight size={15} />

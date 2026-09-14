@@ -39,6 +39,7 @@ function toPublicUser(row) {
         about: row.about,
         personal_email: row.personal_email,
         whatsapp: row.whatsapp,
+        sms_number: row.sms_number,
         location: row.location,
         meeting_place: row.meeting_place,
         referral_code: row.referral_code,
@@ -135,7 +136,7 @@ router.get('/check-username', async (req, res) => {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-    const { username, name, university_email, password, school, account_type, whatsapp, location, meeting_place, referral_code,
+    const { username, name, university_email, password, school, account_type, whatsapp, sms_number, location, meeting_place, referral_code,
             bank_code, account_number, account_name, payout_method } = req.body;
 
     const displayName = (username || name || '').trim();
@@ -152,6 +153,9 @@ router.post('/register', async (req, res) => {
     }
     if (!whatsapp) {
         return res.status(400).json({ error: 'WhatsApp number is required' });
+    }
+    if (!sms_number) {
+        return res.status(400).json({ error: 'A phone number for SMS alerts is required' });
     }
 
     const resolvedAccountType = account_type === 'seller' ? 'seller' : 'buyer';
@@ -216,11 +220,10 @@ router.post('/register', async (req, res) => {
 
         const passwordHash = await bcrypt.hash(password, 10);
         const result = await client.query(
-            `INSERT INTO users (name, username, university_email, password_hash, school, account_type, whatsapp, location, meeting_place, referral_code, referred_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-            [displayName, displayName, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, location || null, meeting_place || null, myReferralCode, referrerId]
+            `INSERT INTO users (name, username, university_email, password_hash, school, account_type, whatsapp, sms_number, location, meeting_place, referral_code, referred_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+            [displayName, displayName, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, sms_number, location || null, meeting_place || null, myReferralCode, referrerId]
         );
-
         const user = result.rows[0];
 
         // 👇 If seller, create a default payout account
@@ -355,13 +358,13 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // PATCH /api/auth/me
 router.patch('/me', requireAuth, async (req, res) => {
-    const { about, personal_email, whatsapp, location, meeting_place, name, school, verified, avatar_url } = req.body;
+    const { about, personal_email, whatsapp, sms_number, location, meeting_place, name, school, verified, avatar_url } = req.body;
 
     const PROFILE_EDIT_COOLDOWN_SECONDS = 60 * 60;
 
     try {
         const isUserProfileEdit = about !== undefined || personal_email !== undefined ||
-            whatsapp !== undefined || location !== undefined || meeting_place !== undefined ||
+            whatsapp !== undefined || sms_number !== undefined || location !== undefined || meeting_place !== undefined ||
             name !== undefined || school !== undefined;
 
         if (isUserProfileEdit) {
@@ -391,10 +394,11 @@ router.patch('/me', requireAuth, async (req, res) => {
                 verified = COALESCE($7, verified),
                 avatar_url = COALESCE($10, avatar_url),
                 meeting_place = COALESCE($11, meeting_place),
+                sms_number = COALESCE($12, sms_number),
                 profile_updated_at = CASE WHEN $9 THEN now() ELSE profile_updated_at END
              WHERE id = $8
              RETURNING *`,
-            [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit, avatar_url, meeting_place]
+            [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit, avatar_url, meeting_place, sms_number]
         );
         
         res.json(toPublicUser(result.rows[0]));

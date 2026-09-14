@@ -13,7 +13,7 @@ export const SCHOOL_COORDS = {
     UMaT: { lat: 5.3005, lng: -1.9900 },      // added — University of Mines and Technology, Tarkwa
 };
 
-export const MAX_DELIVERY_FEE = 40;
+export const MAX_DELIVERY_FEE = 50;
 
 // Distance boundaries (km from campus)
 // Each school has its own "on campus" radius, since campus sizes vary a lot

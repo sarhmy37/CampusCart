@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from './AuthContext';
 
@@ -30,10 +31,12 @@ export function WishlistProvider({ children }) {
     const addItem = async (product) => {
         // Optimistic update so the heart fills instantly
         setItems((prev) => [{ ...product, wishlisted_at: new Date().toISOString() }, ...prev]);
+        toast.success('Added to wishlist');
         try {
             await api.post('/wishlist', { product_id: product.id });
         } catch {
             setItems((prev) => prev.filter((i) => i.id !== product.id));
+            toast.error('Failed to add to wishlist');
         }
     };
 

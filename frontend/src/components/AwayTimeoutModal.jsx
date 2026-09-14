@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Clock } from 'lucide-react';
 
 const AWAY_TIMEOUT_MS = 300 * 1000; // 300 seconds
+const AWAY_GRACE_MS = 15 * 1000; // ignore brief switches under 15s
 
 export default function AwayTimeoutModal() {
     const { user, logout } = useAuth();
@@ -21,6 +22,9 @@ export default function AwayTimeoutModal() {
                 const elapsed = Date.now() - leftAtRef.current;
                 leftAtRef.current = null;
 
+                if (elapsed < AWAY_GRACE_MS) {
+                    return;
+                }
                 if (elapsed >= AWAY_TIMEOUT_MS) {
                     logout();
                     return;

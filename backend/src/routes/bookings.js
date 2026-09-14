@@ -18,7 +18,7 @@ router.post('/', requireAuth, async (req, res) => {
     try {
         // 1. Fetch the service details
         const serviceResult = await pool.query(
-            `SELECT id, title, seller_id, price FROM products WHERE id = $1`,
+            `SELECT id, title, seller_id, price, service_duration FROM products WHERE id = $1`,
             [service_id]
         );
         const service = serviceResult.rows[0];
@@ -29,24 +29,61 @@ router.post('/', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'You cannot book your own service.' });
         }
 
-        // 3. Check for double booking — same service, same date, same time only.
-        // A 'confirmed' booking always blocks the slot. A 'pending_payment' booking
-        // only blocks it while it's still fresh (checkout in progress); if the buyer
-        // abandoned checkout more than 15 minutes ago, we treat the slot as free again
-        // instead of it staying blocked forever with no cleanup job.
-        const existing = await pool.query(
-            `SELECT id FROM bookings
+        // 3. Check for overlapping bookings — duration-aware, not just exact-time match.
+        // The seller sets how long one booking takes (duration_minutes, stored in the
+        // same service_duration JSON as the working-hours schedule). Two bookings for
+        // the same service conflict if their [start, start+duration) ranges overlap.
+        // A 'confirmed' booking always blocks its range. A 'pending_payment' booking
+        // only blocks it while fresh (checkout in progress, <15 min old).
+        let durationMinutes = 60; // default for legacy/unset services
+        try {
+            const schedule = service.service_duration ? JSON.parse(service.service_duration) : null;
+            if (schedule && Number(schedule.duration_minutes) > 0) {
+                durationMinutes = Number(schedule.duration_minutes);
+            }
+        } catch {
+            // legacy plain-text duration value — fall back to default
+        }
+
+        const timeToMinutes = (t) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
+        const minutesToTime = (mins) => {
+            const wrapped = ((mins % 1440) + 1440) % 1440;
+            const h = String(Math.floor(wrapped / 60)).padStart(2, '0');
+            const m = String(wrapped % 60).padStart(2, '0');
+            return `${h}:${m}`;
+        };
+
+        const sameDayBookings = await pool.query(
+            `SELECT booking_time FROM bookings
              WHERE service_id = $1
                AND booking_date = $2
-               AND booking_time = $3
                AND (
                    status = 'confirmed'
                    OR (status = 'pending_payment' AND created_at > NOW() - INTERVAL '15 minutes')
                )`,
-            [service_id, booking_date, booking_time]
+            [service_id, booking_date]
         );
-        if (existing.rows.length > 0) {
-            return res.status(409).json({ error: 'This time slot is currently booked or pending. Please try another time.' });
+
+        const requestedStart = timeToMinutes(booking_time);
+        const requestedEnd = requestedStart + durationMinutes;
+
+        let conflictEnd = null;
+        for (const row of sameDayBookings.rows) {
+            const existingStart = timeToMinutes(row.booking_time);
+            const existingEnd = existingStart + durationMinutes;
+            if (requestedStart < existingEnd && existingStart < requestedEnd) {
+                if (conflictEnd === null || existingEnd > conflictEnd) conflictEnd = existingEnd;
+            }
+        }
+
+        if (conflictEnd !== null) {
+            return res.status(409).json({
+                error: `This provider is booked until ${minutesToTime(conflictEnd)}. Try adjusting your time to after that.`,
+                next_available_time: minutesToTime(conflictEnd),
+            });
         }
 
         // 4. Insert booking with pending_payment status
