@@ -957,14 +957,21 @@ export default function Browse() {
                         <>
                             <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap flex-1">
-                                {itemCategory && (
+                                {itemCategory && subCategory ? (
+                                    <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
+                                        {itemCategory} | {subCategory}
+                                        <button onClick={() => setSubCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
+                                            <X size={12} />
+                                        </button>
+                                    </span>
+                                ) : itemCategory ? (
                                     <span className="inline-flex items-center gap-1.5 bg-brand-600 dark:bg-gold-600 text-white dark:text-ink-900 px-3 py-1 rounded-full text-xs font-semibold">
                                         {itemCategory}
                                         <button onClick={() => setItemCategory('')} className="hover:bg-white/20 rounded-full p-0.5">
                                             <X size={12} />
                                         </button>
                                     </span>
-                                )}
+                                ) : null}
 
                                 {school && filterType !== 'nearby' && (
                                     <span className="inline-flex items-center gap-1.5 bg-slate-700 dark:bg-ink-700 text-white dark:text-gold-200 px-3 py-1 rounded-full text-xs font-semibold">
@@ -975,7 +982,7 @@ export default function Browse() {
                                     </span>
                                 )}
 
-                         {itemCategory && (
+                         {itemCategory && !subCategory && (
                                 <SubcategoryScroller
                                     options={SUBCATEGORIES[itemCategory] || []}
                                     value={subCategory}
@@ -1181,17 +1188,13 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
                             className="relative flex-1 min-w-0"
                         >
                             <span
-                                className={`flex h-full w-full flex-col items-center justify-center gap-0.5 transition-all duration-300 ease-out active:scale-[0.94] ${
-                                    active
-                                        ? 'bg-white/40 dark:bg-white/10'
-                                        : 'bg-transparent'
-                                }`}
+                                className="flex h-full w-full flex-col items-center justify-center gap-0.5 transition-all duration-300 ease-out active:scale-[0.94]"
                             >
                                 <Icon
-                                    className={`w-[17px] h-[17px] transition-colors duration-300 ${
+                                    className={`transition-all duration-300 ${
                                         active
-                                            ? 'text-brand-700 dark:text-gold-400'
-                                            : 'text-slate-500 dark:text-gold-200/50'
+                                            ? 'w-[19px] h-[19px] text-brand-700 dark:text-gold-400'
+                                            : 'w-[17px] h-[17px] text-slate-500 dark:text-gold-200/50'
                                     }`}
                                 />
                                 <span
@@ -1206,7 +1209,7 @@ function BrowseGlassTabs({ tabs, isTabActive, onTabChange, school, itemCategory 
                             </span>
 
                             {active && (
-                                <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-[3.5px] w-6 rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-300" />
+                                <span className="absolute left-1/2 -translate-x-1/2 -bottom-0.5 h-[3.5px] w-9 rounded-full bg-brand-600 dark:bg-gold-500 transition-all duration-300" />
                             )}
                         </button>
                     );
