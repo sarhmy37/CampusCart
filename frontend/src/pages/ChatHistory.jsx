@@ -82,7 +82,7 @@ export default function ChatHistory() {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search contacts..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-full border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 placeholder:text-slate-400 dark:placeholder:text-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition"
                     />
                 </div>
             </div>
