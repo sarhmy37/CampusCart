@@ -539,7 +539,19 @@ export default function Browse() {
         }
     };
 
-const selectCategory = (value) => {
+    const getCategorySubOptions = (value) => {
+        if (!value || value === 'Mobile Data' || value === 'Services') return null;
+        const subs = SUBCATEGORIES[value] || [];
+        if (subs.length === 0) return null;
+        return subs.map((s) => ({ value: s.label, label: s.label }));
+    };
+
+    const handleCategorySubSelect = (categoryValue, subValue) => {
+        selectCategory(categoryValue);
+        setSubCategory(subValue);
+    };
+
+    const selectCategory = (value) => {
     setItemCategory(value);
     setSubCategory('');
     if (value !== 'Mobile Data') setDataNetwork('');
@@ -1072,7 +1084,10 @@ const selectCategory = (value) => {
                 title="Categories"
                 options={categoryOptions}
                 selectedValue={itemCategory}
+                selectedSubValue={subCategory}
+                getSubOptions={getCategorySubOptions}
                 onSelect={selectCategory}
+                onSelectSub={handleCategorySubSelect}
                 onClose={() => setOpenSheet(null)}
             />
             <MobileFilterSheet
@@ -1316,16 +1331,22 @@ function SubcategoryScroller({ options, value, onChange }) {
     );
 }
 
-function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onClose }) {
+function MobileFilterSheet({
+    open, title, options, selectedValue, selectedSubValue,
+    onSelect, onSelectSub, onClose, getSubOptions,
+}) {
     const [mounted, setMounted] = useState(false);
+    const [drillDown, setDrillDown] = useState(null); // { value, label, subs }
 
     useEffect(() => {
         if (open) {
             setMounted(false);
+            setDrillDown(null);
             const raf = requestAnimationFrame(() => setMounted(true));
             return () => cancelAnimationFrame(raf);
         }
         setMounted(false);
+        setDrillDown(null);
     }, [open]);
 
     useEffect(() => {
@@ -1353,6 +1374,23 @@ function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onCl
 
     if (!open) return null;
 
+    const handleOptionClick = (opt) => {
+        const subs = getSubOptions ? getSubOptions(opt.value) : null;
+        if (subs && subs.length > 0) {
+            setDrillDown({ value: opt.value, label: opt.label, subs });
+            return;
+        }
+        onSelect(opt.value);
+    };
+
+    const handleSubClick = (subValue) => {
+        if (onSelectSub) {
+            onSelectSub(drillDown.value, subValue);
+        } else {
+            onSelect(drillDown.value);
+        }
+    };
+
     return (
         <div className="sm:hidden fixed inset-0 z-50">
             <div
@@ -1369,7 +1407,20 @@ function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onCl
                     <span className="h-1 w-10 rounded-full bg-slate-300 dark:bg-ink-600" />
                 </div>
                 <div className="flex items-center justify-between px-5 pb-3 shrink-0">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-gold-100">{title}</h3>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        {drillDown && (
+                            <button
+                                onClick={() => setDrillDown(null)}
+                                aria-label="Back"
+                                className="p-1 -ml-1 rounded-full text-slate-500 dark:text-gold-200/60 hover:bg-slate-100 dark:hover:bg-ink-700 shrink-0"
+                            >
+                                <ArrowLeft size={16} />
+                            </button>
+                        )}
+                        <h3 className="text-base font-bold text-slate-900 dark:text-gold-100 truncate">
+                            {drillDown ? drillDown.label : title}
+                        </h3>
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-1.5 rounded-full bg-slate-100 dark:bg-ink-700 text-slate-500 dark:text-gold-200/60"
@@ -1378,24 +1429,60 @@ function MobileFilterSheet({ open, title, options, selectedValue, onSelect, onCl
                     </button>
                 </div>
                 <div className="overflow-y-auto no-scrollbar px-2 pb-[max(16px,env(safe-area-inset-bottom))]">
-                    {options.map((opt) => {
-                        const isSelected = opt.value === selectedValue
-                            || (opt.value === 'nearby' && selectedValue !== '' && selectedValue === opt.value);
-                        return (
+                    {drillDown ? (
+                        <>
                             <button
-                                key={opt.value || 'all'}
-                                onClick={() => onSelect(opt.value)}
+                                onClick={() => onSelect(drillDown.value)}
                                 className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl text-sm transition ${
-                                    isSelected
+                                    selectedValue === drillDown.value && !selectedSubValue
                                         ? 'bg-brand-50 dark:bg-gold-900/30 text-brand-700 dark:text-gold-300 font-bold'
                                         : 'text-slate-700 dark:text-gold-100 font-medium hover:bg-slate-50 dark:hover:bg-ink-700'
                                 }`}
                             >
-                                {opt.label}
-                                {isSelected && <Check size={16} className="text-brand-600 dark:text-gold-400" />}
+                                All {drillDown.label}
+                                {selectedValue === drillDown.value && !selectedSubValue && <Check size={16} className="text-brand-600 dark:text-gold-400" />}
                             </button>
-                        );
-                    })}
+                            {drillDown.subs.map((sub) => {
+                                const isSelected = selectedValue === drillDown.value && selectedSubValue === sub.value;
+                                return (
+                                    <button
+                                        key={sub.value}
+                                        onClick={() => handleSubClick(sub.value)}
+                                        className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl text-sm transition ${
+                                            isSelected
+                                                ? 'bg-brand-50 dark:bg-gold-900/30 text-brand-700 dark:text-gold-300 font-bold'
+                                                : 'text-slate-700 dark:text-gold-100 font-medium hover:bg-slate-50 dark:hover:bg-ink-700'
+                                        }`}
+                                    >
+                                        {sub.label}
+                                        {isSelected && <Check size={16} className="text-brand-600 dark:text-gold-400" />}
+                                    </button>
+                                );
+                            })}
+                        </>
+                    ) : (
+                        options.map((opt) => {
+                            const isSelected = opt.value === selectedValue
+                                || (opt.value === 'nearby' && selectedValue !== '' && selectedValue === opt.value);
+                            const subs = getSubOptions ? getSubOptions(opt.value) : null;
+                            const hasSubs = subs && subs.length > 0;
+                            return (
+                                <button
+                                    key={opt.value || 'all'}
+                                    onClick={() => handleOptionClick(opt)}
+                                    className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl text-sm transition ${
+                                        isSelected
+                                            ? 'bg-brand-50 dark:bg-gold-900/30 text-brand-700 dark:text-gold-300 font-bold'
+                                            : 'text-slate-700 dark:text-gold-100 font-medium hover:bg-slate-50 dark:hover:bg-ink-700'
+                                    }`}
+                                >
+                                    {opt.label}
+                                    {isSelected && !hasSubs && <Check size={16} className="text-brand-600 dark:text-gold-400" />}
+                                    {hasSubs && <ChevronDown size={16} className="-rotate-90 text-slate-400 dark:text-gold-200/40" />}
+                                </button>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </div>
