@@ -604,14 +604,14 @@ function SearchBar({ isAdmin, onSubmit }) {
         <form onSubmit={onSubmit} className="w-full">
             <style>{`
                 @keyframes searchIconPop {
-                    0% { opacity: 0; transform: translateY(-50%) scale(0.5) rotate(0deg); }
-                    40% { opacity: 1; transform: translateY(-50%) scale(1.15) rotate(0deg); }
-                    50% { transform: translateY(-50%) scale(1.15) rotate(-12deg); }
-                    60% { transform: translateY(-50%) scale(1.15) rotate(12deg); }
-                    70% { transform: translateY(-50%) scale(1.15) rotate(-8deg); }
-                    80% { transform: translateY(-50%) scale(1.15) rotate(8deg); }
-                    90% { transform: translateY(-50%) scale(1) rotate(-2deg); }
-                    100% { opacity: 1; transform: translateY(-50%) scale(1) rotate(0deg); }
+                    0% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+                    40% { opacity: 1; transform: scale(1.15) rotate(0deg); }
+                    50% { transform: scale(1.15) rotate(-12deg); }
+                    60% { transform: scale(1.15) rotate(12deg); }
+                    70% { transform: scale(1.15) rotate(-8deg); }
+                    80% { transform: scale(1.15) rotate(8deg); }
+                    90% { transform: scale(1) rotate(-2deg); }
+                    100% { opacity: 1; transform: scale(1) rotate(0deg); }
                 }
                 .search-icon-pop {
                     animation: searchIconPop 0.5s ease-out;
@@ -626,12 +626,14 @@ function SearchBar({ isAdmin, onSubmit }) {
                     placeholder={placeholder}
                     className="w-full px-3 py-2 sm:px-4 sm:py-2.5 pr-9 sm:pr-10 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-xs sm:text-sm transition"
                 />
-                {value.length > 0 && (
-                    <Search
-                        key={shakeKey}
-                        className="search-icon-pop pointer-events-none absolute right-3 sm:right-3.5 top-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 dark:text-gold-300/60"
-                    />
-                )}
+                <span className="pointer-events-none absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4">
+                    {value.length > 0 && (
+                        <Search
+                            key={shakeKey}
+                            className="search-icon-pop w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 dark:text-gold-300/60"
+                        />
+                    )}
+                </span>
             </div>
         </form>
     );
