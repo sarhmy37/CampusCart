@@ -23,7 +23,7 @@ function WhatsAppIcon(props) {
     );
 }
 
-export default function ProfileDrawer({ open, onClose }) {
+export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSupportOpened }) {
     const { user, logout, updateProfile, uploadAvatar, removeAvatar } = useAuth();
     const { conversations, unreadCount: chatUnreadCount } = useChat();
     const navigate = useNavigate();
@@ -92,6 +92,36 @@ export default function ProfileDrawer({ open, onClose }) {
             setSupportOpen(false);
         }
     }, [open]);
+
+    // 👇 If we were told to reopen with Support & About expanded (e.g.
+    // returning from Contact support), expand it and let the caller know
+    // it's been consumed so it doesn't reapply on the next manual open.
+    useEffect(() => {
+        if (open && initialSupportOpen) {
+            setSupportOpen(true);
+            onSupportOpened?.();
+        }
+    }, [open, initialSupportOpen]);
+
+    // 👇 If we were told to reopen with Support & About expanded (e.g.
+    // returning from Contact support), expand it and let the caller know
+    // it's been consumed so it doesn't reapply on the next manual open.
+    useEffect(() => {
+        if (open && initialSupportOpen) {
+            setSupportOpen(true);
+            onSupportOpened?.();
+        }
+    }, [open, initialSupportOpen]);
+
+    // 👇 If we were told to reopen with Support & About expanded (e.g.
+    // returning from Contact support), expand it and let the caller know
+    // it's been consumed so it doesn't reapply on the next manual open.
+    useEffect(() => {
+        if (open && initialSupportOpen) {
+            setSupportOpen(true);
+            onSupportOpened?.();
+        }
+    }, [open, initialSupportOpen]);
 
     // 👇 Clean up any object URL we created for the avatar preview
     useEffect(() => {
@@ -444,6 +474,7 @@ export default function ProfileDrawer({ open, onClose }) {
                                 {/* Contact Support - navigates to /contact */}
                                 <Link
                                     to="/contact"
+                                    state={{ fromProfileDrawer: true }}
                                     onClick={onClose}
                                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
                                 >

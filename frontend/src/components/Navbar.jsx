@@ -64,6 +64,7 @@ export default function Navbar() {
     const isRegisterPage = location.pathname === '/register';
     const isAdmin = user?.role === 'admin';
     const [showProfile, setShowProfile] = useState(false);
+    const [openSupportOnDrawer, setOpenSupportOnDrawer] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [mobileExpanded, setMobileExpanded] = useState(false);
     const expandTimeoutRef = useRef(null);
@@ -97,6 +98,7 @@ export default function Navbar() {
     useEffect(() => {
         if (location.state?.openProfile) {
             setShowProfile(true);
+            setOpenSupportOnDrawer(!!location.state?.openSupport);
             window.history.replaceState({}, document.title);
         }
     }, [location]);
@@ -544,7 +546,14 @@ export default function Navbar() {
             </div>
         </header>
         {/* ProfileDrawer - ONLY for non-admin users */}
-        {!isAdmin && <ProfileDrawer open={showProfile} onClose={() => setShowProfile(false)} />}
+        {!isAdmin && (
+            <ProfileDrawer
+                open={showProfile}
+                onClose={() => setShowProfile(false)}
+                initialSupportOpen={openSupportOnDrawer}
+                onSupportOpened={() => setOpenSupportOnDrawer(false)}
+            />
+        )}
 
         {/* Admin Logout Confirm Modal */}
         {showLogoutConfirm && (

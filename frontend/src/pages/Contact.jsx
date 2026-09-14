@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Mail, MessageCircle, Phone, Clock } from 'lucide-react';
 
 function WhatsAppIcon(props) {
@@ -39,6 +39,16 @@ const CONTACT_METHODS = [
 
 export default function Contact() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const cameFromProfileDrawer = location.state?.fromProfileDrawer;
+
+    const handleBack = () => {
+        if (cameFromProfileDrawer) {
+            navigate('/', { state: { openProfile: true, openSupport: true } });
+        } else {
+            navigate(-1);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
@@ -46,7 +56,7 @@ export default function Contact() {
                 <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
                 <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={handleBack}
                         className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
                     >
                         <ArrowLeft className="w-4 h-4" /> Back
