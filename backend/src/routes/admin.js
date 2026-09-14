@@ -306,19 +306,28 @@ router.delete('/users/:id', async (req, res) => {
         // Payout withdrawals
         await client.query('DELETE FROM payout_withdrawals WHERE seller_id = $1', [userId]);
 
-        // Reviews (comments, likes, reviews)
-        await client.query('DELETE FROM product_review_comments WHERE commenter_id = $1', [userId]);
-        await client.query('DELETE FROM product_review_likes WHERE user_id = $1', [userId]);
-        await client.query('DELETE FROM product_reviews WHERE user_id = $1', [userId]);
-
-        // Product views
-        await client.query('DELETE FROM product_views WHERE user_id = $1', [userId]);
-
         // Products
         await client.query('DELETE FROM products WHERE seller_id = $1', [userId]);
 
         // Reports
         await client.query('DELETE FROM reports WHERE reported_user_id = $1', [userId]);
+
+        // Reviews — old tables
+        await client.query('DELETE FROM review_comments WHERE commenter_id = $1', [userId]);
+        await client.query('DELETE FROM review_likes WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM reviews WHERE reviewer_id = $1 OR seller_id = $1', [userId]);
+        await client.query('DELETE FROM review_skips WHERE buyer_id = $1 OR seller_id = $1', [userId]);
+
+        // Reviews — newer tables
+        await client.query('DELETE FROM product_review_comments WHERE commenter_id = $1', [userId]);
+        await client.query('DELETE FROM product_review_likes WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM product_reviews WHERE user_id = $1', [userId]);
+
+        // Wishlist
+        await client.query('DELETE FROM wishlist_items WHERE user_id = $1', [userId]);
+
+        // Subscriptions
+        await client.query('DELETE FROM subscriptions WHERE user_id = $1', [userId]);
 
         // Finally, the user
         await client.query('DELETE FROM users WHERE id = $1', [userId]);
