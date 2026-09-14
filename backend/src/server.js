@@ -150,8 +150,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 CampusCart API running on http://localhost:${PORT}`);
-    console.log(`🚀 CampusCart API running on network: http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Tre-X API running on http://localhost:${PORT}`);
+    console.log(`🚀 Tre-X API running on network: http://0.0.0.0:${PORT}`);
 });
 
 cron.schedule('0 8 * * *', checkOverdueOrders); // daily at 8am

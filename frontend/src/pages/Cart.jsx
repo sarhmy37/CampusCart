@@ -21,7 +21,7 @@ function formatWhatsAppNumber(raw) {
 
 function buildWhatsAppMessage(sellerName, sellerItems) {
     const lines = [
-        `Hi ${sellerName || ''}, I'd like to order the following from CampusCart:`,
+        `Hi ${sellerName || ''}, I'd like to order the following from Tre-X:`,
         '',
         ...sellerItems.map(
             (i) => `• ${i.title} — Qty: ${i.quantity} — GHS ${(parseFloat(i.price) * i.quantity).toFixed(2)}`

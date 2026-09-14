@@ -7,7 +7,7 @@ export function formatWhatsAppNumber(raw) {
 
 export function buildOrderMessage(sellerName, items, buyerLocation, deliveryMethod) {
     const lines = [
-        `Hi ${sellerName || ''}, I'd like to order the following from CampusCart:`,
+        `Hi ${sellerName || ''}, I'd like to order the following from Tre-X:`,
         '',
         ...items.map(
             (i) => `• ${i.title} — Qty: ${i.quantity} — GHS ${(parseFloat(i.price) * i.quantity).toFixed(2)}`

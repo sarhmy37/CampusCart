@@ -1,4 +1,4 @@
--- CampusCart database schema
+
 -- Run this once against your PostgreSQL database to create all tables.
 
 -- Needed for gen_random_uuid() below
