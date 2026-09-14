@@ -41,7 +41,6 @@ export default function ProfileDrawer({ open, onClose }) {
     const [confirmRemoveAvatar, setConfirmRemoveAvatar] = useState(false);
     const [personalOpen, setPersonalOpen] = useState(false);
     const [supportOpen, setSupportOpen] = useState(false);
-    const [contactOpen, setContactOpen] = useState(false);
     const [form, setForm] = useState({
         about: user?.about || '',
         personal_email: user?.personal_email || '',
@@ -91,7 +90,6 @@ export default function ProfileDrawer({ open, onClose }) {
         if (!open) {
             setPersonalOpen(false);
             setSupportOpen(false);
-            setContactOpen(false);
         }
     }, [open]);
 
@@ -443,43 +441,16 @@ export default function ProfileDrawer({ open, onClose }) {
 
                         {supportOpen && (
                             <div className="px-3 pb-3 space-y-1">
-                                {/* Contact Support - collapsible, matching Terms/Privacy row style */}
-                                <div className="rounded-lg bg-white/50 dark:bg-ink-800/50 overflow-hidden">
-                                    <button
-                                        onClick={() => setContactOpen((v) => !v)}
-                                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/70 dark:hover:bg-ink-700/50 transition text-left"
-                                    >
-                                        <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
-                                        <span className="text-sm text-slate-700 dark:text-gold-100 flex-1">Contact support</span>
-                                        <ChevronDown size={15} className={`text-slate-300 dark:text-gold-300/30 transition-transform shrink-0 ${contactOpen ? 'rotate-180' : ''}`} />
-                                    </button>
-
-                                    {contactOpen && (
-                                        <div className="text-xs text-slate-500 dark:text-gold-200/60 space-y-1.5 px-3 pb-3 pl-9">
-                                            <a
-                                                href="tel:+233241234567"
-                                                className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
-                                            >
-                                                📞 <span>+233 24 123 4567</span>
-                                            </a>
-                                            <a   
-                                                href="https://wa.me/Trex_Support1"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
-                                            >
-                                                <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                                <span className="text-brand-600 dark:text-gold-400 font-semibold">@Trex_Support1</span>
-                                            </a>
-                                            <a 
-                                                href="mailto:support@campuscart.app"
-                                                className="flex items-center gap-1.5 hover:text-brand-700 dark:hover:text-gold-300 transition w-fit"
-                                            >
-                                                ✉️ <span>support@trex.app</span>
-                                            </a>
-                                        </div>
-                                    )}
-                                </div>
+                                {/* Contact Support - navigates to /contact */}
+                                <Link
+                                    to="/contact"
+                                    onClick={onClose}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/50 dark:hover:bg-ink-800/50 transition text-left"
+                                >
+                                    <Mail size={15} className="text-slate-400 dark:text-gold-300/50 shrink-0" />
+                                    <span className="text-sm text-slate-700 dark:text-gold-100">Contact support</span>
+                                    <ChevronRight size={15} className="ml-auto text-slate-300 dark:text-gold-300/30" />
+                                </Link>
                             
 
                                 {/* Terms of Service - navigates to /terms */}
