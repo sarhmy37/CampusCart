@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AppToaster from './components/AppToaster';
+import IntroSplash from './components/IntroSplash';
+import OnboardingCarousel, { ONBOARDING_STORAGE_KEY } from './components/OnboardingCarousel';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import SubscriptionCallback from './pages/SubscriptionCallback';
@@ -39,8 +42,18 @@ import Contact from './pages/Contact';
 
 
 export default function App() {
+  const [phase, setPhase] = useState('intro'); // 'intro' | 'onboarding' | 'app'
+
+  const handleIntroFinish = () => {
+    const hasOnboarded = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+    setPhase(hasOnboarded ? 'app' : 'onboarding');
+  };
+
   return (
     <ThemeProvider>
+      {phase === 'intro' && <IntroSplash onFinish={handleIntroFinish} />}
+      {phase === 'onboarding' && <OnboardingCarousel onFinish={() => setPhase('app')} />}
+      {phase === 'app' && (
       <AuthProvider>
         <WishlistProvider>
           <CartProvider>
@@ -89,6 +102,7 @@ export default function App() {
           </CartProvider>
         </WishlistProvider>
       </AuthProvider>
+      )}
     </ThemeProvider>
   );
 }

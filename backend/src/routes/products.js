@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { isSellerRestricted } = require('./sellers');
 const { clampFee } = require('../utils/distance');
 const { getListingLimit } = require('../utils/plans');
@@ -31,13 +31,26 @@ router.get('/mine', requireAuth, async (req, res) => {
 });
 
 // GET /api/products — browse all listings
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
     const { search, category, itemCategory, school } = req.query;
     const categoryFilter = category || itemCategory;
 
     const { network } = req.query;
     const conditions = [`p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')`];
     const values = [];
+
+    // Early-access window: Pro/Premium buyers see brand-new listings immediately;
+    // everyone else only sees listings once they're at least 1 hour old.
+    let buyerPlanActive = false;
+    if (req.userId) {
+        const buyerResult = await pool.query('SELECT plan, plan_expires_at FROM users WHERE id = $1', [req.userId]);
+        const buyer = buyerResult.rows[0];
+        buyerPlanActive = !!(buyer?.plan && buyer.plan !== 'free' && buyer.plan_expires_at && new Date(buyer.plan_expires_at) > new Date());
+    }
+    if (!buyerPlanActive) {
+        conditions.push(`p.created_at <= now() - interval '1 hour'`);
+        conditions.push(`(p.restocked_at IS NULL OR p.restocked_at <= now() - interval '1 hour')`);
+    }
 
     if (search) {
         values.push(`%${search}%`);
@@ -90,7 +103,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/products/:id — single product
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
     try {
         // Fire-and-forget view counter — not awaited so a slow/failed increment
         // never delays or breaks the page load for the person viewing the listing.
@@ -284,12 +297,16 @@ router.patch('/:id', requireAuth, async (req, res) => {
     } = req.body;
 
     try {
-        const existing = await pool.query('SELECT seller_id, price FROM products WHERE id = $1', [req.params.id]);
+        const existing = await pool.query('SELECT seller_id, price, stock FROM products WHERE id = $1', [req.params.id]);
         const product = existing.rows[0];
         if (!product) return res.status(404).json({ error: 'Listing not found' });
         if (product.seller_id !== req.userId) {
             return res.status(403).json({ error: "You can't edit someone else's listing" });
         }
+
+        // Restocking (0 or below -> positive) starts a fresh early-access window,
+        // same as a brand-new listing, so Pro/Premium buyers see it first.
+        const isRestock = stock !== undefined && stock > 0 && product.stock <= 0;
 
         let categoryId;
         if (category !== undefined) {
@@ -314,11 +331,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
                 category_id = COALESCE($6, category_id),
                 delivery_fee_on_campus = COALESCE($7, delivery_fee_on_campus),
                 delivery_fee_near_campus = COALESCE($8, delivery_fee_near_campus),
-                delivery_fee_far_campus = COALESCE($9, delivery_fee_far_campus)
+                delivery_fee_far_campus = COALESCE($9, delivery_fee_far_campus),
+                restocked_at = CASE WHEN $11 THEN now() ELSE restocked_at END
              WHERE id = $10
              RETURNING *`,
             [title, description, price, condition, stock, categoryId,
-             feeOnCampus, feeNearCampus, feeFarCampus, req.params.id]
+             feeOnCampus, feeNearCampus, feeFarCampus, req.params.id, isRestock]
         );
 
         res.json(result.rows[0]);

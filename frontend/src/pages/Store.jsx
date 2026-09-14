@@ -230,7 +230,7 @@ export default function StorePage({ id: idProp, embedded }) {
                         </div>
                     </div>
 
-                    <SocialHandlesRow seller={seller} />
+                    {sellerPlan && <SocialHandlesRow seller={seller} />}
                 </div>
             </section>
 

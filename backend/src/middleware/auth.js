@@ -43,4 +43,24 @@ function requireAdmin(req, res, next) {
     next();
 }
 
-module.exports = { requireAuth, requireAdmin };
+// Like requireAuth, but never blocks the request — if there's no token or
+// it's invalid/expired, req.userId simply stays unset and the request
+// continues as anonymous. Use on routes that behave differently for
+// logged-in vs anonymous users without requiring login.
+function optionalAuth(req, res, next) {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+
+    if (!token) return next();
+
+    try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = payload.userId;
+        req.userRole = payload.role;
+    } catch (err) {
+        // invalid/expired token — treat as anonymous rather than blocking
+    }
+    next();
+}
+
+module.exports = { requireAuth, requireAdmin, optionalAuth };
