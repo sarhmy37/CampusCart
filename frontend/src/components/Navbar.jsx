@@ -626,14 +626,16 @@ function SearchBar({ isAdmin, onSubmit }) {
                     placeholder={placeholder}
                     className="w-full px-3 py-2 sm:px-4 sm:py-2.5 pr-9 sm:pr-10 rounded-full bg-slate-100 dark:bg-ink-700 border border-transparent dark:text-gold-50 dark:placeholder-gold-300/40 focus:border-brand-400 dark:focus:border-gold-500 focus:bg-white dark:focus:bg-ink-700 focus:outline-none text-xs sm:text-sm transition"
                 />
-                <span className="pointer-events-none absolute right-3 sm:right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4">
-                    {value.length > 0 && (
-                        <Search
-                            key={shakeKey}
-                            className="search-icon-pop w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 dark:text-gold-300/60"
-                        />
-                    )}
-                </span>
+<button
+    type="submit"
+    aria-label="Search"
+    className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full hover:bg-slate-200 dark:hover:bg-ink-600 transition"
+>
+    <Search
+        key={shakeKey}
+        className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 dark:text-gold-300/60 ${value.length > 0 ? 'search-icon-pop' : ''}`}
+    />
+</button>
             </div>
         </form>
     );

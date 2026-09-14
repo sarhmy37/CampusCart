@@ -401,11 +401,15 @@ export default function Browse() {
             setSavingSearch(false);
         }
     };
-
+    const isServiceItem = (p) => (p.category || p.category_name) === 'Services';
+const searchProductResults = search ? visibleProducts.filter((p) => !isServiceItem(p)) : visibleProducts;
+const searchServiceResults = search ? visibleProducts.filter(isServiceItem) : [];
     const isDemo = products.length === 0;
     const baseProducts = isDemo ? DUMMY_PRODUCTS : products;
-    const categoryFiltered = itemCategory
-        ? baseProducts.filter((p) => (p.category || p.category_name) === itemCategory)
+const categoryFiltered = itemCategory
+    ? baseProducts.filter((p) => (p.category || p.category_name) === itemCategory)
+    : search
+        ? baseProducts
         : baseProducts.filter((p) => (p.category || p.category_name) !== 'Services');
     const activeSubCategory = (SUBCATEGORIES[itemCategory] || []).find((s) => s.label === subCategory);
     const subCategoryFiltered = activeSubCategory
@@ -1033,27 +1037,42 @@ export default function Browse() {
                                     <p className="text-sm mt-1">This feature is coming soon! Stay tuned for curated deals and top-rated items.</p>
                                 </div>
                             )}
-                            {loading ? (
-                                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                                    {Array.from({ length: 8 }).map((_, i) => (
-                                        <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
-                                    ))}
-                                </div>
-                            ) : visibleProducts.length === 0 && filterType !== 'special' ? (
-                                <div className="flex flex-col items-center justify-center text-center flex-1 min-h-[50vh] text-slate-400 dark:text-gold-200/40">
-                                    <SlidersHorizontal className="mx-auto mb-3" size={32} />
-                                    <p>No listings found. Try a different category, price range, or filter.</p>
-                                </div>
-                            ) : (
-                                <>
-                                    {isDemo && (
-                                        <p className="text-sm text-slate-400 dark:text-gold-200/40 mb-4">No live listings yet — here's a preview of how they'll look:</p>
-                                    )}
-                                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                                        {visibleProducts.map((p) => <ProductCard key={p.id} product={p} />)}
-                                    </div>
-                                </>
-                            )}
+{loading ? (
+    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-100 dark:bg-ink-700 animate-pulse" />
+        ))}
+    </div>
+) : searchProductResults.length === 0 && searchServiceResults.length === 0 && filterType !== 'special' ? (
+    <div className="flex flex-col items-center justify-center text-center flex-1 min-h-[50vh] text-slate-400 dark:text-gold-200/40">
+        <SlidersHorizontal className="mx-auto mb-3" size={32} />
+        <p>No listings found. Try a different category, price range, or filter.</p>
+    </div>
+) : (
+    <>
+        {isDemo && (
+            <p className="text-sm text-slate-400 dark:text-gold-200/40 mb-4">No live listings yet — here's a preview of how they'll look:</p>
+        )}
+        {searchProductResults.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {searchProductResults.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+        )}
+        {search && searchServiceResults.length > 0 && (
+            <>
+                <div className="flex items-center gap-3 mt-10 mb-3">
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
+                        Services
+                    </span>
+                    <div className="flex-1 h-px bg-slate-300 dark:bg-ink-600" />
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {searchServiceResults.map((p) => <ServiceCard key={`svc-${p.id}`} service={p} />)}
+                </div>
+            </>
+        )}
+    </>
+)}
 
                             {outOfStockProducts.length > 0 && (
                                 <>
