@@ -63,11 +63,6 @@ export default function ServiceCard({ service }) {
                 )}
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-transparent pointer-events-none" />
-
-                {/* SERVICE badge */}
-                <span className="absolute top-2 left-2 bg-emerald-600/90 backdrop-blur text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    Service
-                </span>
             </div>
 
             {/* BODY */}

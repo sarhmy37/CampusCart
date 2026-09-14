@@ -403,7 +403,7 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
                                         <InfoRow icon={<MapPin size={15} />} label="Location" value={user.location || 'Not added yet'} />
                                     </div>
                                 )}
-                                <div className="flex items-center justify-between ml-3">
+                                <div className="flex items-center justify-end ml-3">
                                     {!editing && (
                                         <button
                                             onClick={() => !onCooldown && setEditing(true)}
