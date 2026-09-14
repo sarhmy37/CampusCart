@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Mail, MessageCircle, Clock, Send, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Mail, MessageCircle, Clock, Send, Loader2, CheckCircle2, Inbox, CheckCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +33,9 @@ const CONTACT_METHODS = [
     },
 ];
 
+const CONTACT_TABS = ['overview', 'sent', 'attended'];
+const CONTACT_TAB_LABELS = { overview: 'Overview', sent: 'Sent', attended: 'Attended' };
+
 export default function Contact() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -41,6 +44,29 @@ export default function Contact() {
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
+    const [tab, setTab] = useState('overview');
+    const [requests, setRequests] = useState([]);
+    const [loadingRequests, setLoadingRequests] = useState(false);
+
+    useEffect(() => {
+        if (tab === 'overview' || !user) return;
+        setLoadingRequests(true);
+        api.get('/support/mine')
+            .then((res) => setRequests(res.data))
+            .catch(() => setRequests([]))
+            .finally(() => setLoadingRequests(false));
+    }, [tab, user]);
+
+    const sentRequests = requests.filter((r) => r.status === 'pending');
+    const attendedRequests = requests.filter((r) => r.status !== 'pending');
+
+    const handleBack = () => {
+        if (cameFromProfileDrawer) {
+            navigate('/', { state: { openProfile: true, openSupport: true } });
+        } else {
+            navigate(-1);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -59,19 +85,18 @@ export default function Contact() {
             await api.post('/support', { message: message.trim() });
             setSent(true);
             setMessage('');
-            toast.success("Message sent — we'll get back to you.");
+            const isPlanActive = user.plan && user.plan !== 'free' &&
+                user.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+            const slaText = isPlanActive && user.plan === 'premium'
+                ? "Message sent — check your email within 24 hours."
+                : isPlanActive && user.plan === 'pro'
+                    ? "Message sent — check your email within 2 days."
+                    : "Message sent — check your email within a few days.";
+            toast.success(slaText);
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to send message');
         } finally {
             setSending(false);
-        }
-    };
-
-    const handleBack = () => {
-        if (cameFromProfileDrawer) {
-            navigate('/', { state: { openProfile: true, openSupport: true } });
-        } else {
-            navigate(-1);
         }
     };
 
@@ -98,7 +123,25 @@ export default function Contact() {
                 </div>
             </section>
 
-            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-3">
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+                <div className="flex gap-1 mb-5 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
+                    {CONTACT_TABS.map((t) => (
+                        <button
+                            key={t}
+                            onClick={() => setTab(t)}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
+                                tab === t
+                                    ? 'bg-white dark:bg-ink-700 shadow-sm text-brand-700 dark:text-gold-400'
+                                    : 'text-slate-500 dark:text-gold-200/50'
+                            }`}
+                        >
+                            {CONTACT_TAB_LABELS[t]}
+                        </button>
+                    ))}
+                </div>
+
+                {tab === 'overview' && (
+                <div className="space-y-3">
                 {CONTACT_METHODS.map((method) => (
                     <a
                         key={method.label}
@@ -118,7 +161,7 @@ export default function Contact() {
                     </a>
                 ))}
 
-                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5">
+                <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-5" data-support-form>
                     <p className="font-bold text-slate-900 dark:text-gold-50 mb-3">Send us a message</p>
                     {sent ? (
                         <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-semibold py-3">
@@ -149,10 +192,72 @@ export default function Contact() {
                 <div className="flex items-start gap-3 bg-slate-100 dark:bg-ink-800/60 rounded-2xl p-4 mt-2">
                     <Clock size={16} className="text-slate-400 dark:text-gold-300/50 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-500 dark:text-gold-200/60">
-                        Pro and Premium members get priority support — your messages are answered first.
+                        Premium members get a reply within 24 hours, Pro within 2 days, and free members within a few days.
                     </p>
                 </div>
+                </div>
+                )}
+
+                {tab === 'sent' && (
+                    <RequestList
+                        loading={loadingRequests}
+                        items={sentRequests}
+                        emptyIcon={Inbox}
+                        emptyText="No pending requests. Anything you send shows up here until we reply."
+                    />
+                )}
+
+                {tab === 'attended' && (
+                    <RequestList
+                        loading={loadingRequests}
+                        items={attendedRequests}
+                        emptyIcon={CheckCheck}
+                        emptyText="Nothing attended to yet."
+                        attended
+                    />
+                )}
             </div>
+        </div>
+    );
+}
+
+function RequestList({ loading, items, emptyIcon: Icon, emptyText, attended }) {
+    if (loading) {
+        return (
+            <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-ink-800 animate-pulse" />
+                ))}
+            </div>
+        );
+    }
+    if (items.length === 0) {
+        return (
+            <div className="text-center py-16">
+                <Icon className="mx-auto text-slate-300 dark:text-gold-300/30 mb-3" size={28} />
+                <p className="text-sm text-slate-400 dark:text-gold-200/50">{emptyText}</p>
+            </div>
+        );
+    }
+    return (
+        <div className="space-y-2">
+            {items.map((r) => (
+                <div key={r.id} className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-4">
+                    <p className="text-sm text-slate-700 dark:text-gold-100 line-clamp-2">{r.message}</p>
+                    <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-slate-400 dark:text-gold-200/50">
+                            {new Date(r.created_at).toLocaleDateString()}
+                        </p>
+                        {attended ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 size={13} /> Attended to
+                            </span>
+                        ) : (
+                            <span className="text-xs font-semibold text-amber-600 dark:text-gold-400">Pending</span>
+                        )}
+                    </div>
+                </div>
+            ))}
         </div>
     );
 }
