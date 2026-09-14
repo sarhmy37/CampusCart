@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import EditListingModal from '../components/EditListingModal';
+import EditServiceModal from '../components/EditServiceModal';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { useReviewPrompt } from '../context/ReviewPromptContext';
 import { createPortal } from 'react-dom';
@@ -1735,8 +1736,14 @@ function MyListings() {
             )}
 
             <EditListingModal
-                product={editingProduct}
-                open={!!editingProduct}
+                product={editingProduct?.category !== 'Services' ? editingProduct : null}
+                open={!!editingProduct && editingProduct.category !== 'Services'}
+                onClose={() => setEditingProduct(null)}
+                onSaved={() => { setEditingProduct(null); load(); }}
+            />
+            <EditServiceModal
+                product={editingProduct?.category === 'Services' ? editingProduct : null}
+                open={!!editingProduct && editingProduct.category === 'Services'}
                 onClose={() => setEditingProduct(null)}
                 onSaved={() => { setEditingProduct(null); load(); }}
             />
