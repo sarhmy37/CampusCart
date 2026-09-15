@@ -69,7 +69,7 @@ export default function Navbar() {
     const [mobileExpanded, setMobileExpanded] = useState(false);
     const expandTimeoutRef = useRef(null);
 
-    const MOBILE_EXPAND_TIMEOUT_MS = 10000;
+    const MOBILE_EXPAND_TIMEOUT_MS = 6000;
 
     // Auto-collapse the mobile icon row after 10s of inactivity — any tap
     // inside the nav (links, buttons, dropdown toggles) resets the timer,

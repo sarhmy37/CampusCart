@@ -102,28 +102,22 @@ export default function Contact() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
-            <section className="relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900">
-                <div className="absolute -right-16 -top-20 w-72 h-72 bg-white/10 rounded-full blur-2xl" />
-                <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10">
-                    <button
-                        onClick={handleBack}
-                        className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-4 py-2 rounded-full border border-white/30 hover:bg-white/20 transition backdrop-blur text-sm"
-                    >
-                        <ArrowLeft className="w-4 h-4" /> Back
-                    </button>
-                    <div className="flex items-center gap-3 mt-5">
-                        <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
-                            <MessageCircle className="text-white" size={20} />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Contact Us</h1>
-                            <p className="text-white/70 text-sm mt-0.5">We're here to help</p>
-                        </div>
+            <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 pb-8">
+                <button
+                    onClick={handleBack}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-gold-200/60 hover:text-slate-700 dark:hover:text-gold-100 transition"
+                >
+                    <ArrowLeft size={16} /> Back
+                </button>
+                <div className="flex items-center gap-3 mt-5 mb-6">
+                    <div className="w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center">
+                        <MessageCircle className="text-brand-600 dark:text-gold-400" size={20} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-gold-50">Contact Us</h1>
+                        <p className="text-slate-500 dark:text-gold-200/50 text-sm mt-0.5">We're here to help</p>
                     </div>
                 </div>
-            </section>
-
-            <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
                 <div className="flex gap-1 mb-5 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
                     {CONTACT_TABS.map((t) => (
                         <button

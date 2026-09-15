@@ -4,11 +4,21 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'https://campuscart-tdfn.onrender.com/api',
 });
 
+function getAnonId() {
+    let id = localStorage.getItem('cc_anon_id');
+    if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem('cc_anon_id', id);
+    }
+    return id;
+}
+
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('cc_token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    config.headers['X-Anon-Id'] = getAnonId();
     return config;
 });
 

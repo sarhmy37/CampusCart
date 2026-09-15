@@ -13,8 +13,10 @@ import {
     Sparkles,
     ArrowRight,
     Star,
+    X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import toast from 'react-hot-toast';
 
 const HERO_TEXTS = [
@@ -191,6 +193,16 @@ export default function Home() {
     const [showSellerModal, setShowSellerModal] = useState(false);
     const [subscribingPlan, setSubscribingPlan] = useState(null);
     const pricingRef = useRef(null);
+
+    const [showcaseRaw, setShowcaseRaw] = useState([]);
+    const [raisedCard, setRaisedCard] = useState(null);
+    const [previewItem, setPreviewItem] = useState(null);
+
+    useEffect(() => {
+        api.get('/products/showcase')
+            .then((res) => setShowcaseRaw(res.data))
+            .catch(() => setShowcaseRaw([]));
+    }, []);
 
     // Scroll to the pricing section when arriving via a "View/Renew plan" link
     // (e.g. from Settings' PlanCard). Clears the state after scrolling so a
@@ -447,6 +459,44 @@ const handlePlanClick = async (planName) => {
         [] // GALLERY is a static import — shuffle once and keep it stable for the life of the page
     );
 
+    const fallbackPool = useMemo(() => {
+        const pool = [];
+        (GALLERY || []).forEach((g) => {
+            if (g.label === 'Meet up on campus') return;
+            (g.images || []).forEach((src) => pool.push({ type: 'fallback', image: src, label: g.label }));
+        });
+        return pool;
+    }, []);
+
+    const showcaseItems = useMemo(() => {
+        const products = showcaseRaw.map((p) => ({
+            type: 'product',
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            image: p.primary_image,
+            video: p.video_url || null,
+            boosted: !!p.boosted,
+            sellerPlan: p.seller_plan && p.seller_plan_expires_at && new Date(p.seller_plan_expires_at) > new Date()
+                ? p.seller_plan.toLowerCase()
+                : null,
+            sellerId: p.seller_id,
+        }));
+        const needed = 6 - products.length;
+        const fallback = needed > 0 ? fallbackPool.slice(0, needed) : [];
+        return [...products, ...fallback];
+    }, [showcaseRaw, fallbackPool]);
+
+    const meetOnCampusTile = shuffledGallery.find((g) => g.label === 'Meet up on campus');
+
+    const handleShowcaseCardClick = (index) => {
+        if (raisedCard === index) {
+            setPreviewItem(showcaseItems[index]);
+        } else {
+            setRaisedCard(index);
+        }
+    };
+
     return (
         <div>
             <style>{`
@@ -674,52 +724,46 @@ const handlePlanClick = async (planName) => {
                     </Reveal>
 
 
-                    <div className="mt-10 grid grid-cols-2 gap-4 sm:gap-5">
-                        {shuffledGallery.map((g, i) => {
-                            const { shuffled } = g;
-
-                            return (
-                                <Reveal
-                                    key={g.label}
-                                    delay={i * 100}
-                                    className={i % 2 === 1 ? 'mt-8' : ''}
-                                >
-                                    <div className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-auto sm:h-64 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
-                                        
-                                        <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
-                                            {shuffled.slice(0, 4).map((item, idx) => (
-                                                <div key={idx} className="w-full h-full relative overflow-hidden border border-white/5">
-                                                    {item.type === 'image' ? (
-                                                        <img 
-                                                            src={item.src} 
-                                                            alt="" 
-                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                        />
-                                                    ) : (
-                                                        <video 
-                                                            autoPlay 
-                                                            loop 
-                                                            muted 
-                                                            playsInline 
-                                                            className="w-full h-full object-cover"
-                                                        >
-                                                            <source src={item.src} type="video/mp4" />
-                                                        </video>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent pointer-events-none" />
-                                        <p className="absolute bottom-3 left-4 text-white font-semibold text-sm z-10">
-                                            {g.label}
-                                        </p>
-
-                                    </div>
-                                </Reveal>
-                            );
-                        })}
+                    <div className="mt-10 grid grid-cols-3 gap-3 sm:gap-5">
+                        {showcaseItems.map((item, i) => (
+                            <Reveal key={item.type === 'product' ? item.id : `fallback-${i}`} delay={i * 80}>
+                                <ShowcaseCard
+                                    item={item}
+                                    index={i}
+                                    raised={raisedCard === i}
+                                    onCardClick={handleShowcaseCardClick}
+                                />
+                            </Reveal>
+                        ))}
                     </div>
+
+                    {meetOnCampusTile && (
+                        <Reveal delay={showcaseItems.length * 80} className="mt-6 sm:mt-8">
+                            <div className="group relative rounded-2xl overflow-hidden aspect-[16/9] sm:h-72 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
+                                <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+                                    {meetOnCampusTile.shuffled.slice(0, 4).map((mItem, idx) => (
+                                        <div key={idx} className="w-full h-full relative overflow-hidden border border-white/5">
+                                            {mItem.type === 'image' ? (
+                                                <img
+                                                    src={mItem.src}
+                                                    alt=""
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                />
+                                            ) : (
+                                                <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+                                                    <source src={mItem.src} type="video/mp4" />
+                                                </video>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent pointer-events-none" />
+                                <p className="absolute bottom-4 left-5 text-white font-semibold text-base z-10">
+                                    {meetOnCampusTile.label}
+                                </p>
+                            </div>
+                        </Reveal>
+                    )}
                 </div>
             </section>
 
@@ -939,6 +983,142 @@ const handlePlanClick = async (planName) => {
                 onClose={() => setShowSellerModal(false)}
             />
 
+            <ShowcasePreviewModal
+                item={previewItem}
+                onClose={() => { setPreviewItem(null); setRaisedCard(null); }}
+            />
+
+        </div>
+    );
+}
+
+function ShowcaseCard({ item, index, raised, onCardClick }) {
+    const isProduct = item.type === 'product';
+    return (
+        <div
+            onClick={() => onCardClick(index)}
+            className={`group relative rounded-2xl overflow-hidden aspect-square cursor-pointer transition-all duration-300 ease-out ${
+                raised ? '-translate-y-3 shadow-2xl shadow-black/20 z-10' : 'hover:-translate-y-1'
+            }`}
+        >
+            {item.video ? (
+                <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
+                    <source src={item.video} type="video/mp4" />
+                </video>
+            ) : (
+                <img
+                    src={item.image}
+                    alt={item.title || ''}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+            )}
+
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
+
+            {isProduct && item.boosted && (
+                <span className="absolute top-2 left-2 inline-flex items-center gap-1 bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                    🚀 Boosted
+                </span>
+            )}
+            {isProduct && !item.boosted && item.sellerPlan === 'premium' && (
+                <span className="absolute top-2 left-2 inline-flex items-center gap-1 bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                    <Sparkles size={9} className="fill-white" /> Premium
+                </span>
+            )}
+            {isProduct && !item.boosted && item.sellerPlan === 'pro' && (
+                <span className="absolute top-2 left-2 inline-flex items-center gap-1 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                    <Star size={9} className="fill-white" /> Pro
+                </span>
+            )}
+
+            <div className="absolute bottom-0 left-0 right-0 p-3 z-10">
+                {isProduct ? (
+                    <>
+                        <p className="text-white font-semibold text-xs sm:text-sm truncate">{item.title}</p>
+                        <p className="text-white/90 font-bold text-xs sm:text-sm mt-0.5">GHS {parseFloat(item.price).toFixed(2)}</p>
+                    </>
+                ) : (
+                    <p className="text-white font-semibold text-sm">{item.label}</p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ShowcasePreviewModal({ item, onClose }) {
+    const navigate = useNavigate();
+    const { addItem } = useCart();
+    if (!item) return null;
+    const isProduct = item.type === 'product';
+
+    const handleBuyNow = () => {
+        if (!isProduct) return;
+        addItem({
+            id: item.id,
+            title: item.title,
+            price: item.price,
+            primary_image: item.image,
+            seller_id: item.sellerId,
+            stock: 999,
+        });
+        onClose();
+        navigate('/cart');
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full sm:max-w-md bg-white dark:bg-ink-800 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+                <div className="aspect-square relative">
+                    {item.video ? (
+                        <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+                            <source src={item.video} type="video/mp4" />
+                        </video>
+                    ) : (
+                        <img src={item.image} alt="" className="w-full h-full object-cover" />
+                    )}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+                <div className="p-5">
+                    {isProduct ? (
+                        <>
+                            <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">{item.title}</h3>
+                            <p className="text-brand-700 dark:text-gold-400 font-extrabold text-xl mt-1">
+                                GHS {parseFloat(item.price).toFixed(2)}
+                            </p>
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    onClick={handleBuyNow}
+                                    className="flex-1 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 font-semibold text-sm hover:bg-brand-700 dark:hover:bg-gold-400 transition"
+                                >
+                                    Buy now
+                                </button>
+                                <button
+                                    onClick={() => navigate(`/product/${item.id}`)}
+                                    className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-700 dark:text-gold-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-ink-700 transition"
+                                >
+                                    View details
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg">{item.label}</h3>
+                            <button
+                                onClick={() => navigate('/browse')}
+                                className="w-full mt-4 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 font-semibold text-sm hover:bg-brand-700 dark:hover:bg-gold-400 transition"
+                            >
+                                Browse listings
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

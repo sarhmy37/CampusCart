@@ -106,6 +106,84 @@ router.get('/', optionalAuth, async (req, res) => {
     }
 });
 
+// GET /api/products/showcase — up to 6 products for the homepage grid.
+// Priority: active boosts, then premium sellers (earliest-listed first),
+// then pro sellers, then a random free-seller product.
+router.get('/showcase', async (req, res) => {
+    try {
+        const excludeIds = [];
+        let slots = [];
+
+        const boostedResult = await pool.query(
+            `SELECT p.id, p.title, p.price, p.primary_image, p.video_url, p.seller_id, p.boosted_until,
+                    u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at
+             FROM products p
+             JOIN users u ON u.id = p.seller_id
+             LEFT JOIN categories c ON c.id = p.category_id
+             WHERE p.boosted_until IS NOT NULL AND p.boosted_until > now()
+               AND (c.name IS NULL OR c.name != 'Services')
+             ORDER BY p.boosted_until ASC
+             LIMIT 6`
+        );
+        slots.push(...boostedResult.rows.map((r) => ({ ...r, boosted: true })));
+        excludeIds.push(...slots.map((s) => s.id));
+
+        const baseSelect = `
+            SELECT p.id, p.title, p.price, p.primary_image, p.video_url, p.seller_id,
+                   NULL::timestamptz AS boosted_until,
+                   u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at
+            FROM products p
+            JOIN users u ON u.id = p.seller_id
+            LEFT JOIN categories c ON c.id = p.category_id
+            WHERE (c.name IS NULL OR c.name != 'Services')
+              AND p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
+        `;
+
+        if (slots.length < 6) {
+            const needed = 6 - slots.length;
+            const excludeClause = excludeIds.length ? `AND p.id <> ALL($2::uuid[])` : '';
+            const params = excludeIds.length ? [needed, excludeIds] : [needed];
+            const premiumResult = await pool.query(
+                `${baseSelect} AND u.plan = 'premium' AND u.plan_expires_at > now() ${excludeClause}
+                 ORDER BY p.created_at ASC LIMIT $1`,
+                params
+            );
+            slots.push(...premiumResult.rows);
+            excludeIds.push(...premiumResult.rows.map((r) => r.id));
+        }
+
+        if (slots.length < 6) {
+            const needed = 6 - slots.length;
+            const excludeClause = excludeIds.length ? `AND p.id <> ALL($2::uuid[])` : '';
+            const params = excludeIds.length ? [needed, excludeIds] : [needed];
+            const proResult = await pool.query(
+                `${baseSelect} AND u.plan = 'pro' AND u.plan_expires_at > now() ${excludeClause}
+                 ORDER BY p.created_at ASC LIMIT $1`,
+                params
+            );
+            slots.push(...proResult.rows);
+            excludeIds.push(...proResult.rows.map((r) => r.id));
+        }
+
+        if (slots.length < 6) {
+            const needed = 6 - slots.length;
+            const excludeClause = excludeIds.length ? `AND p.id <> ALL($2::uuid[])` : '';
+            const params = excludeIds.length ? [needed, excludeIds] : [needed];
+            const freeResult = await pool.query(
+                `${baseSelect} AND (u.plan IS NULL OR u.plan = 'free' OR u.plan_expires_at <= now()) ${excludeClause}
+                 ORDER BY random() LIMIT $1`,
+                params
+            );
+            slots.push(...freeResult.rows);
+        }
+
+        res.json(slots);
+    } catch (err) {
+        console.error('Get showcase products error:', err);
+        res.status(500).json({ error: 'Something went wrong loading showcase listings' });
+    }
+});
+
 // GET /api/products/:id — single product
 router.get('/:id', optionalAuth, async (req, res) => {
     try {
@@ -117,7 +195,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         // no account to dedupe against.
         if (req.userId) {
             pool.query(
-                'INSERT INTO product_views (product_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id',
+                'INSERT INTO product_views (product_id, user_id) VALUES ($1, $2) ON CONFLICT (product_id, user_id) DO NOTHING RETURNING id',
                 [req.params.id, req.userId]
             ).then((result) => {
                 if (result.rowCount > 0) {
@@ -125,8 +203,17 @@ router.get('/:id', optionalAuth, async (req, res) => {
                 }
             }).catch((err) => console.error('View count increment error:', err));
         } else {
-            pool.query('UPDATE products SET views_count = views_count + 1 WHERE id = $1', [req.params.id])
-                .catch((err) => console.error('View count increment error:', err));
+            const anonId = req.headers['x-anon-id'];
+            if (anonId) {
+                pool.query(
+                    'INSERT INTO product_views (product_id, anon_id) VALUES ($1, $2) ON CONFLICT (product_id, anon_id) DO NOTHING RETURNING id',
+                    [req.params.id, anonId]
+                ).then((result) => {
+                    if (result.rowCount > 0) {
+                        return pool.query('UPDATE products SET views_count = views_count + 1 WHERE id = $1', [req.params.id]);
+                    }
+                }).catch((err) => console.error('Anon view count increment error:', err));
+            }
         }
 
         const productResult = await pool.query(

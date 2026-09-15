@@ -620,6 +620,29 @@ const categoryFiltered = itemCategory
         setSelectedBoostTier(null);
     };
 
+    useEffect(() => {
+        if (boostTarget) {
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.overflow = 'hidden';
+            document.body.style.touchAction = 'none';
+            document.documentElement.style.overscrollBehavior = 'none';
+        } else {
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (scrollY) window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+    }, [boostTarget]);
+
     const handleConfirmBoost = async () => {
         if (!selectedBoostTier || !boostTarget) return;
         setBoostSubmitting(true);
@@ -1066,7 +1089,7 @@ const categoryFiltered = itemCategory
                                 )}
                             </div>
 
-                                <div className="shrink-0 flex flex-col items-end gap-1 mt-0.5">
+                                <div className="shrink-0 flex items-center gap-3">
                                     {boostMode ? (
                                         <button
                                             type="button"
@@ -1076,24 +1099,24 @@ const categoryFiltered = itemCategory
                                             <X size={13} /> Cancel boost
                                         </button>
                                     ) : (
-                                        isSeller && (
+                                        <>
+                                            {isSeller && (
+                                                <button
+                                                    type="button"
+                                                    onClick={enterBoostMode}
+                                                    className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
+                                                >
+                                                    <Rocket size={13} /> Boost your product
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
-                                                onClick={enterBoostMode}
-                                                className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
+                                                onClick={() => selectCategory('Services')}
+                                                className="text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
                                             >
-                                                <Rocket size={13} /> Boost your product
+                                                Browse services →
                                             </button>
-                                        )
-                                    )}
-                                    {!boostMode && (
-                                        <button
-                                            type="button"
-                                            onClick={() => selectCategory('Services')}
-                                            className="text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
-                                        >
-                                            Browse services →
-                                        </button>
+                                        </>
                                     )}
                                 </div>
                             </div>
