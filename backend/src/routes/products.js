@@ -50,8 +50,10 @@ router.get('/', optionalAuth, async (req, res) => {
         buyerPlanActive = !!(buyer?.plan && buyer.plan !== 'free' && buyer.plan_expires_at && new Date(buyer.plan_expires_at) > new Date());
     }
     if (!buyerPlanActive) {
-        conditions.push(`p.created_at <= now() - interval '1 hour'`);
-        conditions.push(`(p.restocked_at IS NULL OR p.restocked_at <= now() - interval '1 hour')`);
+        const values2Offset = values.length + 1;
+        conditions.push(`(p.seller_id = $${values2Offset} OR p.created_at <= now() - interval '1 hour')`);
+        conditions.push(`(p.seller_id = $${values2Offset} OR p.restocked_at IS NULL OR p.restocked_at <= now() - interval '1 hour')`);
+        values.push(req.userId || null);
     }
 
     if (search) {
