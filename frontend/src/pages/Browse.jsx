@@ -620,7 +620,20 @@ const categoryFiltered = itemCategory
         setSelectedBoostTier(null);
     };
 
+    const handleBoostButtonClick = () => {
+        if (boostBtnArmed) {
+            setBoostBtnArmed(false);
+            enterBoostMode();
+            return;
+        }
+        setBoostBtnArmed(true);
+        setBoostBtnBouncing(true);
+        setTimeout(() => setBoostBtnBouncing(false), 600);
+    };
+
         const [boostBtnFaded, setBoostBtnFaded] = useState(false);
+    const [boostBtnArmed, setBoostBtnArmed] = useState(false);
+    const [boostBtnBouncing, setBoostBtnBouncing] = useState(false);
     const boostBtnScrollTimer = useRef(null);
 
     useEffect(() => {
@@ -699,6 +712,18 @@ const categoryFiltered = itemCategory
 
     return (
         <div className="relative min-h-screen">
+            <style>{`
+                @keyframes boostBtnBounce {
+                    0% { transform: scale(1); }
+                    30% { transform: scale(1.25); }
+                    50% { transform: scale(0.92); }
+                    70% { transform: scale(1.1); }
+                    100% { transform: scale(1); }
+                }
+                .boost-btn-bounce {
+                    animation: boostBtnBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+                }
+            `}</style>
             {/* HEADER STRIP */}
             <section
                 className="sticky top-14 sm:top-16 z-30 relative overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-brand-600 dark:from-ink-900 dark:via-ink-800 dark:to-gold-900"
@@ -1215,11 +1240,11 @@ const categoryFiltered = itemCategory
             {isSeller && !boostMode && itemCategory !== 'Mobile Data' && itemCategory !== 'Services' && (
                 <button
                     type="button"
-                    onClick={enterBoostMode}
+                    onClick={handleBoostButtonClick}
                     aria-label="Boost your product"
-                    className={`fixed right-4 sm:right-6 bottom-24 sm:bottom-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/90 dark:bg-ink-800/90 backdrop-blur border-[3px] border-brand-600 dark:border-gold-500 text-brand-600 dark:text-gold-400 shadow-lg flex items-center justify-center hover:bg-brand-50 dark:hover:bg-ink-700 active:scale-95 transition-all duration-300 ${
+                    className={`fixed right-4 sm:right-6 bottom-24 sm:bottom-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/90 dark:bg-ink-800/90 backdrop-blur border-[3px] border-brand-600 dark:border-gold-500 text-brand-600 dark:text-gold-400 shadow-lg flex items-center justify-center hover:bg-brand-50 dark:hover:bg-ink-700 transition-all duration-300 ${
                         boostBtnFaded ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'
-                    }`}
+                    } ${boostBtnBouncing ? 'boost-btn-bounce' : ''}`}
                 >
                     <Rocket size={20} />
                 </button>
