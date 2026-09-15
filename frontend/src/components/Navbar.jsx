@@ -844,7 +844,7 @@ function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
                         {n.title}
                     </p>
                     {n.message && (
-                        <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5 leading-relaxed">
+                        <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5 leading-relaxed whitespace-pre-line">
                             {n.message}
                         </p>
                     )}

@@ -113,6 +113,8 @@ app.use('/api/reports', reportRoutes);
 
 app.use('/api/bookings', bookingsRouter.router);
 
+app.use('/api/boosts', require('./routes/boosts').router);
+
 app.use('/api/wishlist', wishlistRoutes);
 
 app.use('/api/sellers', sellerRoutes);

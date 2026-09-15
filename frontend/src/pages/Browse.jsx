@@ -7,7 +7,7 @@ import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
 import { DUMMY_PRODUCTS } from '../data/demoProducts';
-import { ArrowLeft, X, ChevronDown, Check, Search, Wallet, Wifi, Loader2, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, X, ChevronDown, Check, Search, Wallet, Wifi, Loader2, SlidersHorizontal, Rocket } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { MTN_LOGO, VODAFONE_LOGO, AIRTELTIGO_LOGO } from '../data/media';
 import ServiceCard from '../components/ServiceCard';
@@ -177,6 +177,12 @@ const PRICE_RANGES = [
     { label: 'Above 1000', min: 1000, max: Infinity },
 ];
 
+const BOOST_TIERS = [
+    { id: '24h', label: '24 hours', price: 20 },
+    { id: '3d', label: '3 days', price: 45 },
+    { id: '7d', label: '7 days', price: 90 },
+];
+
 // ─── TAB CONFIG (mobile bottom bar) ────────────────────────────────────────
 const MOBILE_TABS = ['all', 'new', 'categories', 'nearby', 'verified'];
 
@@ -202,6 +208,7 @@ export default function Browse() {
 
     const isPlanActive = user?.plan && user.plan !== 'free' &&
         user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+    const isSeller = user?.account_type === 'seller';
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [activeCategory, setActiveCategory] = useState('');
@@ -217,6 +224,10 @@ export default function Browse() {
     const [openSheet, setOpenSheet] = useState(null);
     const search = searchParams.get('search') || '';
     const [showCategoryRequest, setShowCategoryRequest] = useState(false);
+    const [boostMode, setBoostMode] = useState(false);
+    const [boostTarget, setBoostTarget] = useState(null);
+    const [selectedBoostTier, setSelectedBoostTier] = useState(null);
+    const [boostSubmitting, setBoostSubmitting] = useState(false);
     const [dataNetwork, setDataNetwork] = useState('');
     const [serviceType, setServiceType] = useState('');
     const [dataBundles, setDataBundles] = useState([]);
@@ -417,9 +428,13 @@ const categoryFiltered = itemCategory
         })
         : categoryFiltered;
 
-    const verifiedFiltered = verifiedOnly
-        ? subCategoryFiltered.filter((p) => p.seller_verified)
+    const boostEligibleFiltered = boostMode
+        ? subCategoryFiltered.filter((p) => p.seller_id === user?.id)
         : subCategoryFiltered;
+
+    const verifiedFiltered = verifiedOnly
+        ? boostEligibleFiltered.filter((p) => p.seller_verified)
+        : boostEligibleFiltered;
     let filteredByType = verifiedFiltered;
     if (filterType === 'new') {
         const threeDaysAgo = new Date();
@@ -585,6 +600,39 @@ const categoryFiltered = itemCategory
             setFilterType('nearby');
         }
         setOpenSheet(null);
+    };
+
+    const enterBoostMode = () => {
+        setBoostMode(true);
+        setItemCategory('');
+        setSubCategory('');
+        setOpenSheet(null);
+    };
+
+    const exitBoostMode = () => {
+        setBoostMode(false);
+        setBoostTarget(null);
+        setSelectedBoostTier(null);
+    };
+
+    const closeBoostConfirm = () => {
+        setBoostTarget(null);
+        setSelectedBoostTier(null);
+    };
+
+    const handleConfirmBoost = async () => {
+        if (!selectedBoostTier || !boostTarget) return;
+        setBoostSubmitting(true);
+        try {
+            const res = await api.post('/boosts', {
+                product_id: boostTarget.id,
+                tier: selectedBoostTier,
+            });
+            window.location.href = res.data.authorization_url;
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to start boost checkout');
+            setBoostSubmitting(false);
+        }
     };
 
     const isTabActive = (tab) => {
@@ -1018,14 +1066,44 @@ const categoryFiltered = itemCategory
                                 )}
                             </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => selectCategory('Services')}
-                                    className="shrink-0 text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap mt-0.5"
-                                >
-                                    Browse services →
-                                </button>
+                                <div className="shrink-0 flex flex-col items-end gap-1 mt-0.5">
+                                    {boostMode ? (
+                                        <button
+                                            type="button"
+                                            onClick={exitBoostMode}
+                                            className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-slate-500 dark:text-gold-200/60 hover:underline whitespace-nowrap"
+                                        >
+                                            <X size={13} /> Cancel boost
+                                        </button>
+                                    ) : (
+                                        isSeller && (
+                                            <button
+                                                type="button"
+                                                onClick={enterBoostMode}
+                                                className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
+                                            >
+                                                <Rocket size={13} /> Boost your product
+                                            </button>
+                                        )
+                                    )}
+                                    {!boostMode && (
+                                        <button
+                                            type="button"
+                                            onClick={() => selectCategory('Services')}
+                                            className="text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
+                                        >
+                                            Browse services →
+                                        </button>
+                                    )}
+                                </div>
                             </div>
+
+                                                        {boostMode && (
+                                <div className="flex items-center gap-2 bg-brand-50 dark:bg-gold-900/20 border border-brand-100 dark:border-gold-900/40 text-brand-700 dark:text-gold-300 text-xs sm:text-sm font-semibold px-3.5 py-2.5 rounded-xl mb-4">
+                                    <Rocket size={14} className="shrink-0" />
+                                    Select one of your listings below to boost it.
+                                </div>
+                            )}
 
                             {verifiedOnly && (
                                 <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
@@ -1057,7 +1135,14 @@ const categoryFiltered = itemCategory
         )}
         {searchProductResults.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {searchProductResults.map((p) => <ProductCard key={p.id} product={p} />)}
+                {searchProductResults.map((p) => (
+                    <ProductCard
+                        key={p.id}
+                        product={p}
+                        boostMode={boostMode}
+                        onBoostSelect={boostMode ? setBoostTarget : undefined}
+                    />
+                ))}
             </div>
         )}
         {search && searchServiceResults.length > 0 && (
@@ -1076,7 +1161,7 @@ const categoryFiltered = itemCategory
     </>
 )}
 
-                            {outOfStockProducts.length > 0 && (
+                            {!boostMode && outOfStockProducts.length > 0 && (
                                 <>
                                     <div className="flex items-center gap-3 mt-10 mb-3">
                                         <span className="text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400 dark:text-gold-200/50 whitespace-nowrap">
@@ -1174,6 +1259,68 @@ const categoryFiltered = itemCategory
                 open={showCategoryRequest}
                 onClose={() => setShowCategoryRequest(false)}
             />
+
+            {boostTarget && (
+                <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    <div
+                        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                        onClick={() => !boostSubmitting && closeBoostConfirm()}
+                    />
+                    <div className="relative bg-white dark:bg-ink-800 rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-sm w-full p-6">
+                        <div className="flex items-start justify-between gap-3 mb-1">
+                            <div className="w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900 text-brand-600 dark:text-gold-400 flex items-center justify-center">
+                                <Rocket size={20} />
+                            </div>
+                            <button
+                                onClick={() => !boostSubmitting && closeBoostConfirm()}
+                                className="text-slate-300 dark:text-gold-300/40 hover:text-slate-500 dark:hover:text-gold-200 p-1 -mr-1 -mt-1"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <h3 className="font-bold text-slate-900 dark:text-gold-50 text-lg mt-2">
+                            Boost "{boostTarget.title}"
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-1">
+                            Choose how long this listing should stay at the top of search and browse results.
+                        </p>
+
+                        <div className="flex flex-col gap-2 mt-4">
+                            {BOOST_TIERS.map((tier) => (
+                                <button
+                                    key={tier.id}
+                                    type="button"
+                                    onClick={() => setSelectedBoostTier(tier.id)}
+                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+                                        selectedBoostTier === tier.id
+                                            ? 'bg-brand-50 dark:bg-gold-900/30 border-brand-500 dark:border-gold-500 text-brand-700 dark:text-gold-300'
+                                            : 'border-slate-200 dark:border-ink-600 text-slate-700 dark:text-gold-100 hover:bg-slate-50 dark:hover:bg-ink-700'
+                                    }`}
+                                >
+                                    <span>{tier.label}</span>
+                                    <span className="flex items-center gap-2">
+                                        GHS {tier.price}
+                                        {selectedBoostTier === tier.id && <Check size={16} />}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={handleConfirmBoost}
+                            disabled={!selectedBoostTier || boostSubmitting}
+                            className="w-full mt-5 py-2.5 rounded-xl bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-sm font-semibold transition disabled:opacity-60 flex items-center justify-center gap-1.5"
+                        >
+                            {boostSubmitting && <Loader2 size={14} className="animate-spin" />}
+                            {boostSubmitting ? 'Processing…' : 'Pay and Boost'}
+                        </button>
+                        <p className="text-center text-[11px] text-slate-400 dark:text-gold-200/50 mt-2">
+                            🔒 Secured by Paystack
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

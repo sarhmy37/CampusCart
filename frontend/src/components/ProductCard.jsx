@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle, MapPin, Sparkles } from 'lucide-react';
+import { Tag, Star, Heart, BadgeCheck, AlertTriangle, PlayCircle, MapPin, Sparkles, Rocket } from 'lucide-react';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { useWishlist } from '../context/WishlistContext';
 
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, boostMode = false, onBoostSelect }) {
     const { isWishlisted, toggleItem } = useWishlist();
     const wishlisted = isWishlisted(product.id);
     const rating = product.rating || 0;
@@ -68,6 +68,26 @@ export default function ProductCard({ product }) {
         product.seller_plan_expires_at && new Date(product.seller_plan_expires_at) > new Date();
     const sellerPlan = sellerPlanActive ? product.seller_plan.toLowerCase() : null;
 
+    const isBoosted = product.boosted_until && new Date(product.boosted_until) > new Date();
+
+    const [boostCountdown, setBoostCountdown] = useState('');
+    useEffect(() => {
+        if (!isBoosted) return;
+        const update = () => {
+            const diffMs = new Date(product.boosted_until).getTime() - Date.now();
+            if (diffMs <= 0) {
+                setBoostCountdown('');
+                return;
+            }
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            setBoostCountdown(hours > 0 ? `${hours}h ${mins}m left` : `${mins}m left`);
+        };
+        update();
+        const interval = setInterval(update, 60000);
+        return () => clearInterval(interval);
+    }, [isBoosted, product.boosted_until]);
+
     let stockLabel = null;
     let stockColor = 'text-slate-400 dark:text-gold-200/50';
     if (stock !== null) {
@@ -99,7 +119,13 @@ export default function ProductCard({ product }) {
     const CardInner = (
         <div 
             ref={cardRef}
-            className="group relative bg-white dark:bg-ink-800 rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden hover:shadow-lg dark:hover:shadow-gold-900/20 hover:-translate-y-0.5 transition-all duration-300"
+            className={`group relative bg-white dark:bg-ink-800 rounded-xl border overflow-hidden hover:-translate-y-0.5 transition-all duration-300 ${
+                isBoosted
+                    ? 'border-brand-300 dark:border-gold-500/40 shadow-lg shadow-brand-500/10 dark:shadow-gold-900/20'
+                    : 'border-slate-200 dark:border-ink-600 hover:shadow-lg dark:hover:shadow-gold-900/20'
+            } ${
+                boostMode ? 'ring-1 ring-transparent hover:ring-2 hover:ring-brand-500 dark:hover:ring-gold-500' : ''
+            }`}
         >
             <div className="aspect-square bg-slate-100 dark:bg-ink-700 overflow-hidden relative">
                 
@@ -143,15 +169,20 @@ export default function ProductCard({ product }) {
                     {product.condition}
                 </span>
 
+                {isBoosted && (
+                    <span className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
+                        <Rocket size={10} /> Boosted
+                    </span>
+                )}
+
                 {renderStockBadge()}
 
                 {/* DISCOUNT BADGE */}
-                {discountPercent !== null && (
+                {discountPercent !== null && !isBoosted && (
                     <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
                         -{discountPercent}%
                     </span>
                 )}
-
                 {/* ─── WISHLIST ICON — NO PADDING, FLUSH AGAINST CORNER ─── */}
                 <button
                     type="button"
@@ -214,7 +245,16 @@ export default function ProductCard({ product }) {
                     {sellerPlan === 'pro' && (
                         <Star className="w-2.5 h-2.5 text-blue-500 fill-blue-500 shrink-0" title="Pro Seller" />
                     )}
+                    {isBoosted && (
+                        <Rocket className="w-2.5 h-2.5 text-brand-600 dark:text-gold-400 shrink-0" title="Boosted" />
+                    )}
                 </p>
+
+                {isBoosted && boostCountdown && (
+                    <p className="text-[10px] font-semibold text-brand-600 dark:text-gold-400 mt-0.5">
+                        🚀 {boostCountdown}
+                    </p>
+                )}
 
                 {stockLabel && (
                     <div className={`text-[11px] font-medium ${stockColor} mt-0.5 flex items-center gap-1`}>
@@ -225,6 +265,18 @@ export default function ProductCard({ product }) {
             </div>
         </div>
     );
+
+    if (boostMode) {
+        return (
+            <button
+                type="button"
+                onClick={() => onBoostSelect && onBoostSelect(product)}
+                className="text-left w-full"
+            >
+                {CardInner}
+            </button>
+        );
+    }
 
     return <Link to={`/product/${product.id}`}>{CardInner}</Link>;
 }

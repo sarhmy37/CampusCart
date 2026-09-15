@@ -13,14 +13,16 @@ router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
-                    p.rating, p.review_count, p.views_count,
+                    p.rating, p.review_count, p.views_count, p.boosted_until, p.boost_tier,
                     p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                     c.name AS category,
                     (SELECT COUNT(*) FROM order_items oi WHERE oi.product_id = p.id AND oi.buyer_confirmed_at IS NOT NULL) AS sold_count
              FROM products p
              LEFT JOIN categories c ON c.id = p.category_id
              WHERE p.seller_id = $1
-             ORDER BY p.created_at DESC`,
+             ORDER BY
+                CASE WHEN p.boosted_until IS NOT NULL AND p.boosted_until > now() THEN 0 ELSE 1 END,
+                p.created_at DESC`,
             [req.userId]
         );
         res.json(result.rows);
@@ -75,7 +77,7 @@ router.get('/', optionalAuth, async (req, res) => {
         const result = await pool.query(
             `SELECT
                 p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.network, p.primary_image, p.video_url, p.created_at,
-                p.rating, p.review_count, p.price_max, p.service_duration,
+                p.rating, p.review_count, p.price_max, p.service_duration, p.boosted_until, p.boost_tier,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place, u.location AS seller_location,
@@ -88,10 +90,12 @@ router.get('/', optionalAuth, async (req, res) => {
              ${whereClause}
              ORDER BY
                 CASE
-                    WHEN u.plan = 'premium' AND u.plan_expires_at > now() THEN 0
-                    WHEN u.plan = 'pro' AND u.plan_expires_at > now() THEN 1
-                    ELSE 2
+                    WHEN p.boosted_until IS NOT NULL AND p.boosted_until > now() THEN 0
+                    WHEN u.plan = 'premium' AND u.plan_expires_at > now() THEN 1
+                    WHEN u.plan = 'pro' AND u.plan_expires_at > now() THEN 2
+                    ELSE 3
                 END,
+                CASE WHEN p.boosted_until IS NOT NULL AND p.boosted_until > now() THEN p.boosted_until END ASC,
                 p.created_at DESC`,
             values
         );

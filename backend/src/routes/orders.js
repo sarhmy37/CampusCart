@@ -258,6 +258,17 @@ router.post('/webhook', async (req, res) => {
         return;
     }
 
+    // Boost payments use a 'boost_' prefixed reference
+    if (reference.startsWith('boost_')) {
+        const { processBoostWebhookEvent } = require('./boosts');
+        try {
+            await processBoostWebhookEvent(event);
+        } catch (err) {
+            console.error('Boost webhook processing error:', err);
+        }
+        return;
+    }
+
     try {
         const orderResult = await pool.query('SELECT * FROM orders WHERE payment_reference = $1', [reference]);
         const order = orderResult.rows[0];
@@ -458,7 +469,7 @@ router.get('/:id', requireAuth, async (req, res) => {
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
         const itemsResult = await pool.query(
-            'SELECT id, title, quantity, price_at_purchase, seller_id FROM order_items WHERE order_id = $1',
+            'SELECT id, product_id, title, quantity, price_at_purchase, seller_id FROM order_items WHERE order_id = $1',
             [order.id]
         );
         order.items = itemsResult.rows;

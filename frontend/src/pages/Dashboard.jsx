@@ -12,7 +12,7 @@ import ReportModal from '../components/ReportModal';
 import {
     Trash2, Plus, ShoppingBag, TrendingUp, Tag, Wallet, Percent,
     Award, AlertTriangle, Store, Package, Landmark, Pencil, Flag,
-    Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight, ChevronDown , Bookmark
+    Truck, MapPin, MessageCircle, X, ChevronLeft, ChevronRight, ChevronDown , Bookmark, Rocket
 } from 'lucide-react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import EditListingModal from '../components/EditListingModal';
@@ -1581,13 +1581,44 @@ function MetricCard({ icon: Icon, label, value, highlight }) {
     );
 }
 function ListingItem({ product, isPlanActive, onEdit, onDelete, isService }) {
+    const isBoosted = product.boosted_until && new Date(product.boosted_until) > new Date();
+
+    const [boostCountdown, setBoostCountdown] = useState('');
+    useEffect(() => {
+        if (!isBoosted) return;
+        const update = () => {
+            const diffMs = new Date(product.boosted_until).getTime() - Date.now();
+            if (diffMs <= 0) {
+                setBoostCountdown('');
+                return;
+            }
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            setBoostCountdown(hours > 0 ? `${hours}h ${mins}m left` : `${mins}m left`);
+        };
+        update();
+        const interval = setInterval(update, 60000);
+        return () => clearInterval(interval);
+    }, [isBoosted, product.boosted_until]);
+
     return (
-        <div className="flex items-center gap-4 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-3 hover:shadow-sm transition">
+        <div className={`flex items-center gap-4 bg-white dark:bg-ink-800 rounded-2xl p-3 transition ${
+            isBoosted
+                ? 'border border-brand-300 dark:border-gold-500/40 shadow-lg shadow-brand-500/10 dark:shadow-gold-900/20'
+                : 'border border-slate-200 dark:border-ink-600 hover:shadow-sm'
+        }`}>
             <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-ink-700 overflow-hidden shrink-0">
                 {product.primary_image && <img src={product.primary_image} className="w-full h-full object-cover" alt={product.title} />}
             </div>
             <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate">{product.title}</p>
+                <p className="font-semibold text-slate-800 dark:text-gold-100 text-sm truncate flex items-center gap-1.5">
+                    {product.title}
+                    {isBoosted && (
+                        <span className="inline-flex items-center gap-1 shrink-0 bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                            <Rocket size={10} /> Boosted
+                        </span>
+                    )}
+                </p>
                 <p className="text-xs text-slate-400 dark:text-gold-200/50 capitalize mt-0.5">
                     <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${product.status === 'available' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-ink-600'}`} />
                     {product.status} · GHS {parseFloat(product.price).toFixed(2)}
@@ -1597,7 +1628,11 @@ function ListingItem({ product, isPlanActive, onEdit, onDelete, isService }) {
                         </span>
                     )}
                 </p>
-                {isPlanActive ? (
+                {isBoosted && boostCountdown ? (
+                    <p className="text-[11px] font-semibold text-brand-600 dark:text-gold-400 mt-0.5">
+                        🚀 {boostCountdown}
+                    </p>
+                ) : isPlanActive ? (
                     <p className="text-[11px] text-slate-400 dark:text-gold-200/40 mt-0.5">
                         👁 {product.views_count ?? 0} views · {product.sold_count ?? 0} sold
                     </p>
@@ -1607,12 +1642,16 @@ function ListingItem({ product, isPlanActive, onEdit, onDelete, isService }) {
                     </p>
                 )}
             </div>
-            <button onClick={() => onEdit(product)} className="text-slate-300 dark:text-gold-300/40 hover:text-brand-600 dark:hover:text-gold-400 p-1.5 transition">
-                <Pencil size={17} />
-            </button>
-            <button onClick={() => onDelete(product.id)} className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition">
-                <Trash2 size={18} />
-            </button>
+            {!isBoosted && (
+                <>
+                    <button onClick={() => onEdit(product)} className="text-slate-300 dark:text-gold-300/40 hover:text-brand-600 dark:hover:text-gold-400 p-1.5 transition">
+                        <Pencil size={17} />
+                    </button>
+                    <button onClick={() => onDelete(product.id)} className="text-slate-300 dark:text-gold-300/40 hover:text-red-500 p-1.5 transition">
+                        <Trash2 size={18} />
+                    </button>
+                </>
+            )}
         </div>
     );
 }

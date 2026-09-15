@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/client';
+import { useCart } from '../context/CartContext';
 import { CheckCircle2, Clock, XCircle, MapPin, Truck, ChevronLeft } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -13,9 +14,11 @@ const STATUS_CONFIG = {
 
 export default function OrderConfirmation() {
     const { id } = useParams();
+    const { removeItem } = useCart();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const clearedRef = useRef(false);
 
     useEffect(() => {
         api.get(`/orders/${id}`)
@@ -23,6 +26,20 @@ export default function OrderConfirmation() {
             .catch(() => setError(true))
             .finally(() => setLoading(false));
     }, [id]);
+
+    // Only drop this order's items from the cart once we've confirmed payment
+    // actually went through — never on pending/cancelled/refunded, and never
+    // more than once per visit (guards against a re-render re-triggering it).
+    useEffect(() => {
+        if (!order || clearedRef.current) return;
+        const paidStatuses = ['paid', 'completed'];
+        if (paidStatuses.includes(order.status)) {
+            order.items.forEach((item) => {
+                if (item.product_id) removeItem(item.product_id);
+            });
+            clearedRef.current = true;
+        }
+    }, [order, removeItem]);
 
     if (loading) {
         return (

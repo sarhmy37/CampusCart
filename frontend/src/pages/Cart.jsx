@@ -256,7 +256,6 @@ export default function Cart() {
                 buyer_lat: buyerCoords?.lat ?? null,
                 buyer_lng: buyerCoords?.lng ?? null,
             });
-            clearCart();
             window.location.href = res.data.authorization_url;
         } catch (err) {
             if (err.response?.data?.needs_verification) {

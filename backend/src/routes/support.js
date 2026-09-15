@@ -18,10 +18,28 @@ router.post('/', requireAuth, async (req, res) => {
             [req.userId, message.trim()]
         );
 
+        const planRes = await pool.query(
+            'SELECT plan, plan_expires_at FROM users WHERE id = $1',
+            [req.userId]
+        );
+        const { plan, plan_expires_at } = planRes.rows[0] || {};
+        const isPlanActive = plan && plan !== 'free' &&
+            plan_expires_at && new Date(plan_expires_at) > new Date();
+
+        const activePlan = isPlanActive ? plan : 'free';
+
+        const REPLY_WINDOW_TEXT = {
+            free: 'Check your email within a few working days for our reply.',
+            pro: 'Check your email within 2 days for our reply.',
+            premium: 'Check your email within a few hours for our reply.',
+        };
+
+        const replyText = REPLY_WINDOW_TEXT[activePlan];
+
         await insertNotification(
             req.userId,
             'support_received',
-            "We've received your message — check your email for our reply.",
+            `We've received your message\n${replyText}`,
             result.rows[0].id,
             '/contact'
         );
