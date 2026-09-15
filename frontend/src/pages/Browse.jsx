@@ -620,7 +620,25 @@ const categoryFiltered = itemCategory
         setSelectedBoostTier(null);
     };
 
+        const [boostBtnFaded, setBoostBtnFaded] = useState(false);
+    const boostBtnScrollTimer = useRef(null);
+
     useEffect(() => {
+        const handleScroll = () => {
+            setBoostBtnFaded(true);
+            clearTimeout(boostBtnScrollTimer.current);
+            boostBtnScrollTimer.current = setTimeout(() => {
+                setBoostBtnFaded(false);
+            }, 1500);
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            clearTimeout(boostBtnScrollTimer.current);
+        };
+    }, []);
+
+       useEffect(() => {
         if (boostTarget) {
             const scrollY = window.scrollY;
             document.body.style.position = 'fixed';
@@ -1199,7 +1217,9 @@ const categoryFiltered = itemCategory
                     type="button"
                     onClick={enterBoostMode}
                     aria-label="Boost your product"
-                    className="fixed right-4 sm:right-6 bottom-24 sm:bottom-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 shadow-lg shadow-brand-600/30 dark:shadow-gold-900/40 flex items-center justify-center hover:bg-brand-700 dark:hover:bg-gold-400 active:scale-95 transition"
+                    className={`fixed right-4 sm:right-6 bottom-24 sm:bottom-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/90 dark:bg-ink-800/90 backdrop-blur border-[3px] border-brand-600 dark:border-gold-500 text-brand-600 dark:text-gold-400 shadow-lg flex items-center justify-center hover:bg-brand-50 dark:hover:bg-ink-700 active:scale-95 transition-all duration-300 ${
+                        boostBtnFaded ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'
+                    }`}
                 >
                     <Rocket size={20} />
                 </button>
