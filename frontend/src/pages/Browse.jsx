@@ -1089,7 +1089,7 @@ const categoryFiltered = itemCategory
                                 )}
                             </div>
 
-                                <div className="shrink-0 flex items-center gap-3">
+                                <div className="shrink-0">
                                     {boostMode ? (
                                         <button
                                             type="button"
@@ -1099,24 +1099,13 @@ const categoryFiltered = itemCategory
                                             <X size={13} /> Cancel boost
                                         </button>
                                     ) : (
-                                        <>
-                                            {isSeller && (
-                                                <button
-                                                    type="button"
-                                                    onClick={enterBoostMode}
-                                                    className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
-                                                >
-                                                    <Rocket size={13} /> Boost your product
-                                                </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => selectCategory('Services')}
-                                                className="text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
-                                            >
-                                                Browse services →
-                                            </button>
-                                        </>
+                                        <button
+                                            type="button"
+                                            onClick={() => selectCategory('Services')}
+                                            className="text-xs sm:text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline whitespace-nowrap"
+                                        >
+                                            Browse services →
+                                        </button>
                                     )}
                                 </div>
                             </div>
@@ -1203,6 +1192,18 @@ const categoryFiltered = itemCategory
                     )}
                 </div>
             </section>
+
+            {/* ─── FLOATING BOOST BUTTON ──────────────────────────────── */}
+            {isSeller && !boostMode && itemCategory !== 'Mobile Data' && itemCategory !== 'Services' && (
+                <button
+                    type="button"
+                    onClick={enterBoostMode}
+                    aria-label="Boost your product"
+                    className="fixed right-4 sm:right-6 bottom-24 sm:bottom-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 shadow-lg shadow-brand-600/30 dark:shadow-gold-900/40 flex items-center justify-center hover:bg-brand-700 dark:hover:bg-gold-400 active:scale-95 transition"
+                >
+                    <Rocket size={20} />
+                </button>
+            )}
 
             {/* ─── MOBILE BOTTOM TABS ──────────────────────────────────── */}
             <div className="block sm:hidden fixed bottom-0 left-0 right-0 z-40">
