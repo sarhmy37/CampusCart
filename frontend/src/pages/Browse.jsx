@@ -675,6 +675,15 @@ const categoryFiltered = itemCategory
         }
     }, [boostTarget]);
 
+    const handleSelectBoostTarget = (product) => {
+        const isBoosted = product.boosted_until && new Date(product.boosted_until) > new Date();
+        if (isBoosted) {
+            toast.error('This listing is already boosted.');
+            return;
+        }
+        setBoostTarget(product);
+    };
+
     const handleConfirmBoost = async () => {
         if (!selectedBoostTier || !boostTarget) return;
         setBoostSubmitting(true);
@@ -1188,7 +1197,7 @@ const categoryFiltered = itemCategory
                         key={p.id}
                         product={p}
                         boostMode={boostMode}
-                        onBoostSelect={boostMode ? setBoostTarget : undefined}
+                        onBoostSelect={boostMode ? handleSelectBoostTarget : undefined}
                     />
                 ))}
             </div>
