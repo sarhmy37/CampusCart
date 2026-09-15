@@ -1235,7 +1235,7 @@ const categoryFiltered = itemCategory
                     type="button"
                     onClick={handleBoostButtonClick}
                     aria-label="Boost your product"
-                    className={`fixed right-4 sm:right-6 bottom-24 sm:bottom-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/90 dark:bg-ink-800/90 backdrop-blur border-[3px] border-brand-600 dark:border-gold-500 text-brand-600 dark:text-gold-400 shadow-lg flex items-center justify-center hover:bg-brand-50 dark:hover:bg-ink-700 transition-all duration-300 ${
+                    className={`fixed right-4 sm:right-6 bottom-32 sm:bottom-8 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/90 dark:bg-ink-800/90 backdrop-blur border-[3px] border-brand-600 dark:border-gold-500 text-brand-600 dark:text-gold-400 shadow-lg flex items-center justify-center hover:bg-brand-50 dark:hover:bg-ink-700 transition-all duration-300 ${
                         boostBtnFaded ? 'opacity-20 scale-90' : 'opacity-100 scale-100'
                     } ${boostBtnBouncing ? 'boost-btn-bounce' : ''}`}
                 >
