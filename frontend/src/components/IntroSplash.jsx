@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
 
+const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 const SPLASH_DURATION_MS = 2000;
 const FADE_OUT_MS = 300;
 const APP_VERSION = '1.0.0';
@@ -44,13 +46,13 @@ export default function IntroSplash({ onFinish }) {
                 alt="Tre-X"
                 className="intro-logo-pulse h-24 sm:h-28 w-auto object-contain"
             />
-            <div className="intro-wordmark-shadow flex items-center font-black tracking-wider mt-4">
+            <div className={`intro-wordmark-shadow flex items-center font-black tracking-wider mt-4 ${isIOSDevice ? 'font-serif' : 'font-sans'}`}>
                 <span className="text-3xl text-slate-900 dark:text-gold-200">Tre</span>
                 <span className="text-3xl text-slate-900 dark:text-gold-200 -ml-0.5">-</span>
                 <span className="text-4xl italic text-brand-600 dark:text-gold-400 leading-none -ml-1">X</span>
             </div>
 
-            <p className="absolute bottom-8 text-xs text-slate-300 dark:text-gold-300/30">
+            <p className="absolute bottom-8 text-xs text-slate-500 dark:text-gold-200/60">
                 App version {APP_VERSION}
             </p>
         </div>
