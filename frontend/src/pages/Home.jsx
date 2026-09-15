@@ -525,6 +525,21 @@ const handlePlanClick = async (planName) => {
                     animation: arrowVibrateGrow ${CTA_VIBRATE_MS}ms ease-in forwards;
                     transform-origin: center;
                 }
+
+                @keyframes boostPulseRing {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.45); }
+                    50% { box-shadow: 0 0 0 6px rgba(217, 119, 6, 0); }
+                }
+                .boost-pulse-ring {
+                    animation: boostPulseRing 2.2s ease-in-out infinite;
+                }
+                .dark .boost-pulse-ring {
+                    animation-name: boostPulseRingDark;
+                }
+                @keyframes boostPulseRingDark {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.5); }
+                    50% { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+                }
             `}</style>
 
             {/* HERO */}
@@ -994,12 +1009,13 @@ const handlePlanClick = async (planName) => {
 
 function ShowcaseCard({ item, index, raised, onCardClick }) {
     const isProduct = item.type === 'product';
+    const isBoosted = isProduct && item.boosted;
     return (
         <div
             onClick={() => onCardClick(index)}
             className={`group relative rounded-2xl overflow-hidden aspect-square cursor-pointer transition-all duration-300 ease-out ${
                 raised ? '-translate-y-3 shadow-2xl shadow-black/20 z-10' : 'hover:-translate-y-1'
-            }`}
+            } ${isBoosted ? 'boost-pulse-ring' : ''}`}
         >
             {item.video ? (
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
