@@ -4,7 +4,7 @@ import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
 
 const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-const SPLASH_DURATION_MS = 2000;
+const SPLASH_DURATION_MS = 4000;
 const FADE_OUT_MS = 300;
 const APP_VERSION = '1.0.0';
 
