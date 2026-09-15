@@ -1103,14 +1103,6 @@ const categoryFiltered = itemCategory
                                     </span>
                                 )}
 
-                         {itemCategory && !subCategory && (
-                                <SubcategoryScroller
-                                    options={SUBCATEGORIES[itemCategory] || []}
-                                    value={subCategory}
-                                    onChange={setSubCategory}
-                                />
-                            )}
-
                             {verifiedOnly && (
                                     <span className="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
                                         <CheckBadgeIconSolid className="w-3 h-3" /> Verified
