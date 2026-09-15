@@ -949,7 +949,7 @@ const categoryFiltered = itemCategory
                     <rect width="100%" height="100%" filter="url(#listingsGrain)" />
                 </svg>
 
-                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-32 sm:pb-10">
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-32 sm:pb-10">
                     {itemCategory === 'Mobile Data' ? (
                         <div className="grid sm:grid-cols-[160px_1fr] gap-6">
                             {/* NETWORK PICKER — left side */}
