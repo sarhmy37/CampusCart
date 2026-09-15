@@ -109,15 +109,8 @@ export default function Contact() {
                 >
                     <ArrowLeft size={16} /> Back
                 </button>
-                <div className="flex items-center gap-3 mt-5 mb-6">
-                    <div className="w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center">
-                        <MessageCircle className="text-brand-600 dark:text-gold-400" size={20} />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-gold-50">Contact Us</h1>
-                        <p className="text-slate-500 dark:text-gold-200/50 text-sm mt-0.5">We're here to help</p>
-                    </div>
-                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-gold-50 mt-5">Contact Us</h1>
+                <p className="text-sm text-slate-400 dark:text-gold-200/50 mt-1 mb-6">We're here to help</p>
                 <div className="flex gap-1 mb-5 bg-slate-100 dark:bg-ink-800 p-1 rounded-xl w-fit mx-auto">
                     {CONTACT_TABS.map((t) => (
                         <button
