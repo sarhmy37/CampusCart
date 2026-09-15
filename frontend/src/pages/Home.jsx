@@ -527,18 +527,18 @@ const handlePlanClick = async (planName) => {
                 }
 
                 @keyframes boostPulseRing {
-                    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.45); }
-                    50% { box-shadow: 0 0 0 6px rgba(217, 119, 6, 0); }
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.75); }
+                    50% { box-shadow: 0 0 0 12px rgba(217, 119, 6, 0); }
                 }
                 .boost-pulse-ring {
-                    animation: boostPulseRing 2.2s ease-in-out infinite;
+                    animation: boostPulseRing 1.6s ease-in-out infinite;
                 }
                 .dark .boost-pulse-ring {
                     animation-name: boostPulseRingDark;
                 }
                 @keyframes boostPulseRingDark {
-                    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.5); }
-                    50% { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.8); }
+                    50% { box-shadow: 0 0 0 12px rgba(234, 179, 8, 0); }
                 }
             `}</style>
 
