@@ -509,7 +509,7 @@ const categoryFiltered = itemCategory
                 type="button"
                 onClick={applyBudgetValue}
                 aria-label="Apply budget filter"
-                className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-r-full bg-white/20 hover:bg-white/35 active:scale-90 text-white transition-all"
+                className="absolute right-1 sm:right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/35 active:scale-90 text-white transition-all"
             >
                 <Search className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
@@ -803,7 +803,7 @@ const categoryFiltered = itemCategory
                                 <select
                                     value={school}
                                     onChange={handleSchoolChange}
-                                    className="appearance-none bg-white/10 text-white text-sm font-semibold pl-4 pr-6 py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer"
+                                    className="appearance-none bg-white/10 text-white text-sm font-semibold pl-4 pr-6 py-2 rounded-full border border-white/30 backdrop-blur focus:outline-none cursor-pointer max-w-[160px] truncate"
                                 >
                                     <option value="" className="text-slate-900">All schools</option>
                                     <option value="nearby" className="text-slate-900">{locating ? 'Locating…' : '📍 Near me'}</option>
