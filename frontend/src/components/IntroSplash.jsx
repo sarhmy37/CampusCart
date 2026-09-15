@@ -8,11 +8,18 @@ const SPLASH_DURATION_MS = 4000;
 const FADE_OUT_MS = 300;
 const APP_VERSION = '1.0.0';
 
+const SPLASH_SESSION_KEY = 'trex_intro_splash_shown';
+
 export default function IntroSplash({ onFinish }) {
     const { theme } = useTheme();
     const [fadingOut, setFadingOut] = useState(false);
 
     useEffect(() => {
+        if (sessionStorage.getItem(SPLASH_SESSION_KEY)) {
+            onFinish();
+            return;
+        }
+        sessionStorage.setItem(SPLASH_SESSION_KEY, '1');
         const fadeTimer = setTimeout(() => setFadingOut(true), SPLASH_DURATION_MS - FADE_OUT_MS);
         const finishTimer = setTimeout(() => onFinish(), SPLASH_DURATION_MS);
         return () => {
