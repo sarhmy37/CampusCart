@@ -1,8 +1,10 @@
 const express = require('express');
+const multer = require('multer');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // GET /api/reviews/seller/:sellerId — reviews for a seller, with like/comment data
 router.get('/seller/:sellerId', async (req, res) => {
@@ -134,6 +136,33 @@ router.get('/can-review/:sellerId', requireAuth, async (req, res) => {
         res.json({ can_review: hasPurchased && !alreadyReviewed, has_purchased: hasPurchased, already_reviewed: alreadyReviewed });
     } catch (err) {
         console.error('Can-review check error:', err);
+        res.status(500).json({ error: 'Something went wrong checking review eligibility' });
+    }
+});
+
+// GET /api/reviews/can-review-product/:productId — has this buyer completed a purchase of this product, and not already reviewed it?
+router.get('/can-review-product/:productId', requireAuth, async (req, res) => {
+    const { productId } = req.params;
+
+    try {
+        const purchaseResult = await pool.query(
+            `SELECT 1 FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             WHERE oi.product_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
+             LIMIT 1`,
+            [productId, req.userId]
+        );
+        const hasPurchased = purchaseResult.rows.length > 0;
+
+        const existingReview = await pool.query(
+            'SELECT 1 FROM product_reviews WHERE product_id = $1 AND user_id = $2',
+            [productId, req.userId]
+        );
+        const alreadyReviewed = existingReview.rows.length > 0;
+
+        res.json({ can_review: hasPurchased && !alreadyReviewed, has_purchased: hasPurchased, already_reviewed: alreadyReviewed });
+    } catch (err) {
+        console.error('Can-review-product check error:', err);
         res.status(500).json({ error: 'Something went wrong checking review eligibility' });
     }
 });
@@ -276,7 +305,7 @@ router.get('/product/:productId', async (req, res) => {
 });
 
 // POST /api/reviews/product — submit a review for a product (only if purchased)
-router.post('/product', requireAuth, async (req, res) => {
+router.post('/product', requireAuth, upload.single('image'), async (req, res) => {
     const { product_id, rating, comment } = req.body;
 
     if (!product_id || !rating) {
@@ -284,6 +313,11 @@ router.post('/product', requireAuth, async (req, res) => {
     }
     if (rating < 1 || rating > 5) {
         return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
+    let image_url = null;
+    if (req.file) {
+        image_url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
 
     const client = await pool.connect();
@@ -313,9 +347,9 @@ router.post('/product', requireAuth, async (req, res) => {
 
         // Insert review
         const result = await client.query(
-            `INSERT INTO product_reviews (product_id, user_id, rating, comment)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [product_id, req.userId, rating, comment || null]
+            `INSERT INTO product_reviews (product_id, user_id, rating, comment, image_url)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [product_id, req.userId, rating, comment || null, image_url]
         );
 
         // Update product rating and review_count

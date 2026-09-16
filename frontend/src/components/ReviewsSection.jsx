@@ -2,13 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { Star, ThumbsUp, MessageSquare, X, Send } from 'lucide-react';
+import { Star, ThumbsUp, MessageSquare, X, Send, ImagePlus } from 'lucide-react';
 
 export default function ReviewsSection({ reviewsData, productId }) {
     const { user } = useAuth();
     const [data, setData] = useState(reviewsData || null);
     const [loading, setLoading] = useState(!reviewsData);
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [canReview, setCanReview] = useState(false);
 
     const load = () => {
         if (!productId) return;
@@ -17,6 +18,13 @@ export default function ReviewsSection({ reviewsData, productId }) {
             .then((res) => setData(res.data))
             .catch(() => {})
             .finally(() => setLoading(false));
+    };
+
+    const loadCanReview = () => {
+        if (!productId || !user) return setCanReview(false);
+        api.get(`/reviews/can-review-product/${productId}`)
+            .then((res) => setCanReview(!!res.data?.can_review))
+            .catch(() => setCanReview(false));
     };
 
     // If reviewsData is passed from parent, use it; otherwise fetch on mount or when productId changes.
@@ -28,6 +36,10 @@ export default function ReviewsSection({ reviewsData, productId }) {
             load();
         }
     }, [reviewsData, productId]);
+
+    useEffect(() => {
+        loadCanReview();
+    }, [productId, user]);
 
     // Reload when review is submitted/updated.
     const refresh = () => {
@@ -61,7 +73,7 @@ export default function ReviewsSection({ reviewsData, productId }) {
                         </span>
                     )}
                 </div>
-                {user && (
+                {canReview && (
                     <button
                         onClick={() => setShowReviewModal(true)}
                         className="text-xs font-semibold text-brand-600 dark:text-gold-400 hover:text-brand-700 dark:hover:text-gold-300"
@@ -88,6 +100,7 @@ export default function ReviewsSection({ reviewsData, productId }) {
                 onSubmitted={() => {
                     setShowReviewModal(false);
                     refresh();
+                    loadCanReview();
                 }}
             />
         </div>
@@ -142,6 +155,13 @@ function ReviewCard({ review, onChanged }) {
             </div>
             {review.comment && (
                 <p className="text-slate-500 dark:text-gold-200/60 text-sm mt-1">{review.comment}</p>
+            )}
+            {review.image_url && (
+                <img
+                    src={review.image_url}
+                    alt="Review"
+                    className="mt-2 w-20 h-20 rounded-lg object-cover border border-slate-200 dark:border-ink-600"
+                />
             )}
 
             <div className="flex items-center gap-4 mt-2">
@@ -200,6 +220,8 @@ function ReviewCard({ review, onChanged }) {
 function ReviewModal({ open, productId, onClose, onSubmitted }) {
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState('');
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
     // Lock body scroll while open. Self-aware — only takes/releases the
@@ -248,13 +270,31 @@ function ReviewModal({ open, productId, onClose, onSubmitted }) {
         };
     }, [open]);
 
+    const handleImageChange = (file) => {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) return toast.error('Please choose an image file');
+        if (file.size > 5 * 1024 * 1024) return toast.error('Image must be under 5MB');
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
+    };
+
     const handleSubmit = async () => {
         setSubmitting(true);
         try {
-            await api.post('/reviews/product', { product_id: productId, rating, comment: comment.trim() || null });
+            const form = new FormData();
+            form.append('product_id', productId);
+            form.append('rating', rating);
+            if (comment.trim()) form.append('comment', comment.trim());
+            if (imageFile) form.append('image', imageFile);
+
+            await api.post('/reviews/product', form, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
             toast.success('Review submitted!');
             setComment('');
             setRating(5);
+            setImageFile(null);
+            setImagePreview(null);
             onSubmitted();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to submit review');
@@ -294,6 +334,34 @@ function ReviewModal({ open, productId, onClose, onSubmitted }) {
                     rows={3}
                     className="w-full mt-4 px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm transition resize-none"
                 />
+
+                {imagePreview ? (
+                    <div className="relative mt-3 w-20 h-20">
+                        <img
+                            src={imagePreview}
+                            alt="Review upload"
+                            className="w-20 h-20 rounded-lg object-cover border border-slate-200 dark:border-ink-600"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => { setImageFile(null); setImagePreview(null); }}
+                            className="absolute -top-1.5 -right-1.5 bg-slate-900/80 text-white rounded-full p-0.5"
+                        >
+                            <X size={11} />
+                        </button>
+                    </div>
+                ) : (
+                    <label className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 dark:text-gold-400 cursor-pointer">
+                        <ImagePlus size={14} />
+                        Add photo of the item
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleImageChange(e.target.files?.[0])}
+                        />
+                    </label>
+                )}
 
                 <button
                     onClick={handleSubmit}

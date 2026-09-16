@@ -33,11 +33,19 @@ export function ReviewPromptProvider({ children }) {
     // The backend has no bulk-review endpoint — it reviews one product at a
     // time (POST /reviews/product) — so submit every entry in parallel and
     // let the modal's own try/catch show a single toast if any of them fail.
+    // Each entry may carry an imageFile, so we send FormData per request.
     const submitReviews = async (payload) => {
         await Promise.all(
-            payload.map(({ product_id, rating, comment }) =>
-                api.post('/reviews/product', { product_id, rating, comment: comment || null })
-            )
+            payload.map(({ product_id, rating, comment, imageFile }) => {
+                const form = new FormData();
+                form.append('product_id', product_id);
+                form.append('rating', rating);
+                if (comment) form.append('comment', comment);
+                if (imageFile) form.append('image', imageFile);
+                return api.post('/reviews/product', form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+            })
         );
         setGroups([]);
     };

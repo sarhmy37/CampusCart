@@ -826,7 +826,9 @@ function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                className="relative flex items-start gap-3 px-4 py-3.5 bg-white dark:bg-ink-800 hover:bg-slate-50 dark:hover:bg-ink-700"
+                className={`relative flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-ink-700 ${
+                    n.read ? 'bg-white dark:bg-ink-800' : 'bg-brand-50/60 dark:bg-gold-900/20'
+                }`}
                 style={{
                     transform: `translateX(${dragX}px)`,
                     transition: isDragging ? 'none' : 'transform 0.25s ease-out',
@@ -840,9 +842,12 @@ function SwipeableNotification({ notification: n, onDelete, onNavigate }) {
                     </div>
                 )}
                 <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 leading-snug">
-                        {n.title}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                        {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-brand-600 dark:bg-gold-400 shrink-0 animate-pulse" />}
+                        <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 leading-snug">
+                            {n.title}
+                        </p>
+                    </div>
                     {n.message && (
                         <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-0.5 leading-relaxed whitespace-pre-line">
                             {n.message}

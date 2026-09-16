@@ -103,17 +103,20 @@ router.post('/', requireAuth, async (req, res) => {
         }
 
         const deliveryDiscountRate = getDeliveryDiscountRate(buyerPlan, buyerPlanExpiresAt);
-        const deliveryFee = Math.round(deliveryFeeFull * (1 - deliveryDiscountRate) * 100) / 100;
+        // Discount only ever comes out of the admin's 20% cut — the seller's 80%
+        // is always fixed off the FULL, undiscounted per-seller fee.
+        const deliveryFee = Math.round((deliveryFeeFull - deliveryFeeFull * ADMIN_DELIVERY_SHARE * deliveryDiscountRate) * 100) / 100;
 
-        // ============ 80/20 DELIVERY SPLIT LOGIC ============
+        // ============ 80/20 DELIVERY SPLIT LOGIC (per seller, credited once) ============
         const creditedDeliveryFor = new Set();
         for (const item of lineItems) {
             const totalDeliveryFee = deliveryFeeBySeller[item.seller_id];
             if (totalDeliveryFee && !creditedDeliveryFor.has(item.seller_id)) {
-                // Seller gets 80%
                 const sellerDeliveryShare = Math.round(totalDeliveryFee * SELLER_DELIVERY_SHARE * 100) / 100;
+                const adminDeliveryShare = Math.round((totalDeliveryFee * ADMIN_DELIVERY_SHARE * (1 - deliveryDiscountRate)) * 100) / 100;
                 item.seller_earnings = Math.round((item.seller_earnings + sellerDeliveryShare) * 100) / 100;
-
+                item.admin_delivery_share = adminDeliveryShare;
+                item.delivery_fee_credited = sellerDeliveryShare; // for the seller-facing notification text
                 creditedDeliveryFor.add(item.seller_id);
             }
         }
@@ -159,9 +162,9 @@ router.post('/', requireAuth, async (req, res) => {
         for (const item of lineItems) {
             await client.query(
                 `INSERT INTO order_items
-                    (order_id, product_id, seller_id, title, quantity, price_at_purchase, platform_fee, seller_earnings, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
-                [orderId, item.product_id, item.seller_id, item.title, item.quantity, item.price_at_purchase, item.platform_fee, item.seller_earnings]
+                    (order_id, product_id, seller_id, title, quantity, price_at_purchase, platform_fee, seller_earnings, admin_delivery_share, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')`,
+                [orderId, item.product_id, item.seller_id, item.title, item.quantity, item.price_at_purchase, item.platform_fee, item.seller_earnings, item.admin_delivery_share || 0]
             );
         }
 
@@ -587,22 +590,10 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         const sellerFeeRate = getSellerFeeRate(item.seller_plan, item.seller_plan_expires_at);
         const sellerFee = basePrice * sellerFeeRate;
 
-        // 4. Admin's 20% share of the delivery fee
-        const deliveryShareResult = await pool.query(
-            `SELECT o.delivery_fee, o.delivery_fee_full, oi.seller_id
-             FROM orders o
-             JOIN order_items oi ON o.id = oi.order_id
-             WHERE oi.id = $1`,
-            [itemId]
-        );
-        const orderDeliveryFeePaid = parseFloat(deliveryShareResult.rows[0]?.delivery_fee || 0);
-        // Older orders placed before this column existed won't have delivery_fee_full —
-        // fall back to the paid amount so the math still resolves (no discount assumed).
-        const orderDeliveryFeeFull = parseFloat(deliveryShareResult.rows[0]?.delivery_fee_full ?? orderDeliveryFeePaid);
-        // Seller's 80% is always off the FULL fee — a buyer's discount never costs the seller.
-        const sellerDeliveryShareForProfit = Math.round(orderDeliveryFeeFull * SELLER_DELIVERY_SHARE * 100) / 100;
-        // Admin keeps whatever's left of what the buyer actually paid, after the seller's fixed cut.
-        const adminDeliveryShare = Math.round((orderDeliveryFeePaid - sellerDeliveryShareForProfit) * 100) / 100;
+        // 4. Admin's 20% delivery share — stored per-item at order creation
+        // (already correctly computed per seller, once). Older items without
+        // it just get 0 rather than a wrong recalculated number.
+        const adminDeliveryShare = parseFloat(item.admin_delivery_share || 0);
 
         // 5. Gross admin profit = buyer fee + seller fee + admin's delivery share.
         //    Paystack's cut is NO LONGER subtracted here — it's now covered upfront by the
@@ -617,9 +608,10 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             [adminNetProfit, itemId]
         );
 
-        // 7. Seller earnings — off the FULL delivery fee, unaffected by buyer discounts
-        const sellerEarningsProduct = Math.round((basePrice - sellerFee) * 100) / 100;
-        const sellerEarnings = Math.round((sellerEarningsProduct + sellerDeliveryShareForProfit) * 100) / 100;
+        // 7. Use the earnings already computed and stored at order creation —
+        // delivery share was only credited to ONE item per seller per order there,
+        // so recalculating it here for every item would double-count it.
+        const sellerEarnings = parseFloat(item.seller_earnings);
 
         console.log(`[BUYER CONFIRMED] Item ${itemId}:`);
         console.log(`  - Product Price: GHS ${basePrice.toFixed(2)}`);
@@ -631,14 +623,16 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         console.log(`  - Seller Available: GHS ${sellerEarnings.toFixed(2)}`);
         // ======================================================
 
+        const deliveryNote = item.delivery_fee_credited
+            ? ` (includes GHS ${parseFloat(item.delivery_fee_credited).toFixed(2)} delivery fee)`
+            : '';
         await insertNotification(
             item.seller_id,
             'funds_available',
-            `A buyer confirmed receipt for "${item.title}". GHS ${sellerEarnings.toFixed(2)} is now available in your Payouts tab to withdraw.`,
+            `A buyer confirmed receipt for "${item.title}". GHS ${sellerEarnings.toFixed(2)}${deliveryNote} is now available in your Payouts tab to withdraw.`,
             item.order_id,
             '/dashboard?tab=payouts'
         );
-
         if (sellerSmsNumber) {
             sendOrderSMS(sellerSmsNumber, `Tre-X: Buyer confirmed receipt of "${item.title}". GHS ${sellerEarnings.toFixed(2)} is now available in your Payouts tab.`)
                 .catch((err) => console.error('Delivery confirm SMS failed:', err));

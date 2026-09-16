@@ -288,7 +288,8 @@ export default function Cart() {
     const deliveryDiscountRate = isPlanActive
         ? (user.plan.toLowerCase() === 'premium' ? 0.18 : user.plan.toLowerCase() === 'pro' ? 0.10 : 0)
         : 0;
-    const deliveryDiscount = deliveryFee * deliveryDiscountRate;
+    const ADMIN_DELIVERY_SHARE = 0.20; // must match backend
+    const deliveryDiscount = deliveryFee * ADMIN_DELIVERY_SHARE * deliveryDiscountRate;
     const discountedDeliveryFee = deliveryFee - deliveryDiscount;
 
     // The 2% payment-processing fee is applied once, at Paystack checkout —

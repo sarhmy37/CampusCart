@@ -163,6 +163,9 @@ export default function ProductDetail() {
                 seller_whatsapp: product.seller_whatsapp || product.whatsapp,
                 seller_school: product.seller_school,
                 stock: product.stock,
+                delivery_fee_on_campus: product.delivery_fee_on_campus,
+                delivery_fee_near_campus: product.delivery_fee_near_campus,
+                delivery_fee_far_campus: product.delivery_fee_far_campus,
             });
         }
         toast.success(`Added ${qty} to cart`);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Star, X, ChevronDown } from 'lucide-react';
+import { Star, X, ChevronDown, ImagePlus } from 'lucide-react';
 import { useReviewPrompt } from '../context/ReviewPromptContext';
 
 export default function PostPurchaseReviewModal() {
@@ -9,7 +9,7 @@ export default function PostPurchaseReviewModal() {
     // request is loading, or if it fails) so this component can never crash
     // the whole app on mount.
     const groups = rawGroups || [];
-    // { [product_id]: { rating: number, comment: string } }
+    // { [product_id]: { rating: number, comment: string, imageFile: File|null, imagePreview: string|null } }
     const [entries, setEntries] = useState({});
     const [expandedSellers, setExpandedSellers] = useState({});
     const [submitting, setSubmitting] = useState(false);
@@ -24,7 +24,7 @@ export default function PostPurchaseReviewModal() {
         const initialEntries = {};
         groups.forEach((g) => {
             g.products.forEach((p) => {
-                initialEntries[p.product_id] = { rating: 5, comment: '' };
+                initialEntries[p.product_id] = { rating: 5, comment: '', imageFile: null, imagePreview: null };
             });
         });
         setEntries(initialEntries);
@@ -87,6 +87,18 @@ export default function PostPurchaseReviewModal() {
         setEntries((prev) => ({ ...prev, [productId]: { ...prev[productId], comment } }));
     };
 
+    const setProductImage = (productId, file) => {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) return toast.error('Please choose an image file');
+        if (file.size > 5 * 1024 * 1024) return toast.error('Image must be under 5MB');
+        const preview = URL.createObjectURL(file);
+        setEntries((prev) => ({ ...prev, [productId]: { ...prev[productId], imageFile: file, imagePreview: preview } }));
+    };
+
+    const removeProductImage = (productId) => {
+        setEntries((prev) => ({ ...prev, [productId]: { ...prev[productId], imageFile: null, imagePreview: null } }));
+    };
+
     const handleSubmit = async () => {
         setSubmitting(true);
         try {
@@ -94,6 +106,7 @@ export default function PostPurchaseReviewModal() {
                 product_id,
                 rating: v.rating,
                 comment: v.comment.trim(),
+                imageFile: v.imageFile,
             }));
             await submitReviews(payload);
             toast.success('Reviews submitted!');
@@ -171,7 +184,7 @@ export default function PostPurchaseReviewModal() {
                                 {isExpanded && (
                                     <div className="px-3.5 pb-3.5 space-y-4 border-t border-slate-100 dark:border-ink-600 pt-3.5">
                                         {group.products.map((product) => {
-                                            const entry = entries[product.product_id] || { rating: 5, comment: '' };
+                                            const entry = entries[product.product_id] || { rating: 5, comment: '', imageFile: null, imagePreview: null };
                                             return (
                                                 <div key={product.product_id}>
                                                     <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">
@@ -200,6 +213,36 @@ export default function PostPurchaseReviewModal() {
                                                         disabled={submitting}
                                                         className="w-full mt-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 dark:placeholder-gold-300/30 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-xs transition resize-none disabled:opacity-60"
                                                     />
+
+                                                    {entry.imagePreview ? (
+                                                        <div className="relative mt-2 w-20 h-20">
+                                                            <img
+                                                                src={entry.imagePreview}
+                                                                alt="Review upload"
+                                                                className="w-20 h-20 rounded-lg object-cover border border-slate-200 dark:border-ink-600"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeProductImage(product.product_id)}
+                                                                disabled={submitting}
+                                                                className="absolute -top-1.5 -right-1.5 bg-slate-900/80 text-white rounded-full p-0.5"
+                                                            >
+                                                                <X size={11} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <label className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 dark:text-gold-400 cursor-pointer">
+                                                            <ImagePlus size={14} />
+                                                            Add photo
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                disabled={submitting}
+                                                                onChange={(e) => setProductImage(product.product_id, e.target.files?.[0])}
+                                                            />
+                                                        </label>
+                                                    )}
                                                 </div>
                                             );
                                         })}
