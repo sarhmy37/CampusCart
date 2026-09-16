@@ -838,6 +838,27 @@ router.delete('/me', requireAuth, async (req, res) => {
 });
 
 
+// POST /api/auth/me/verify-password — checks the password with no side effects.
+// Used to gate sensitive UI (e.g. revealing balance) behind re-authentication.
+router.post('/me/verify-password', requireAuth, async (req, res) => {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Password is required' });
+
+    try {
+        const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.userId]);
+        const user = result.rows[0];
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const match = await bcrypt.compare(password, user.password_hash);
+        if (!match) return res.status(401).json({ error: 'Incorrect password' });
+
+        res.json({ valid: true });
+    } catch (err) {
+        console.error('Verify password error:', err);
+        res.status(500).json({ error: 'Something went wrong verifying your password' });
+    }
+});
+
 // POST /api/auth/logout
 router.post('/logout', requireAuth, async (req, res) => {
     try {
