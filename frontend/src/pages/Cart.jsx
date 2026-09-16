@@ -317,7 +317,7 @@ export default function Cart() {
     };
 
     return (
-        <div className="relative dark:bg-ink-900 min-h-screen flex flex-col overflow-x-hidden">
+        <div className="relative dark:bg-ink-900 min-h-screen flex flex-col">
             <CartHeader count={itemCount} style={headerFadeStyle} />
 
             {/* Main content with scrolling */}
