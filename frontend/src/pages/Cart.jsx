@@ -52,6 +52,20 @@ export default function Cart() {
         () => localStorage.getItem('cc_default_delivery') || 'pickup'
     );
     const [paying, setPaying] = useState(false);
+
+    // If the user navigates to Paystack and hits "back" without paying, the
+    // browser may restore this page from bfcache with `paying` still true —
+    // the button would stay stuck on "Redirecting to payment…" forever.
+    // `pageshow` with `event.persisted` fires specifically for that case.
+    useEffect(() => {
+        const handlePageShow = (event) => {
+            if (event.persisted) {
+                setPaying(false);
+            }
+        };
+        window.addEventListener('pageshow', handlePageShow);
+        return () => window.removeEventListener('pageshow', handlePageShow);
+    }, []);
     const [buyerCoords, setBuyerCoords] = useState(null);
     const [locating, setLocating] = useState(false);
     const [locationDenied, setLocationDenied] = useState(false);
