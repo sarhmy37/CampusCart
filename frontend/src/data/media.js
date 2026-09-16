@@ -105,6 +105,7 @@ export const FOODIE_VIDEO = cloudinaryVideo('Foodie.mp4');
 export const GADJET_VIDEO = cloudinaryVideo('Gadjet.mp4');
 export const MEETING_VIDEO = cloudinaryVideo('Meeting.mp4');
 export const SETTINGS_VIDEO = cloudinaryVideo('Settings.mp4');
+export const BENEFITS_VIDEO = cloudinaryVideo('bene-vid.mp4');
 export const SNEAKERS_VIDEO = cloudinaryVideo('Sneakers.mp4');
 
 // Images only — cheap enough to preload/precache in bulk without

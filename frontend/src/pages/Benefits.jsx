@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { DASHBOARD_VIDEO } from '../data/media';
+import { BENEFITS_VIDEO } from '../data/media';
 import Reveal from '../components/Reveal';
 import toast from 'react-hot-toast';
 import {
@@ -182,7 +182,7 @@ export default function Benefits() {
             <div className="min-h-screen bg-white dark:bg-ink-900">
                 <section className="relative overflow-hidden">
                     <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
-                        <source src={DASHBOARD_VIDEO} type="video/mp4" />
+                        <source src={BENEFITS_VIDEO} type="video/mp4" />
                     </video>
                     <div className="absolute inset-0 bg-gradient-to-br from-ink-900/85 via-ink-800/60 to-brand-600/40 dark:from-ink-900/95 dark:via-ink-900/80 dark:to-gold-900/50" />
 
@@ -221,11 +221,10 @@ export default function Benefits() {
             {/* ─── HEADER ─── */}
             <section className="relative overflow-hidden">
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
-                    <source src={DASHBOARD_VIDEO} type="video/mp4" />
+                    <source src={BENEFITS_VIDEO} type="video/mp4" />
                 </video>
                 <div className="absolute inset-0 bg-gradient-to-br from-ink-900/85 via-ink-800/60 to-brand-600/40 dark:from-ink-900/95 dark:via-ink-900/80 dark:to-gold-900/50" />
                 <div className="absolute -right-20 -top-24 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-
                 <div className="relative z-10 max-w-3xl mx-auto px-5 pt-8 pb-10">
                     <div className="flex items-center justify-between gap-3">
                         <button
