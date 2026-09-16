@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft, MessageCircle, LogOut } from 'lucide-react';
+import { ShoppingCart, Heart, Trash2, PlusCircle, LayoutDashboard, Home, Bell, Menu, Search, ChevronRight, ChevronLeft, MessageCircle, LogOut, VolumeX } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -52,6 +52,7 @@ export default function Navbar() {
         showMoreConversations,
         unreadCount: chatUnreadCount,
         openConversation,
+        isMuted,
     } = useChat();
     const [showMessages, setShowMessages] = useState(false);
     const navigate = useNavigate();
@@ -350,10 +351,13 @@ export default function Navbar() {
                                                     )}
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex items-center justify-between gap-2">
-                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-gold-100 truncate flex items-center gap-1.5">
                                                                 {c.other_user_name}
+                                                                {isMuted(c.id) && (
+                                                                    <VolumeX size={12} className="text-slate-300 dark:text-gold-300/40 shrink-0" />
+                                                                )}
                                                             </p>
-                                                            {c.unread_count > 0 && (
+                                                            {c.unread_count > 0 && !isMuted(c.id) && (
                                                                 <span className="bg-accent-500 dark:bg-gold-500 text-white dark:text-ink-900 text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center shrink-0">
                                                                     {formatBadgeCount(c.unread_count)}
                                                                 </span>

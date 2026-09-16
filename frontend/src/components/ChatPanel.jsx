@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { wallpaperToStyle } from '../data/wallpapers';
 import ChatSettingsMenu from './ChatSettingsMenu';
 import WallpaperPicker from './WallpaperPicker';
+import ReportModal from './ReportModal';
 
 const MOBILE_BREAKPOINT = 640;
 const SWIPE_DISMISS_THRESHOLD = 80;
@@ -51,8 +52,7 @@ export default function ChatPanel() {
     const { user } = useAuth();
     const isPlanActive = user?.plan && user.plan !== 'free' &&
         user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
-    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone, pendingDraft, clearPendingDraft } = useChat();
-    const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
+    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone, pendingDraft, clearPendingDraft, isMuted, toggleMute } = useChat();    const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
     const [dragY, setDragY] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
@@ -65,6 +65,7 @@ export default function ChatPanel() {
     const [showSettingsMenu, setShowSettingsMenu] = useState(false);
     const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [messageMenu, setMessageMenu] = useState(null);
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -439,6 +440,14 @@ export default function ChatPanel() {
                                     setShowWallpaperPicker(true);
                                 }}
                                 onComingSoon={handleComingSoon}
+                                onReportUser={() => setShowReportModal(true)}
+                                muted={conversation ? isMuted(conversation.id) : false}
+                                onToggleMute={() => {
+                                    if (!conversation) return;
+                                    const willMute = !isMuted(conversation.id);
+                                    toggleMute(conversation.id);
+                                    toast.success(willMute ? 'Notifications muted for this chat' : 'Notifications unmuted');
+                                }}
                             />
                         </div>
 
@@ -734,6 +743,12 @@ export default function ChatPanel() {
             </div>
 
             <WallpaperPicker open={showWallpaperPicker} onClose={() => setShowWallpaperPicker(false)} currentUserId={user?.id} />
+
+            <ReportModal
+                open={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                reportedUserId={conversation?.otherUserId}
+            />
 
             {showDeleteModal && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center px-4">

@@ -173,9 +173,10 @@ export default function Dashboard() {
                 return Promise.all([
                     api.get('/products/mine').catch(() => ({ data: [] })),
                     api.get('/orders/sales').catch(() => ({ data: [] })),
-                ]).then(([listings, sales]) => ({
+                    api.get('/orders/deliveries').catch(() => ({ data: [] })),
+                ]).then(([listings, sales, activeOrders]) => ({
                     listings: listings.data.length,
-                    orders: sales.data.length, // ✅ fixed: orders = total sales
+                    orders: activeOrders.data.length, // active = paid, not yet confirmed by buyer
                     sales: sales.data.length,
                     completed: 0,
                     pending: 0,
@@ -937,6 +938,40 @@ function PayoutSettings({ period }) {
     const [deletingAccountId, setDeletingAccountId] = useState(null);
     const pendingDeleteTimerRef = useRef(null);
 
+    const [withdrawalsTab, setWithdrawalsTab] = useState('requests'); // 'requests' | 'completed'
+    const [withdrawals, setWithdrawals] = useState([]);
+    const [loadingWithdrawals, setLoadingWithdrawals] = useState(true);
+    const [reportingId, setReportingId] = useState(null);
+    const [reportMessage, setReportMessage] = useState('');
+    const [submittingReport, setSubmittingReport] = useState(false);
+
+    const loadWithdrawals = () => {
+        setLoadingWithdrawals(true);
+        api.get('/payouts/withdrawals')
+            .then((res) => setWithdrawals(res.data))
+            .catch(() => {})
+            .finally(() => setLoadingWithdrawals(false));
+    };
+
+    useEffect(() => { loadWithdrawals(); }, []);
+
+    const requestWithdrawals = withdrawals.filter((w) => w.status !== 'completed');
+    const completedWithdrawals = withdrawals.filter((w) => w.status === 'completed');
+
+    const handleSubmitReport = async (id) => {
+        setSubmittingReport(true);
+        try {
+            await api.post(`/payouts/withdrawals/${id}/report`, { message: reportMessage });
+            toast.success('Report submitted');
+            setReportingId(null);
+            setReportMessage('');
+            loadWithdrawals();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to submit report');
+        } finally {
+            setSubmittingReport(false);
+        }
+    };
     const { status, data: payoutData, retry: loadData } = useContentReady({
         load: () =>
             Promise.all([api.get('/payouts/accounts'), api.get('/payouts/balance')]).then(
@@ -1269,6 +1304,113 @@ function PayoutSettings({ period }) {
                         >
                             + Add another account
                         </button>
+                    </div>
+                )}
+            </div>
+
+                        <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
+                <div className="flex gap-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit mb-4">
+                    <button
+                        onClick={() => setWithdrawalsTab('requests')}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                            withdrawalsTab === 'requests'
+                                ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                : 'text-slate-500 dark:text-gold-200/50'
+                        }`}
+                    >
+                        Withdrawal requests
+                    </button>
+                    <button
+                        onClick={() => setWithdrawalsTab('completed')}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                            withdrawalsTab === 'completed'
+                                ? 'bg-white dark:bg-ink-600 shadow-sm text-brand-700 dark:text-gold-400'
+                                : 'text-slate-500 dark:text-gold-200/50'
+                        }`}
+                    >
+                        Completed
+                    </button>
+                </div>
+
+                {loadingWithdrawals ? (
+                    <p className="text-sm text-slate-400 dark:text-gold-200/50 text-center py-6">Loading…</p>
+                ) : withdrawalsTab === 'requests' ? (
+                    requestWithdrawals.length === 0 ? (
+                        <p className="text-sm text-slate-400 dark:text-gold-200/50 text-center py-6">No pending withdrawal requests.</p>
+                    ) : (
+                        <div className="space-y-2.5">
+                            {requestWithdrawals.map((w) => (
+                                <div key={w.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-ink-600">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">GHS {parseFloat(w.amount).toFixed(2)}</p>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50">
+                                            {w.account_name} · {new Date(w.created_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 shrink-0">
+                                        {w.status}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                ) : completedWithdrawals.length === 0 ? (
+                    <p className="text-sm text-slate-400 dark:text-gold-200/50 text-center py-6">No completed withdrawals yet.</p>
+                ) : (
+                    <div className="space-y-2.5">
+                        {completedWithdrawals.map((w) => (
+                            <div key={w.id} className="p-3 rounded-xl border border-slate-200 dark:border-ink-600">
+                                <div className="flex items-center justify-between">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">GHS {parseFloat(w.amount).toFixed(2)}</p>
+                                        <p className="text-xs text-slate-400 dark:text-gold-200/50">
+                                            {w.account_name} · {new Date(w.created_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                        Completed
+                                    </span>
+                                </div>
+
+                                {w.reported_at ? (
+                                    <p className="text-xs text-red-500 dark:text-red-400 mt-2">
+                                        ⚠️ Reported not received on {new Date(w.reported_at).toLocaleDateString()}
+                                    </p>
+                                ) : reportingId === w.id ? (
+                                    <div className="mt-2.5 space-y-2">
+                                        <textarea
+                                            value={reportMessage}
+                                            onChange={(e) => setReportMessage(e.target.value)}
+                                            placeholder="Describe the issue…"
+                                            rows={2}
+                                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-xs resize-none"
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => { setReportingId(null); setReportMessage(''); }}
+                                                className="flex-1 py-1.5 rounded-lg border border-slate-200 dark:border-ink-600 text-xs font-semibold text-slate-600 dark:text-gold-200"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={() => handleSubmitReport(w.id)}
+                                                disabled={submittingReport}
+                                                className="flex-1 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold disabled:opacity-60"
+                                            >
+                                                {submittingReport ? 'Submitting…' : 'Submit report'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setReportingId(w.id)}
+                                        className="text-xs font-semibold text-red-500 dark:text-red-400 hover:underline mt-2"
+                                    >
+                                        Not received?
+                                    </button>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>

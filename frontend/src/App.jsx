@@ -19,6 +19,7 @@ import AwayTimeoutModal from './components/AwayTimeoutModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import InstallButton from './components/InstallButton';
 import ChatPanel from './components/ChatPanel';
+import PlanThemeSync from './components/PlanThemeSync';
 import PullToRefresh from './components/PullToRefresh';
 import ChatHistory from './pages/ChatHistory';
 import ServiceDetail from './pages/ServiceDetail';
@@ -55,6 +56,7 @@ export default function App() {
       {phase === 'onboarding' && <OnboardingCarousel onFinish={() => setPhase('app')} />}
       {phase === 'app' && (
       <AuthProvider>
+        <PlanThemeSync />
         <WishlistProvider>
           <CartProvider>
             <NotificationProvider>

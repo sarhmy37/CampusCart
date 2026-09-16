@@ -31,6 +31,7 @@ export default function Settings() {
     const isSeller = user?.account_type === 'seller';
     const isPlanActive = user?.plan && user.plan !== 'free' &&
         user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+    const [planThemeOn, setPlanThemeOn] = useState(localStorage.getItem('cc_plan_theme') === 'on');
 
     const API_ORIGIN = (api.defaults.baseURL || '').replace(/\/api\/?$/, '');
     const businessProfileUrl = user?.id ? `${API_ORIGIN}/store/${user.id}` : '';
@@ -630,6 +631,31 @@ export default function Settings() {
                             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform flex items-center justify-center ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0.5'}`} />
                         </button>
                     </div>
+
+                    {isPlanActive && (user.plan.toLowerCase() === 'pro' || user.plan.toLowerCase() === 'premium') && (
+                        <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 dark:border-ink-600">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-800 dark:text-gold-100">
+                                    {user.plan.toLowerCase() === 'premium' ? 'Premium theme' : 'Pro theme'}
+                                </p>
+                                <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5">
+                                    Use your {user.plan.toLowerCase() === 'premium' ? 'purple' : 'blue'} member color across the app instead of gold
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    const next = !planThemeOn;
+                                    localStorage.setItem('cc_plan_theme', next ? 'on' : 'off');
+                                    window.dispatchEvent(new Event('cc-plan-theme-change'));
+                                    setPlanThemeOn(next);
+                                    toast.success(next ? 'Plan theme enabled' : 'Plan theme disabled');
+                                }}
+                                className={`w-11 h-6 rounded-full relative transition ${planThemeOn ? 'bg-gold-500' : 'bg-slate-200'}`}
+                            >
+                                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform flex items-center justify-center ${planThemeOn ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
 

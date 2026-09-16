@@ -25,6 +25,9 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
         condition: 'good',
         stock: 1,
         category: '',
+        delivery_fee_on_campus: '',
+        delivery_fee_near_campus: '',
+        delivery_fee_far_campus: '',
     });
     const [categories, setCategories] = useState([]);
     const [saving, setSaving] = useState(false);
@@ -42,6 +45,9 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                 condition: product.condition || 'good',
                 stock: product.stock ?? 1,
                 category: product.category || '',
+                delivery_fee_on_campus: product.delivery_fee_on_campus ?? '',
+                delivery_fee_near_campus: product.delivery_fee_near_campus ?? '',
+                delivery_fee_far_campus: product.delivery_fee_far_campus ?? '',
             });
         }
     }, [product]);
@@ -217,6 +223,39 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                                 </p>
                             </div>
                         )}
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-ink-700/50 rounded-xl p-3 border border-slate-200/50 dark:border-ink-600/50">
+                        <p className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 mb-2">Delivery fees</p>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div>
+                                <label className="text-[10px] font-medium text-slate-400 dark:text-gold-200/50">On campus</label>
+                                <input
+                                    type="number" min="0" step="0.01"
+                                    value={form.delivery_fee_on_campus}
+                                    onChange={(e) => setForm({ ...form, delivery_fee_on_campus: e.target.value })}
+                                    className="w-full mt-0.5 px-2 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-medium text-slate-400 dark:text-gold-200/50">Near campus</label>
+                                <input
+                                    type="number" min="0" step="0.01"
+                                    value={form.delivery_fee_near_campus}
+                                    onChange={(e) => setForm({ ...form, delivery_fee_near_campus: e.target.value })}
+                                    className="w-full mt-0.5 px-2 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-medium text-slate-400 dark:text-gold-200/50">Far campus</label>
+                                <input
+                                    type="number" min="0" step="0.01"
+                                    value={form.delivery_fee_far_campus}
+                                    onChange={(e) => setForm({ ...form, delivery_fee_far_campus: e.target.value })}
+                                    className="w-full mt-0.5 px-2 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none text-sm"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

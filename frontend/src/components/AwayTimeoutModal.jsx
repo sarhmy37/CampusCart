@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Clock } from 'lucide-react';
 
@@ -7,6 +8,12 @@ const AWAY_GRACE_MS = 15 * 1000; // ignore brief switches under 15s
 
 export default function AwayTimeoutModal() {
     const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const forceLogout = () => {
+        logout();
+        navigate('/', { replace: true });
+    };
     const [showModal, setShowModal] = useState(false);
     const [remaining, setRemaining] = useState(AWAY_TIMEOUT_MS);
     const leftAtRef = useRef(null);
@@ -26,7 +33,7 @@ export default function AwayTimeoutModal() {
                     return;
                 }
                 if (elapsed >= AWAY_TIMEOUT_MS) {
-                    logout();
+                    forceLogout();
                     return;
                 }
                 setRemaining(AWAY_TIMEOUT_MS - elapsed);
@@ -45,7 +52,7 @@ export default function AwayTimeoutModal() {
             setRemaining((r) => {
                 if (r <= 1000) {
                     clearInterval(tickRef.current);
-                    logout();
+                    forceLogout();
                     return 0;
                 }
                 return r - 1000;

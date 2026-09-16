@@ -451,6 +451,7 @@ router.get('/deliveries', requireAuth, async (req, res) => {
              LEFT JOIN products p ON p.id = oi.product_id
              WHERE o.status = 'paid'
              GROUP BY o.id, u.name, u.location, u.whatsapp
+             HAVING COUNT(*) FILTER (WHERE oi.buyer_confirmed_at IS NULL) > 0
              ORDER BY o.created_at DESC`,
             [req.userId]
         );
@@ -615,7 +616,6 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
 
         console.log(`[BUYER CONFIRMED] Item ${itemId}:`);
         console.log(`  - Product Price: GHS ${basePrice.toFixed(2)}`);
-        console.log(`  - Delivery Fee (paid): GHS ${orderDeliveryFeePaid.toFixed(2)}`);
         console.log(`  - Buyer Fee (2%): GHS ${buyerFee.toFixed(2)}`);
         console.log(`  - Seller Fee (1.5%): GHS ${sellerFee.toFixed(2)}`);
         console.log(`  - Admin Delivery Share (20%): GHS ${adminDeliveryShare.toFixed(2)}`);

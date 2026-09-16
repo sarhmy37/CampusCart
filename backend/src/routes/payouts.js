@@ -304,4 +304,43 @@ router.post('/withdraw', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/payouts/withdrawals — full withdrawal history for the seller
+router.get('/withdrawals', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT w.id, w.amount, w.status, w.created_at, w.reported_at, w.report_message,
+                    a.account_name, a.bank_name, a.account_number
+             FROM payout_withdrawals w
+             LEFT JOIN seller_payout_accounts a ON a.id = w.account_id
+             WHERE w.seller_id = $1
+             ORDER BY w.created_at DESC`,
+            [req.userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get withdrawals error:', err);
+        res.status(500).json({ error: 'Failed to fetch withdrawal history' });
+    }
+});
+
+// POST /api/payouts/withdrawals/:id/report — seller reports a completed withdrawal as not received
+router.post('/withdrawals/:id/report', requireAuth, async (req, res) => {
+    const { message } = req.body;
+    try {
+        const result = await pool.query(
+            `UPDATE payout_withdrawals SET reported_at = now(), report_message = $1
+             WHERE id = $2 AND seller_id = $3 AND status = 'completed'
+             RETURNING *`,
+            [message || null, req.params.id, req.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Withdrawal not found or not eligible for reporting' });
+        }
+        res.json({ success: true, message: 'Report submitted. Our team will look into it.' });
+    } catch (err) {
+        console.error('Report withdrawal error:', err);
+        res.status(500).json({ error: 'Failed to submit report' });
+    }
+});
+
 module.exports = router;

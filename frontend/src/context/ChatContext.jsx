@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 
 const ChatContext = createContext(null);
 const MESSAGE_POLL_MS = 4000;
+const MUTED_KEY = 'cc_muted_conversations';
 const INBOX_POLL_MS = 15000;
 const PRESENCE_POLL_MS = 15000;
 const INBOX_PAGE_SIZE = 10;
@@ -26,7 +27,23 @@ export function ChatProvider({ children }) {
     const [pendingDraft, setPendingDraft] = useState(null);
 
     // Wallpaper — per conversation, per user (stored server-side so it follows the user across devices)
-    const [wallpaper, setWallpaper] = useState(null); // { type: 'none' | 'preset' | 'custom', value: string | null }
+     const [wallpaper, setWallpaper] = useState(null); // { type: 'none' | 'preset' | 'custom', value: string | null }
+    const [mutedIds, setMutedIds] = useState(() => {
+        try { return new Set(JSON.parse(localStorage.getItem(MUTED_KEY) || '[]')); }
+        catch { return new Set(); }
+    });
+
+    const isMuted = useCallback((conversationId) => mutedIds.has(conversationId), [mutedIds]);
+
+    const toggleMute = useCallback((conversationId) => {
+        setMutedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(conversationId)) next.delete(conversationId);
+            else next.add(conversationId);
+            localStorage.setItem(MUTED_KEY, JSON.stringify([...next]));
+            return next;
+        });
+    }, []);
     const [uploadingWallpaper, setUploadingWallpaper] = useState(false);
 
     const messagePollRef = useRef(null);
@@ -320,7 +337,12 @@ export function ChatProvider({ children }) {
         if (!isOpen) setVisibleCount(INBOX_PAGE_SIZE);
     }, [isOpen]);
 
-    const unreadCount = conversations.reduce((sum, c) => sum + (Number(c.unread_count) || 0), 0);
+    // Muted conversations still update in the background — they just don't
+    // count toward the badge or produce unread-style highlighting.
+    const unreadCount = conversations.reduce(
+        (sum, c) => sum + (mutedIds.has(c.id) ? 0 : (Number(c.unread_count) || 0)),
+        0
+    );
 
     return (
         <ChatContext.Provider
@@ -349,6 +371,8 @@ export function ChatProvider({ children }) {
                 showMoreConversations,
                 unreadCount,
                 wallpaper,
+                isMuted,
+                toggleMute,
                 uploadingWallpaper,
                 setWallpaperPreset,
                 uploadWallpaper,

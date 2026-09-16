@@ -22,16 +22,27 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+let redirectingToLogin = false;
+
 api.interceptors.response.use(
     (res) => res,
     (err) => {
-        // Only clear token on 401 Unauthorized responses
+        // Any 401 anywhere in the app means the session is dead — clear it
+        // and bounce to the homepage instead of leaving the user stuck on
+        // whatever screen they were on with a raw backend error.
         if (err.response?.status === 401) {
+            const hadToken = !!localStorage.getItem('cc_token');
             localStorage.removeItem('cc_token');
             localStorage.removeItem('cc_user');
+
+            if (hadToken && !redirectingToLogin) {
+                redirectingToLogin = true;
+                if (window.location.pathname !== '/') {
+                    window.location.href = '/';
+                }
+            }
         }
         return Promise.reject(err);
     }
 );
-
 export default api;

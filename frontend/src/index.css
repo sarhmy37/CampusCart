@@ -66,6 +66,20 @@ body::-webkit-scrollbar,
   --brand-950: 21 42 86;
 }
 
+:root {
+  /* Default gold palette — overridden per-session by PlanThemeSync for Pro/Premium users */
+  --gold-50: 253 248 236;
+  --gold-100: 250 237 196;
+  --gold-200: 245 219 141;
+  --gold-300: 238 194 79;
+  --gold-400: 230 171 43;
+  --gold-500: 212 148 28;
+  --gold-600: 184 117 21;
+  --gold-700: 147 88 20;
+  --gold-800: 121 71 24;
+  --gold-900: 102 60 25;
+}
+
 .pinch-dot {
     position: absolute;
     top: 50%;

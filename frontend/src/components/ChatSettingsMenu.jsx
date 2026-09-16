@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { Image, VolumeX, Trash2, Flag, UserX } from 'lucide-react';
-
+import { Image, VolumeX, Volume2, Trash2, Flag } from 'lucide-react';
 // Each entry: { key, icon, label, danger?, onClick }
 // Only `onChangeWallpaper` is wired to real functionality right now.
 // The rest call `onComingSoon` so the menu is fully built out and ready
 // to wire up as soon as the matching backend routes exist.
-export default function ChatSettingsMenu({ open, onClose, onChangeWallpaper, onComingSoon }) {
+export default function ChatSettingsMenu({ open, onClose, onChangeWallpaper, onComingSoon, onReportUser, muted, onToggleMute }) {
     const menuRef = useRef(null);
 
     useEffect(() => {
@@ -28,9 +27,9 @@ export default function ChatSettingsMenu({ open, onClose, onChangeWallpaper, onC
         },
         {
             key: 'mute',
-            icon: VolumeX,
-            label: 'Mute notifications',
-            onClick: () => onComingSoon('mute'),
+            icon: muted ? Volume2 : VolumeX,
+            label: muted ? 'Unmute notifications' : 'Mute notifications',
+            onClick: onToggleMute,
         },
         {
             key: 'clear',
@@ -42,14 +41,8 @@ export default function ChatSettingsMenu({ open, onClose, onChangeWallpaper, onC
             key: 'report',
             icon: Flag,
             label: 'Report user',
-            onClick: () => onComingSoon('report'),
-        },
-        {
-            key: 'block',
-            icon: UserX,
-            label: 'Block user',
             danger: true,
-            onClick: () => onComingSoon('block'),
+            onClick: onReportUser,
         },
     ];
 
