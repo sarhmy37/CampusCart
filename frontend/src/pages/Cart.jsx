@@ -53,6 +53,7 @@ export default function Cart() {
     );
     const [paying, setPaying] = useState(false);
     const [headerScrollY, setHeaderScrollY] = useState(0);
+    const scrollContainerRef = useRef(null);
 
     const HEADER_FADE_DISTANCE = 110;
     const HEADER_OPACITY_DISTANCE = 110;
@@ -69,17 +70,19 @@ export default function Cart() {
     };
 
     useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
         let raf = null;
         const handleScroll = () => {
             if (raf) return;
             raf = requestAnimationFrame(() => {
-                setHeaderScrollY(window.scrollY);
+                setHeaderScrollY(container.scrollTop);
                 raf = null;
             });
         };
-        window.addEventListener('scroll', handleScroll, { passive: true });
+        container.addEventListener('scroll', handleScroll, { passive: true });
         return () => {
-            window.removeEventListener('scroll', handleScroll);
+            container.removeEventListener('scroll', handleScroll);
             if (raf) cancelAnimationFrame(raf);
         };
     }, []);
@@ -314,13 +317,13 @@ export default function Cart() {
     };
 
     return (
-        <div className="dark:bg-ink-900 min-h-screen flex flex-col overflow-x-hidden">
-            <div className="sticky top-14 sm:top-16 z-30" style={headerFadeStyle}>
+        <div className="dark:bg-ink-900 h-screen flex flex-col overflow-x-hidden">
+            <div className="shrink-0 z-30" style={headerFadeStyle}>
                 <CartHeader count={itemCount} />
             </div>
 
             {/* Main content with scrolling */}
-            <div className="overflow-x-hidden">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
                 <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 grid lg:grid-cols-3 gap-6 pb-24 lg:pb-8">
                     {/* ITEMS */}
                     <div className="lg:col-span-2 space-y-3 overflow-x-hidden">
