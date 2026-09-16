@@ -51,7 +51,7 @@ export default function ChatPanel() {
     const { user } = useAuth();
     const isPlanActive = user?.plan && user.plan !== 'free' &&
         user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
-    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone } = useChat();
+    const { isOpen, conversation, messages, loading, uploading, otherUserLastActive, closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone, deleteMessageForMe, deleteMessageForEveryone, pendingDraft, clearPendingDraft } = useChat();
     const [isMobile, setIsMobile] = useState(window.innerWidth < MOBILE_BREAKPOINT);
     const [draft, setDraft] = useState('');
     const [dragY, setDragY] = useState(0);
@@ -174,6 +174,19 @@ export default function ChatPanel() {
                 messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
                 setShowScrollToBottom(false);
             });
+        }
+    }, [isOpen, conversation?.id]);
+
+    // Seed the composer with a pre-filled draft (e.g. "Hi, I'd like to buy: ...")
+    // when Cart.jsx opens this conversation with one queued up. Deliberately
+    // reads pendingDraft/clearPendingDraft fresh rather than listing them as
+    // deps — including them would re-fire this effect the instant
+    // clearPendingDraft nulls it out, immediately wiping the draft we just set.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        if (isOpen && conversation) {
+            setDraft(pendingDraft || '');
+            if (pendingDraft) clearPendingDraft();
         }
     }, [isOpen, conversation?.id]);
 

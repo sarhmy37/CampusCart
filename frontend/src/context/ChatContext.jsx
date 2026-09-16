@@ -21,6 +21,10 @@ export function ChatProvider({ children }) {
     const [conversations, setConversations] = useState([]);
     const [visibleCount, setVisibleCount] = useState(INBOX_PAGE_SIZE);
 
+    // A message pre-filled by the caller (e.g. Cart.jsx) that should appear
+    // in the composer input the moment the panel opens for this conversation.
+    const [pendingDraft, setPendingDraft] = useState(null);
+
     // Wallpaper — per conversation, per user (stored server-side so it follows the user across devices)
     const [wallpaper, setWallpaper] = useState(null); // { type: 'none' | 'preset' | 'custom', value: string | null }
     const [uploadingWallpaper, setUploadingWallpaper] = useState(false);
@@ -105,11 +109,12 @@ export function ChatProvider({ children }) {
     }, [conversation]);
 
     // Used from Cart.jsx — finds or creates a conversation with a seller about a product
-    const openChat = useCallback(async ({ sellerId, sellerName, productId }) => {
+    const openChat = useCallback(async ({ sellerId, sellerName, productId, draftMessage }) => {
     setIsOpen(true);
     setLoading(true);
     setMessages([]);
     setWallpaper(null);
+    setPendingDraft(draftMessage || null);
     try {
         const res = await api.post('/chat/start', { sellerId, productId });
         const convo = {
@@ -127,6 +132,7 @@ export function ChatProvider({ children }) {
             toast.error(err.response?.data?.error || 'Could not start chat');
         }
         setIsOpen(false);
+        setPendingDraft(null);
     } finally {
         setLoading(false);
     }
@@ -138,6 +144,7 @@ export function ChatProvider({ children }) {
         setLoading(true);
         setMessages([]);
         setWallpaper(null);
+        setPendingDraft(null);
         setConversation({
             id: convo.id,
             otherUserId: convo.other_user_id,
@@ -157,6 +164,7 @@ export function ChatProvider({ children }) {
         setLoading(true);
         setMessages([]);
         setWallpaper(null);
+        setPendingDraft(null);
         setConversation(convo);
         await Promise.all([fetchMessages(convo.id), fetchWallpaper(convo.id)]);
         setLoading(false);
@@ -165,6 +173,9 @@ export function ChatProvider({ children }) {
     const closeChat = useCallback(() => {
         setIsOpen(false);
     }, []);
+
+    // Called by ChatPanel once it has consumed pendingDraft into its local input state.
+    const clearPendingDraft = useCallback(() => setPendingDraft(null), []);
 
         const deleteForMe = useCallback(async () => {
         if (!conversation) return;
@@ -323,6 +334,8 @@ export function ChatProvider({ children }) {
                 openChat,
                 openConversation,
                 openConversationDirect,
+                pendingDraft,
+                clearPendingDraft,
                 broadcastToSellers,
                 closeChat,
                 deleteForMe,

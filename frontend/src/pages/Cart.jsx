@@ -19,6 +19,18 @@ function formatWhatsAppNumber(raw) {
     return digits;
 }
 
+// Short, single-line version for the in-app chat composer (a plain <input>,
+// not a textarea, so this stays on one line rather than mirroring the
+// multi-line WhatsApp message below).
+function buildPurchaseDraft(sellerItems) {
+    if (!sellerItems || sellerItems.length === 0) return '';
+    const lines = sellerItems.map(
+        (i) => `${i.quantity}x ${i.title} (GHS ${(parseFloat(i.price) * i.quantity).toFixed(2)})`
+    );
+    const subtotal = sellerItems.reduce((s, i) => s + parseFloat(i.price) * i.quantity, 0).toFixed(2);
+    return `Hi, I'd like to buy: ${lines.join(', ')} — Subtotal: GHS ${subtotal}. Is this still available?`;
+}
+
 function buildWhatsAppMessage(sellerName, sellerItems) {
     const lines = [
         `Hi ${sellerName || ''}, I'd like to order the following from Tre-X:`,
@@ -127,6 +139,7 @@ export default function Cart() {
             sellerId: group.items[0]?.seller_id,
             sellerName: group.sellerName,
             productId: group.items[0]?.product_id,
+            items: group.items,
         }))
         .filter((s) => s.sellerId);
 
@@ -289,7 +302,8 @@ export default function Cart() {
             if (sellersForChat.length === 0) return;
 
             if (sellersForChat.length === 1) {
-                openChat(sellersForChat[0]);
+                const seller = sellersForChat[0];
+                openChat({ ...seller, draftMessage: buildPurchaseDraft(seller.items) });
             } else {
                 openBroadcastModal();
             }
@@ -387,6 +401,7 @@ export default function Cart() {
                                                             sellerId,
                                                             sellerName: group.sellerName,
                                                             productId: group.items[0]?.product_id,
+                                                            draftMessage: buildPurchaseDraft(group.items),
                                                         });
                                                     }}
                                                     className="flex-1 flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-brand-200 dark:border-gold-800 bg-brand-50 dark:bg-gold-900/30 hover:bg-brand-100 dark:hover:bg-gold-900/50 text-brand-800 dark:text-gold-300 text-xs sm:text-sm font-semibold transition"
