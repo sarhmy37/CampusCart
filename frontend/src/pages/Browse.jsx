@@ -497,7 +497,7 @@ const categoryFiltered = itemCategory
 
     const renderBudgetInput = () => (
         <div className="relative shrink-0">
-            <BanknotesIconSolid className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
+            <BanknotesIconSolid className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60 z-10 pointer-events-none" />
             <input
                 type="number"
                 min="1"
