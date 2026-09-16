@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
+import { LOGO_LIGHT, LOGO_DARK, LOGO_PRO, LOGO_PREMIUM } from '../data/media';
 
 const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 

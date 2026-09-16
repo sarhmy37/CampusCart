@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
+import { useAuth } from '../context/AuthContext';
+import { LOGO_LIGHT, LOGO_DARK, LOGO_PRO, LOGO_PREMIUM } from '../data/media';
 
 const PULL_THRESHOLD = 70;
 const MAX_PULL = 110;
@@ -10,7 +11,24 @@ const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(
 
 export default function PullToRefresh({ children }) {
     const { theme } = useTheme();
+    const { user } = useAuth();
     const [pullDistance, setPullDistance] = useState(0);
+    const [planLogoKey, setPlanLogoKey] = useState(() => localStorage.getItem('cc_plan_theme'));
+
+    useEffect(() => {
+        const update = () => setPlanLogoKey(localStorage.getItem('cc_plan_theme'));
+        window.addEventListener('cc-plan-theme-change', update);
+        return () => window.removeEventListener('cc-plan-theme-change', update);
+    }, []);
+
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+    const optedIn = planLogoKey === 'on';
+    const plan = user?.plan?.toLowerCase();
+
+    const logoSrc = (isPlanActive && optedIn && plan === 'premium') ? LOGO_PREMIUM
+        : (isPlanActive && optedIn && plan === 'pro') ? LOGO_PRO
+        : (theme === 'dark' ? LOGO_LIGHT : LOGO_DARK);
     const [refreshing, setRefreshing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const startY = useRef(null);
@@ -109,7 +127,7 @@ export default function PullToRefresh({ children }) {
                     )}
 
                     <img
-                        src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK}
+                        src={logoSrc}
                         alt="TreX"
                         className={`relative h-7 sm:h-9 w-auto object-contain drop-shadow-sm ${refreshing ? 'animate-heartbeat' : ''}`}
                         style={
