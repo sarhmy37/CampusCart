@@ -17,6 +17,8 @@ function cloudinaryVideo(filename) {
 // LOGOS
 export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
 export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
+export const LOGO_PRO = cloudinaryImage('logo-pro.png');
+export const LOGO_PREMIUM = cloudinaryImage('logo-premium.png');
 
 // ----- IMAGES -----
 export const HERO_IMAGES = [

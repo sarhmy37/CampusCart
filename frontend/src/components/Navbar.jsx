@@ -8,7 +8,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useChat } from '../context/ChatContext';
 import { useTheme } from '../context/ThemeContext';
 import ProfileDrawer from './ProfileDrawer';
-import { LOGO_LIGHT, LOGO_DARK } from '../data/media';
+import { LOGO_LIGHT, LOGO_DARK, LOGO_PRO, LOGO_PREMIUM } from '../data/media';
 
 const isIOSDevice = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
@@ -86,6 +86,22 @@ export default function Navbar() {
         return () => clearTimeout(expandTimeoutRef.current);
     }, [mobileExpanded]);
     const { theme } = useTheme();
+
+    const [planLogoKey, setPlanLogoKey] = useState(() => localStorage.getItem('cc_plan_theme'));
+    useEffect(() => {
+        const update = () => setPlanLogoKey(localStorage.getItem('cc_plan_theme'));
+        window.addEventListener('cc-plan-theme-change', update);
+        return () => window.removeEventListener('cc-plan-theme-change', update);
+    }, []);
+
+    const isPlanActive = user?.plan && user.plan !== 'free' &&
+        user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+    const optedIn = planLogoKey === 'on';
+    const plan = user?.plan?.toLowerCase();
+
+    const logoSrc = (isPlanActive && optedIn && plan === 'premium') ? LOGO_PREMIUM
+        : (isPlanActive && optedIn && plan === 'pro') ? LOGO_PRO
+        : (theme === 'dark' ? LOGO_LIGHT : LOGO_DARK);
 
     // 👇 Logo click counter (hidden — no visual indicator!)
     const [logoClickCount, setLogoClickCount] = useState(0);
@@ -245,7 +261,7 @@ export default function Navbar() {
                         title={logoTitle}
                     >
                         <img 
-                            src={theme === 'dark' ? LOGO_LIGHT : LOGO_DARK} 
+                            src={logoSrc} 
                             alt="TreX" 
                             className="h-7 sm:h-9 w-auto object-contain"
                         />
