@@ -30,19 +30,29 @@ export default function PlanThemeSync() {
             const isPlanActive = user?.plan && user.plan !== 'free' &&
                 user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
             const optedIn = localStorage.getItem('cc_plan_theme') === 'on';
+            const active = isPlanActive && optedIn;
+            const plan = user?.plan?.toLowerCase();
 
-            const palette = (!isPlanActive || !optedIn)
-                ? DEFAULT_GOLD
-                : user.plan.toLowerCase() === 'premium'
+            const palette = !active
+                ? null
+                : plan === 'premium'
                     ? PREMIUM_PURPLE
-                    : user.plan.toLowerCase() === 'pro'
+                    : plan === 'pro'
                         ? PRO_BLUE
-                        : DEFAULT_GOLD;
+                        : null;
 
             const root = document.documentElement;
-            Object.entries(palette).forEach(([shade, rgb]) => {
-                root.style.setProperty(`--gold-${shade}`, rgb);
-            });
+            if (palette) {
+                Object.entries(palette).forEach(([shade, rgb]) => {
+                    root.style.setProperty(`--gold-${shade}`, rgb);
+                    root.style.setProperty(`--brand-${shade}`, rgb);
+                });
+            } else {
+                Object.keys(DEFAULT_GOLD).forEach((shade) => {
+                    root.style.removeProperty(`--gold-${shade}`);
+                    root.style.removeProperty(`--brand-${shade}`);
+                });
+            }
         };
 
         applyPalette();
