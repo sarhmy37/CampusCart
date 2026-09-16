@@ -155,7 +155,8 @@ export function NotificationProvider({ children }) {
             }
 
             const newOnes = products.filter((p) => !seenIds.has(p.id));
-            if (newOnes.length > 0) {
+            const notifyListingsEnabled = localStorage.getItem('cc_notify_listings') !== 'false';
+            if (newOnes.length > 0 && notifyListingsEnabled) {
                 const newNotifs = newOnes.map((p) => {
                     const isService = (p.category || p.category_name) === 'Services';
                     return {
@@ -178,6 +179,9 @@ export function NotificationProvider({ children }) {
                 } else {
                     toast(`${newOnes.length} new listings just posted`, { icon: '🛍️' });
                 }
+                newOnes.forEach((p) => seenIds.add(p.id));
+                saveSeenIds(seenIds);
+            } else if (newOnes.length > 0) {
                 newOnes.forEach((p) => seenIds.add(p.id));
                 saveSeenIds(seenIds);
             }

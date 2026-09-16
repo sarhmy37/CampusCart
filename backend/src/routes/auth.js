@@ -55,6 +55,7 @@ function toPublicUser(row) {
         social_facebook: row.social_facebook,
         social_twitter: row.social_twitter,
         social_telegram: row.social_telegram,
+        notify_messages: row.notify_messages,
     };
 }
 
@@ -455,6 +456,21 @@ router.patch('/me/socials', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Update socials error:', err);
         res.status(500).json({ error: 'Something went wrong saving your social handles' });
+    }
+});
+
+// PATCH /api/auth/me/notifications — toggle message notification muting, no cooldown
+router.patch('/me/notifications', requireAuth, async (req, res) => {
+    const { notify_messages } = req.body;
+    try {
+        const result = await pool.query(
+            `UPDATE users SET notify_messages = $1 WHERE id = $2 RETURNING *`,
+            [!!notify_messages, req.userId]
+        );
+        res.json(toPublicUser(result.rows[0]));
+    } catch (err) {
+        console.error('Update notification prefs error:', err);
+        res.status(500).json({ error: 'Something went wrong updating your notification preference' });
     }
 });
 

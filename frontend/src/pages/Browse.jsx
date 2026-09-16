@@ -17,13 +17,14 @@ import {
     MapPinIcon,
     CheckBadgeIcon,
     Squares2X2Icon,
-    WalletIcon,
+    BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import {
     AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
     SparklesIcon as SparklesIconSolid,
     MapPinIcon as MapPinIconSolid,
     CheckBadgeIcon as CheckBadgeIconSolid,
+    BanknotesIcon as BanknotesIconSolid,
     Squares2X2Icon as Squares2X2IconSolid,
 } from '@heroicons/react/24/solid';
 import CategoryRequestModal from '../components/CategoryRequestModal';
@@ -496,7 +497,7 @@ const categoryFiltered = itemCategory
 
     const renderBudgetInput = () => (
         <div className="relative shrink-0">
-            <WalletIcon className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
+            <BanknotesIconSolid className="w-3 h-3 sm:w-[16px] sm:h-[16px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/60" />
             <input
                 type="number"
                 min="1"

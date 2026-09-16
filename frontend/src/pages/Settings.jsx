@@ -179,7 +179,7 @@ export default function Settings() {
         localStorage.getItem('cc_notify_listings') !== 'false'
     );
     const [notifyMessages, setNotifyMessages] = useState(
-        localStorage.getItem('cc_notify_messages') !== 'false'
+        user?.notify_messages !== false
     );
     const [defaultDelivery, setDefaultDelivery] = useState(
         localStorage.getItem('cc_default_delivery') || 'pickup'
@@ -238,6 +238,18 @@ export default function Settings() {
     const toggleNotify = (key, value, setter) => {
         setter(value);
         localStorage.setItem(key, String(value));
+        if (key === 'cc_notify_messages') {
+            api.patch('/auth/me/notifications', { notify_messages: value })
+                .then((res) => {
+                    setUser(res.data);
+                    localStorage.setItem('cc_user', JSON.stringify(res.data));
+                })
+                .catch(() => {
+                    toast.error('Failed to update message notification setting');
+                    setter(!value);
+                    localStorage.setItem(key, String(!value));
+                });
+        }
     };
 
     const setDelivery = (value) => {

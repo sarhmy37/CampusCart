@@ -409,13 +409,7 @@ export default function ChatPanel() {
                     <div className="flex items-center gap-2 sm:gap-3">
                         <div className="relative shrink-0">
                             <button
-                                onClick={() => {
-                                    if (!isPlanActive) {
-                                        toast.error('Chat settings are for Pro and Premium members');
-                                        return;
-                                    }
-                                    setShowSettingsMenu((v) => !v);
-                                }}
+                                onClick={() => setShowSettingsMenu((v) => !v)}
                                 className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 text-slate-400 dark:text-gold-200/50 transition"
                                 title="Chat settings"
                             >
@@ -424,7 +418,13 @@ export default function ChatPanel() {
                             <ChatSettingsMenu
                                 open={showSettingsMenu}
                                 onClose={() => setShowSettingsMenu(false)}
-                                onChangeWallpaper={() => setShowWallpaperPicker(true)}
+                                onChangeWallpaper={() => {
+                                    if (!isPlanActive) {
+                                        toast.error('Wallpaper is for Pro and Premium members');
+                                        return;
+                                    }
+                                    setShowWallpaperPicker(true);
+                                }}
                                 onComingSoon={handleComingSoon}
                             />
                         </div>

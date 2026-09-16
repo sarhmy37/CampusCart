@@ -317,11 +317,15 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
         const mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio' : 'image';
 
+        const recipientId = req.userId === buyer_id ? seller_id : buyer_id;
+        const recipientPrefs = await pool.query(`SELECT notify_messages FROM users WHERE id = $1`, [recipientId]);
+        const recipientMuted = recipientPrefs.rows[0]?.notify_messages === false;
+
         const inserted = await pool.query(
-            `INSERT INTO messages (conversation_id, sender_id, media_url, media_type)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO messages (conversation_id, sender_id, media_url, media_type, read)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING id, sender_id, content, media_url, media_type, read, created_at`,
-            [id, req.userId, mediaUrl, mediaType]
+            [id, req.userId, mediaUrl, mediaType, recipientMuted]
         );
         res.json(inserted.rows[0]);
     } catch (err) {
@@ -352,11 +356,15 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
 
         await touchLastActive(req.userId);
 
+        const recipientId = req.userId === buyer_id ? seller_id : buyer_id;
+        const recipientPrefs = await pool.query(`SELECT notify_messages FROM users WHERE id = $1`, [recipientId]);
+        const recipientMuted = recipientPrefs.rows[0]?.notify_messages === false;
+
         const inserted = await pool.query(
-            `INSERT INTO messages (conversation_id, sender_id, content, media_url, media_type)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO messages (conversation_id, sender_id, content, media_url, media_type, read)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id, sender_id, content, media_url, media_type, read, created_at`,
-            [id, req.userId, content?.trim() || null, media_url || null, media_type || null]
+            [id, req.userId, content?.trim() || null, media_url || null, media_type || null, recipientMuted]
         );
         res.json(inserted.rows[0]);
     } catch (err) {
