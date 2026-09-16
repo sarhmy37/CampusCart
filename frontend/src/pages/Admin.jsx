@@ -7,7 +7,7 @@ import {
     Ban, CheckCircle, Trash2, Crown, Flag, XCircle, TrendingUp, Eye, X,
     Filter, X as XClose, Calendar, User, Tag as TagIcon, Layers, ArrowUpDown,
     Search, Mail, School, UserCheck, UserX, Users as UsersIcon,
-    ChevronLeft, ChevronRight, AlertTriangle, Wifi, Star, Sparkles, MessageCircle, Send
+    ChevronLeft, ChevronRight, AlertTriangle, Wifi, Star, Sparkles, MessageCircle, Send, LogOut
 } from 'lucide-react';
 const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'support', 'deleted chats'];
 
@@ -1578,14 +1578,16 @@ const REASON_LABELS = {
     fake_listing: 'Fake or misleading listing',
     inappropriate: 'Inappropriate content',
     harassment: 'Harassment or unsafe behavior',
-    other: 'Something else',
+    account_security: 'Suspicious account access',
     ban_review: 'Ban review request',
+    other: 'Something else',
 };
 
 function ReportsTab() {
     const [reports, setReports] = useState([]);
     const [statusFilter, setStatusFilter] = useState('pending');
     const [loading, setLoading] = useState(true);
+    const [actingId, setActingId] = useState(null);
 
     const load = () => {
         setLoading(true);
@@ -1602,6 +1604,33 @@ function ReportsTab() {
             load();
         } catch (err) {
             toast.error(err.response?.data?.error || 'Failed to update report');
+        }
+    };
+
+    const forceLogout = async (report) => {
+        setActingId(report.id);
+        try {
+            await api.post(`/admin/users/${report.reported_user_id}/force-logout`);
+            toast.success('User signed out of all sessions');
+            await updateStatus(report.id, 'reviewed');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to sign out user');
+        } finally {
+            setActingId(null);
+        }
+    };
+
+    const banUser = async (report) => {
+        if (!window.confirm('Ban this account? They will be unable to log in until unbanned.')) return;
+        setActingId(report.id);
+        try {
+            await api.patch(`/admin/users/${report.reported_user_id}`, { banned: true });
+            toast.success('Account banned');
+            await updateStatus(report.id, 'actioned');
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Failed to ban user');
+        } finally {
+            setActingId(null);
         }
     };
 
@@ -1663,20 +1692,40 @@ function ReportsTab() {
                                 </div>
 
                                 {r.status === 'pending' && (
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <IconButton
-                                            onClick={() => updateStatus(r.id, 'dismissed')}
-                                            title="Dismiss"
-                                        >
-                                            <XCircle size={15} />
-                                        </IconButton>
-                                        <IconButton
-                                            onClick={() => updateStatus(r.id, 'actioned')}
-                                            title="Mark as actioned"
-                                            danger
-                                        >
-                                            <ShieldAlert size={15} />
-                                        </IconButton>
+                                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                        {r.reason === 'account_security' && r.reported_user_id && (
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    onClick={() => forceLogout(r)}
+                                                    disabled={actingId === r.id}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-300 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-gold-900/60 transition disabled:opacity-60"
+                                                >
+                                                    <LogOut size={13} /> Force logout
+                                                </button>
+                                                <button
+                                                    onClick={() => banUser(r)}
+                                                    disabled={actingId === r.id}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/60 transition disabled:opacity-60"
+                                                >
+                                                    <Ban size={13} /> Ban
+                                                </button>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-1.5">
+                                            <IconButton
+                                                onClick={() => updateStatus(r.id, 'dismissed')}
+                                                title="Dismiss"
+                                            >
+                                                <XCircle size={15} />
+                                            </IconButton>
+                                            <IconButton
+                                                onClick={() => updateStatus(r.id, 'actioned')}
+                                                title="Mark as actioned"
+                                                danger
+                                            >
+                                                <ShieldAlert size={15} />
+                                            </IconButton>
+                                        </div>
                                     </div>
                                 )}
                                 {r.status !== 'pending' && (

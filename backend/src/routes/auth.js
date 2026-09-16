@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { uploadAvatar } = require('../middleware/upload');
@@ -11,8 +12,8 @@ const router = express.Router();
 const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_VERIFY_ATTEMPTS = 5;
 
-function signToken(user) {
-    return jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, {
+function signToken(user, sessionId) {
+    return jwt.sign({ userId: user.id, role: user.role, sessionId }, process.env.JWT_SECRET, {
         expiresIn: '30d',
     });
 }
@@ -250,7 +251,10 @@ router.post('/register', async (req, res) => {
 
         await client.query('COMMIT');
 
-        const token = signToken(user);
+        const sessionId = crypto.randomUUID();
+        await pool.query('UPDATE users SET session_id = $1 WHERE id = $2', [sessionId, user.id]);
+
+        const token = signToken(user, sessionId);
         res.status(201).json({ token, user: toPublicUser(user) });
     } catch (err) {
         await client.query('ROLLBACK');
@@ -296,7 +300,10 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid email/username or password' });
         }
 
-        const token = signToken(user);
+        const sessionId = crypto.randomUUID();
+        await pool.query('UPDATE users SET session_id = $1 WHERE id = $2', [sessionId, user.id]);
+
+        const token = signToken(user, sessionId);
         res.json({ token, user: toPublicUser(user) });
     } catch (err) {
         console.error('Login error:', err);
@@ -834,7 +841,7 @@ router.delete('/me', requireAuth, async (req, res) => {
 // POST /api/auth/logout
 router.post('/logout', requireAuth, async (req, res) => {
     try {
-        await pool.query('UPDATE users SET last_active = NULL WHERE id = $1', [req.userId]);
+        await pool.query('UPDATE users SET last_active = NULL, session_id = NULL WHERE id = $1', [req.userId]);
         res.json({ message: 'Logged out' });
     } catch (err) {
         console.error('Logout error:', err);

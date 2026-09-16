@@ -16,6 +16,7 @@ import PostPurchaseReviewModal from './components/PostPurchaseReviewModal';
 import AdminLogin from './pages/AdminLogin';
 import Navbar from './components/Navbar';
 import AwayTimeoutModal from './components/AwayTimeoutModal';
+import SessionRevokedModal from './components/SessionRevokedModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import InstallButton from './components/InstallButton';
 import ChatPanel from './components/ChatPanel';
@@ -67,6 +68,7 @@ export default function App() {
                     <Navbar />
                     <AppToaster />
                     <AwayTimeoutModal />
+                    <SessionRevokedModal />
                     <PostPurchaseReviewModal />
                     <PullToRefresh>
                       <Routes>

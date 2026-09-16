@@ -8,18 +8,26 @@ const REASONS = [
     { value: 'fake_listing', label: 'Fake or misleading listing' },
     { value: 'inappropriate', label: 'Inappropriate content' },
     { value: 'harassment', label: 'Harassment or unsafe behavior' },
+    { value: 'account_security', label: 'Suspicious account access' },
     { value: 'other', label: 'Something else' },
 ];
 
-export default function ReportModal({ open, onClose, productId, reportedUserId }) {
-    const [reason, setReason] = useState('');
-    const [details, setDetails] = useState('');
+export default function ReportModal({ open, onClose, productId, reportedUserId, initialReason = '', initialDetails = '' }) {
+    const [reason, setReason] = useState(initialReason);
+    const [details, setDetails] = useState(initialDetails);
     const [submitting, setSubmitting] = useState(false);
 
     // Lock body scroll while open. Self-aware — only takes/releases the
     // lock if nothing already owns it, so it's safe whether opened
     // standalone or from within an already-locked parent.
     const didLockRef = useRef(false);
+
+    useEffect(() => {
+        if (open) {
+            setReason(initialReason);
+            setDetails(initialDetails);
+        }
+    }, [open]);
 
     useEffect(() => {
         if (open) {
@@ -65,8 +73,8 @@ export default function ReportModal({ open, onClose, productId, reportedUserId }
     if (!open) return null;
 
     const reset = () => {
-        setReason('');
-        setDetails('');
+        setReason(initialReason);
+        setDetails(initialDetails);
     };
 
     const handleClose = () => {

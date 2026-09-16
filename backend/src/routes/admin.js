@@ -103,6 +103,23 @@ router.patch('/users/:id', async (req, res) => {
     }
 });
 
+// POST /api/admin/users/:id/force-logout — invalidate the user's active session
+// without banning them. Boots whoever's currently signed in on their next request.
+router.post('/users/:id/force-logout', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(
+            'UPDATE users SET session_id = NULL WHERE id = $1 RETURNING id, name, university_email',
+            [id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        res.json({ message: 'User has been signed out of all sessions', user: result.rows[0] });
+    } catch (err) {
+        console.error('Admin force logout error:', err);
+        res.status(500).json({ error: 'Something went wrong signing this user out' });
+    }
+});
+
 // GET /api/admin/listings
 router.get('/listings', async (req, res) => {
     try {

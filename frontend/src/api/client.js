@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { SESSION_REVOKED_EVENT } from '../components/SessionRevokedModal';
+
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'https://campuscart-tdfn.onrender.com/api',
@@ -32,11 +34,16 @@ api.interceptors.response.use(
         // whatever screen they were on with a raw backend error.
         if (err.response?.status === 401) {
             const hadToken = !!localStorage.getItem('cc_token');
+            const revoked = err.response?.data?.code === 'SESSION_REVOKED';
             localStorage.removeItem('cc_token');
             localStorage.removeItem('cc_user');
 
             if (hadToken && !redirectingToLogin) {
                 redirectingToLogin = true;
+                if (revoked) {
+                    window.dispatchEvent(new Event(SESSION_REVOKED_EVENT));
+                    return Promise.reject(err); // modal itself handles navigation — don't redirect underneath it
+                }
                 if (window.location.pathname !== '/') {
                     window.location.href = '/';
                 }
