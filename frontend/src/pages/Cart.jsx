@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useChat } from '../context/ChatContext';
@@ -52,6 +52,40 @@ export default function Cart() {
         () => localStorage.getItem('cc_default_delivery') || 'pickup'
     );
     const [paying, setPaying] = useState(false);
+    const [headerScrollY, setHeaderScrollY] = useState(0);
+    const scrollContainerRef = useRef(null);
+
+    const HEADER_FADE_DISTANCE = 110;
+    const HEADER_OPACITY_DISTANCE = 110;
+    const headerMaskProgress = Math.min(headerScrollY / HEADER_FADE_DISTANCE, 1);
+    const headerOpacityProgress = Math.min(
+        Math.max((headerScrollY - HEADER_FADE_DISTANCE) / HEADER_OPACITY_DISTANCE, 0),
+        1
+    );
+    const headerMaskStop = (1 - headerMaskProgress) * 100;
+    const headerFadeStyle = {
+        WebkitMaskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
+        maskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
+        opacity: 1 - headerOpacityProgress * 0.9,
+    };
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        let raf = null;
+        const handleScroll = () => {
+            if (raf) return;
+            raf = requestAnimationFrame(() => {
+                setHeaderScrollY(container.scrollTop);
+                raf = null;
+            });
+        };
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            if (raf) cancelAnimationFrame(raf);
+        };
+    }, []);
 
     // If the user navigates to Paystack and hits "back" without paying, the
     // browser may restore this page from bfcache with `paying` still true —
@@ -284,10 +318,12 @@ export default function Cart() {
 
     return (
         <div className="dark:bg-ink-900 min-h-screen flex flex-col overflow-x-hidden">
-            <CartHeader count={itemCount} />
+            <div className="sticky top-0 z-30" style={headerFadeStyle}>
+                <CartHeader count={itemCount} />
+            </div>
 
             {/* Main content with scrolling */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
                 <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 grid lg:grid-cols-3 gap-6 pb-24 lg:pb-8">
                     {/* ITEMS */}
                     <div className="lg:col-span-2 space-y-3 overflow-x-hidden">
