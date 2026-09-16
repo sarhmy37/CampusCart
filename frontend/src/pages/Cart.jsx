@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import { useChat } from '../context/ChatContext';
@@ -52,8 +52,9 @@ export default function Cart() {
         () => localStorage.getItem('cc_default_delivery') || 'pickup'
     );
     const [paying, setPaying] = useState(false);
+
+    // ── Scroll-linked header fade — same mechanism as Browse.jsx ──
     const [headerScrollY, setHeaderScrollY] = useState(0);
-    const scrollContainerRef = useRef(null);
 
     const HEADER_FADE_DISTANCE = 110;
     const HEADER_OPACITY_DISTANCE = 110;
@@ -70,19 +71,17 @@ export default function Cart() {
     };
 
     useEffect(() => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
         let raf = null;
         const handleScroll = () => {
             if (raf) return;
             raf = requestAnimationFrame(() => {
-                setHeaderScrollY(container.scrollTop);
+                setHeaderScrollY(window.scrollY);
                 raf = null;
             });
         };
-        container.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => {
-            container.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('scroll', handleScroll);
             if (raf) cancelAnimationFrame(raf);
         };
     }, []);
@@ -100,6 +99,7 @@ export default function Cart() {
         window.addEventListener('pageshow', handlePageShow);
         return () => window.removeEventListener('pageshow', handlePageShow);
     }, []);
+
     const [buyerCoords, setBuyerCoords] = useState(null);
     const [locating, setLocating] = useState(false);
     const [locationDenied, setLocationDenied] = useState(false);
@@ -220,7 +220,7 @@ export default function Cart() {
     if (items.length === 0) {
         return (
             <div className="dark:bg-ink-900 min-h-screen flex flex-col">
-                <CartHeader count={0} />
+                <CartHeader count={0} style={headerFadeStyle} />
                 <div className="flex-1 flex items-center justify-center px-4 py-20">
                     <div className="text-center">
                         <div className="w-16 h-16 mx-auto rounded-2xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center mb-5">
@@ -317,13 +317,11 @@ export default function Cart() {
     };
 
     return (
-        <div className="dark:bg-ink-900 h-screen flex flex-col overflow-x-hidden">
-            <div className="shrink-0 z-30" style={headerFadeStyle}>
-                <CartHeader count={itemCount} />
-            </div>
+        <div className="relative dark:bg-ink-900 min-h-screen flex flex-col overflow-x-hidden">
+            <CartHeader count={itemCount} style={headerFadeStyle} />
 
             {/* Main content with scrolling */}
-            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="overflow-x-hidden">
                 <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 grid lg:grid-cols-3 gap-6 pb-24 lg:pb-8">
                     {/* ITEMS */}
                     <div className="lg:col-span-2 space-y-3 overflow-x-hidden">
@@ -625,9 +623,9 @@ export default function Cart() {
     );
 }
 
-function CartHeader({ count }) {
+function CartHeader({ count, style }) {
     return (
-        <section className="relative overflow-hidden shrink-0">
+        <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden" style={style}>
             <video 
                 autoPlay 
                 loop 
