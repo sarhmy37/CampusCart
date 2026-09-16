@@ -317,8 +317,8 @@ export default function Cart() {
     };
 
     return (
-        <div className="dark:bg-ink-900 min-h-screen flex flex-col overflow-x-hidden">
-            <div className="sticky top-0 z-30" style={headerFadeStyle}>
+        <div className="dark:bg-ink-900 h-screen flex flex-col overflow-x-hidden">
+            <div className="shrink-0 z-30" style={headerFadeStyle}>
                 <CartHeader count={itemCount} />
             </div>
 
