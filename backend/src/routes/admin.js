@@ -193,6 +193,24 @@ router.get('/orders/search', async (req, res) => {
     }
 });
 
+// GET /api/admin/orders/overdue
+router.get('/orders/overdue', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT o.id, o.status, o.total_amount, o.created_at, o.overdue_flagged_at,
+                    u.name AS buyer_name, u.university_email AS buyer_email
+             FROM orders o
+             JOIN users u ON u.id = o.buyer_id
+             WHERE o.overdue_flagged_at IS NOT NULL AND o.status = 'paid'
+             ORDER BY o.overdue_flagged_at DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Admin get overdue orders error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching overdue orders' });
+    }
+});
+
 // GET /api/admin/orders/:id — full detail for one order
 router.get('/orders/:id', async (req, res) => {
     try {
@@ -405,24 +423,6 @@ router.get('/deleted-chats/:id/messages', async (req, res) => {
     } catch (err) {
         console.error('Admin get deleted chat messages error:', err);
         res.status(500).json({ error: 'Something went wrong fetching messages' });
-    }
-});
-
-// GET /api/admin/orders/overdue
-router.get('/orders/overdue', async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT o.id, o.status, o.total_amount, o.created_at, o.overdue_flagged_at,
-                    u.name AS buyer_name, u.university_email AS buyer_email
-             FROM orders o
-             JOIN users u ON u.id = o.buyer_id
-             WHERE o.overdue_flagged_at IS NOT NULL AND o.status = 'paid'
-             ORDER BY o.overdue_flagged_at DESC`
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Admin get overdue orders error:', err);
-        res.status(500).json({ error: 'Something went wrong fetching overdue orders' });
     }
 });
 
