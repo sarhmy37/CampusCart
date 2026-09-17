@@ -1171,6 +1171,26 @@ function PayoutSettings({ period }) {
         }
     };
 
+    useEffect(() => {
+        const anyModalOpen = showBalancePasswordModal || showWithdrawConfirm || showAddModal;
+        if (!anyModalOpen) return;
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+        return () => {
+            const y = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            if (y) window.scrollTo(0, parseInt(y || '0') * -1);
+        };
+    }, [showBalancePasswordModal, showWithdrawConfirm, showAddModal]);
+
     if (status === 'loading') return <SkeletonList />;
     if (status === 'error') return <ErrorState icon={Wallet} text="Couldn't load your payout info right now." onRetry={loadData} />;
 
@@ -1479,7 +1499,7 @@ function PayoutSettings({ period }) {
                                 value={balancePassword}
                                 onChange={(e) => setBalancePassword(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleVerifyBalancePassword()}
-                                placeholder="••••••••"
+                                placeholder="••••••••••"
                                 autoFocus
                                 className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm"
                             />

@@ -502,7 +502,7 @@ export default function Benefits() {
                         {SELLER_BENEFITS.map((group, gi) => {
                             const groupItems = group.items.filter((item) => item.tiers.includes(planTier));
                             if (groupItems.length === 0) return null;
-                            const isOpen = !collapsedCategories[group.category];
+                            const isOpen = !!collapsedCategories[group.category];
                             return (
                                 <Reveal key={group.category} delay={gi * 60}>
                                     <div>
