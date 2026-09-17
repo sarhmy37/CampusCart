@@ -1224,7 +1224,7 @@ function PayoutSettings({ period }) {
                     <div className="text-right shrink-0">
                         <p className="text-xs opacity-90 uppercase tracking-wide font-semibold">USD</p>
                         <p className="text-3xl font-bold mt-1 tabular-nums" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
-                            {!balanceRevealed ? '$••••••' : ghsToUsdRate !== null ? `$${(balance * ghsToUsdRate).toFixed(2)}` : '—'}
+                            {!balanceRevealed ? '$••.••' : ghsToUsdRate !== null ? `$${(balance * ghsToUsdRate).toFixed(2)}` : '—'}
                         </p>
                         {changePct !== null && (
                             <p className={`text-xs mt-0.5 inline-flex items-center gap-0.5 font-semibold ${
