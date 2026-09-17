@@ -80,6 +80,7 @@ export default function Benefits() {
     const [totalViews, setTotalViews] = useState(0);
     const [grossSales, setGrossSales] = useState(0);
     const [openFaq, setOpenFaq] = useState(null);
+    const [showFaq, setShowFaq] = useState(false);
     const [collapsedCategories, setCollapsedCategories] = useState({});
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [cancelling, setCancelling] = useState(false);
@@ -571,22 +572,28 @@ export default function Benefits() {
                 )}
 
                 {/* ─── GOOD TO KNOW ─── */}
-                <div className="pt-12">
+                <div className="pt-12 text-center">
                     <Reveal>
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-gold-200/50 mb-3">
-                            FAQ(Frequently Asked Questions)
-                        </p>
+                        <button
+                            onClick={() => setShowFaq((v) => !v)}
+                            className="text-sm font-semibold text-brand-600 dark:text-gold-400 hover:underline"
+                        >
+                            Frequently Asked Questions
+                        </button>
                     </Reveal>
-                    <div className="border-t border-slate-100 dark:border-ink-700">
-                        {FAQ_ITEMS.map((faq, i) => (
-                            <FaqItem
-                                key={faq.q}
-                                faq={faq}
-                                open={openFaq === i}
-                                onToggle={() => setOpenFaq(openFaq === i ? null : i)}
-                            />
-                        ))}
-                    </div>
+
+                    {showFaq && (
+                        <div className="mt-6 text-left border-t border-slate-100 dark:border-ink-700">
+                            {FAQ_ITEMS.map((faq, i) => (
+                                <FaqItem
+                                    key={faq.q}
+                                    faq={faq}
+                                    open={openFaq === i}
+                                    onToggle={() => setOpenFaq(openFaq === i ? null : i)}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
