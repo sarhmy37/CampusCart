@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const pool = require('../db/pool');
 
 const router = express.Router();
@@ -39,7 +40,10 @@ router.post('/login', async (req, res) => {
             adminUser = inserted.rows[0];
         }
 
-        const token = jwt.sign({ userId: adminUser.id, role: 'admin' }, process.env.JWT_SECRET, {
+        const sessionId = crypto.randomUUID();
+        await pool.query('UPDATE users SET session_id = $1 WHERE id = $2', [sessionId, adminUser.id]);
+
+        const token = jwt.sign({ userId: adminUser.id, role: 'admin', sessionId }, process.env.JWT_SECRET, {
             expiresIn: '7d',
         });
 
