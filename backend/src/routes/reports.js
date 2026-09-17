@@ -329,6 +329,36 @@ router.post('/product', requireAuth, async (req, res) => {
     }
 });
 
+// POST /api/reports/session-alert — public endpoint for reporting a suspicious
+// login even after the session that detected it has been revoked. Trusts the
+// user_id the frontend already has cached (from before the revocation) rather
+// than requiring a valid JWT, since by definition that JWT is now dead.
+router.post('/session-alert', async (req, res) => {
+    const { user_id, details } = req.body;
+
+    if (!user_id) {
+        return res.status(400).json({ error: 'user_id is required' });
+    }
+
+    try {
+        const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [user_id]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        await pool.query(
+            `INSERT INTO reports (id, reporter_id, reported_user_id, product_id, reason, details)
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)`,
+            [user_id, user_id, null, 'account_security', details || 'Reported a suspicious login after being signed out of another device.']
+        );
+
+        res.json({ success: true, message: 'Report submitted to admin.' });
+    } catch (err) {
+        console.error('Session alert report error:', err);
+        res.status(500).json({ error: 'Something went wrong submitting your report.' });
+    }
+});
+
 // POST /api/reports/ban-review — public endpoint for banned users to request a review
 router.post('/ban-review', async (req, res) => {
     const { email, message } = req.body;

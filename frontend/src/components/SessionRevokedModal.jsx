@@ -49,6 +49,7 @@ export default function SessionRevokedModal() {
                 }}
                 productId={null}
                 reportedUserId={user?.id || null}
+                publicReporterId={user?.id || null}
                 initialReason="account_security"
                 initialDetails="My account was accessed from another device without my knowledge."
             />

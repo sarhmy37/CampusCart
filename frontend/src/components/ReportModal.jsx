@@ -12,7 +12,7 @@ const REASONS = [
     { value: 'other', label: 'Something else' },
 ];
 
-export default function ReportModal({ open, onClose, productId, reportedUserId, initialReason = '', initialDetails = '' }) {
+export default function ReportModal({ open, onClose, productId, reportedUserId, initialReason = '', initialDetails = '', publicReporterId = null }) {
     const [reason, setReason] = useState(initialReason);
     const [details, setDetails] = useState(initialDetails);
     const [submitting, setSubmitting] = useState(false);
@@ -89,12 +89,21 @@ export default function ReportModal({ open, onClose, productId, reportedUserId, 
         }
         setSubmitting(true);
         try {
-            await api.post('/reports', {
-                product_id: productId || null,
-                reported_user_id: reportedUserId || null,
-                reason,
-                details: details.trim() || null,
-            });
+            if (publicReporterId) {
+                // Session already revoked — no valid JWT to authenticate with,
+                // so this goes through the public session-alert endpoint instead.
+                await api.post('/reports/session-alert', {
+                    user_id: publicReporterId,
+                    details: details.trim() || null,
+                });
+            } else {
+                await api.post('/reports', {
+                    product_id: productId || null,
+                    reported_user_id: reportedUserId || null,
+                    reason,
+                    details: details.trim() || null,
+                });
+            }
             toast.success('Report submitted. Our team will review it.');
             handleClose();
         } catch (err) {
