@@ -42,7 +42,11 @@ export default function SessionRevokedModal() {
         return (
             <ReportModal
                 open={showReport}
-                onClose={() => setShowReport(false)}
+                onClose={() => {
+                    setShowReport(false);
+                    localStorage.removeItem('cc_token');
+                    localStorage.removeItem('cc_user');
+                }}
                 productId={null}
                 reportedUserId={user?.id || null}
                 initialReason="account_security"
@@ -73,7 +77,11 @@ export default function SessionRevokedModal() {
                         Report this — it wasn't me
                     </button>
                     <button
-                        onClick={() => { window.location.href = '/'; }}
+                        onClick={() => {
+                            localStorage.removeItem('cc_token');
+                            localStorage.removeItem('cc_user');
+                            window.location.href = '/';
+                        }}
                         className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
                     >
                         Okay, take me to login

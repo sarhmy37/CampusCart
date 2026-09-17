@@ -35,15 +35,23 @@ api.interceptors.response.use(
         if (err.response?.status === 401) {
             const hadToken = !!localStorage.getItem('cc_token');
             const revoked = err.response?.data?.code === 'SESSION_REVOKED';
+
+            if (revoked) {
+                // Don't clear the token yet — the SessionRevokedModal still needs
+                // it to let the user submit an "it wasn't me" report before the
+                // session is fully torn down. The modal clears it once dismissed.
+                if (hadToken && !redirectingToLogin) {
+                    redirectingToLogin = true;
+                    window.dispatchEvent(new Event(SESSION_REVOKED_EVENT));
+                }
+                return Promise.reject(err);
+            }
+
             localStorage.removeItem('cc_token');
             localStorage.removeItem('cc_user');
 
             if (hadToken && !redirectingToLogin) {
                 redirectingToLogin = true;
-                if (revoked) {
-                    window.dispatchEvent(new Event(SESSION_REVOKED_EVENT));
-                    return Promise.reject(err); // modal itself handles navigation — don't redirect underneath it
-                }
                 if (window.location.pathname !== '/') {
                     window.location.href = '/';
                 }
