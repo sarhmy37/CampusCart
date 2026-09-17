@@ -622,19 +622,14 @@ const categoryFiltered = itemCategory
         setSelectedBoostTier(null);
     };
 
-    const handleBoostButtonClick = () => {
-        if (boostBtnArmed) {
-            setBoostBtnArmed(false);
-            enterBoostMode();
-            return;
-        }
-        setBoostBtnArmed(true);
-        setBoostBtnBouncing(true);
-        setTimeout(() => setBoostBtnBouncing(false), 600);
-    };
-
-        const [boostBtnFaded, setBoostBtnFaded] = useState(false);
-    const [boostBtnArmed, setBoostBtnArmed] = useState(false);
+const handleBoostButtonClick = () => {
+    setBoostBtnBouncing(true);
+    setTimeout(() => {
+        setBoostBtnBouncing(false);
+        enterBoostMode();
+    }, 600);
+};
+    const [boostBtnFaded, setBoostBtnFaded] = useState(false);
     const [boostBtnBouncing, setBoostBtnBouncing] = useState(false);
     const boostBtnScrollTimer = useRef(null);
 
