@@ -213,8 +213,9 @@ export default function Login() {
                         </div>
 
                          <div className="relative overflow-hidden bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
-                            <img src={LOGIN_FORM_BG_LIGHT} alt="" className="absolute inset-0 w-full h-full object-cover dark:hidden pointer-events-none" />
-                            <img src={LOGIN_FORM_BG_DARK} alt="" className="absolute inset-0 w-full h-full object-cover hidden dark:block pointer-events-none" />
+                            <img src={LOGIN_FORM_BG_LIGHT} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 dark:hidden pointer-events-none" />
+                            <img src={LOGIN_FORM_BG_DARK} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 hidden dark:block pointer-events-none" />
+                            <div className="absolute inset-0 bg-white/40 dark:bg-ink-900/40 backdrop-blur-md pointer-events-none" />
                             <div className="relative z-10">
                             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50 text-center lg:text-left">Welcome back</h1>                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1 text-center lg:text-left">Log in with your email or username.</p>
 
