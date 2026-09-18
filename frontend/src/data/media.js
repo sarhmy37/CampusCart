@@ -86,6 +86,8 @@ export const GALLERY = [
 
 export const LOGIN_IMAGE = cloudinaryImage('login.jpg');
 export const REGISTER_IMAGE = cloudinaryImage('register.jpg');
+export const LOGIN_FORM_BG_LIGHT = cloudinaryImage('back-f.png');
+export const LOGIN_FORM_BG_DARK = cloudinaryImage('back-g.png');
 export const BALANCE_DARK_IMAGE = cloudinaryImage('dark_bala.jpg');
 export const BALANCE_LIGHT_IMAGE = cloudinaryImage('light_bala.jpg');
 
