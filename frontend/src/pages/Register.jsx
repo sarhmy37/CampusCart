@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
-import { REGISTER_IMAGE, LOGO_LIGHT, LOGO_DARK, LOGIN_FORM_BG_LIGHT, LOGIN_FORM_BG_DARK } from '../data/media';
+import { REGISTER_IMAGE, LOGO_LIGHT, LOGO_DARK } from '../data/media';
 import { Mail, Lock, Eye, EyeOff, User, School, ShoppingBag, Store, Phone, ChevronDown, Landmark, Loader2, CheckCircle, XCircle, ArrowLeft, MapPin } from 'lucide-react';
 import { AcademicCapIcon } from '@heroicons/react/24/outline';
 import PasswordStrength, { isPasswordValid } from '../components/PasswordStrength';
@@ -813,12 +813,9 @@ export default function Register() {
                             </div>
                         </div>
 
-                        <div className="relative overflow-hidden bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
-                            <img src={LOGIN_FORM_BG_LIGHT} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 dark:hidden pointer-events-none" />
-                            <img src={LOGIN_FORM_BG_DARK} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 hidden dark:block pointer-events-none" />
-                            <div className="absolute inset-0 bg-white/40 dark:bg-ink-900/40 backdrop-blur-md pointer-events-none" />
-                            <div className="relative z-10">
-                            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50 text-center lg:text-left">Become a Member</h1>                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1 text-center lg:text-left">It only takes a minute.</p>
+                        <div className="bg-white/90 dark:bg-ink-800/90 backdrop-blur-sm lg:bg-transparent lg:dark:bg-transparent border border-slate-200/70 dark:border-ink-600/70 lg:border-0 rounded-3xl lg:rounded-none p-6 sm:p-7 lg:p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-16px_rgba(15,23,42,0.12)] lg:shadow-none">
+                            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-gold-50 text-center lg:text-left">Become a Member</h1>
+                            <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-1 text-center lg:text-left">It only takes a minute.</p>
 
                             {/* ACCOUNT TYPE TOGGLE */}
                             <div className="mt-5 grid grid-cols-2 gap-2 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl">
@@ -1293,7 +1290,6 @@ export default function Register() {
                             <p className="text-sm text-slate-500 dark:text-gold-200/50 mt-6 text-center">
                                 Already have an account? <Link to="/login" className="text-brand-600 dark:text-gold-400 font-semibold">Log in</Link>
                             </p>
-                            </div>
                         </div>
                     </div>
                 </div>
