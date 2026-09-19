@@ -330,42 +330,34 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
 
                                 {editing ? (
                                     <div className="space-y-3">
-                                        <Field
-                                            icon={<FileText size={15} />}
-                                            label="About"
-                                            as="textarea"
-                                            value={form.about}
-                                            onChange={(v) => setForm({ ...form, about: v })}
-                                            placeholder="A short bio — what you're studying, what you usually sell..."
-                                        />
-                                        <Field
-                                            icon={<Mail size={15} />}
-                                            label="Personal email"
-                                            value={form.personal_email}
-                                            onChange={(v) => setForm({ ...form, personal_email: v })}
-                                            placeholder="you@gmail.com"
-                                        />
-                                        <Field
-                                            icon={<Phone size={15} />}
-                                            label="WhatsApp contact"
-                                            value={form.whatsapp}
-                                            onChange={(v) => setForm({ ...form, whatsapp: v })}
-                                            placeholder="+233 ..."
-                                        />
-                                        <Field
-                                            icon={<Phone size={15} />}
-                                            label="SMS phone number"
-                                            value={form.sms_number}
-                                            onChange={(v) => setForm({ ...form, sms_number: v })}
-                                            placeholder="+233 ..."
-                                        />
-                                        <Field
-                                            icon={<MapPin size={15} />}
-                                            label="Location"
-                                            value={form.location}
-                                            onChange={(v) => setForm({ ...form, location: v })}
-                                            placeholder="Hostel, hall, or area"
-                                        />
+                                        <div className="rounded-xl border border-slate-200 dark:border-ink-600 divide-y divide-slate-200 dark:divide-ink-600 overflow-hidden">
+                                            <PlaceholderField
+                                                as="textarea"
+                                                value={form.about}
+                                                onChange={(v) => setForm({ ...form, about: v })}
+                                                placeholder="About — a short bio, what you're studying, what you usually sell..."
+                                            />
+                                            <PlaceholderField
+                                                value={form.personal_email}
+                                                onChange={(v) => setForm({ ...form, personal_email: v })}
+                                                placeholder="Personal email — you@gmail.com"
+                                            />
+                                            <PlaceholderField
+                                                value={form.whatsapp}
+                                                onChange={(v) => setForm({ ...form, whatsapp: v })}
+                                                placeholder="WhatsApp contact — +233 ..."
+                                            />
+                                            <PlaceholderField
+                                                value={form.sms_number}
+                                                onChange={(v) => setForm({ ...form, sms_number: v })}
+                                                placeholder="SMS phone number — +233 ..."
+                                            />
+                                            <PlaceholderField
+                                                value={form.location}
+                                                onChange={(v) => setForm({ ...form, location: v })}
+                                                placeholder="Location — hostel, hall, or area"
+                                            />
+                                        </div>
 
                                         <div className="flex gap-2 pt-1">
                                             <button
@@ -616,6 +608,25 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
                 onCancel={() => setConfirmRemoveAvatar(false)}
             />
         </>
+    );
+}
+
+function PlaceholderField({ value, onChange, placeholder, as = 'input' }) {
+    return as === 'textarea' ? (
+        <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            rows={2}
+            className="w-full px-3.5 py-3 bg-transparent dark:text-gold-50 dark:placeholder-gold-300/40 placeholder-slate-400 focus:outline-none text-sm transition resize-none"
+        />
+    ) : (
+        <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="w-full px-3.5 py-3 bg-transparent dark:text-gold-50 dark:placeholder-gold-300/40 placeholder-slate-400 focus:outline-none text-sm transition"
+        />
     );
 }
 

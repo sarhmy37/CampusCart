@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowLeft, MessageCircle, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, MessageCircle, Loader2 } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -60,7 +60,7 @@ export default function ChatHistory() {
     }}
                         className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-ink-700 transition"
                     >
-                        <ArrowLeft size={20} className="text-slate-700 dark:text-gold-200" />
+                        <ChevronLeft size={20} className="text-slate-700 dark:text-gold-200" />
                     </button>
                     <h1 className="text-lg font-extrabold text-slate-900 dark:text-gold-50 flex-1">
                         Messages
