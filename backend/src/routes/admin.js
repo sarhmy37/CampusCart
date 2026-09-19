@@ -342,6 +342,12 @@ router.delete('/users/:id', async (req, res) => {
         // Payout withdrawals
         await client.query('DELETE FROM payout_withdrawals WHERE seller_id = $1', [userId]);
 
+        // Boosts on this seller's products (must go before products, FK constraint)
+        await client.query(
+            `DELETE FROM boosts WHERE product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            [userId]
+        );
+
         // Products
         await client.query('DELETE FROM products WHERE seller_id = $1', [userId]);
 
