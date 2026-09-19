@@ -287,9 +287,16 @@ router.delete('/users/:id', async (req, res) => {
         await client.query('BEGIN');
 
         // Order matters. Children first, user last — or Postgres blocks with FK errors.
+        // Every FK referencing users(id) or products(id) must be cleared before
+        // this user's rows in those two tables are deleted.
 
-        // Service bookings
-        await client.query('DELETE FROM bookings WHERE seller_id = $1 OR buyer_id = $1', [userId]);
+        // Service bookings — as buyer/seller, or booked against one of this seller's service listings
+        await client.query(
+            `DELETE FROM bookings
+             WHERE seller_id = $1 OR buyer_id = $1
+                OR service_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            [userId]
+        );
 
         // Business profiles
         await client.query('DELETE FROM business_profiles WHERE user_id = $1', [userId]);
@@ -297,15 +304,38 @@ router.delete('/users/:id', async (req, res) => {
         // Buyer delivery locations
         await client.query('DELETE FROM buyer_delivery_locations WHERE buyer_id = $1', [userId]);
 
-        // Chat wallpaper overrides + wallpapers
-        await client.query('DELETE FROM chat_wallpaper_overrides WHERE user_id = $1', [userId]);
-        await client.query('DELETE FROM chat_wallpapers WHERE set_by = $1', [userId]);
+        // Chat wallpaper overrides + wallpapers — by this user, or on any
+        // conversation this user is part of (so another participant's
+        // wallpaper setting on a shared conversation doesn't block deletion)
+        await client.query(
+            `DELETE FROM chat_wallpaper_overrides
+             WHERE user_id = $1
+                OR conversation_id IN (SELECT id FROM conversations WHERE buyer_id = $1 OR seller_id = $1)`,
+            [userId]
+        );
+        await client.query(
+            `DELETE FROM chat_wallpapers
+             WHERE set_by = $1
+                OR conversation_id IN (SELECT id FROM conversations WHERE buyer_id = $1 OR seller_id = $1)`,
+            [userId]
+        );
 
         // Conversation deletions
         await client.query('DELETE FROM conversation_deletions WHERE user_id = $1', [userId]);
 
+        // Message deletions — by this user, or referencing any message this
+        // user sent or that lives in a conversation this user is part of
+        await client.query(
+            `DELETE FROM message_deletions
+             WHERE user_id = $1
+                OR message_id IN (
+                    SELECT id FROM messages WHERE sender_id = $1
+                       OR conversation_id IN (SELECT id FROM conversations WHERE buyer_id = $1 OR seller_id = $1)
+                )`,
+            [userId]
+        );
+
         // Messages (by sender, or in any conversation this user is part of) + conversations
-        await client.query('DELETE FROM message_deletions WHERE user_id = $1', [userId]);
         await client.query(
             `DELETE FROM messages WHERE sender_id = $1
               OR conversation_id IN (SELECT id FROM conversations WHERE buyer_id = $1 OR seller_id = $1)`,
@@ -339,20 +369,41 @@ router.delete('/users/:id', async (req, res) => {
         );
         await client.query('DELETE FROM orders WHERE buyer_id = $1', [userId]);
 
-        // Payout withdrawals
+        // Payout withdrawals, then the payout accounts themselves
         await client.query('DELETE FROM payout_withdrawals WHERE seller_id = $1', [userId]);
+        await client.query('DELETE FROM seller_payout_accounts WHERE seller_id = $1', [userId]);
 
-        // Boosts on this seller's products (must go before products, FK constraint)
+        // Product-scoped tables that must be cleared before the products themselves
         await client.query(
-            `DELETE FROM boosts WHERE product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            `DELETE FROM product_images WHERE product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            [userId]
+        );
+        await client.query(
+            `DELETE FROM product_views
+             WHERE user_id = $1 OR product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            [userId]
+        );
+        await client.query(
+            `DELETE FROM wishlist_items
+             WHERE user_id = $1 OR product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            [userId]
+        );
+        await client.query(
+            `DELETE FROM reports
+             WHERE reported_user_id = $1 OR reporter_id = $1
+                OR product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
+            [userId]
+        );
+
+        // Boosts on this seller's products (or bought by this user directly)
+        await client.query(
+            `DELETE FROM boosts
+             WHERE seller_id = $1 OR product_id IN (SELECT id FROM products WHERE seller_id = $1)`,
             [userId]
         );
 
         // Products
         await client.query('DELETE FROM products WHERE seller_id = $1', [userId]);
-
-        // Reports
-        await client.query('DELETE FROM reports WHERE reported_user_id = $1', [userId]);
 
         // Reviews — old tables
         await client.query('DELETE FROM review_comments WHERE commenter_id = $1', [userId]);
@@ -360,16 +411,27 @@ router.delete('/users/:id', async (req, res) => {
         await client.query('DELETE FROM reviews WHERE reviewer_id = $1 OR seller_id = $1', [userId]);
         await client.query('DELETE FROM review_skips WHERE buyer_id = $1 OR seller_id = $1', [userId]);
 
-        // Reviews — newer tables
+        // Reviews — newer tables (product_id-based rows already cleared above)
         await client.query('DELETE FROM product_review_comments WHERE commenter_id = $1', [userId]);
         await client.query('DELETE FROM product_review_likes WHERE user_id = $1', [userId]);
         await client.query('DELETE FROM product_reviews WHERE user_id = $1', [userId]);
 
-        // Wishlist
-        await client.query('DELETE FROM wishlist_items WHERE user_id = $1', [userId]);
-
         // Subscriptions
         await client.query('DELETE FROM subscriptions WHERE user_id = $1', [userId]);
+
+        // Saved searches
+        await client.query('DELETE FROM saved_searches WHERE buyer_id = $1', [userId]);
+
+        // Seller payments and rewards
+        await client.query('DELETE FROM seller_payments WHERE seller_id = $1', [userId]);
+        await client.query('DELETE FROM seller_rewards WHERE seller_id = $1', [userId]);
+
+        // Support requests
+        await client.query('DELETE FROM support_requests WHERE user_id = $1', [userId]);
+
+        // Anyone this user referred — clear the self-referencing link so it
+        // doesn't block deletion; the referral itself just becomes untracked.
+        await client.query('UPDATE users SET referred_by = NULL WHERE referred_by = $1', [userId]);
 
         // Finally, the user
         await client.query('DELETE FROM users WHERE id = $1', [userId]);
