@@ -828,7 +828,7 @@ export default function Register() {
                                             : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-100'
                                     }`}
                                 >
-                                    <ShoppingBag size={15} /> I'm a Buyer
+                                    <ShoppingBag size={15} /> Shop & Find
                                 </button>
                                 <button
                                     type="button"
@@ -839,7 +839,7 @@ export default function Register() {
                                             : 'text-slate-500 dark:text-gold-200/50 hover:text-slate-700 dark:hover:text-gold-100'
                                     }`}
                                 >
-                                    <Store size={15} /> I'm a Seller
+                                    <Store size={15} /> Sell & Offer
                                 </button>
                             </div>
                             <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-2">
