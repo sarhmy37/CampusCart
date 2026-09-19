@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { X, ShieldCheck, Mail } from 'lucide-react';
+import { X, Mail, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 
@@ -104,14 +104,13 @@ export default function VerifyModal({ open, onClose }) {
                     <X size={18} />
                 </button>
 
-                <div className="w-11 h-11 rounded-xl bg-brand-50 dark:bg-gold-900 flex items-center justify-center mb-4">
-                    <ShieldCheck className="text-brand-600 dark:text-gold-400" size={22} />
-                </div>
-
                 {step === 'start' ? (
                     <>
-                        <h2 className="text-lg font-extrabold text-slate-900 dark:text-gold-50">Verify your account</h2>
-                        <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-1.5">
+                        <h2 className="text-lg font-extrabold text-slate-900 dark:text-gold-50 flex items-center gap-2">
+                            Verify your account
+                            <CheckCircle size={18} className="text-emerald-500" />
+                        </h2>
+                                                <p className="text-sm text-slate-500 dark:text-gold-200/60 mt-1.5">
                             We'll email a 6-digit code to confirm this is really you.
                         </p>
 
