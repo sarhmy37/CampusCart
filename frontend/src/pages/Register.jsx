@@ -1051,7 +1051,7 @@ export default function Register() {
                                                     onChange={(e) => setBuyerSchool(e.target.value)}
                                                     className="w-full pl-8 pr-6 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm bg-white dark:bg-ink-700 text-slate-900 dark:text-gold-50 appearance-none transition"
                                                 >
-                                                    <option value="">{detectingSchool ? 'Detecting…' : 'Tap to detect'}</option>
+                                                    <option value="">{detectingSchool ? 'Detecting…' : 'Auto detect'}</option>
                                                     {SCHOOLS.map((s) => (
                                                         <option key={s} value={s}>{schoolOptionLabel(s)}</option>
                                                     ))}
@@ -1076,7 +1076,7 @@ export default function Register() {
                                             </div>
                                         </div>
                                         {!detectingSchool && !detectError && !buyerSchool && (
-                                            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Tap the field to auto-detect your nearest campus.</p>
+                                            <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Click the field to auto-detect your nearest campus.</p>
                                         )}
                                         {detectingSchool && (
                                             <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1">Detecting your nearest campus…</p>
