@@ -21,6 +21,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import InstallButton from './components/InstallButton';
 import ChatPanel from './components/ChatPanel';
 import PlanThemeSync from './components/PlanThemeSync';
+import OnboardingTour from './components/OnboardingTour';
 import PullToRefresh from './components/PullToRefresh';
 import ChatHistory from './pages/ChatHistory';
 import ServiceDetail from './pages/ServiceDetail';
@@ -70,6 +71,7 @@ export default function App() {
                     <AwayTimeoutModal />
                     <SessionRevokedModal />
                     <PostPurchaseReviewModal />
+<OnboardingTour />
                     <PullToRefresh>
                       <Routes>
                         <Route path="/" element={<Home />} />

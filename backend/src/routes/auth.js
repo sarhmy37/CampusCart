@@ -57,6 +57,7 @@ function toPublicUser(row) {
         social_twitter: row.social_twitter,
         social_telegram: row.social_telegram,
         notify_messages: row.notify_messages,
+        plan_discount_expires_at: row.plan_discount_expires_at,
     };
 }
 
@@ -227,6 +228,17 @@ router.post('/register', async (req, res) => {
             [displayName, displayName, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, sms_number, location || null, meeting_place || null, myReferralCode, referrerId]
         );
         const user = result.rows[0];
+
+        if (referrerId) {
+    await client.query(
+        `UPDATE users SET plan_discount_expires_at =
+           CASE WHEN plan_discount_expires_at IS NULL OR plan_discount_expires_at < NOW()
+                THEN NOW() + INTERVAL '24 hours'
+                ELSE plan_discount_expires_at + INTERVAL '12 hours' END
+         WHERE id = $1`,
+        [referrerId]
+    );
+}
 
         // 👇 If seller, create a default payout account
         if (resolvedAccountType === 'seller' && account_number && bank_code && account_name) {

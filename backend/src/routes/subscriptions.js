@@ -29,24 +29,29 @@ router.post('/initiate', requireAuth, async (req, res) => {
 
     try {
         const userResult = await pool.query(
-            'SELECT university_email, personal_email FROM users WHERE id = $1',
+            'SELECT university_email, personal_email, plan_discount_expires_at FROM users WHERE id = $1',
             [req.userId]
         );
         const user = userResult.rows[0];
         if (!user) return res.status(404).json({ error: 'User not found' });
 
         const email = user.personal_email || user.university_email;
+const discountActive = user.plan_discount_expires_at &&
+    new Date(user.plan_discount_expires_at) > new Date();
+const amountGHS = discountActive
+    ? Math.round(planConfig.amountGHS * 0.75 * 100) / 100
+    : planConfig.amountGHS;
         const reference = `sub_${req.userId}_${crypto.randomBytes(6).toString('hex')}`;
 
         await pool.query(
             `INSERT INTO subscriptions (user_id, plan, status, paystack_reference, amount)
              VALUES ($1, $2, 'pending', $3, $4)`,
-            [req.userId, plan, reference, planConfig.amountGHS]
+            [req.userId, plan, reference, amountGHS]
         );
 
         const paystackRes = await initializeTransaction({
             email,
-            amountGHS: planConfig.amountGHS,
+            amountGHS,
             reference,
             metadata: { user_id: req.userId, plan },
             callback_url: `${process.env.CORS_ORIGIN}/subscription/callback`,

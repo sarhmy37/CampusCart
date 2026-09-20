@@ -194,6 +194,27 @@ export default function Home() {
     const [subscribingPlan, setSubscribingPlan] = useState(null);
     const pricingRef = useRef(null);
 
+const [now, setNow] = useState(Date.now());
+const discountExpiry = user?.plan_discount_expires_at
+    ? new Date(user.plan_discount_expires_at).getTime()
+    : 0;
+const discountActive = discountExpiry > now;
+const discountMsLeft = Math.max(0, discountExpiry - now);
+
+useEffect(() => {
+    if (!discountActive) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+}, [discountActive]);
+
+const formatCountdown = (ms) => {
+    const s = Math.floor(ms / 1000);
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return `${h}:${m}:${sec}`;
+};
+
     const [showcaseRaw, setShowcaseRaw] = useState([]);
     const [raisedCard, setRaisedCard] = useState(null);
     const [previewItem, setPreviewItem] = useState(null);
@@ -830,7 +851,12 @@ const handlePlanClick = async (planName) => {
                         </p>
                     </Reveal>
 
-                    <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-5">
+                    {discountActive && (
+    <div className="mt-6 mx-auto max-w-md text-center bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-semibold rounded-xl px-4 py-2">
+        🎉 Referral reward: 25% off Pro & Premium, ends in {formatCountdown(discountMsLeft)}
+    </div>
+)}
+<div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-5">
                         {PLANS.map((plan, i) => (
                             <Reveal
                                 key={plan.name}
@@ -860,7 +886,12 @@ const handlePlanClick = async (planName) => {
                                         {plan.name}
                                     </h3>
                                     <div className="flex items-end justify-center gap-1 mt-1 sm:mt-2">
-                                        <span className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">GHS {plan.price}</span>
+                                        {discountActive && plan.price !== '0' && (
+    <span className="text-xs sm:text-base text-slate-400 line-through mb-0.5 sm:mb-1">GHS {plan.price}</span>
+)}
+<span className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
+    GHS {discountActive && plan.price !== '0' ? (Number(plan.price) * 0.75).toFixed(2) : plan.price}
+</span>
                                         <span className="text-slate-500 dark:text-white/50 text-[10px] sm:text-sm mb-0.5 sm:mb-1">{plan.period}</span>
                                     </div>
 
