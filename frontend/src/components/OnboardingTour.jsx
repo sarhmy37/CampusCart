@@ -119,6 +119,67 @@ const CSS = `
 // Phone frame showing a cropped part of an app screenshot.
 function PhoneShot({ shot, apple, onError }) {
     const pos = shot.pos || '50% 0%';
+    const frame = apple
+        ? 'linear-gradient(145deg, #e6e6e9 0%, #8d8d93 28%, #f1f1f3 52%, #7a7a80 78%, #d4d4d8 100%)'
+        : 'linear-gradient(145deg, #4b4f55 0%, #15171a 30%, #5a5e64 55%, #101113 80%, #3c4046 100%)';
+    const btnLeft = apple
+        ? 'linear-gradient(90deg, #7a7a80, #d4d4d8)'
+        : 'linear-gradient(90deg, #1d1f22, #55595f)';
+    const btnRight = apple
+        ? 'linear-gradient(270deg, #7a7a80, #d4d4d8)'
+        : 'linear-gradient(270deg, #1d1f22, #55595f)';
+
+    return (
+        <div className="relative w-[190px] h-[236px]">
+            <span className="absolute -left-[3px] top-[58px] w-[3px] h-6 rounded-l" style={{ background: btnLeft }} />
+            <span className="absolute -left-[3px] top-[92px] w-[3px] h-10 rounded-l" style={{ background: btnLeft }} />
+            <span className="absolute -right-[3px] top-[78px] w-[3px] h-14 rounded-r" style={{ background: btnRight }} />
+
+            <div
+                className="h-full rounded-t-[44px] p-[3px]"
+                style={{ background: frame, boxShadow: '0 0 0 1px rgba(0,0,0,0.25), 0 10px 24px -10px rgba(0,0,0,0.5)' }}
+            >
+                <div className="h-full rounded-t-[41px] bg-black p-[6px]">
+                    <div className="relative h-full rounded-t-[35px] overflow-hidden bg-black">
+                        <img
+                            src={shot.src}
+                            alt=""
+                            draggable={false}
+                            onError={onError}
+                            className="w-full h-full object-cover select-none"
+                            style={{
+                                objectPosition: pos,
+                                transform: `scale(${shot.zoom || 1})`,
+                                transformOrigin: pos,
+                            }}
+                        />
+
+                        {apple ? (
+                            <span className="absolute top-2 left-1/2 -translate-x-1/2 w-[58px] h-[17px] rounded-full bg-black">
+                                <span
+                                    className="absolute right-[7px] top-1/2 -translate-y-1/2 w-[6px] h-[6px] rounded-full"
+                                    style={{ background: 'radial-gradient(circle at 35% 35%, #2b3a55, #05070c 70%)' }}
+                                />
+                            </span>
+                        ) : (
+                            <span className="absolute top-2 left-1/2 -translate-x-1/2 w-[9px] h-[9px] rounded-full bg-black ring-[1.5px] ring-neutral-800" />
+                        )}
+
+                        <span
+                            className="absolute inset-0 pointer-events-none"
+                            style={{ background: 'linear-gradient(115deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 38%)' }}
+                        />
+                        <span className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white dark:from-ink-800 to-transparent pointer-events-none" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Old frame, no longer used. You can delete this whole function.
+function OldPhoneShot({ shot, apple, onError }) {
+    const pos = shot.pos || '50% 0%';
     return (
         <div className="relative w-[190px] h-[230px] overflow-hidden rounded-t-[34px] border-[7px] border-b-0 border-slate-900 dark:border-slate-600 bg-slate-900 shadow-xl">
             <img
