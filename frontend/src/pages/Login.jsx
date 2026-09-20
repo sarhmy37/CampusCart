@@ -84,7 +84,7 @@ export default function Login() {
             toast.success(`Welcome back, ${loggedInUser.name}!`);
             navigate('/');
         } catch (err) {
-            toast.error(err.response?.data?.error || 'Login failed');
+            toast.error(err.response?.data?.error || 'Login failed ,check your internet connection and try again.');
         } finally {
             setLoading(false);
         }

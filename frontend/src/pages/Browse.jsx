@@ -6,7 +6,6 @@ import { Bookmark } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import HeroSlideshow from '../components/HeroSlideshow';
 import { BROWSE_HEADER_IMAGES } from '../data/media';
-import { DUMMY_PRODUCTS } from '../data/demoProducts';
 import { ArrowLeft, X, ChevronDown, Check, Search, Wifi, Loader2, SlidersHorizontal, Rocket } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { MTN_LOGO, VODAFONE_LOGO, AIRTELTIGO_LOGO } from '../data/media';
@@ -415,13 +414,11 @@ export default function Browse() {
         }
     };
 
-    const isDemo = products.length === 0;
-    const baseProducts = isDemo ? DUMMY_PRODUCTS : products;
 const categoryFiltered = itemCategory
-    ? baseProducts.filter((p) => (p.category || p.category_name) === itemCategory)
+    ? products.filter((p) => (p.category || p.category_name) === itemCategory)
     : search
-        ? baseProducts
-        : baseProducts.filter((p) => (p.category || p.category_name) !== 'Services');
+        ? products
+        : products.filter((p) => (p.category || p.category_name) !== 'Services');
     const activeSubCategory = (SUBCATEGORIES[itemCategory] || []).find((s) => s.label === subCategory);
     const subCategoryFiltered = activeSubCategory
         ? categoryFiltered.filter((p) => {
@@ -445,9 +442,6 @@ const categoryFiltered = itemCategory
             if (!p.created_at) return false;
             return new Date(p.created_at) >= threeDaysAgo;
         });
-        if (isDemo) {
-            filteredByType = verifiedFiltered.slice(0, 4);
-        }
     } else if (filterType === 'nearby') {
         if (school) {
             filteredByType = verifiedFiltered.filter(p => p.seller_school === school);
@@ -461,9 +455,6 @@ const categoryFiltered = itemCategory
             const stock = p.stock !== undefined ? p.stock : 1;
             return stock <= 0;
         });
-        if (isDemo) {
-            filteredByType = verifiedFiltered.filter((_, i) => i % 3 === 0);
-        }
     }
 
     const priceFilteredList = priceRange
@@ -473,23 +464,14 @@ const categoryFiltered = itemCategory
         })
         : filteredByType;
 
-    let visibleProducts = priceFilteredList;
-    let outOfStockProducts = [];
-
-    if (isDemo) {
-        outOfStockProducts = priceFilteredList.filter((_, i) => i % 3 === 0);
-        const outOfStockIds = new Set(outOfStockProducts.map((p) => p.id));
-        visibleProducts = priceFilteredList.filter((p) => !outOfStockIds.has(p.id));
-    } else {
-        outOfStockProducts = priceFilteredList.filter((p) => {
-            const stock = p.stock !== undefined ? p.stock : 1;
-            return stock <= 0;
-        });
-        visibleProducts = priceFilteredList.filter((p) => {
-            const stock = p.stock !== undefined ? p.stock : 1;
-            return stock > 0;
-        });
-    }
+    const outOfStockProducts = priceFilteredList.filter((p) => {
+        const stock = p.stock !== undefined ? p.stock : 1;
+        return stock <= 0;
+    });
+    const visibleProducts = priceFilteredList.filter((p) => {
+        const stock = p.stock !== undefined ? p.stock : 1;
+        return stock > 0;
+    });
 
     const isServiceItem = (p) => (p.category || p.category_name) === 'Services';
     const searchProductResults = search ? visibleProducts.filter((p) => !isServiceItem(p)) : visibleProducts;
@@ -839,7 +821,7 @@ const handleBoostButtonClick = () => {
                             )}
                             <button
                                 onClick={() => setShowCategoryRequest(true)}
-                                className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:bg-white/10 hover:text-white transition"
+                                className="text-sm font-semibold px-3.5 py-1.5 rounded-full border border-dashed border-white/30 text-white/70 hover:border-solid hover:border-white/60 hover:bg-white/10 hover:text-white transition"
                             >
                                 Suggest a feature
                             </button>
@@ -1183,9 +1165,6 @@ const handleBoostButtonClick = () => {
     </div>
 ) : (
     <>
-        {isDemo && (
-            <p className="text-sm text-slate-400 dark:text-gold-200/40 mb-4">No live listings yet — here's a preview of how they'll look:</p>
-        )}
         {searchProductResults.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {searchProductResults.map((p) => (
