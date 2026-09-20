@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
+    const { user } = useAuth();
     const [items, setItems] = useState(() => {
         const stored = localStorage.getItem('cc_cart');
         return stored ? JSON.parse(stored) : [];
@@ -17,13 +19,14 @@ export function CartProvider({ children }) {
     // Mirror the cart to the backend (debounced) so it shows up as a
     // 'pending' order in the buyer's Orders tab immediately.
     useEffect(() => {
+        if (!user) return;
         const timer = setTimeout(() => {
             api.post('/orders/cart-sync', {
                 items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
             }).catch(() => {}); // ignore if not logged in yet
         }, 600);
         return () => clearTimeout(timer);
-    }, [items]);
+    }, [items, user]);
 
     const addItem = (product) => {
         setItems((prev) => {
