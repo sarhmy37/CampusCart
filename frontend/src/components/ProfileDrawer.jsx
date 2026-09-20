@@ -376,12 +376,12 @@ export default function ProfileDrawer({ open, onClose, initialSupportOpen, onSup
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        <InfoRow icon={<FileText size={15} />} label="About" value={user.about || 'Not added yet'} />
-                                        <InfoRow icon={<Mail size={15} />} label="Personal email" value={user.personal_email || 'Not added yet'} />
-                                        <InfoRow icon={<Phone size={15} />} label="WhatsApp" value={user.whatsapp || 'Not added yet'} />
-                                        <InfoRow icon={<Phone size={15} />} label="SMS phone number" value={user.sms_number || 'Not added yet'} />
-                                        <InfoRow icon={<MapPin size={15} />} label="Location" value={user.location || 'Not added yet'} />
+                                    <div className="rounded-xl border border-slate-200 dark:border-ink-600 overflow-hidden">
+                                        <InfoRow icon={<FileText size={15} />} placeholder="About" value={user.about} />
+                                        <InfoRow icon={<Mail size={15} />} placeholder="Personal email" value={user.personal_email} />
+                                        <InfoRow icon={<Phone size={15} />} placeholder="WhatsApp contact" value={user.whatsapp} />
+                                        <InfoRow icon={<Phone size={15} />} placeholder="SMS phone number" value={user.sms_number} />
+                                        <InfoRow icon={<MapPin size={15} />} placeholder="Location" value={user.location} />
                                     </div>
                                 )}
                                 <div className="flex items-center justify-end ml-3">
@@ -656,13 +656,14 @@ function Field({ icon, label, value, onChange, placeholder, as = 'input' }) {
     );
 }
 
-function InfoRow({ icon, label, value }) {
+function InfoRow({ icon, value, placeholder }) {
     return (
-        <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-700">
-            <span className="text-slate-400 dark:text-gold-300/50 mt-0.5">{icon}</span>
-            <div>
-                <p className="text-xs text-slate-400 dark:text-gold-200/40">{label}</p>
-                <p className="text-sm font-medium text-slate-800 dark:text-gold-100">{value}</p>
+        <div className="mx-3 border-b border-slate-200 dark:border-ink-600 last:border-b-0">
+            <div className="flex items-start gap-3 py-2.5">
+                <span className="text-slate-400 dark:text-gold-300/50 mt-0.5">{icon}</span>
+                <p className={`text-sm ${value ? 'font-medium text-slate-800 dark:text-gold-100' : 'text-slate-400 dark:text-gold-200/40'}`}>
+                    {value || placeholder}
+                </p>
             </div>
         </div>
     );
