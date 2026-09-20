@@ -88,6 +88,9 @@ const SELLER_STEPS = [
 ];
 
 const ROTATIONS = [-8, 6, -4, 9, -6];
+
+// Dev switch: true = shows on every visit. Set to false when you finish, to show once per user.
+const ALWAYS_SHOW = true;
 const doneKey = (id) => `trex_tour_done_${id}`;
 
 const CSS = `
@@ -160,7 +163,7 @@ export default function OnboardingTour() {
         }
         let done = false;
         try { done = localStorage.getItem(doneKey(user.id)) === '1'; } catch { /* ignore */ }
-        if (!done) {
+        if (ALWAYS_SHOW || !done) {
             setStep(0);
             setOpen(true);
         }
