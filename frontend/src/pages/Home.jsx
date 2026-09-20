@@ -885,16 +885,15 @@ const handlePlanClick = async (planName) => {
                                         )}
                                         {plan.name}
                                     </h3>
-                                    <div className="flex items-end justify-center gap-1 mt-1 sm:mt-2">
+                                    <div className="flex flex-nowrap items-baseline justify-center gap-1 mt-1 sm:mt-2 whitespace-nowrap">
                                         {discountActive && plan.price !== '0' && (
-    <span className="text-xs sm:text-base text-slate-400 line-through mb-0.5 sm:mb-1">GHS {plan.price}</span>
-)}
-<span className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">
-    GHS {discountActive && plan.price !== '0' ? (Number(plan.price) * 0.75).toFixed(2) : plan.price}
-</span>
-                                        <span className="text-slate-500 dark:text-white/50 text-[10px] sm:text-sm mb-0.5 sm:mb-1">{plan.period}</span>
+                                            <span className="text-[9px] sm:text-base text-slate-400 line-through">GHS {plan.price}</span>
+                                        )}
+                                        <span className="text-[15px] sm:text-3xl font-black text-slate-900 dark:text-white">
+                                            GHS {discountActive && plan.price !== '0' ? (Number(plan.price) * 0.75).toFixed(2) : plan.price}
+                                        </span>
+                                        <span className="text-slate-500 dark:text-white/50 text-[9px] sm:text-sm">{plan.period}</span>
                                     </div>
-
                                     <div className="mt-3 pt-3 sm:mt-6 sm:pt-5 border-t border-slate-200 dark:border-white/10 grid grid-cols-2 gap-2 sm:gap-4">
                                         <div>
                                             <p className="text-[9px] sm:text-[11px] font-bold text-slate-500 dark:text-white/50 uppercase tracking-wide mb-1 sm:mb-2">Buyers</p>
