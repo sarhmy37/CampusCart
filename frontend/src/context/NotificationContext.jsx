@@ -175,9 +175,13 @@ export function NotificationProvider({ children }) {
                 setProductNotifs((prev) => [...newNotifs, ...prev]);
 
                 if (newOnes.length === 1) {
-                    toast(`New listing: ${newOnes[0].title}`, { icon: '🛍️' });
+                    const isService = newOnes[0].category === 'Services';
+toast(`New ${isService ? 'service' : 'listing'}: ${newOnes[0].title}`, { icon: isService ? '🛠️' : '🛍️' });
                 } else {
-                    toast(`${newOnes.length} new listings just posted`, { icon: '🛍️' });
+                    const allServices = newOnes.every((p) => p.category === 'Services');
+const noServices = newOnes.every((p) => p.category !== 'Services');
+const word = allServices ? 'services' : noServices ? 'listings' : 'listings and services';
+toast(`${newOnes.length} new ${word} just posted`, { icon: '🛍️' });
                 }
                 newOnes.forEach((p) => seenIds.add(p.id));
                 saveSeenIds(seenIds);

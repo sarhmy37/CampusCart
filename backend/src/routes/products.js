@@ -364,7 +364,7 @@ router.post('/', requireAuth, async (req, res) => {
                     await insertNotification(
                         match.buyer_id,
                         'saved_search_match',
-                        `A new listing matches your saved search: "${title}"`,
+                        `A new ${isServiceListing ? 'service' : 'listing'} matches your saved search: "${title}"`,
                         productId,
                         isServiceListing ? `/service/${productId}` : `/product/${productId}`
                     );
