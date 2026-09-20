@@ -101,8 +101,8 @@ export const ICONS = cloudinaryImage('icons.svg');
 
 // ----- ONBOARDING TOUR (light + dark screenshot for each step) -----
 const tourShot = (name) => ({
-    light: cloudinaryImage(`tour/${name}-light.png`),
-    dark: cloudinaryImage(`tour/${name}-dark.png`),
+    light: cloudinaryImage(`f_auto,q_auto/${name}-light`),
+    dark: cloudinaryImage(`f_auto,q_auto/${name}-dark`),
 });
 
 export const TOUR_IMAGES = {
