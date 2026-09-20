@@ -12,7 +12,7 @@ export function ThemeProvider({ children }) {
     const [theme, setThemeState] = useState(() => {
         const saved = localStorage.getItem('cc_theme');
         if (saved) return saved;
-        return 'light';
+        return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     });
 
     // Apply the class whenever theme changes — does NOT touch localStorage.

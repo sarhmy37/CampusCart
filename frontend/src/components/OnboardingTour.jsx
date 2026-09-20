@@ -1,49 +1,74 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, MessageCircle, MapPin, ShieldCheck, Gift, Package, Wallet } from 'lucide-react';
+import { Sparkles, MessageCircle, MapPin, ShieldCheck, Gift, Package, Wallet, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { TOUR_IMAGES } from '../data/media';
 
 /*
- * SCREENSHOTS
- * Put your app screenshots in  public/tour/  (full phone screenshots, PNG or JPG).
+ * SCREENSHOTS (Cloudinary)
+ * Upload each image with a Public ID like  tour/browse-light  and  tour/browse-dark.
  * The phone frame is drawn for you, so do NOT add a frame to the image.
  *
- * Each step's `shot` controls the crop, so you never have to edit the image itself:
- *   src:  path to the image, e.g. '/tour/browse.png'
  *   pos:  which part of the screenshot to show, 'x% y%'. '50% 0%' = top, '50% 100%' = bottom.
  *   zoom: 1 = whole width visible, 1.5 = zoomed in 50%, 2 = zoomed in 2x.
  * If an image is missing or fails to load, the step falls back to the big stamp.
  */
 
+const shot = (name, pos = '50% 30%', zoom = 1) => ({
+    ...TOUR_IMAGES[name],
+    pos,
+    zoom,
+});
+
 const SHOTS = {
-    browse:   { src: '/tour/browse.png',   pos: '50% 20%', zoom: 1 },
-    services: { src: '/tour/services.png', pos: '50% 30%', zoom: 1 },
-    pay:      { src: '/tour/pay.png',      pos: '50% 60%', zoom: 1 },
-    refer:    { src: '/tour/refer.png',    pos: '50% 30%', zoom: 1 },
-    list:     { src: '/tour/list.png',     pos: '50% 30%', zoom: 1 },
-    payout:   { src: '/tour/payout.png',   pos: '50% 30%', zoom: 1 },
+    browse:    shot('browse', '50% 20%'),
+    services:  shot('services', '50% 30%'),
+    pay:       shot('pay', '50% 60%'),
+    refer:     shot('refer', '50% 30%'),
+    list:      shot('list', '50% 30%'),
+    payout:    shot('payout', '50% 30%'),
+    dashboard: shot('dashboard', '50% 20%'),
+    chat:      shot('chat', '50% 50%'),
+};
+
+const ARRIVAL_STEP = {
+    icon: Sparkles,
+    stamp: 'Arrival',
+    title: (n) => `Welcome to Tre-X, ${n}`,
+    body: 'Tre-X is where students on your campus buy, sell and book services. This short tour collects stamps in your passport.',
+};
+
+const REFER_STEP = {
+    icon: Gift,
+    stamp: 'Refer',
+    shot: SHOTS.refer,
+    title: () => 'Bring a friend, save on a plan',
+    body: 'Share your referral code. Each friend who signs up gives you 25% off Pro or Premium for 24 hours, plus 12 more hours for every extra friend.',
 };
 
 const BUYER_STEPS = [
-    {
-        icon: Sparkles,
-        stamp: 'Arrival',
-        title: (n) => `Welcome to Tre-X, ${n}`,
-        body: 'Tre-X is where students on your campus buy, sell and book services. This short tour collects five stamps in your passport.',
-    },
+    ARRIVAL_STEP,
     {
         icon: MessageCircle,
         stamp: 'Browse',
         shot: SHOTS.browse,
         title: () => 'Find it, then ask about it',
-        body: 'Browse listings from verified students, save the ones you like, and message the seller before you meet.',
+        body: 'Browse listings from verified students and save the ones you like.',
     },
     {
         icon: MapPin,
         stamp: 'Services',
         shot: SHOTS.services,
-        title: () => 'Book a service, then follow the map',
-        body: 'Need a tutor, a haircut or a print job? Book a fellow student and track your way to the service point.',
+        title: () => 'Book and track from home',
+        body: 'Need a tutor, a haircut or a print job? Book a fellow student and track your service from the comfort of your home, then follow the map to the service point.',
+    },
+    {
+        icon: MessageCircle,
+        stamp: 'Chat',
+        shot: SHOTS.chat,
+        title: () => 'Chat with the seller first',
+        body: 'Message the seller before you meet to ask questions, agree on details and confirm the item.',
     },
     {
         icon: ShieldCheck,
@@ -52,17 +77,11 @@ const BUYER_STEPS = [
         title: () => 'Pay safely, confirm on delivery',
         body: 'Pay through Paystack. Confirm the order once you have your item, and that is when the seller gets paid.',
     },
-    {
-        icon: Gift,
-        stamp: 'Refer',
-        shot: SHOTS.refer,
-        title: () => 'Bring a friend, save on a plan',
-        body: 'Share your referral code. Each friend who signs up gives you 25% off Pro or Premium for 24 hours, plus 12 more hours for every extra friend.',
-    },
+    REFER_STEP,
 ];
 
 const SELLER_STEPS = [
-    BUYER_STEPS[0],
+    ARRIVAL_STEP,
     {
         icon: Package,
         stamp: 'List',
@@ -78,13 +97,27 @@ const SELLER_STEPS = [
         body: 'Students can book you and follow the map to your service point.',
     },
     {
+        icon: LayoutDashboard,
+        stamp: 'Dashboard',
+        shot: SHOTS.dashboard,
+        title: () => 'Manage everything in one place',
+        body: 'Your dashboard shows your listings, orders, sales and payouts, so you can view and manage your whole store from one screen.',
+    },
+    {
+        icon: MessageCircle,
+        stamp: 'Chat',
+        shot: SHOTS.chat,
+        title: () => 'Chat with your buyers',
+        body: 'Buyers message you before they order. Reply quickly to close more sales.',
+    },
+    {
         icon: Wallet,
         stamp: 'Payout',
         shot: SHOTS.payout,
         title: () => 'Get paid when buyers confirm',
         body: 'Earnings show in your Payouts tab. Request a withdrawal any time, and report it there if it does not arrive.',
     },
-    BUYER_STEPS[4],
+    REFER_STEP,
 ];
 
 const ROTATIONS = [-8, 6, -4, 9, -6];
@@ -131,12 +164,12 @@ function PhoneShot({ shot, apple, onError }) {
 
     return (
         <div
-    className="relative w-[190px] h-[236px]"
-    style={{
-        WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)',
-        maskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)',
-    }}
->
+            className="relative w-[190px] h-[236px]"
+            style={{
+                WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)',
+                maskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)',
+            }}
+        >
             <span className="absolute -left-[3px] top-[58px] w-[3px] h-6 rounded-l" style={{ background: btnLeft }} />
             <span className="absolute -left-[3px] top-[92px] w-[3px] h-10 rounded-l" style={{ background: btnLeft }} />
             <span className="absolute -right-[3px] top-[78px] w-[3px] h-14 rounded-r" style={{ background: btnRight }} />
@@ -212,6 +245,7 @@ function OldPhoneShot({ shot, apple, onError }) {
 
 export default function OnboardingTour() {
     const { user } = useAuth();
+    const { theme } = useTheme();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState(0);
@@ -221,6 +255,15 @@ export default function OnboardingTour() {
     const apple = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const steps = user?.account_type === 'seller' ? SELLER_STEPS : BUYER_STEPS;
     const isLast = step === steps.length - 1;
+
+    // Theme for the tour: the user's saved choice if there is one,
+    // otherwise their system theme. The tour applies its own `dark` class,
+    // so it looks right even before the rest of the app has caught up.
+    const systemDark =
+        typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    let hasSavedTheme = false;
+    try { hasSavedTheme = !!localStorage.getItem('cc_theme'); } catch { /* ignore */ }
+    const isDark = hasSavedTheme ? theme === 'dark' : systemDark;
 
     // Show once per user
     useEffect(() => {
@@ -287,18 +330,19 @@ export default function OnboardingTour() {
     const current = steps[step];
     const Icon = current.icon;
     const name = user.username || user.name || 'friend';
-    const showShot = !!current.shot && !failed[current.shot.src];
+    const shotSrc = current.shot ? (isDark ? current.shot.dark : current.shot.light) : null;
+    const showShot = !!shotSrc && !failed[shotSrc];
     const rot = `${ROTATIONS[step % ROTATIONS.length]}deg`;
 
     return (
         <div
-            className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center sm:p-4"
+            className={`${isDark ? 'dark ' : ''}fixed inset-0 z-[110] flex items-end sm:items-center justify-center sm:p-4`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="tour-title"
         >
             <style>{CSS}</style>
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm" />
 
             <div className="relative w-full sm:max-w-md max-h-[100dvh] overflow-y-auto bg-white dark:bg-ink-800 rounded-t-3xl sm:rounded-3xl shadow-2xl">
                 {/* Passport header */}
@@ -343,10 +387,10 @@ export default function OnboardingTour() {
                     <div className="flex items-end justify-center h-[240px] mt-4">
                         <div className="relative">
                             <PhoneShot
-                                key={step}
-                                shot={current.shot}
+                                key={`${step}-${isDark ? 'dark' : 'light'}`}
+                                shot={{ ...current.shot, src: shotSrc }}
                                 apple={apple}
-                                onError={() => setFailed((f) => ({ ...f, [current.shot.src]: true }))}
+                                onError={() => setFailed((f) => ({ ...f, [shotSrc]: true }))}
                             />
                             {/* The stamp lands on the corner of the phone */}
                             <div

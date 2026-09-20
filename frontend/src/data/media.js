@@ -99,6 +99,23 @@ export const FO00D = cloudinaryImage('foood.jpg');
 export const FAVICON = cloudinaryImage('favicon.svg');
 export const ICONS = cloudinaryImage('icons.svg');
 
+// ----- ONBOARDING TOUR (light + dark screenshot for each step) -----
+const tourShot = (name) => ({
+    light: cloudinaryImage(`tour/${name}-light.png`),
+    dark: cloudinaryImage(`tour/${name}-dark.png`),
+});
+
+export const TOUR_IMAGES = {
+    browse: tourShot('browse'),
+    services: tourShot('services'),
+    pay: tourShot('pay'),
+    refer: tourShot('refer'),
+    list: tourShot('list'),
+    payout: tourShot('payout'),
+    dashboard: tourShot('dashboard'),
+    chat: tourShot('chat'),
+};
+
 // ----- VIDEOS -----
 export const CART_VIDEO = cloudinaryVideo('Cart.mp4');
 export const DASHBOARD_VIDEO = cloudinaryVideo('Dashboard.mp4');
