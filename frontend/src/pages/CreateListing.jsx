@@ -32,6 +32,47 @@ const DEFAULT_MAP_CENTER = { lat: 6.6885, lng: -1.6244 };
 // place of work and needs to manually mark it instead of using GPS.
 function LocationPickerMap({ initialPosition, onConfirm, onCancel }) {
     const [position, setPosition] = useState(initialPosition || DEFAULT_MAP_CENTER);
+    const [searchText, setSearchText] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const searchDebounceRef = useRef(null);
+    const mapRef = useRef(null);
+
+    const runSearch = async (query) => {
+        if (!query.trim()) {
+            setSearchResults([]);
+            return;
+        }
+        setSearching(true);
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`,
+                { headers: { 'Accept-Language': 'en' } }
+            );
+            const data = await res.json();
+            setSearchResults(data || []);
+        } catch {
+            setSearchResults([]);
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    const handleSearchChange = (value) => {
+        setSearchText(value);
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => runSearch(value), 500);
+    };
+
+    const selectSearchResult = (result) => {
+        const next = { lat: parseFloat(result.lat), lng: parseFloat(result.lon) };
+        setPosition(next);
+        setSearchText(result.display_name);
+        setSearchResults([]);
+        if (mapRef.current) {
+            mapRef.current.flyTo([next.lat, next.lng], 17);
+        }
+    };
 
     useEffect(() => {
         const scrollY = window.scrollY;
@@ -71,14 +112,41 @@ function LocationPickerMap({ initialPosition, onConfirm, onCancel }) {
                 <div className="p-4 border-b border-slate-100 dark:border-ink-600">
                     <h3 className="font-bold text-slate-900 dark:text-gold-50 text-base">Set service location</h3>
                     <p className="text-xs text-slate-500 dark:text-gold-200/60 mt-1">
-                        Tap anywhere on the map to drop a pin at your actual place of work.
+                        Search for your place, or tap anywhere on the map to drop a pin precisely.
                     </p>
+                    <div className="relative mt-3">
+                        <input
+                            type="text"
+                            value={searchText}
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                            placeholder="e.g. Ayeduase Gate, KNUST"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 dark:bg-ink-700 dark:text-gold-50 focus:border-brand-500 dark:focus:border-gold-500 focus:ring-2 focus:ring-brand-100 dark:focus:ring-gold-900 focus:outline-none text-sm transition"
+                        />
+                        {searching && (
+                            <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-300/50 animate-spin" />
+                        )}
+                        {searchResults.length > 0 && (
+                            <div className="absolute z-10 mt-1.5 w-full bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                {searchResults.map((r) => (
+                                    <button
+                                        key={r.place_id}
+                                        type="button"
+                                        onClick={() => selectSearchResult(r)}
+                                        className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 dark:text-gold-100 hover:bg-slate-50 dark:hover:bg-ink-700 transition border-b border-slate-50 dark:border-ink-700 last:border-0"
+                                    >
+                                        {r.display_name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="h-80 sm:h-96">
                     <MapContainer
                         center={[position.lat, position.lng]}
                         zoom={16}
                         style={{ height: '100%', width: '100%' }}
+                        ref={mapRef}
                     >
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -234,6 +302,7 @@ export default function CreateListing() {
         WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' }))
     );
     const [serviceLocation, setServiceLocation] = useState(null); // { lat, lng }
+    const [locationSource, setLocationSource] = useState(null); // 'map' | 'gps' | null
     const [serviceDuration, setServiceDuration] = useState(60); // minutes per booking
     const [locatingService, setLocatingService] = useState(false);
     const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -251,6 +320,7 @@ export default function CreateListing() {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 setServiceLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocationSource('gps');
                 setLocatingService(false);
                 toast.success('Location captured');
             },
@@ -1322,30 +1392,34 @@ export default function CreateListing() {
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowLocationPicker(true)}
-                                                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition"
-                                            >
-                                                <MapIcon size={15} /> Set on map
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={captureServiceLocation}
-                                                disabled={locatingService}
-                                                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold text-center leading-tight transition disabled:opacity-60 ${
-                                                    serviceLocation
-                                                        ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
-                                                        : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-50 dark:hover:bg-ink-700'
-                                                }`}
-                                            >
-                                                {locatingService ? (
-                                                    <Loader2 size={15} className="shrink-0 animate-spin" />
-                                                ) : (
-                                                    <MapPin size={15} className="shrink-0" />
-                                                )}
-                                                <span>{locatingService ? 'Getting…' : 'Use current location'}</span>
-                                            </button>
+                            <button
+                            type="button"
+                            onClick={() => setShowLocationPicker(true)}
+                            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                                locationSource === 'map'
+                                    ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                                    : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-50 dark:hover:bg-ink-700'
+                            }`}
+                        >
+                            <MapIcon size={15} /> Set on map
+                        </button>
+                        <button
+                            type="button"
+                            onClick={captureServiceLocation}
+                            disabled={locatingService}
+                            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold text-center leading-tight transition disabled:opacity-60 ${
+                                locationSource === 'gps'
+                                    ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                                    : 'border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 hover:bg-slate-50 dark:hover:bg-ink-700'
+                            }`}
+                        >
+                            {locatingService ? (
+                                <Loader2 size={15} className="shrink-0 animate-spin" />
+                            ) : (
+                                <MapPin size={15} className="shrink-0" />
+                            )}
+                            <span>{locatingService ? 'Getting…' : 'Use current location'}</span>
+                        </button>
                                         </div>
 
                                         {serviceLocation && (
@@ -1414,6 +1488,7 @@ export default function CreateListing() {
                     initialPosition={serviceLocation || pickerDefaultCenter}
                     onConfirm={(pos) => {
                         setServiceLocation(pos);
+                        setLocationSource('map');
                         setShowLocationPicker(false);
                         toast.success('Location set');
                     }}
