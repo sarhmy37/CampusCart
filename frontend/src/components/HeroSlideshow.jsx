@@ -31,18 +31,18 @@ export default function HeroSlideshow({ images, interval = 5000 }) {
         const msIntoCurrentSlide = (Date.now() - EPOCH) % interval;
         const msUntilNextSlide = interval - msIntoCurrentSlide;
 
+              let innerTimer = null;
+
         const alignTimeout = setTimeout(() => {
             setIndex(computeIndex(images.length, interval));
-            const timer = setInterval(() => {
+            innerTimer = setInterval(() => {
                 setIndex(computeIndex(images.length, interval));
             }, interval);
-            // Stash so the outer cleanup below can clear it too
-            alignTimeout.__innerTimer = timer;
         }, msUntilNextSlide);
 
         return () => {
             clearTimeout(alignTimeout);
-            if (alignTimeout.__innerTimer) clearInterval(alignTimeout.__innerTimer);
+            if (innerTimer) clearInterval(innerTimer);
         };
     }, [images.length, interval]);
 
