@@ -28,6 +28,23 @@ export default function Settings() {
         toast.success('Referral link copied');
     };
     const { theme, toggleTheme } = useTheme();
+    const [nowTs, setNowTs] = useState(Date.now());
+    const discountExpiry = user?.plan_discount_expires_at
+        ? new Date(user.plan_discount_expires_at).getTime()
+        : 0;
+    const discountActive = discountExpiry > nowTs;
+    useEffect(() => {
+        if (!discountActive) return;
+        const t = setInterval(() => setNowTs(Date.now()), 1000);
+        return () => clearInterval(t);
+    }, [discountActive]);
+    const formatCountdown = (ms) => {
+        const s = Math.max(0, Math.floor(ms / 1000));
+        const h = String(Math.floor(s / 3600)).padStart(2, '0');
+        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        const sec = String(s % 60).padStart(2, '0');
+        return `${h}:${m}:${sec}`;
+    };
     const isSeller = user?.account_type === 'seller';
     const isPlanActive = user?.plan && user.plan !== 'free' &&
         user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
@@ -916,22 +933,22 @@ export default function Settings() {
                         </div>
                         <h2 className="font-bold text-slate-900 dark:text-gold-50">Refer a friend</h2>
                     </div>
-                   <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
-                        Get GHS 10 credit toward your platform fees for every friend who signs up with your link and completes their first order.
+                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mb-4">
+                        When a friend signs up with your link, you get 25% off Pro and Premium for 24 hours. Every extra friend adds 12 more hours.
                     </p>
 
-                    {user?.credit_balance > 0 && (
-                        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-3 mb-4">
-                            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-                                GHS {parseFloat(user.credit_balance).toFixed(2)} credit available
+                    {discountActive && (
+                        <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 mb-4">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                                25% off Pro and Premium is active
                             </p>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400/70 mt-0.5">
-                                Automatically applied to your next platform fee bill.
+                            <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-0.5">
+                                Ends in {formatCountdown(discountExpiry - nowTs)}. Each new friend adds 12 hours.
                             </p>
                         </div>
                     )}
 
-                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <input
                             readOnly
                             value={referralLink}
@@ -948,29 +965,19 @@ export default function Settings() {
                     {referrals.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-ink-600 space-y-2">
                             <p className="text-xs font-semibold text-slate-500 dark:text-gold-300/60 uppercase tracking-wide">
-                                Your referrals ({referrals.length})
+                                Friends you referred ({referrals.length})
                             </p>
                             {referrals.map((r, i) => (
-    <div key={i} className="flex items-center justify-between text-sm">
-        <div>
-            <span className="font-medium text-slate-700 dark:text-gold-100">{r.name}</span>
-            <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                r.verified
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                    : 'bg-amber-50 dark:bg-gold-900/40 text-amber-700 dark:text-gold-400'
-            }`}>
-                {r.verified ? 'Earned credit' : 'No order yet'}
-            </span>
-        </div>
-        <span className="text-xs font-semibold text-brand-700 dark:text-gold-400">
-            {r.verified ? `+GHS ${parseFloat(r.credit_earned).toFixed(2)}` : '—'}
-        </span>
-    </div>
-))}
+                                <div key={i} className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-slate-700 dark:text-gold-100">{r.name}</span>
+                                    <span className="text-xs text-slate-400 dark:text-gold-200/50">
+                                        Joined {new Date(r.joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
-
                 {/* DANGER ZONE */}
                 <div className="bg-white dark:bg-ink-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-2">
