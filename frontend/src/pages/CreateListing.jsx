@@ -33,6 +33,28 @@ const DEFAULT_MAP_CENTER = { lat: 6.6885, lng: -1.6244 };
 function LocationPickerMap({ initialPosition, onConfirm, onCancel }) {
     const [position, setPosition] = useState(initialPosition || DEFAULT_MAP_CENTER);
 
+    useEffect(() => {
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+        document.body.style.touchAction = 'none';
+        document.documentElement.style.overscrollBehavior = 'none';
+        return () => {
+            const y = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (y) window.scrollTo(0, parseInt(y || '0') * -1);
+        };
+    }, []);
+
     function ClickCapture() {
         useMapEvents({
             click(e) {
@@ -176,6 +198,29 @@ export default function CreateListing() {
     const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showDeliveryWarning, setShowDeliveryWarning] = useState(false);
+
+    useEffect(() => {
+        if (!showDeliveryWarning) return;
+        const scrollY = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+        document.body.style.touchAction = 'none';
+        document.documentElement.style.overscrollBehavior = 'none';
+        return () => {
+            const y = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.overflow = '';
+            document.body.style.touchAction = '';
+            document.documentElement.style.overscrollBehavior = '';
+            if (y) window.scrollTo(0, parseInt(y || '0') * -1);
+        };
+    }, [showDeliveryWarning]);
 
     // ─── SERVICE PROVISION STATE ──────────────────────────────────────────
     const [serviceForm, setServiceForm] = useState({
@@ -1197,51 +1242,59 @@ export default function CreateListing() {
                                             <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Working hours</label>
                                         </div>
 
-                                        {!is247 && (
-                                            <div className="space-y-2">
-                                                {workingDays.map((d) => (
-                                                    <div key={d.day} className="flex items-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleWorkingDay(d.day)}
-                                                            className={`w-14 shrink-0 text-xs font-semibold py-2 rounded-lg border transition ${
-                                                                d.enabled
-                                                                    ? 'bg-brand-600 dark:bg-gold-500 border-brand-600 dark:border-gold-500 text-white dark:text-ink-900'
-                                                                    : 'bg-white dark:bg-ink-800 border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-300/50'
-                                                            }`}
-                                                        >
-                                                            {d.day}
-                                                        </button>
+                                        {!is247 && (() => {
+                                            const midpoint = Math.ceil(workingDays.length / 2);
+                                            const leftDays = workingDays.slice(0, midpoint);
+                                            const rightDays = workingDays.slice(midpoint);
 
-                                                        {d.enabled ? (
-                                                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                                                <select
-                                                                    value={d.open}
-                                                                    onChange={(e) => updateWorkingDayTime(d.day, 'open', e.target.value)}
-                                                                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 text-xs focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none appearance-none"
-                                                                >
-                                                                    {TIME_OPTIONS.map((t) => (
-                                                                        <option key={t.value} value={t.value}>{t.label}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <span className="text-xs text-slate-400 dark:text-gold-200/40 shrink-0">to</span>
-                                                                <select
-                                                                    value={d.close}
-                                                                    onChange={(e) => updateWorkingDayTime(d.day, 'close', e.target.value)}
-                                                                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 text-xs focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none appearance-none"
-                                                                >
-                                                                    {TIME_OPTIONS.map((t) => (
-                                                                        <option key={t.value} value={t.value}>{t.label}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="flex-1 text-xs text-slate-300 dark:text-gold-300/30">Closed</span>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                            const renderDayRow = (d) => (
+                                                <div key={d.day} className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleWorkingDay(d.day)}
+                                                        className={`w-14 shrink-0 text-xs font-semibold py-2 rounded-lg border transition ${
+                                                            d.enabled
+                                                                ? 'bg-brand-600 dark:bg-gold-500 border-brand-600 dark:border-gold-500 text-white dark:text-ink-900'
+                                                                : 'bg-white dark:bg-ink-800 border-slate-200 dark:border-ink-600 text-slate-400 dark:text-gold-300/50'
+                                                        }`}
+                                                    >
+                                                        {d.day}
+                                                    </button>
+
+                                                    {d.enabled ? (
+                                                        <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                                            <select
+                                                                value={d.open}
+                                                                onChange={(e) => updateWorkingDayTime(d.day, 'open', e.target.value)}
+                                                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 text-[11px] focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none appearance-none"
+                                                            >
+                                                                {TIME_OPTIONS.map((t) => (
+                                                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                                                ))}
+                                                            </select>
+                                                            <select
+                                                                value={d.close}
+                                                                onChange={(e) => updateWorkingDayTime(d.day, 'close', e.target.value)}
+                                                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-ink-600 dark:bg-ink-800 dark:text-gold-50 text-[11px] focus:border-brand-500 dark:focus:border-gold-500 focus:outline-none appearance-none"
+                                                            >
+                                                                {TIME_OPTIONS.map((t) => (
+                                                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="flex-1 text-xs text-slate-300 dark:text-gold-300/30">Closed</span>
+                                                    )}
+                                                </div>
+                                            );
+
+                                            return (
+                                                <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                                                    <div className="space-y-2">{leftDays.map(renderDayRow)}</div>
+                                                    <div className="space-y-2">{rightDays.map(renderDayRow)}</div>
+                                                </div>
+                                            );
+                                        })()}
 
                                         <label className="flex items-center gap-2.5 mt-3 cursor-pointer">
                                             <input

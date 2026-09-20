@@ -1881,9 +1881,13 @@ function ListingItem({ product, isPlanActive, onEdit, onDelete, isService }) {
                         👁 {product.views_count ?? 0} views · {product.sold_count ?? 0} sold
                     </p>
                 ) : (
-                    <p className="text-[11px] text-brand-500 dark:text-gold-400 mt-0.5">
+                    <Link
+                        to="/"
+                        state={{ scrollToPricing: true }}
+                        className="text-[11px] text-brand-500 dark:text-gold-400 mt-0.5 hover:underline inline-block"
+                    >
                         Upgrade to Pro to see views & sales stats
-                    </p>
+                    </Link>
                 )}
             </div>
             {!isBoosted && (
