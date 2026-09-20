@@ -48,7 +48,8 @@ export default function App() {
   const [phase, setPhase] = useState('intro'); // 'intro' | 'onboarding' | 'app'
 
   const handleIntroFinish = () => {
-    const hasOnboarded = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+    const ALWAYS_SHOW_ONBOARDING = true; // set to false when you finish developing
+const hasOnboarded = !ALWAYS_SHOW_ONBOARDING && localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
     setPhase(hasOnboarded ? 'app' : 'onboarding');
   };
 
