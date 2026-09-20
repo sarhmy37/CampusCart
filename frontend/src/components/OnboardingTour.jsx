@@ -3,7 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles, MessageCircle, MapPin, ShieldCheck, Gift, Package, Wallet } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-// One stamp per step. Each stamp lands in the passport with a "thump".
+/*
+ * SCREENSHOTS
+ * Put your app screenshots in  public/tour/  (full phone screenshots, PNG or JPG).
+ * The phone frame is drawn for you, so do NOT add a frame to the image.
+ *
+ * Each step's `shot` controls the crop, so you never have to edit the image itself:
+ *   src:  path to the image, e.g. '/tour/browse.png'
+ *   pos:  which part of the screenshot to show, 'x% y%'. '50% 0%' = top, '50% 100%' = bottom.
+ *   zoom: 1 = whole width visible, 1.5 = zoomed in 50%, 2 = zoomed in 2x.
+ * If an image is missing or fails to load, the step falls back to the big stamp.
+ */
+
+const SHOTS = {
+    browse:   { src: '/tour/browse.png',   pos: '50% 20%', zoom: 1 },
+    services: { src: '/tour/services.png', pos: '50% 30%', zoom: 1 },
+    pay:      { src: '/tour/pay.png',      pos: '50% 60%', zoom: 1 },
+    refer:    { src: '/tour/refer.png',    pos: '50% 30%', zoom: 1 },
+    list:     { src: '/tour/list.png',     pos: '50% 30%', zoom: 1 },
+    payout:   { src: '/tour/payout.png',   pos: '50% 30%', zoom: 1 },
+};
+
 const BUYER_STEPS = [
     {
         icon: Sparkles,
@@ -14,24 +34,28 @@ const BUYER_STEPS = [
     {
         icon: MessageCircle,
         stamp: 'Browse',
+        shot: SHOTS.browse,
         title: () => 'Find it, then ask about it',
         body: 'Browse listings from verified students, save the ones you like, and message the seller before you meet.',
     },
     {
         icon: MapPin,
         stamp: 'Services',
+        shot: SHOTS.services,
         title: () => 'Book a service, then follow the map',
         body: 'Need a tutor, a haircut or a print job? Book a fellow student and track your way to the service point.',
     },
     {
         icon: ShieldCheck,
         stamp: 'Pay',
+        shot: SHOTS.pay,
         title: () => 'Pay safely, confirm on delivery',
         body: 'Pay through Paystack. Confirm the order once you have your item, and that is when the seller gets paid.',
     },
     {
         icon: Gift,
         stamp: 'Refer',
+        shot: SHOTS.refer,
         title: () => 'Bring a friend, save on a plan',
         body: 'Share your referral code. Each friend who signs up gives you 25% off Pro or Premium for 24 hours, plus 12 more hours for every extra friend.',
     },
@@ -42,18 +66,21 @@ const SELLER_STEPS = [
     {
         icon: Package,
         stamp: 'List',
+        shot: SHOTS.list,
         title: () => 'List an item in a minute',
         body: 'Add photos and a price, then set your delivery fee for on, near and far campus.',
     },
     {
         icon: MapPin,
         stamp: 'Services',
+        shot: SHOTS.services,
         title: () => 'Offer a service too',
         body: 'Students can book you and follow the map to your service point.',
     },
     {
         icon: Wallet,
         stamp: 'Payout',
+        shot: SHOTS.payout,
         title: () => 'Get paid when buyers confirm',
         body: 'Earnings show in your Payouts tab. Request a withdrawal any time, and report it there if it does not arrive.',
     },
@@ -75,7 +102,7 @@ const CSS = `
     56%     { transform: scale(1); opacity: 0.5; }
     100%    { transform: scale(1.7); opacity: 0; }
 }
-.tx-stamp { position: relative; animation: txStampThump 520ms cubic-bezier(.2,.9,.3,1) both; }
+.tx-stamp { animation: txStampThump 520ms cubic-bezier(.2,.9,.3,1) both; }
 .tx-stamp::after {
     content: ''; position: absolute; inset: 0; border-radius: 9999px;
     border: 2px solid currentColor; pointer-events: none;
@@ -86,13 +113,42 @@ const CSS = `
 }
 `;
 
+// Phone frame showing a cropped part of an app screenshot.
+function PhoneShot({ shot, apple, onError }) {
+    const pos = shot.pos || '50% 0%';
+    return (
+        <div className="relative w-[190px] h-[230px] overflow-hidden rounded-t-[34px] border-[7px] border-b-0 border-slate-900 dark:border-slate-600 bg-slate-900 shadow-xl">
+            <img
+                src={shot.src}
+                alt=""
+                draggable={false}
+                onError={onError}
+                className="w-full h-full object-cover select-none"
+                style={{
+                    objectPosition: pos,
+                    transform: `scale(${shot.zoom || 1})`,
+                    transformOrigin: pos,
+                }}
+            />
+            {apple ? (
+                <span className="absolute top-1.5 left-1/2 -translate-x-1/2 w-14 h-4 rounded-full bg-black" />
+            ) : (
+                <span className="absolute top-2 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-black" />
+            )}
+            <span className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white dark:from-ink-800 to-transparent pointer-events-none" />
+        </div>
+    );
+}
+
 export default function OnboardingTour() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState(0);
+    const [failed, setFailed] = useState({});
     const nextRef = useRef(null);
 
+    const apple = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const steps = user?.account_type === 'seller' ? SELLER_STEPS : BUYER_STEPS;
     const isLast = step === steps.length - 1;
 
@@ -161,6 +217,8 @@ export default function OnboardingTour() {
     const current = steps[step];
     const Icon = current.icon;
     const name = user.username || user.name || 'friend';
+    const showShot = !!current.shot && !failed[current.shot.src];
+    const rot = `${ROTATIONS[step % ROTATIONS.length]}deg`;
 
     return (
         <div
@@ -210,18 +268,40 @@ export default function OnboardingTour() {
                 </div>
                 <p className="sr-only">Stamp {step + 1} of {steps.length}</p>
 
-                {/* The big stamp: the one memorable moment */}
-                <div className="flex items-center justify-center h-40 mt-2">
-                    <div
-                        key={step}
-                        className="tx-stamp w-28 h-28 rounded-full border-[3px] border-current text-brand-600 dark:text-gold-400 flex flex-col items-center justify-center"
-                        style={{ '--rot': `${ROTATIONS[step % ROTATIONS.length]}deg` }}
-                    >
-                        <span className="absolute inset-2 rounded-full border border-dashed border-current opacity-60" />
-                        <Icon size={34} strokeWidth={2.2} />
-                        <span className="text-[11px] font-bold mt-1 tracking-wide">{current.stamp}</span>
+                {/* Visual area */}
+                {showShot ? (
+                    <div className="flex items-end justify-center h-[240px] mt-4">
+                        <div className="relative">
+                            <PhoneShot
+                                key={step}
+                                shot={current.shot}
+                                apple={apple}
+                                onError={() => setFailed((f) => ({ ...f, [current.shot.src]: true }))}
+                            />
+                            {/* The stamp lands on the corner of the phone */}
+                            <div
+                                key={`stamp-${step}`}
+                                className="tx-stamp absolute -right-9 bottom-3 w-16 h-16 rounded-full border-[3px] border-current text-brand-600 dark:text-gold-400 bg-white dark:bg-ink-800 flex flex-col items-center justify-center"
+                                style={{ '--rot': rot }}
+                            >
+                                <Icon size={20} strokeWidth={2.2} />
+                                <span className="text-[9px] font-bold mt-0.5">{current.stamp}</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="flex items-center justify-center h-40 mt-2">
+                        <div
+                            key={step}
+                            className="tx-stamp relative w-28 h-28 rounded-full border-[3px] border-current text-brand-600 dark:text-gold-400 flex flex-col items-center justify-center"
+                            style={{ '--rot': rot }}
+                        >
+                            <span className="absolute inset-2 rounded-full border border-dashed border-current opacity-60" />
+                            <Icon size={34} strokeWidth={2.2} />
+                            <span className="text-[11px] font-bold mt-1 tracking-wide">{current.stamp}</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* Copy */}
                 <div className="px-6 pt-2 pb-5 text-center">

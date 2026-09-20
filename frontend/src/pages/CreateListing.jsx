@@ -126,7 +126,7 @@ function LocationPickerMap({ initialPosition, onConfirm, onCancel }) {
                             <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gold-300/50 animate-spin" />
                         )}
                         {searchResults.length > 0 && (
-                            <div className="absolute z-10 mt-1.5 w-full bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                            <div className="absolute z-[1000] mt-1.5 w-full bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                                 {searchResults.map((r) => (
                                     <button
                                         key={r.place_id}
@@ -141,7 +141,7 @@ function LocationPickerMap({ initialPosition, onConfirm, onCancel }) {
                         )}
                     </div>
                 </div>
-                <div className="h-80 sm:h-96">
+                <div className="h-80 sm:h-96 relative z-0 isolate">
                     <MapContainer
                         center={[position.lat, position.lng]}
                         zoom={16}
