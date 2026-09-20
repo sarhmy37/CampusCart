@@ -130,7 +130,13 @@ function PhoneShot({ shot, apple, onError }) {
         : 'linear-gradient(270deg, #1d1f22, #55595f)';
 
     return (
-        <div className="relative w-[190px] h-[236px]">
+        <div
+    className="relative w-[190px] h-[236px]"
+    style={{
+        WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)',
+        maskImage: 'linear-gradient(to bottom, #000 55%, transparent 100%)',
+    }}
+>
             <span className="absolute -left-[3px] top-[58px] w-[3px] h-6 rounded-l" style={{ background: btnLeft }} />
             <span className="absolute -left-[3px] top-[92px] w-[3px] h-10 rounded-l" style={{ background: btnLeft }} />
             <span className="absolute -right-[3px] top-[78px] w-[3px] h-14 rounded-r" style={{ background: btnRight }} />
