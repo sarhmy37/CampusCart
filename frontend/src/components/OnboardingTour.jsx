@@ -300,9 +300,9 @@ export default function OnboardingTour() {
             <style>{CSS}</style>
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
 
-            <div className="relative w-full sm:max-w-md bg-white dark:bg-ink-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+            <div className="relative w-full sm:max-w-md max-h-[100dvh] overflow-y-auto bg-white dark:bg-ink-800 rounded-t-3xl sm:rounded-3xl shadow-2xl">
                 {/* Passport header */}
-                <div className="flex items-center justify-between px-5 pt-4">
+                <div className="flex items-center justify-between px-5 pt-[max(1rem,env(safe-area-inset-top))]">
                     <p className="text-xs font-semibold text-slate-500 dark:text-gold-200/60 truncate pr-3">
                         Campus passport of {name}
                     </p>
@@ -387,7 +387,7 @@ export default function OnboardingTour() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 px-5 pb-5">
+                <div className="flex gap-2 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                     {step > 0 && (
                         <button
                             onClick={back}

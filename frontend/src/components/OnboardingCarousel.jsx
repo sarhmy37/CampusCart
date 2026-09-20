@@ -96,7 +96,7 @@ export default function OnboardingCarousel({ onFinish }) {
 
             {/* Skip */}
             {!isLast && (
-                <div className="flex justify-end p-5 relative z-10">
+                <div className="flex justify-end px-5 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] relative z-10">
                     <button
                         onClick={finish}
                         className="text-sm font-semibold text-white/80 hover:text-white transition"
@@ -170,7 +170,7 @@ export default function OnboardingCarousel({ onFinish }) {
                 )}
             </div>
 
-            <div className="px-8 pb-10 relative z-10">
+              <div className="px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] relative z-10">
                 <div className="flex items-center justify-center gap-1.5 mb-5">
                     {SLIDES.map((_, i) => (
                         <span
