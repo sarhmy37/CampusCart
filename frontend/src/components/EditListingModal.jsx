@@ -403,9 +403,10 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                         )}
                     </div>
 
+                    <div className="grid grid-cols-2 gap-3">
                     <div>
                         <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Photos</label>
-                        <div className="grid grid-cols-4 gap-1.5 mt-1 w-full">
+                        <div className="grid grid-cols-3 gap-1.5 mt-1 w-full">
                             {previews.map((src, i) => (
                                 <div
                                     key={src + i}
@@ -419,20 +420,20 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                                     <img src={src} alt="" className="w-full h-full object-cover" />
                                     {photoMode === 'selecting-replace' && (
                                         <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
-                                            <RefreshCw size={16} className="text-white" />
+                                            <RefreshCw size={14} className="text-white" />
                                         </div>
                                     )}
                                     {photoMode !== 'selecting-replace' && (
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); removeImage(i); }}
-                                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 text-white flex items-center justify-center"
+                                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-slate-900/70 text-white flex items-center justify-center"
                                         >
-                                            <X size={12} />
+                                            <X size={10} />
                                         </button>
                                     )}
                                     {i === 0 && (
-                                        <span className="absolute bottom-1 left-1 bg-white/90 text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                                        <span className="absolute bottom-0.5 left-0.5 bg-white/90 text-[8px] font-semibold px-1 py-0.5 rounded">
                                             Cover
                                         </span>
                                     )}
@@ -440,30 +441,30 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                             ))}
                             {uploading && (
                                 <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-slate-50 dark:bg-ink-800 flex items-center justify-center">
-                                    <Loader2 className="w-6 h-6 text-brand-600 dark:text-gold-400 animate-spin" />
+                                    <Loader2 className="w-5 h-5 text-brand-600 dark:text-gold-400 animate-spin" />
                                 </div>
                             )}
                         </div>
-                        <p className="text-xs text-slate-400 dark:text-gold-200/40 mt-1.5">
+                        <p className="text-[10px] text-slate-400 dark:text-gold-200/40 mt-1">
                             Up to {MAX_IMAGES}. First is cover.
-                            {photoMode === 'selecting-replace' && ' Tap a photo above to replace it.'}
+                            {photoMode === 'selecting-replace' && ' Tap a photo to replace it.'}
                         </p>
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex gap-1 mt-1.5">
                             <button
                                 type="button"
                                 onClick={handleReplacePhotoClick}
                                 disabled={uploading || photoMode === 'selecting-replace'}
-                                className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                className="flex-1 py-1.5 rounded-lg bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-[10px] font-semibold transition disabled:opacity-60 flex items-center justify-center gap-1"
                             >
-                                <RefreshCw size={13} /> Replace
+                                <RefreshCw size={10} /> Replace
                             </button>
                             <button
                                 type="button"
                                 onClick={handleAddPhotoClick}
                                 disabled={uploading || imageUrls.length >= MAX_IMAGES}
-                                className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                className="flex-1 py-1.5 rounded-lg bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-[10px] font-semibold transition disabled:opacity-60 flex items-center justify-center gap-1"
                             >
-                                <ImagePlus size={13} /> Add
+                                <ImagePlus size={10} /> Add
                             </button>
                         </div>
                         <input
@@ -485,36 +486,36 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
 
                     <div>
                         <label className="text-sm font-semibold text-slate-700 dark:text-gold-200">Video</label>
-                        <div className="w-1/2 mt-1">
+                        <div className="w-[calc(33.333%-0.375rem)] mt-1">
                             {videoUploading ? (
                                 <div className="aspect-square rounded-xl border border-slate-200 dark:border-ink-600 bg-black flex items-center justify-center">
-                                    <Loader2 className="w-8 h-8 text-brand-600 dark:text-gold-400 animate-spin" />
+                                    <Loader2 className="w-6 h-6 text-brand-600 dark:text-gold-400 animate-spin" />
                                 </div>
                             ) : videoPreview ? (
                                 <video src={videoPreview} className="w-full aspect-square rounded-xl object-cover bg-black" muted playsInline />
                             ) : (
                                 <div className="aspect-square rounded-xl border border-dashed border-slate-300 dark:border-ink-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-gold-300/40">
-                                    <VideoIcon size={20} />
-                                    <span className="text-[10px] font-semibold">No video</span>
+                                    <VideoIcon size={16} />
+                                    <span className="text-[8px] font-semibold">No video</span>
                                 </div>
                             )}
                         </div>
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex gap-1 mt-1.5">
                             <button
                                 type="button"
                                 onClick={handleVideoButtonClick}
                                 disabled={videoUploading || !videoUrl}
-                                className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                className="flex-1 py-1.5 rounded-lg bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-[10px] font-semibold transition disabled:opacity-60 flex items-center justify-center gap-1"
                             >
-                                <RefreshCw size={13} /> Replace
+                                <RefreshCw size={10} /> Replace
                             </button>
                             <button
                                 type="button"
                                 onClick={handleVideoButtonClick}
                                 disabled={videoUploading || !!videoUrl}
-                                className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-ink-600 text-slate-600 dark:text-gold-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-ink-700 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                className="flex-1 py-1.5 rounded-lg bg-brand-600 dark:bg-gold-500 hover:bg-brand-700 dark:hover:bg-gold-400 text-white dark:text-ink-900 text-[10px] font-semibold transition disabled:opacity-60 flex items-center justify-center gap-1"
                             >
-                                <VideoIcon size={13} /> Add
+                                <VideoIcon size={10} /> Add
                             </button>
                         </div>
                         <input
@@ -524,6 +525,7 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
                             onChange={handleVideoFileSelected}
                             className="hidden"
                         />
+                    </div>
                     </div>
 
                     <div className="bg-slate-50 dark:bg-ink-700/50 rounded-xl p-3 border border-slate-200/50 dark:border-ink-600/50">
