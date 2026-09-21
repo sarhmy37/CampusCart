@@ -1371,7 +1371,7 @@ function PayoutSettings({ period }) {
             </div>
 
                         <div className="bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600 rounded-2xl p-6">
-                <div className="flex gap-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit mb-4">
+                <div className="flex gap-1 bg-slate-100 dark:bg-ink-700 p-1 rounded-xl w-fit mx-auto mb-4">
                     <button
                         onClick={() => setWithdrawalsTab('requests')}
                         className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
