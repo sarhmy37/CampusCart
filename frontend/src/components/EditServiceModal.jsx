@@ -110,25 +110,8 @@ export default function EditServiceModal({ product, open, onClose, onSaved }) {
     const [showLocationPicker, setShowLocationPicker] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    // Parse the existing service's schedule/location (stored as JSON in
-    // service_duration) back into editable state whenever the modal opens
-    // for a given product.
-    useEffect(() => {
-        if (!product) return;
-        setForm({
-            title: product.title || '',
-            description: product.description || '',
-            price: product.price || '',
-            priceMax: product.price_max || '',
-        });
-
-        let schedule = {};
-        try {
-            schedule = product.service_duration ? JSON.parse(product.service_duration) : {};
-        } catch {
-            schedule = {};
-        }
-
+    // Turns a parsed schedule object into working-day/location state.
+    const applySchedule = (schedule) => {
         setIs247(!!schedule.is_24_7);
         if (Array.isArray(schedule.days) && schedule.days.length > 0) {
             setWorkingDays(
@@ -148,6 +131,46 @@ export default function EditServiceModal({ product, open, onClose, onSaved }) {
         } else {
             setLocation(null);
         }
+    };
+
+    const parseSchedule = (raw) => {
+        try {
+            return raw ? JSON.parse(raw) : {};
+        } catch {
+            return {};
+        }
+    };
+
+    // Quick paint from whatever the Dashboard list already gave us (title,
+    // price range), then fetch the full record below — the /products/mine
+    // list the Dashboard uses never includes description, service_duration
+    // (the saved working hours + location), or price_max, so without this
+    // fetch those always reset to blank/default when editing.
+    useEffect(() => {
+        if (!product) return;
+        setForm({
+            title: product.title || '',
+            description: product.description || '',
+            price: product.price || '',
+            priceMax: product.price_max || '',
+        });
+        applySchedule(parseSchedule(product.service_duration));
+
+        if (!product.id) return;
+        api.get(`/products/${product.id}`)
+            .then((res) => {
+                const data = res.data;
+                setForm({
+                    title: data.title || '',
+                    description: data.description || '',
+                    price: data.price || '',
+                    priceMax: data.price_max || '',
+                });
+                applySchedule(parseSchedule(data.service_duration));
+            })
+            .catch(() => {
+                // Keep what we already parsed from the list item above.
+            });
     }, [product]);
 
     const toggleWorkingDay = (day) => {
