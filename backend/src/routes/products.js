@@ -387,6 +387,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const {
         title, description, price, condition, category, stock,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
+        images, video_url,
     } = req.body;
 
     try {
@@ -396,6 +397,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
         if (product.seller_id !== req.userId) {
             return res.status(403).json({ error: "You can't edit someone else's listing" });
         }
+
+        // images is optional — only replace the gallery/primary image when the
+        // client actually sent a non-empty array (so edits that don't touch
+        // photos leave the existing gallery untouched).
+        const hasImageUpdate = Array.isArray(images) && images.length > 0;
+        const primaryImage = hasImageUpdate ? images[0] : undefined;
 
         // Restocking (0 or below -> positive) starts a fresh early-access window,
         // same as a brand-new listing, so Pro/Premium buyers see it first.
@@ -425,12 +432,24 @@ router.patch('/:id', requireAuth, async (req, res) => {
                 delivery_fee_on_campus = COALESCE($7, delivery_fee_on_campus),
                 delivery_fee_near_campus = COALESCE($8, delivery_fee_near_campus),
                 delivery_fee_far_campus = COALESCE($9, delivery_fee_far_campus),
+                primary_image = COALESCE($12, primary_image),
+                video_url = COALESCE($13, video_url),
                 restocked_at = CASE WHEN $11 THEN now() ELSE restocked_at END
              WHERE id = $10
              RETURNING *`,
             [title, description, price, condition, stock, categoryId,
-             feeOnCampus, feeNearCampus, feeFarCampus, req.params.id, isRestock]
+             feeOnCampus, feeNearCampus, feeFarCampus, req.params.id, isRestock, primaryImage, video_url]
         );
+
+        if (hasImageUpdate) {
+            await pool.query('DELETE FROM product_images WHERE product_id = $1', [req.params.id]);
+            for (let i = 0; i < images.length; i++) {
+                await pool.query(
+                    'INSERT INTO product_images (product_id, image_url, sort_order) VALUES ($1, $2, $3)',
+                    [req.params.id, images[i], i]
+                );
+            }
+        }
 
         res.json(result.rows[0]);
     } catch (err) {
