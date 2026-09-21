@@ -49,10 +49,10 @@ export default defineConfig({
         ],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/res\.cloudinary\.com\/.*/i,
+            urlPattern: /^https:\/\/cdn\.sanity\.io\/images\/.*/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'cloudinary-images',
+              cacheName: 'sanity-images',
               expiration: {
                 maxEntries: 200,
                 maxAgeSeconds: 60 * 60 * 24 * 30

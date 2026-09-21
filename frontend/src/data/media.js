@@ -1,24 +1,38 @@
-// Central place for all static site imagery/video, now served from Cloudinary.
-// Change CLOUD_NAME if you use a different Cloudinary account.
+// Central place for all static site imagery/video.
+// Each file uses its Sanity URL when it has been uploaded (sanity-urls.json, written by
+// trex-upload/upload.js). If a file isn't in there yet, it falls back to the old Cloudinary
+// URL, which still serves the files that were uploaded before the account was deactivated.
+import urls from './sanity-urls.json';
+
 const CLOUD_NAME = 'b7fch4rp';
 
-// Helper to generate Cloudinary Image URLs
-function cloudinaryImage(filename) {
-    // No cache-busting param — letting the URL stay stable lets the browser
-    // actually cache these between visits instead of re-downloading every load.
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${filename}`;
+const cloudinaryImage = (path) => `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/${path}`;
+const cloudinaryVideo = (path) => `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/${path}`;
+
+// Sanity first, Cloudinary as the fallback.
+function sanityImage(filename) {
+    const url = urls[filename];
+    if (!url) return cloudinaryImage(filename);
+    return /\.svg$/i.test(filename) ? url : `${url}?auto=format`;
 }
 
-// Helper to generate Cloudinary Video URLs — FIXED: removed /v1/
-function cloudinaryVideo(filename) {
-    return `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/${filename}`;
+function sanityVideo(filename) {
+    return urls[filename] || cloudinaryVideo(filename);
+}
+
+// Tour screenshots may be .jpg, .jpeg or .png, so match by name without the extension.
+// Not in Sanity yet -> old Cloudinary path. If neither has it, the tour shows the big stamp.
+function tourImage(base) {
+    const key = Object.keys(urls).find((k) => k.replace(/\.[^.]+$/, '') === base);
+    if (key) return `${urls[key]}?auto=format`;
+    return cloudinaryImage(`f_auto,q_auto/${base}`);
 }
 
 // LOGOS
-export const LOGO_LIGHT = cloudinaryImage('logo-light.png'); // For Dark Mode
-export const LOGO_DARK = cloudinaryImage('logo-dark.png');   // For Light Mode
-export const LOGO_PRO = cloudinaryImage('logo-pro.png');
-export const LOGO_PREMIUM = cloudinaryImage('logo-premium.png');
+export const LOGO_LIGHT = sanityImage('logo-light.png'); // For Dark Mode
+export const LOGO_DARK = sanityImage('logo-dark.png');   // For Light Mode
+export const LOGO_PRO = sanityImage('logo-pro.png');
+export const LOGO_PREMIUM = sanityImage('logo-premium.png');
 
 // ----- IMAGES -----
 export const HERO_IMAGES = [
@@ -39,7 +53,7 @@ export const HERO_IMAGES = [
     'GCTU.jpg',
     'GIMPA.jpg',
     'UENR.jpg',
-].map(cloudinaryImage);
+].map(sanityImage);
 
 export const BROWSE_HEADER_IMAGES = [
     'Legon.jpg',
@@ -59,50 +73,50 @@ export const BROWSE_HEADER_IMAGES = [
     'GCTU.jpg',
     'GIMPA.jpg',
     'UENR.jpg',
-].map(cloudinaryImage);
+].map(sanityImage);
 
 export const GALLERY = [
     {
         label: 'Sneakers in all sizes',
-        images: ['Shoe.jpg', 'Shoe2.jpg', 'Shoe3.jpg', 'Shoe4.jpg'].map(cloudinaryImage),
-        video: cloudinaryVideo('Sneakers.mp4'),
+        images: ['Shoe.jpg', 'Shoe2.jpg', 'Shoe3.jpg', 'Shoe4.jpg'].map(sanityImage),
+        video: sanityVideo('Sneakers.mp4'),
     },
     {
         label: 'Meet up on campus',
-        images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg', 'Memen.jpg'].map(cloudinaryImage),
-        video: cloudinaryVideo('Meeting.mp4'),
+        images: ['MeetOnCampus.jpg', 'MeetOnCampus2.jpg', 'MeetOnCampus3.jpg', 'Memen.jpg'].map(sanityImage),
+        video: sanityVideo('Meeting.mp4'),
     },
     {
         label: 'Gadgets, gently used',
-        images: ['Gadget.jpg', 'Gadget2.jpg', 'Gadget3.jpg', 'Gadget4.jpg'].map(cloudinaryImage),
-        video: cloudinaryVideo('Gadjet.mp4'),
+        images: ['Gadget.jpg', 'Gadget2.jpg', 'Gadget3.jpg', 'Gadget4.jpg'].map(sanityImage),
+        video: sanityVideo('Gadjet.mp4'),
     },
     {
         label: 'Food',
-        images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg', 'Fufu.jpg'].map(cloudinaryImage),
-        video: cloudinaryVideo('Foodie.mp4'),
+        images: ['Waakye.jpg', 'Waakye2.jpg', 'Waakye3.jpg', 'Fufu.jpg'].map(sanityImage),
+        video: sanityVideo('Foodie.mp4'),
     },
 ];
 
-export const LOGIN_IMAGE = cloudinaryImage('login.jpg');
-export const REGISTER_IMAGE = cloudinaryImage('register.jpg');
-export const LOGIN_FORM_BG_LIGHT = cloudinaryImage('back-f.png');
-export const LOGIN_FORM_BG_DARK = cloudinaryImage('back-g.png');
-export const BALANCE_DARK_IMAGE = cloudinaryImage('dark_bala.jpg');
-export const BALANCE_LIGHT_IMAGE = cloudinaryImage('light_bala.jpg');
+export const LOGIN_IMAGE = sanityImage('login.jpg');
+export const REGISTER_IMAGE = sanityImage('register.jpg');
+export const LOGIN_FORM_BG_LIGHT = sanityImage('back-f.png');
+export const LOGIN_FORM_BG_DARK = sanityImage('back-g.png');
+export const BALANCE_DARK_IMAGE = sanityImage('dark_bala.jpg');
+export const BALANCE_LIGHT_IMAGE = sanityImage('light_bala.jpg');
 
 // Additional images used elsewhere
-export const SNEAKERS_2 = cloudinaryImage('Sneakers2.jpg');
-export const SNEAKERS_4 = cloudinaryImage('Sneakers4.jpg');
-export const MEET_ME = cloudinaryImage('meetme.jpg');
-export const FO00D = cloudinaryImage('foood.jpg');
-export const FAVICON = cloudinaryImage('favicon.svg');
-export const ICONS = cloudinaryImage('icons.svg');
+export const SNEAKERS_2 = sanityImage('Sneakers2.jpg');
+export const SNEAKERS_4 = sanityImage('Sneakers4.jpg');
+export const MEET_ME = sanityImage('meetme.jpg');
+export const FO00D = sanityImage('foood.jpg');
+export const FAVICON = sanityImage('favicon.svg');
+export const ICONS = sanityImage('icons.svg');
 
 // ----- ONBOARDING TOUR (light + dark screenshot for each step) -----
 const tourShot = (name) => ({
-    light: cloudinaryImage(`f_auto,q_auto/${name}-light`),
-    dark: cloudinaryImage(`f_auto,q_auto/${name}-dark`),
+    light: tourImage(`${name}-light`),
+    dark: tourImage(`${name}-dark`),
 });
 
 export const TOUR_IMAGES = {
@@ -117,15 +131,15 @@ export const TOUR_IMAGES = {
 };
 
 // ----- VIDEOS -----
-export const CART_VIDEO = cloudinaryVideo('Cart.mp4');
-export const DASHBOARD_VIDEO = cloudinaryVideo('Dashboard.mp4');
-export const CREATE_LISTING_VIDEO = cloudinaryVideo('create-listing-bg.mp4');
-export const FOODIE_VIDEO = cloudinaryVideo('Foodie.mp4');
-export const GADJET_VIDEO = cloudinaryVideo('Gadjet.mp4');
-export const MEETING_VIDEO = cloudinaryVideo('Meeting.mp4');
-export const SETTINGS_VIDEO = cloudinaryVideo('Settings.mp4');
-export const BENEFITS_VIDEO = cloudinaryVideo('bene-vid.mp4');
-export const SNEAKERS_VIDEO = cloudinaryVideo('Sneakers.mp4');
+export const CART_VIDEO = sanityVideo('Cart.mp4');
+export const DASHBOARD_VIDEO = sanityVideo('Dashboard.mp4');
+export const CREATE_LISTING_VIDEO = sanityVideo('create-listing-bg.mp4');
+export const FOODIE_VIDEO = sanityVideo('Foodie.mp4');
+export const GADJET_VIDEO = sanityVideo('Gadjet.mp4');
+export const MEETING_VIDEO = sanityVideo('Meeting.mp4');
+export const SETTINGS_VIDEO = sanityVideo('Settings.mp4');
+export const BENEFITS_VIDEO = sanityVideo('bene-vid.mp4');
+export const SNEAKERS_VIDEO = sanityVideo('Sneakers.mp4');
 
 // Images only — cheap enough to preload/precache in bulk without
 // exhausting the browser's connection pool.
@@ -141,7 +155,7 @@ export const PRELOAD_ASSETS = [
     MEET_ME,
     FO00D,
     LOGO_LIGHT,
-    LOGO_DARK
+    LOGO_DARK,
 ];
 
 // Videos are intentionally excluded from bulk preloading — each is several
@@ -161,14 +175,13 @@ export const PRELOAD_VIDEOS = [
     SNEAKERS_VIDEO,
 ];
 
-// Network logos (for Mobile Data picker) — e_trim strips the flat-color
-// padding baked into the source files. Actual box-fitting (which isn't a
-// fixed square — it's 1/3 of a button's width by its full height) is left
-// to object-cover in CSS, so we don't double-crop and risk clipping the logo.
-function cloudinaryNetworkLogo(filename) {
-    return `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/e_trim:10/${filename}`;
+// Network logos (for Mobile Data picker). Sanity has no e_trim, so once these are in
+// Sanity, crop any padded logo in the source file. Until then the Cloudinary fallback
+// keeps the trim.
+function networkLogo(filename) {
+    return urls[filename] ? `${urls[filename]}?auto=format` : cloudinaryImage(`e_trim:10/${filename}`);
 }
 
-export const MTN_LOGO = cloudinaryNetworkLogo('mtn.jpg');
-export const VODAFONE_LOGO = cloudinaryNetworkLogo('voda.png');
-export const AIRTELTIGO_LOGO = cloudinaryNetworkLogo('airtel.jpg');
+export const MTN_LOGO = networkLogo('mtn.jpg');
+export const VODAFONE_LOGO = networkLogo('voda.png');
+export const AIRTELTIGO_LOGO = networkLogo('airtel.jpg');

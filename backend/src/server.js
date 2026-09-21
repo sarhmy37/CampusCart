@@ -105,6 +105,8 @@ app.use('/api/locations', require('./routes/locations'));
 
 app.use('/api/categories', categoryRoutes);
 
+app.use('/api/uploads', require('./routes/uploads'));
+
 app.use('/api/admin/auth', adminAuthRoutes);
 
 app.use('/api/orders', orderRoutes);

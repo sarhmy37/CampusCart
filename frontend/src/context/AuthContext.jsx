@@ -85,25 +85,13 @@ export function AuthProvider({ children }) {
     };
 
     const uploadAvatar = async (file) => {
-        const CLOUD_NAME = 'b7fch4rp';
-        const UPLOAD_PRESET = 'campuscart_preset';
-
-        const formData = new FormData();
+                const formData = new FormData();
         formData.append('file', file);
-        formData.append('upload_preset', UPLOAD_PRESET);
-
-        const cloudRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: 'POST',
-            body: formData,
+        const uploadRes = await api.post('/uploads', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 120000,
         });
-
-        if (!cloudRes.ok) {
-            const error = await cloudRes.json();
-            throw new Error(error.error?.message || 'Avatar upload failed');
-        }
-
-        const cloudData = await cloudRes.json();
-        const avatarUrl = cloudData.secure_url;
+        const avatarUrl = uploadRes.data.url;
 
         const res = await api.patch('/auth/me', { avatar_url: avatarUrl });
         localStorage.setItem('cc_user', JSON.stringify(res.data));

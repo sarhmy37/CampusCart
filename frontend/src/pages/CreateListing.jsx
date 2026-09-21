@@ -211,8 +211,7 @@ const TIME_OPTIONS = generateTimeOptions();
 const DELIVERY_FEE_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1); // 1–50
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
-const CLOUD_NAME = 'b7fch4rp';
-const UPLOAD_PRESET = 'campuscart_preset';
+
 
 // Converts whole-number prices to charm pricing: 430 → 429.99.
 // Leaves prices that already have cents (e.g. 430.50) untouched.
@@ -225,20 +224,14 @@ const toCharmPrice = (value) => {
     return num.toFixed(2);
 };
 
-const uploadToCloudinary = async (file, resourceType) => {
+const uploadToCloudinary = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', UPLOAD_PRESET);
-
-    const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`;
-    const res = await fetch(url, { method: 'POST', body: formData });
-
-    if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error?.message || 'Upload failed');
-    }
-    const data = await res.json();
-    return data.secure_url;
+    const res = await api.post('/uploads', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+    });
+    return res.data.url;
 };
 
 export default function CreateListing() {
