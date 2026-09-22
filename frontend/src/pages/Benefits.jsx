@@ -85,6 +85,39 @@ export default function Benefits() {
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [cancelling, setCancelling] = useState(false);
 
+    // ── Scroll-linked header fade — same mechanism as Browse.jsx ──
+    const [headerScrollY, setHeaderScrollY] = useState(0);
+
+    useEffect(() => {
+        let raf = null;
+        const handleScroll = () => {
+            if (raf) return;
+            raf = requestAnimationFrame(() => {
+                setHeaderScrollY(window.scrollY);
+                raf = null;
+            });
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            if (raf) cancelAnimationFrame(raf);
+        };
+    }, []);
+
+    const HEADER_FADE_DISTANCE = 110;
+    const HEADER_OPACITY_DISTANCE = 110;
+    const headerMaskProgress = Math.min(headerScrollY / HEADER_FADE_DISTANCE, 1);
+    const headerOpacityProgress = Math.min(
+        Math.max((headerScrollY - HEADER_FADE_DISTANCE) / HEADER_OPACITY_DISTANCE, 0),
+        1
+    );
+    const headerMaskStop = (1 - headerMaskProgress) * 100;
+    const headerFadeStyle = {
+        WebkitMaskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
+        maskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
+        opacity: 1 - headerOpacityProgress * 0.9,
+    };
+
     const isPendingCancel = user?.pending_plan === 'free';
 
     const handleConfirmCancel = async () => {
@@ -181,7 +214,7 @@ export default function Benefits() {
     if (!planTier) {
         return (
             <div className="min-h-screen bg-white dark:bg-ink-900">
-                <section className="relative overflow-hidden">
+                <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden" style={headerFadeStyle}>
                     <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                         <source src={BENEFITS_VIDEO} type="video/mp4" />
                     </video>
@@ -220,7 +253,7 @@ export default function Benefits() {
     return (
         <div className="bg-white dark:bg-ink-900 min-h-screen">
             {/* ─── HEADER ─── */}
-            <section className="relative overflow-hidden">
+            <section className="sticky top-14 sm:top-16 z-30 relative overflow-hidden" style={headerFadeStyle}>
                 <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
                     <source src={BENEFITS_VIDEO} type="video/mp4" />
                 </video>

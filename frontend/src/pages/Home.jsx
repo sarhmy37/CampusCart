@@ -775,7 +775,7 @@ const handlePlanClick = async (planName) => {
 
                     {meetOnCampusTile && (
                         <Reveal delay={showcaseItems.length * 80} className="mt-6 sm:mt-8">
-                            <div className="group relative w-full rounded-2xl overflow-hidden aspect-[16/9] sm:aspect-auto sm:h-72 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
+                             <div className="group relative w-full rounded-2xl overflow-hidden aspect-[16/9] sm:aspect-auto sm:h-96 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-black/20 cursor-pointer">
                                 <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
                                     {meetOnCampusTile.shuffled.slice(0, 4).map((mItem, idx) => (
                                         <div key={idx} className="w-full h-full relative overflow-hidden border border-white/5">

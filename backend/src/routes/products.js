@@ -387,11 +387,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const {
         title, description, price, condition, category, stock,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
-        images, video_url,
+        images, video_url, service_duration, price_max,
     } = req.body;
 
     try {
-        const existing = await pool.query('SELECT seller_id, price, stock FROM products WHERE id = $1', [req.params.id]);
+        const existing = await pool.query('SELECT seller_id, price, stock, price_max FROM products WHERE id = $1', [req.params.id]);
         const product = existing.rows[0];
         if (!product) return res.status(404).json({ error: 'Listing not found' });
         if (product.seller_id !== req.userId) {
@@ -418,8 +418,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
         const feeNearCampus = delivery_fee_near_campus !== undefined ? clampFee(delivery_fee_near_campus) : undefined;
         const feeFarCampus = delivery_fee_far_campus !== undefined ? clampFee(delivery_fee_far_campus) : undefined;
 
-        // old_price is locked in at listing creation and never changes on edit —
-        // every future discount is measured against that original price.
+        // price_max needs to support being explicitly cleared (set to null),
+        // which COALESCE can't do — COALESCE treats null as "no change".
+        // So when the key is present in the body, use it as-is (even if null);
+        // only fall back to the existing value when the key is missing entirely.
+        const nextPriceMax = 'price_max' in req.body ? price_max : product.price_max;
 
         const result = await pool.query(
             `UPDATE products SET
@@ -434,11 +437,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
                 delivery_fee_far_campus = COALESCE($9, delivery_fee_far_campus),
                 primary_image = COALESCE($12, primary_image),
                 video_url = COALESCE($13, video_url),
+                service_duration = COALESCE($14, service_duration),
+                price_max = $15,
                 restocked_at = CASE WHEN $11 THEN now() ELSE restocked_at END
              WHERE id = $10
              RETURNING *`,
             [title, description, price, condition, stock, categoryId,
-             feeOnCampus, feeNearCampus, feeFarCampus, req.params.id, isRestock, primaryImage, video_url]
+             feeOnCampus, feeNearCampus, feeFarCampus, req.params.id, isRestock, primaryImage, video_url,
+             service_duration, nextPriceMax]
         );
 
         if (hasImageUpdate) {
