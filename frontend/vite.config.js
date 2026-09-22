@@ -58,6 +58,21 @@ export default defineConfig({
                 maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }
+          },
+          {
+            urlPattern: /^https:\/\/cdn\.sanity\.io\/files\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'sanity-videos',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              rangeRequests: true
+            }
           }
         ]
       }

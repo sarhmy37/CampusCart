@@ -317,10 +317,10 @@ export default function Browse() {
     const headerFadeStyle = {
         WebkitMaskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
         maskImage: `linear-gradient(to bottom, black ${headerMaskStop}%, transparent 100%)`,
-        opacity: 1 - headerOpacityProgress * 0.9,
+        opacity: 1 - headerOpacityProgress
     };
 
-    useEffect(() => {
+    useEffect(() => { 
         api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
     }, []);
 
