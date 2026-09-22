@@ -239,7 +239,11 @@ export default function Navbar() {
 
     return (
         <>
-        <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600" style={{ paddingTop: 'var(--safe-top)' }}>
+        <div
+            className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-ink-900"
+            style={{ height: 'env(safe-area-inset-top, 0px)' }}
+        />
+        <header className="sticky top-0 z-40 bg-white/90 dark:bg-ink-900/90 backdrop-blur border-b border-slate-200 dark:border-ink-600" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
                     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                 
                 <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
