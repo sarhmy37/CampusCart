@@ -127,6 +127,8 @@ app.use('/api/notifications', notificationRoutes);
 
 app.use('/api/payouts', payoutRoutes);
 
+app.use('/api/stories', require('./routes/stories'));
+
 app.use('/api/reviews', reviewRoutes);
 
 app.use('/api/chat', chatRoutes);
