@@ -86,7 +86,7 @@ router.post('/', requireAuth, async (req, res) => {
             email: sellerEmail,
             amountGHS: price,
             reference,
-            callback_url: `${process.env.CORS_ORIGIN}/browse`,
+            callback_url: `${process.env.CORS_ORIGIN}/browse?boost_ref=${reference}`,
             metadata: { boost_id: boostId, seller_id, product_id, tier },
         });
 
@@ -101,6 +101,21 @@ router.post('/', requireAuth, async (req, res) => {
         client.release();
         console.error('Create boost error:', err);
         res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    }
+});
+
+// ─── GET /api/boosts/status/:reference — poll boost confirmation ──────────
+router.get('/status/:reference', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT status, product_id FROM boosts WHERE payment_reference = $1 AND seller_id = $2`,
+            [req.params.reference, req.userId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Boost not found' });
+        res.json({ status: result.rows[0].status, product_id: result.rows[0].product_id });
+    } catch (err) {
+        console.error('Get boost status error:', err);
+        res.status(500).json({ error: 'Failed to check boost status' });
     }
 });
 

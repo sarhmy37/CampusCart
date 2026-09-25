@@ -9,6 +9,11 @@ const { getSellerFeeRate } = require('../utils/plans');
 
 const router = express.Router();
 
+router.get('/payment-redirect', (req, res) => {
+  const status = req.query.status || 'done';
+  res.send(`<html><body><script>window.location.href='app://payment/callback?status=${status}';</script></body></html>`);
+});
+
 const BUYER_FEE_RATE = 0.02;
 const SELLER_FEE_RATE = 0.015;
 const ADMIN_DELIVERY_SHARE = 0.20; // 20% of delivery fee goes to Admin
@@ -200,13 +205,14 @@ router.post('/', requireAuth, async (req, res) => {
 
         await client.query('COMMIT');
 
-        const paystackRes = await initializeTransaction({
-            email: buyerEmail,
-            amountGHS: paystackAmount,
-            reference,
-            callback_url: `${process.env.CORS_ORIGIN}/orders/${orderId}`,
-            metadata: { order_id: orderId, buyer_id: req.userId },
-        });
+const paystackRes = await initializeTransaction({
+    email: buyerEmail,
+    amountGHS: paystackAmount,
+    reference,
+    callback_url: 'https://campus-cart-tdfn.onrender.com/api/orders/payment-redirect?status=success',
+    cancel_action: 'https://campus-cart-tdfn.onrender.com/api/orders/payment-redirect?status=cancel',
+    metadata: { order_id: orderId, buyer_id: req.userId },
+});
 
         res.status(201).json({
             id: orderId,

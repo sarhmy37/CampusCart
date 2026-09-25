@@ -19,7 +19,7 @@ async function paystackRequest(pathname, options = {}) {
     return data;
 }
 
-function initializeTransaction({ email, amountGHS, reference, callback_url, metadata }) {
+function initializeTransaction({ email, amountGHS, reference, callback_url, cancel_action, metadata }) {
     return paystackRequest('/transaction/initialize', {
         method: 'POST',
         body: JSON.stringify({
@@ -28,6 +28,7 @@ function initializeTransaction({ email, amountGHS, reference, callback_url, meta
             currency: 'GHS',
             reference,
             callback_url,
+            cancel_action,
             metadata,
         }),
     });
