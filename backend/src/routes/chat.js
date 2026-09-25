@@ -57,7 +57,8 @@ router.post('/start', requireAuth, async (req, res) => {
 
         const existing = await pool.query(
     `SELECT id FROM conversations
-     WHERE buyer_id = $1 AND seller_id = $2`,
+     WHERE (buyer_id = $1 AND seller_id = $2)
+        OR (buyer_id = $2 AND seller_id = $1)`,
     [req.userId, sellerId]
 );
 
