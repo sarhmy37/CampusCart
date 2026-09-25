@@ -9,7 +9,7 @@ router.get('/feed', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
-             u.name AS user_name, u.avatar_url AS user_avatar,
+             u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
              EXISTS (
                SELECT 1 FROM story_views v
                WHERE v.story_id = s.id AND v.viewer_id = $1
@@ -27,6 +27,7 @@ router.get('/feed', requireAuth, async (req, res) => {
           user_id: row.user_id,
           user_name: row.user_name,
           user_avatar: row.user_avatar,
+          user_plan: row.user_plan,
           stories: [],
         });
       }
@@ -53,6 +54,24 @@ router.get('/feed', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Stories feed error:', err);
     res.status(500).json({ error: 'Failed to load stories' });
+  }
+});
+
+// GET /api/stories/:id — single story, regardless of expiry (used for chat deep-links)
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
+             u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan
+      FROM stories s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = $1
+    `, [req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Story not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get story error:', err);
+    res.status(500).json({ error: 'Failed to load story' });
   }
 });
 

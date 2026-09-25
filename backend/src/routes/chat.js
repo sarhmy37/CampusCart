@@ -273,7 +273,8 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
         const cutoff = convoRow.rows[0]?.deleted_for_everyone_at;
 
         const baseQuery = `
-            SELECT m.id, m.sender_id, m.content, m.media_url, m.media_type, m.read, m.created_at, m.deleted_for_everyone
+            SELECT m.id, m.sender_id, m.content, m.media_url, m.media_type, m.read, m.created_at, m.deleted_for_everyone,
+                   m.reply_story_id, m.reply_story_media_url, m.reply_story_media_type, m.reply_story_owner_id
             FROM messages m
             WHERE m.conversation_id = $1
               AND NOT EXISTS (
@@ -338,7 +339,7 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
 // POST /api/chat/:id/messages
 router.post('/:id/messages', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { content, media_url, media_type } = req.body;
+    const { content, media_url, media_type, reply_story_id } = req.body;
 
     if ((!content || !content.trim()) && !media_url) {
         return res.status(400).json({ error: 'Message must include text or media' });
@@ -361,11 +362,28 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
         const recipientPrefs = await pool.query(`SELECT notify_messages FROM users WHERE id = $1`, [recipientId]);
         const recipientMuted = recipientPrefs.rows[0]?.notify_messages === false;
 
+        let storyId = null, storyMediaUrl = null, storyMediaType = null, storyOwnerId = null;
+        if (reply_story_id) {
+            const story = await pool.query(
+                `SELECT id, media_url, media_type, user_id FROM stories WHERE id = $1`,
+                [reply_story_id]
+            );
+            if (story.rows.length > 0) {
+                storyId = story.rows[0].id;
+                storyMediaUrl = story.rows[0].media_url;
+                storyMediaType = story.rows[0].media_type;
+                storyOwnerId = story.rows[0].user_id;
+            }
+        }
+
         const inserted = await pool.query(
-            `INSERT INTO messages (conversation_id, sender_id, content, media_url, media_type, read)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id, sender_id, content, media_url, media_type, read, created_at`,
-            [id, req.userId, content?.trim() || null, media_url || null, media_type || null, recipientMuted]
+            `INSERT INTO messages (conversation_id, sender_id, content, media_url, media_type, read,
+                                    reply_story_id, reply_story_media_url, reply_story_media_type, reply_story_owner_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             RETURNING id, sender_id, content, media_url, media_type, read, created_at,
+                       reply_story_id, reply_story_media_url, reply_story_media_type, reply_story_owner_id`,
+            [id, req.userId, content?.trim() || null, media_url || null, media_type || null, recipientMuted,
+             storyId, storyMediaUrl, storyMediaType, storyOwnerId]
         );
         res.json(inserted.rows[0]);
     } catch (err) {
