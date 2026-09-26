@@ -93,7 +93,7 @@ router.post('/', requireAuth, async (req, res) => {
             email: sellerEmail,
             amountGHS: totalPrice,
             reference,
-            callback_url: `${process.env.CORS_ORIGIN}/browse?boost_ref=${reference}`,
+            callback_url: `https://campus-cart-tdfn.onrender.com/api/orders/payment-redirect?status=success&boost_ref=${reference}`,
             metadata: { boost_ids: boostIds, seller_id, product_ids, tier },
         });
 
