@@ -24,7 +24,7 @@ router.post('/', requireAuth, async (req, res) => {
     const client = await pool.connect();
     try {
         const productsResult = await client.query(
-            `SELECT id, title, seller_id FROM products WHERE id = ANY($1::int[])`,
+            `SELECT id, title, seller_id FROM products WHERE id = ANY($1::uuid[])`,
             [product_ids]
         );
         const foundProducts = productsResult.rows;
@@ -84,7 +84,7 @@ router.post('/', requireAuth, async (req, res) => {
         );
         const sellerEmail = userResult.rows[0]?.personal_email || userResult.rows[0]?.university_email;
         if (!sellerEmail) {
-            await pool.query(`DELETE FROM boosts WHERE id = ANY($1::int[])`, [boostIds]);
+            await pool.query(`DELETE FROM boosts WHERE id = ANY($1::uuid[])`, [boostIds]);
             return res.status(400).json({ error: 'No email found for user. Please update your profile.' });
         }
 
@@ -152,16 +152,16 @@ async function processBoostWebhookEvent(event) {
         const productIds = boosts.map((b) => b.product_id);
 
         await pool.query(
-            `UPDATE boosts SET status = 'confirmed', boosted_until = $1 WHERE id = ANY($2::int[])`,
+            `UPDATE boosts SET status = 'confirmed', boosted_until = $1 WHERE id = ANY($2::uuid[])`,
             [boostedUntil, boostIds]
         );
 
         await pool.query(
-            `UPDATE products SET boosted_until = $1, boost_tier = $2 WHERE id = ANY($3::int[])`,
+            `UPDATE products SET boosted_until = $1, boost_tier = $2 WHERE id = ANY($3::uuid[])`,
             [boostedUntil, tier, productIds]
         );
 
-        const productsResult = await pool.query(`SELECT title FROM products WHERE id = ANY($1::int[])`, [productIds]);
+        const productsResult = await pool.query(`SELECT title FROM products WHERE id = ANY($1::uuid[])`, [productIds]);
         const titles = productsResult.rows.map((r) => r.title);
         const summary = titles.length === 1 ? `"${titles[0]}"` : `${titles.length} listings`;
 
