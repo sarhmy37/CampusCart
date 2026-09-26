@@ -14,26 +14,28 @@ const BOOST_TIERS = {
 
 // ─── POST /api/boosts — create pending boost + get Paystack payment link ──
 router.post('/', requireAuth, async (req, res) => {
-    const { product_id, tier } = req.body;
+    const { product_ids, tier } = req.body;
     const seller_id = req.userId;
 
-    if (!product_id || !tier || !BOOST_TIERS[tier]) {
+    if (!Array.isArray(product_ids) || product_ids.length === 0 || !tier || !BOOST_TIERS[tier]) {
         return res.status(400).json({ error: 'A valid product and boost tier are required.' });
     }
 
     const client = await pool.connect();
     try {
-        const productResult = await client.query(
-            `SELECT id, title, seller_id FROM products WHERE id = $1`,
-            [product_id]
+        const productsResult = await client.query(
+            `SELECT id, title, seller_id FROM products WHERE id = ANY($1::int[])`,
+            [product_ids]
         );
-        const product = productResult.rows[0];
-        if (!product) {
+        const foundProducts = productsResult.rows;
+
+        if (foundProducts.length !== product_ids.length) {
             client.release();
-            return res.status(404).json({ error: 'Product not found' });
+            return res.status(404).json({ error: 'One or more products were not found' });
         }
 
-        if (product.seller_id !== seller_id) {
+        const notOwned = foundProducts.find((p) => p.seller_id !== seller_id);
+        if (notOwned) {
             client.release();
             return res.status(403).json({ error: 'You can only boost your own listings.' });
         }
@@ -50,24 +52,28 @@ router.post('/', requireAuth, async (req, res) => {
         );
         const activeBoostCount = parseInt(activeBoostsResult.rows[0].count, 10);
         const MAX_ACTIVE_BOOSTS = 6;
-        if (activeBoostCount >= MAX_ACTIVE_BOOSTS) {
+        if (activeBoostCount + product_ids.length > MAX_ACTIVE_BOOSTS) {
             await client.query('ROLLBACK');
             client.release();
             return res.status(409).json({
-                error: `All ${MAX_ACTIVE_BOOSTS} boost slots are currently taken. Please try again once one expires.`,
+                error: `Not enough boost slots available (${MAX_ACTIVE_BOOSTS - activeBoostCount} left). Please try again once one expires.`,
             });
         }
 
-        const { price } = BOOST_TIERS[tier];
+        const { price: pricePerItem } = BOOST_TIERS[tier];
+        const totalPrice = pricePerItem * product_ids.length;
         const reference = `boost_${Date.now()}_${seller_id}`;
 
-        const boostResult = await client.query(
-            `INSERT INTO boosts (product_id, seller_id, tier, amount, payment_reference, status)
-             VALUES ($1, $2, $3, $4, $5, 'pending_payment')
-             RETURNING id`,
-            [product_id, seller_id, tier, price, reference]
-        );
-        const boostId = boostResult.rows[0].id;
+        const boostIds: number[] = [];
+        for (const pid of product_ids) {
+            const boostResult = await client.query(
+                `INSERT INTO boosts (product_id, seller_id, tier, amount, payment_reference, status)
+                 VALUES ($1, $2, $3, $4, $5, 'pending_payment')
+                 RETURNING id`,
+                [pid, seller_id, tier, pricePerItem, reference]
+            );
+            boostIds.push(boostResult.rows[0].id);
+        }
 
         await client.query('COMMIT');
         client.release();
@@ -78,22 +84,22 @@ router.post('/', requireAuth, async (req, res) => {
         );
         const sellerEmail = userResult.rows[0]?.personal_email || userResult.rows[0]?.university_email;
         if (!sellerEmail) {
-            await pool.query(`DELETE FROM boosts WHERE id = $1`, [boostId]);
+            await pool.query(`DELETE FROM boosts WHERE id = ANY($1::int[])`, [boostIds]);
             return res.status(400).json({ error: 'No email found for user. Please update your profile.' });
         }
 
         const paystackRes = await initializeTransaction({
             email: sellerEmail,
-            amountGHS: price,
+            amountGHS: totalPrice,
             reference,
             callback_url: `${process.env.CORS_ORIGIN}/browse?boost_ref=${reference}`,
-            metadata: { boost_id: boostId, seller_id, product_id, tier },
+            metadata: { boost_ids: boostIds, seller_id, product_ids, tier },
         });
 
         res.status(201).json({
-            boost_id: boostId,
-            product_title: product.title,
-            amount: price,
+            boost_ids: boostIds,
+            product_titles: foundProducts.map((p) => p.title),
+            amount: totalPrice,
             authorization_url: paystackRes.data.authorization_url,
         });
     } catch (err) {
@@ -125,40 +131,45 @@ async function processBoostWebhookEvent(event) {
     const amountPaidGHS = Math.round((event.data.amount / 100) * 100) / 100;
 
     try {
-        const boostResult = await pool.query(
+        const boostsResult = await pool.query(
             `SELECT * FROM boosts WHERE payment_reference = $1 AND status = 'pending_payment'`,
             [reference]
         );
-        const boost = boostResult.rows[0];
-        if (!boost) return; // already processed or not found
+        const boosts = boostsResult.rows;
+        if (boosts.length === 0) return; // already processed or not found
 
-        const expectedAmount = parseFloat(boost.amount);
-        if (Math.abs(amountPaidGHS - expectedAmount) > 0.05) {
-            console.error(`[BOOST AMOUNT MISMATCH] Boost ${boost.id}: expected GHS ${expectedAmount}, got GHS ${amountPaidGHS}`);
+        const expectedTotal = boosts.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+        if (Math.abs(amountPaidGHS - expectedTotal) > 0.05) {
+            console.error(`[BOOST AMOUNT MISMATCH] Reference ${reference}: expected GHS ${expectedTotal}, got GHS ${amountPaidGHS}`);
             return;
         }
 
-        const { hours } = BOOST_TIERS[boost.tier];
+        const seller_id = boosts[0].seller_id;
+        const tier = boosts[0].tier;
+        const { hours } = BOOST_TIERS[tier];
         const boostedUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
+        const boostIds = boosts.map((b) => b.id);
+        const productIds = boosts.map((b) => b.product_id);
 
         await pool.query(
-            `UPDATE boosts SET status = 'confirmed', boosted_until = $1 WHERE id = $2`,
-            [boostedUntil, boost.id]
+            `UPDATE boosts SET status = 'confirmed', boosted_until = $1 WHERE id = ANY($2::int[])`,
+            [boostedUntil, boostIds]
         );
 
         await pool.query(
-            `UPDATE products SET boosted_until = $1, boost_tier = $2 WHERE id = $3`,
-            [boostedUntil, boost.tier, boost.product_id]
+            `UPDATE products SET boosted_until = $1, boost_tier = $2 WHERE id = ANY($3::int[])`,
+            [boostedUntil, tier, productIds]
         );
 
-        const productResult = await pool.query(`SELECT title FROM products WHERE id = $1`, [boost.product_id]);
-        const productTitle = productResult.rows[0]?.title || 'Your listing';
+        const productsResult = await pool.query(`SELECT title FROM products WHERE id = ANY($1::int[])`, [productIds]);
+        const titles = productsResult.rows.map((r) => r.title);
+        const summary = titles.length === 1 ? `"${titles[0]}"` : `${titles.length} listings`;
 
         await insertNotification(
-            boost.seller_id,
+            seller_id,
             'boost_confirmed',
-            `🚀 "${productTitle}" has been boosted! It'll stay at the top of search and browse results for the next ${boost.tier === '24h' ? '24 hours' : boost.tier === '3d' ? '3 days' : '7 days'}.`,
-            boost.product_id,
+            `🚀 ${summary} boosted! They'll stay at the top of search and browse results for the next ${tier === '24h' ? '24 hours' : tier === '3d' ? '3 days' : '7 days'}.`,
+            productIds[0],
             `/browse`
         );
     } catch (err) {
