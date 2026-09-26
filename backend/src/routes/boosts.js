@@ -64,7 +64,7 @@ router.post('/', requireAuth, async (req, res) => {
         const totalPrice = pricePerItem * product_ids.length;
         const reference = `boost_${Date.now()}_${seller_id}`;
 
-        const boostIds: number[] = [];
+        const boostIds = [];
         for (const pid of product_ids) {
             const boostResult = await client.query(
                 `INSERT INTO boosts (product_id, seller_id, tier, amount, payment_reference, status)
