@@ -65,12 +65,13 @@ router.post('/', requireAuth, async (req, res) => {
         const reference = `boost_${Date.now()}_${seller_id}`;
 
         const boostIds = [];
-        for (const pid of product_ids) {
+        for (let i = 0; i < product_ids.length; i++) {
+            const rowReference = `${reference}_${i}`;
             const boostResult = await client.query(
                 `INSERT INTO boosts (product_id, seller_id, tier, amount, payment_reference, status)
                  VALUES ($1, $2, $3, $4, $5, 'pending_payment')
                  RETURNING id`,
-                [pid, seller_id, tier, pricePerItem, reference]
+                [product_ids[i], seller_id, tier, pricePerItem, rowReference]
             );
             boostIds.push(boostResult.rows[0].id);
         }
@@ -114,11 +115,15 @@ router.post('/', requireAuth, async (req, res) => {
 router.get('/status/:reference', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT status, product_id FROM boosts WHERE payment_reference = $1 AND seller_id = $2`,
-            [req.params.reference, req.userId]
+            `SELECT status, product_id FROM boosts WHERE payment_reference LIKE $1 AND seller_id = $2`,
+            [`${req.params.reference}_%`, req.userId]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Boost not found' });
-        res.json({ status: result.rows[0].status, product_id: result.rows[0].product_id });
+        const allConfirmed = result.rows.every((r) => r.status === 'confirmed');
+        res.json({
+            status: allConfirmed ? 'confirmed' : result.rows[0].status,
+            product_id: result.rows[0].product_id,
+        });
     } catch (err) {
         console.error('Get boost status error:', err);
         res.status(500).json({ error: 'Failed to check boost status' });
@@ -132,8 +137,8 @@ async function processBoostWebhookEvent(event) {
 
     try {
         const boostsResult = await pool.query(
-            `SELECT * FROM boosts WHERE payment_reference = $1 AND status = 'pending_payment'`,
-            [reference]
+            `SELECT * FROM boosts WHERE payment_reference LIKE $1 AND status = 'pending_payment'`,
+            [`${reference}_%`]
         );
         const boosts = boostsResult.rows;
         if (boosts.length === 0) return; // already processed or not found
