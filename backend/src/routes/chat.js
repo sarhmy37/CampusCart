@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { uploadChatMedia, uploadWallpaper } = require('../middleware/upload');
+const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -329,6 +330,15 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
              RETURNING id, sender_id, content, media_url, media_type, read, created_at`,
             [id, req.userId, mediaUrl, mediaType, recipientMuted]
         );
+
+        if (!recipientMuted) {
+            const senderResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
+            const senderName = senderResult.rows[0]?.name || 'Someone';
+            const preview = mediaType === 'audio' ? '🎤 Voice note' : '📷 Photo';
+            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`)
+                .catch((err) => console.error('New message notification error:', err));
+        }
+
         res.json(inserted.rows[0]);
     } catch (err) {
         console.error('Send media error:', err);
@@ -385,6 +395,15 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
             [id, req.userId, content?.trim() || null, media_url || null, media_type || null, recipientMuted,
              storyId, storyMediaUrl, storyMediaType, storyOwnerId]
         );
+
+        if (!recipientMuted) {
+            const senderResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
+            const senderName = senderResult.rows[0]?.name || 'Someone';
+            const preview = content?.trim() ? content.trim().slice(0, 100) : 'Sent a photo/voice note';
+            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`)
+                .catch((err) => console.error('New message notification error:', err));
+        }
+
         res.json(inserted.rows[0]);
     } catch (err) {
         console.error('Send message error:', err);

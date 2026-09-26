@@ -85,7 +85,7 @@ router.post('/', requireAuth, async (req, res) => {
         );
         const sellerEmail = userResult.rows[0]?.personal_email || userResult.rows[0]?.university_email;
         if (!sellerEmail) {
-            await pool.query(`DELETE FROM boosts WHERE id = ANY($1::uuid[])`, [boostIds]);
+            await pool.query(`DELETE FROM boosts WHERE id = ANY($1::int[])`, [boostIds]);
             return res.status(400).json({ error: 'No email found for user. Please update your profile.' });
         }
 
@@ -157,7 +157,7 @@ async function processBoostWebhookEvent(event) {
         const productIds = boosts.map((b) => b.product_id);
 
         await pool.query(
-            `UPDATE boosts SET status = 'confirmed', boosted_until = $1 WHERE id = ANY($2::uuid[])`,
+            `UPDATE boosts SET status = 'confirmed', boosted_until = $1 WHERE id = ANY($2::int[])`,
             [boostedUntil, boostIds]
         );
 

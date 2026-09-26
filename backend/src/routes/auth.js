@@ -493,6 +493,23 @@ router.patch('/me/notifications', requireAuth, async (req, res) => {
     }
 });
 
+// POST /api/auth/me/push-token — save/update this device's Expo push token
+router.post('/me/push-token', requireAuth, async (req, res) => {
+    const { push_token } = req.body;
+    if (!push_token) return res.status(400).json({ error: 'push_token is required' });
+
+    try {
+        await pool.query(
+            `UPDATE users SET push_token = $1 WHERE id = $2`,
+            [push_token, req.userId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Save push token error:', err);
+        res.status(500).json({ error: 'Something went wrong saving your push token' });
+    }
+});
+
 // POST /api/auth/me/avatar
 router.post('/me/avatar', requireAuth, uploadAvatar.single('avatar'), async (req, res) => {
     if (!req.file) {
