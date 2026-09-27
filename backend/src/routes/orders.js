@@ -108,9 +108,10 @@ router.post('/', requireAuth, async (req, res) => {
         }
 
         const deliveryDiscountRate = getDeliveryDiscountRate(buyerPlan, buyerPlanExpiresAt);
-        // Discount only ever comes out of the admin's 20% cut — the seller's 80%
-        // is always fixed off the FULL, undiscounted per-seller fee.
-        const deliveryFee = Math.round((deliveryFeeFull - deliveryFeeFull * ADMIN_DELIVERY_SHARE * deliveryDiscountRate) * 100) / 100;
+        // Discount applies to the FULL delivery fee the buyer sees. The seller's 80%
+        // share is still always fixed off the FULL, undiscounted per-seller fee (below) —
+        // so the entire cost of the discount is absorbed out of the admin's cut.
+        const deliveryFee = Math.round((deliveryFeeFull - deliveryFeeFull * deliveryDiscountRate) * 100) / 100;
 
         // ============ 80/20 DELIVERY SPLIT LOGIC (per seller, credited once) ============
         const creditedDeliveryFor = new Set();
@@ -118,7 +119,7 @@ router.post('/', requireAuth, async (req, res) => {
             const totalDeliveryFee = deliveryFeeBySeller[item.seller_id];
             if (totalDeliveryFee && !creditedDeliveryFor.has(item.seller_id)) {
                 const sellerDeliveryShare = Math.round(totalDeliveryFee * SELLER_DELIVERY_SHARE * 100) / 100;
-                const adminDeliveryShare = Math.round((totalDeliveryFee * ADMIN_DELIVERY_SHARE * (1 - deliveryDiscountRate)) * 100) / 100;
+                const adminDeliveryShare = Math.round((totalDeliveryFee * (ADMIN_DELIVERY_SHARE - deliveryDiscountRate)) * 100) / 100;
                 item.seller_earnings = Math.round((item.seller_earnings + sellerDeliveryShare) * 100) / 100;
                 item.admin_delivery_share = adminDeliveryShare;
                 item.delivery_fee_credited = sellerDeliveryShare; // for the seller-facing notification text
@@ -298,7 +299,7 @@ router.post('/webhook', async (req, res) => {
             await insertNotification(
                 order.buyer_id,
                 'payment_flagged',
-                `We noticed a mismatch with your recent payment (Order #${order.id}). Our team has been notified and will review it shortly.`,
+                `We noticed something off with your payment for Order #${order.id}. Our team's already looking into it — we'll update you shortly.`,
                 order.id,
                 `/dashboard?tab=orders`
             );
@@ -322,8 +323,8 @@ router.post('/webhook', async (req, res) => {
         const buyerLocation = buyerResult.rows[0]?.location;
 
         const deliveryNote = order.delivery_method === 'delivery'
-            ? 'get it delivered within 1-3 working days to secure your sale.'
-            : 'the buyer will arrange pickup with you on campus.';
+            ? "get it delivered within 1–3 working days to secure the sale."
+            : "they'll reach out to arrange pickup on campus.";
 
         const locationPhrase = buyerLocation
             ? `This person is located at ${buyerLocation}, `
@@ -347,7 +348,7 @@ router.post('/webhook', async (req, res) => {
                 0
             );
 
-            const message = `${buyerName} placed an order of GHS ${sellerAmount.toFixed(2)} for ${itemNames}. ${locationPhrase}${deliveryNote}`;
+            const message = `🎉 ${buyerName} just bought ${itemNames} for GHS ${sellerAmount.toFixed(2)}. ${locationPhrase}${deliveryNote}`;
 
             // Send notification to seller with link to their Delivery tab
             await insertNotification(sellerId, 'payment_received_seller', message, order.id, '/dashboard?tab=deliveries');
@@ -532,7 +533,7 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
             [req.userId, id]
         );
 
-        const message = `${sellerName} has marked your order as delivered to ${buyerLocation}. Please go to your Orders tab to confirm you've received it.`;
+        const message = `📦 ${sellerName} says your order is on its way to ${buyerLocation}. Confirm once it arrives so they can get paid.`;
         await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id, '/dashboard?tab=orders');
 
         if (buyerSmsNumber) {
@@ -635,7 +636,7 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         await insertNotification(
             item.seller_id,
             'funds_available',
-            `A buyer confirmed receipt for "${item.title}". GHS ${sellerEarnings.toFixed(2)}${deliveryNote} is now available in your Payouts tab to withdraw.`,
+            `💰 Whoo! GHS ${sellerEarnings.toFixed(2)}${deliveryNote} just landed in your Payouts tab for "${item.title}".`,
             item.order_id,
             '/dashboard?tab=payouts'
         );
