@@ -74,12 +74,13 @@ router.post('/start', requireAuth, async (req, res) => {
             conversationId = inserted.rows[0].id;
         }
 
-        const seller = await pool.query(`SELECT name, avatar_url FROM users WHERE id = $1`, [sellerId]);
+        const seller = await pool.query(`SELECT name, avatar_url, account_type FROM users WHERE id = $1`, [sellerId]);
 
         res.json({
             id: conversationId,
             seller_name: seller.rows[0]?.name || 'Seller',
             seller_avatar: seller.rows[0]?.avatar_url || null,
+            seller_account_type: seller.rows[0]?.account_type || null,
         });
     } catch (err) {
         console.error('Start conversation error:', err);
@@ -98,6 +99,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 CASE WHEN c.buyer_id = $1 THEN c.seller_id ELSE c.buyer_id END AS other_user_id,
                 CASE WHEN c.buyer_id = $1 THEN su.name ELSE bu.name END AS other_user_name,
                 CASE WHEN c.buyer_id = $1 THEN su.avatar_url ELSE bu.avatar_url END AS other_user_avatar,
+                CASE WHEN c.buyer_id = $1 THEN su.account_type ELSE bu.account_type END AS other_user_account_type,
                 CASE WHEN c.buyer_id = $1 THEN su.last_active_at ELSE bu.last_active_at END AS other_user_last_active,
                 p.title AS product_title,
                 COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' ELSE NULL END) AS last_message,
