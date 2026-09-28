@@ -57,6 +57,23 @@ router.get('/feed', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/stories/mine — the current user's own active stories, with view counts
+router.get('/mine', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT s.id, s.media_url, s.media_type, s.caption, s.created_at,
+             (SELECT COUNT(*) FROM story_views v WHERE v.story_id = s.id) AS view_count
+      FROM stories s
+      WHERE s.user_id = $1 AND s.expires_at > NOW()
+      ORDER BY s.created_at ASC
+    `, [req.userId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('My stories error:', err);
+    res.status(500).json({ error: 'Failed to load your stories' });
+  }
+});
+
 // GET /api/stories/:id — single story, regardless of expiry (used for chat deep-links)
 router.get('/:id', requireAuth, async (req, res) => {
   try {
@@ -122,6 +139,21 @@ router.post('/:id/view', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('View story error:', err);
     res.status(500).json({ error: 'Failed to mark viewed' });
+  }
+});
+
+// DELETE /api/stories/:id — owner only
+router.delete('/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM stories WHERE id = $1 AND user_id = $2 RETURNING id',
+      [req.params.id, req.userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Story not found' });
+    res.sendStatus(204);
+  } catch (err) {
+    console.error('Delete story error:', err);
+    res.status(500).json({ error: 'Failed to delete story' });
   }
 });
 
