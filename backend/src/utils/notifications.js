@@ -16,10 +16,11 @@ function getPushTitle(type) {
 }
 
 async function insertNotification(userId, type, message, relatedId = null, link = null) {
-    await pool.query(
-        `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
+    const inserted = await pool.query(
+        `INSERT INTO notifications (user_id, type, message, related_id, link, pushed) VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING id`,
         [userId, type, message, relatedId, link]
     );
+    const notificationId = inserted.rows[0].id;
 
     // Fire the push in the background — don't let a failed/slow push
     // delay or break whatever flow called insertNotification.
@@ -28,9 +29,10 @@ async function insertNotification(userId, type, message, relatedId = null, link 
             const pushToken = result.rows[0]?.push_token;
             if (pushToken) {
                 sendPushNotification(pushToken, getPushTitle(type), message, { link, related_id: relatedId, type });
+                pool.query('UPDATE notifications SET pushed = TRUE WHERE id = $1', [notificationId]).catch(() => {});
             }
         })
         .catch((err) => console.error('Push lookup error:', err));
 }
 
-module.exports = { insertNotification };
+module.exports = { insertNotification, getPushTitle };

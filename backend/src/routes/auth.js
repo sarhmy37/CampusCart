@@ -6,6 +6,8 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { uploadAvatar } = require('../middleware/upload');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
+const { sendPushNotification } = require('../utils/pushService');
+const { getPushTitle } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -483,6 +485,20 @@ router.post('/me/push-token', requireAuth, async (req, res) => {
             `UPDATE users SET push_token = $1 WHERE id = $2`,
             [push_token, req.userId]
         );
+
+        // Send pushes for notifications that arrived while logged out
+        const pending = await pool.query(
+            `UPDATE notifications SET pushed = TRUE
+             WHERE user_id = $1 AND pushed = FALSE AND read = FALSE
+             RETURNING type, message, related_id, link`,
+            [req.userId]
+        );
+        pending.rows.slice(0, 5).forEach((n) => {
+            sendPushNotification(push_token, getPushTitle(n.type), n.message, {
+                link: n.link, related_id: n.related_id, type: n.type,
+            });
+        });
+
         res.json({ success: true });
     } catch (err) {
         console.error('Save push token error:', err);
