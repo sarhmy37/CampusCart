@@ -211,7 +211,7 @@ async function getAvailableBalance(sellerId) {
          FROM order_items oi
          JOIN orders o ON o.id = oi.order_id
          WHERE oi.seller_id = $1
-           AND o.status = 'paid'
+           AND o.status IN ('paid', 'completed')
            AND oi.buyer_confirmed_at IS NOT NULL`,
         [sellerId]
     );
