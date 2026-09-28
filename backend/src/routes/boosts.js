@@ -22,8 +22,11 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     const client = await pool.connect();
+    let released = false;
+    const origRelease = client.release.bind(client);
+    client.release = () => { if (!released) { released = true; origRelease(); } };
     try {
-        const productsResult = await client.query(
+        const productsResult= await client.query(
             `SELECT id, title, seller_id FROM products WHERE id = ANY($1::uuid[])`,
             [product_ids]
         );
@@ -104,8 +107,10 @@ router.post('/', requireAuth, async (req, res) => {
             authorization_url: paystackRes.data.authorization_url,
         });
     } catch (err) {
-        try { await client.query('ROLLBACK'); } catch {}
-        client.release();
+        if (!released) {
+            try { await client.query('ROLLBACK'); } catch {}
+            client.release();
+        }
         console.error('Create boost error:', err);
         res.status(500).json({ error: 'Something went wrong. Please try again.' });
     }

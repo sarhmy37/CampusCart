@@ -129,6 +129,7 @@ router.patch('/default/:accountId', requireAuth, async (req, res) => {
             [accountId, req.userId]
         );
         if (accountCheck.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Account not found' });
         }
 

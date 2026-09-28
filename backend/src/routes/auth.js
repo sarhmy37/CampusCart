@@ -378,7 +378,8 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // PATCH /api/auth/me
 router.patch('/me', requireAuth, async (req, res) => {
-    const { about, personal_email, whatsapp, sms_number, location, meeting_place, name, school, verified, avatar_url } = req.body;
+     const { about, personal_email, whatsapp, sms_number, location, meeting_place, name, school, avatar_url } = req.body;
+    const verified = undefined;
 
     const PROFILE_EDIT_COOLDOWN_SECONDS = 60 * 60;
 
@@ -453,31 +454,6 @@ router.patch('/me/socials', requireAuth, async (req, res) => {
     }
 });
 
-// PATCH /api/auth/me/socials — update social handles, no cooldown
-router.patch('/me/socials', requireAuth, async (req, res) => {
-    const { social_tiktok, social_whatsapp, social_instagram, social_snapchat, social_facebook, social_twitter, social_telegram } = req.body;
-    try {
-        const result = await pool.query(
-            `UPDATE users SET
-                social_tiktok = $1,
-                social_whatsapp = $2,
-                social_instagram = $3,
-                social_snapchat = $4,
-                social_facebook = $5,
-                social_twitter = $6,
-                social_telegram = $7
-             WHERE id = $8
-             RETURNING *`,
-            [social_tiktok || null, social_whatsapp || null, social_instagram || null, social_snapchat || null,
-             social_facebook || null, social_twitter || null, social_telegram || null, req.userId]
-        );
-        res.json(toPublicUser(result.rows[0]));
-    } catch (err) {
-        console.error('Update socials error:', err);
-        res.status(500).json({ error: 'Something went wrong saving your social handles' });
-    }
-});
-
 // PATCH /api/auth/me/notifications — toggle message notification muting, no cooldown
 router.patch('/me/notifications', requireAuth, async (req, res) => {
     const { notify_messages } = req.body;
@@ -499,6 +475,10 @@ router.post('/me/push-token', requireAuth, async (req, res) => {
     if (!push_token) return res.status(400).json({ error: 'push_token is required' });
 
     try {
+        await pool.query(
+            `UPDATE users SET push_token = NULL WHERE push_token = $1 AND id != $2`,
+            [push_token, req.userId]
+        );
         await pool.query(
             `UPDATE users SET push_token = $1 WHERE id = $2`,
             [push_token, req.userId]
@@ -891,7 +871,7 @@ router.post('/me/verify-password', requireAuth, async (req, res) => {
 // POST /api/auth/logout
 router.post('/logout', requireAuth, async (req, res) => {
     try {
-        await pool.query('UPDATE users SET last_active = NULL, session_id = NULL WHERE id = $1', [req.userId]);
+        await pool.query('UPDATE users SET last_active = NULL, session_id = NULL, push_token = NULL WHERE id = $1', [req.userId]);
         res.json({ message: 'Logged out' });
     } catch (err) {
         console.error('Logout error:', err);
