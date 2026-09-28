@@ -8,7 +8,8 @@ const router = express.Router();
 router.get('/feed', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
+      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
+             (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
              EXISTS (
                SELECT 1 FROM story_views v
@@ -41,6 +42,8 @@ router.get('/feed', requireAuth, async (req, res) => {
         caption: row.caption,
         created_at: row.created_at,
         viewed: row.viewed,
+        content_type: row.content_type,
+        view_count: Number(row.view_count),
       });
     }
 
@@ -94,7 +97,8 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 // POST /api/stories — paid users only
 router.post('/', requireAuth, async (req, res) => {
-  const { media } = req.body; // [{ media_url, media_type, caption }]
+  const { media } = req.body;
+  const ALLOWED_TAGS = ['products', 'services', 'deals', 'announcements', 'campus', 'tips', 'events'];
   if (!Array.isArray(media) || media.length === 0) {
     return res.status(400).json({ error: 'No media provided' });
   }
@@ -114,9 +118,9 @@ router.post('/', requireAuth, async (req, res) => {
     const inserted = [];
     for (const item of media) {
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption)
-         VALUES ($1, $2, $3, $4) RETURNING *`,
-        [req.userId, item.media_url, item.media_type, item.caption || null]
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [req.userId, item.media_url, item.media_type, item.caption || null, ALLOWED_TAGS.includes(item.content_type) ? item.content_type : null]
       );
       inserted.push(rows[0]);
     }
