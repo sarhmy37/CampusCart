@@ -15,10 +15,10 @@ function getPushTitle(type) {
     return NOTIFICATION_TITLES[type] || 'Tre-X';
 }
 
-async function insertNotification(userId, type, message, relatedId = null, link = null) {
+async function insertNotification(userId, type, message, relatedId = null, link = null, pushTitle = null, pushBody = null) {
     const inserted = await pool.query(
-        `INSERT INTO notifications (user_id, type, message, related_id, link, pushed) VALUES ($1, $2, $3, $4, $5, FALSE) RETURNING id`,
-        [userId, type, message, relatedId, link]
+        `INSERT INTO notifications (user_id, type, message, related_id, link, pushed, push_title, push_body) VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7) RETURNING id`,
+        [userId, type, message, relatedId, link, pushTitle, pushBody]
     );
     const notificationId = inserted.rows[0].id;
 
@@ -28,7 +28,7 @@ async function insertNotification(userId, type, message, relatedId = null, link 
         .then((result) => {
             const pushToken = result.rows[0]?.push_token;
             if (pushToken) {
-                sendPushNotification(pushToken, getPushTitle(type), message, { link, related_id: relatedId, type });
+                sendPushNotification(pushToken, pushTitle || getPushTitle(type), pushBody || message, { link, related_id: relatedId, type });
                 pool.query('UPDATE notifications SET pushed = TRUE WHERE id = $1', [notificationId]).catch(() => {});
             }
         })

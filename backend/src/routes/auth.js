@@ -210,6 +210,17 @@ router.post('/register', async (req, res) => {
             return res.status(409).json({ error: 'That username is already taken' });
         }
 
+        if (resolvedAccountType === 'seller') {
+            const payoutClash = await client.query(
+                'SELECT 1 FROM seller_payout_accounts WHERE account_number = $1 AND bank_code = $2 LIMIT 1',
+                [account_number, bank_code]
+            );
+            if (payoutClash.rows.length > 0) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({ error: 'This payout account is already linked to another seller' });
+            }
+        }
+
         let referrerId = null;
         if (referral_code) {
             const referrerResult = await client.query('SELECT id FROM users WHERE referral_code = $1', [referral_code.toUpperCase()]);
@@ -490,11 +501,11 @@ router.post('/me/push-token', requireAuth, async (req, res) => {
         const pending = await pool.query(
             `UPDATE notifications SET pushed = TRUE
              WHERE user_id = $1 AND pushed = FALSE AND read = FALSE
-             RETURNING type, message, related_id, link`,
+             RETURNING type, message, related_id, link, push_title, push_body`,
             [req.userId]
         );
         pending.rows.slice(0, 5).forEach((n) => {
-            sendPushNotification(push_token, getPushTitle(n.type), n.message, {
+            sendPushNotification(push_token, n.push_title || getPushTitle(n.type), n.push_body || n.message, {
                 link: n.link, related_id: n.related_id, type: n.type,
             });
         });

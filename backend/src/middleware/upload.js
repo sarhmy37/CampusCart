@@ -39,17 +39,24 @@ const uploadProductMedia = multer({
     { name: 'video', maxCount: 1 },
 ]);
 
+const BLOCKED_FILE_TYPES = [
+    'application/x-msdownload',
+    'application/x-sh',
+    'application/x-executable',
+    'application/vnd.android.package-archive',
+];
+
 const chatMediaFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('audio/')) {
-        return cb(null, true);
+    if (BLOCKED_FILE_TYPES.includes(file.mimetype)) {
+        return cb(new Error('This file type is not allowed'));
     }
-    cb(new Error('Only image or audio files are allowed'));
+    cb(null, true);
 };
 
 const uploadChatMedia = multer({
     storage: multer.memoryStorage(),
     fileFilter: chatMediaFilter,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB — covers a comfortably long voice note
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB — videos and files
 });
 
 // Chat wallpapers are always images (never audio), so this uses the same

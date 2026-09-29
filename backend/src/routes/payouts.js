@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { createTransferRecipient, initiateTransfer } = require('../utils/paystack');
 
 const router = express.Router();
@@ -39,6 +39,22 @@ router.get('/banks', async (req, res) => {
             { code: 'VOD', name: 'Vodafone Cash', type: 'mobile_money' },
             { code: 'AT', name: 'AirtelTigo Money', type: 'mobile_money' },
         ]);
+    }
+});
+
+// GET /api/payouts/check-account — is this account already linked to another seller?
+router.get('/check-account', optionalAuth, async (req, res) => {
+    const { bank_code, account_number } = req.query;
+    if (!bank_code || !account_number) return res.json({ taken: false });
+    try {
+        const result = await pool.query(
+            'SELECT 1 FROM seller_payout_accounts WHERE account_number = $1 AND bank_code = $2 AND seller_id IS DISTINCT FROM $3 LIMIT 1',
+            [account_number, bank_code, req.userId || null]
+        );
+        res.json({ taken: result.rows.length > 0 });
+    } catch (err) {
+        console.error('Check payout account error:', err);
+        res.json({ taken: false });
     }
 });
 
@@ -86,6 +102,16 @@ router.post('/accounts', requireAuth, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+
+        // Block a number/account already linked to another seller
+        const payoutClash = await client.query(
+            'SELECT 1 FROM seller_payout_accounts WHERE account_number = $1 AND bank_code = $2 AND seller_id != $3 LIMIT 1',
+            [account_number, bank_code, req.userId]
+        );
+        if (payoutClash.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: 'This payout account is already linked to another seller' });
+        }
 
         // Check if this is the seller's first account
         const countResult = await client.query(

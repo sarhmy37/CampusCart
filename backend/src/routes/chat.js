@@ -102,8 +102,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 CASE WHEN c.buyer_id = $1 THEN su.account_type ELSE bu.account_type END AS other_user_account_type,
                 CASE WHEN c.buyer_id = $1 THEN su.last_active_at ELSE bu.last_active_at END AS other_user_last_active,
                 p.title AS product_title,
-                COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' ELSE NULL END) AS last_message,
-                lm.created_at AS last_message_at,
+                COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' WHEN lm.media_type = 'video' THEN '🎥 Video' WHEN lm.media_type = 'file' THEN '📄 File' ELSE NULL END                lm.created_at AS last_message_at,
                 COALESCE(uc.unread_count, 0) AS unread_count
              FROM conversations c
              JOIN users bu ON bu.id = c.buyer_id
@@ -320,25 +319,29 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
         await touchLastActive(req.userId);
 
         const mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-        const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio' : 'image';
+         const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio'
+            : req.file.mimetype.startsWith('video/') ? 'video'
+            : req.file.mimetype.startsWith('image/') ? 'image' : 'file';
 
         const recipientId = req.userId === buyer_id ? seller_id : buyer_id;
         const recipientPrefs = await pool.query(`SELECT notify_messages FROM users WHERE id = $1`, [recipientId]);
         const recipientMuted = recipientPrefs.rows[0]?.notify_messages === false;
 
         const inserted = await pool.query(
-            `INSERT INTO messages (conversation_id, sender_id, media_url, media_type, read)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO messages (conversation_id, sender_id, media_url, media_type, read, content)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id, sender_id, content, media_url, media_type, read, created_at`,
-            [id, req.userId, mediaUrl, mediaType, recipientMuted]
+            [id, req.userId, mediaUrl, mediaType, recipientMuted, mediaType === 'file' ? req.file.originalname : null]
         );
 
         if (!recipientMuted) {
             const senderResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
             const senderName = senderResult.rows[0]?.name || 'Someone';
-            const preview = mediaType === 'audio' ? '🎤 Voice note' : '📷 Photo';
-            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`)
-                .catch((err) => console.error('New message notification error:', err));
+            const preview = mediaType === 'audio' ? '🎤 Voice note'
+                : mediaType === 'video' ? '🎥 Video'
+                : mediaType === 'file' ? '📄 File' : '📷 Photo';
+            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview)
+                            .catch((err) => console.error('New message notification error:', err));
         }
 
         res.json(inserted.rows[0]);
@@ -402,8 +405,7 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
             const senderResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
             const senderName = senderResult.rows[0]?.name || 'Someone';
             const preview = content?.trim() ? content.trim().slice(0, 100) : 'Sent a photo/voice note';
-            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`)
-                .catch((err) => console.error('New message notification error:', err));
+            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview)                .catch((err) => console.error('New message notification error:', err));
         }
 
         res.json(inserted.rows[0]);
