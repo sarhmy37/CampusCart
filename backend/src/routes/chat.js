@@ -74,13 +74,15 @@ router.post('/start', requireAuth, async (req, res) => {
             conversationId = inserted.rows[0].id;
         }
 
-        const seller = await pool.query(`SELECT name, avatar_url, account_type FROM users WHERE id = $1`, [sellerId]);
+        const seller = await pool.query(`SELECT name, avatar_url, account_type, plan, plan_expires_at FROM users WHERE id = $1`, [sellerId]);
 
         res.json({
             id: conversationId,
             seller_name: seller.rows[0]?.name || 'Seller',
             seller_avatar: seller.rows[0]?.avatar_url || null,
             seller_account_type: seller.rows[0]?.account_type || null,
+            seller_plan: seller.rows[0]?.plan || null,
+            seller_plan_expires_at: seller.rows[0]?.plan_expires_at || null,
         });
     } catch (err) {
         console.error('Start conversation error:', err);
@@ -100,6 +102,8 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 CASE WHEN c.buyer_id = $1 THEN su.name ELSE bu.name END AS other_user_name,
                 CASE WHEN c.buyer_id = $1 THEN su.avatar_url ELSE bu.avatar_url END AS other_user_avatar,
                 CASE WHEN c.buyer_id = $1 THEN su.account_type ELSE bu.account_type END AS other_user_account_type,
+                CASE WHEN c.buyer_id = $1 THEN su.plan ELSE bu.plan END AS other_user_plan,
+                CASE WHEN c.buyer_id = $1 THEN su.plan_expires_at ELSE bu.plan_expires_at END AS other_user_plan_expires_at,
                 CASE WHEN c.buyer_id = $1 THEN su.last_active_at ELSE bu.last_active_at END AS other_user_last_active,
                 CASE WHEN c.buyer_id = $1 THEN 'buying' ELSE 'selling' END AS my_role,
                 p.title AS product_title,
