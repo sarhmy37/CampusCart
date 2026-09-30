@@ -10,7 +10,12 @@ router.get('/feed', requireAuth, async (req, res) => {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
-             u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
+             u.name AS user_name, u.avatar_url AS user_avatar,
+             CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
+             CASE WHEN u.account_type = 'seller'
+               THEN (SELECT COUNT(*) FROM order_items oi WHERE oi.seller_id = u.id AND oi.buyer_confirmed_at IS NOT NULL)
+               ELSE (SELECT COUNT(*) FROM orders o WHERE o.buyer_id = u.id)
+             END AS activity_count,
              EXISTS (
                SELECT 1 FROM story_views v
                WHERE v.story_id = s.id AND v.viewer_id = $1
@@ -29,6 +34,7 @@ router.get('/feed', requireAuth, async (req, res) => {
           user_name: row.user_name,
           user_avatar: row.user_avatar,
           user_plan: row.user_plan,
+          activity_count: Number(row.activity_count),
           stories: [],
         });
       }

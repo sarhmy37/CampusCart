@@ -122,6 +122,34 @@ router.get('/', optionalAuth, async (req, res) => {
     }
 });
 
+// GET /api/products/boosted: active boosts, premium then pro then free, most sales first
+router.get('/boosted', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT p.id, p.title, p.description, p.price, p.stock, p.primary_image, p.created_at, p.boosted_until,
+                    u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar,
+                    u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at,
+                    c.name AS category
+             FROM products p
+             JOIN users u ON u.id = p.seller_id
+             LEFT JOIN categories c ON c.id = p.category_id
+             WHERE p.boosted_until > now() AND p.stock > 0
+               AND p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
+             ORDER BY
+                CASE WHEN u.plan = 'premium' AND u.plan_expires_at > now() THEN 0
+                     WHEN u.plan = 'pro' AND u.plan_expires_at > now() THEN 1
+                     ELSE 2 END,
+                (SELECT COUNT(*) FROM order_items oi WHERE oi.seller_id = u.id AND oi.buyer_confirmed_at IS NOT NULL) DESC,
+                p.boosted_until ASC, p.id
+             LIMIT 30`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get boosted products error:', err);
+        res.status(500).json({ error: 'Something went wrong loading boosted listings' });
+    }
+});
+
 // GET /api/products/showcase — up to 6 products for the homepage grid.
 // Priority: active boosts, then premium sellers (earliest-listed first),
 // then pro sellers, then a random free-seller product.
