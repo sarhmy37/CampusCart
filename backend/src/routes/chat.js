@@ -102,7 +102,8 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 CASE WHEN c.buyer_id = $1 THEN su.account_type ELSE bu.account_type END AS other_user_account_type,
                 CASE WHEN c.buyer_id = $1 THEN su.last_active_at ELSE bu.last_active_at END AS other_user_last_active,
                 p.title AS product_title,
-                COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' WHEN lm.media_type = 'video' THEN '🎥 Video' WHEN lm.media_type = 'file' THEN '📄 File' ELSE NULL END                lm.created_at AS last_message_at,
+                COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' WHEN lm.media_type = 'video' THEN '🎥 Video' WHEN lm.media_type = 'file' THEN '📄 File'ELSE NULL END) AS last_message,
+                lm.created_at AS last_message_at,
                 COALESCE(uc.unread_count, 0) AS unread_count
              FROM conversations c
              JOIN users bu ON bu.id = c.buyer_id
