@@ -73,7 +73,20 @@ router.get('/', optionalAuth, async (req, res) => {
         conditions.push(`p.network = $${values.length}`);
     }
 
+    const { contentType } = req.query;
+    if (contentType && contentType !== 'all') {
+        if (contentType === 'products') conditions.push(`(c.name IS NULL OR c.name != 'Services')`);
+        else if (contentType === 'services') conditions.push(`c.name = 'Services'`);
+        else if (contentType === 'new') conditions.push(`p.created_at > now() - interval '7 days'`);
+        else if (contentType === 'featured') conditions.push(`(p.boosted_until IS NOT NULL AND p.boosted_until > now())`);
+        else conditions.push('FALSE'); // types that don't apply to listings (deals, events, ...)
+    }
+
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+    const pageLimit = Math.min(parseInt(req.query.limit, 10) || 0, 50);
+    const pageOffset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    const pagingClause = pageLimit ? `LIMIT ${pageLimit} OFFSET ${pageOffset}` : '';
 
     try {
         const result = await pool.query(
@@ -98,7 +111,8 @@ router.get('/', optionalAuth, async (req, res) => {
                     ELSE 3
                 END,
                 CASE WHEN p.boosted_until IS NOT NULL AND p.boosted_until > now() THEN p.boosted_until END ASC,
-                p.created_at DESC`,
+                p.created_at DESC, p.id
+             ${pagingClause}`,
             values
         );
         res.json(result.rows);
