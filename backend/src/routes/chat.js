@@ -101,6 +101,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 CASE WHEN c.buyer_id = $1 THEN su.avatar_url ELSE bu.avatar_url END AS other_user_avatar,
                 CASE WHEN c.buyer_id = $1 THEN su.account_type ELSE bu.account_type END AS other_user_account_type,
                 CASE WHEN c.buyer_id = $1 THEN su.last_active_at ELSE bu.last_active_at END AS other_user_last_active,
+                CASE WHEN c.buyer_id = $1 THEN 'buying' ELSE 'selling' END AS my_role,
                 p.title AS product_title,
                 COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' WHEN lm.media_type = 'video' THEN '🎥 Video' WHEN lm.media_type = 'file' THEN '📄 File'ELSE NULL END) AS last_message,
                 lm.created_at AS last_message_at,
