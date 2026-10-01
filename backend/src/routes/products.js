@@ -123,20 +123,20 @@ router.get('/', optionalAuth, async (req, res) => {
 });
 
 // GET /api/products/search/users?q=xxx — search seller accounts by name/username (no contact info returned)
-router.get('/search/users', async (req, res) => {
+router.get('/search/users', optionalAuth, async (req, res) => {
     const q = (req.query.q || '').trim();
     if (!q) return res.json([]);
     try {
         const result = await pool.query(
-            `SELECT u.id, u.name, u.username, u.school, u.avatar_url, u.verified,
+            `SELECT u.id, u.name, u.username, u.school, u.avatar_url, u.verified, u.account_type,
                     CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS plan
              FROM users u
-             WHERE u.account_type = 'seller'
-               AND u.banned IS NOT TRUE
+             WHERE u.banned IS NOT TRUE
+               AND ($2::uuid IS NULL OR u.id <> $2::uuid)
                AND (u.username ILIKE $1 OR u.name ILIKE $1)
              ORDER BY u.verified DESC, u.name ASC
              LIMIT 20`,
-            [`%${q}%`]
+            [`%${q}%`, req.userId || null]
         );
         res.json(result.rows);
     } catch (err) {
