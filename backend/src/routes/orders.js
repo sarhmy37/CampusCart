@@ -467,14 +467,14 @@ router.get('/sales', requireAuth, async (req, res) => {
                 SELECT oi.*, o.created_at AS order_created_at, o.status AS order_status, u.name AS buyer_name,
                        CASE WHEN oi.buyer_confirmed_at IS NOT NULL
                             THEN ROW_NUMBER() OVER (
-                                PARTITION BY oi.seller_id
+                                PARTITION BY oi.seller_id, (oi.buyer_confirmed_at IS NOT NULL)
                                 ORDER BY o.created_at ASC
                             )
                        END AS completed_rank
                 FROM order_items oi
                 JOIN orders o ON o.id = oi.order_id
                 JOIN users u ON u.id = o.buyer_id
-                WHERE oi.seller_id = $1 AND oi.buyer_confirmed_at IS NOT NULL
+                WHERE oi.seller_id = $1 AND (oi.buyer_confirmed_at IS NOT NULL OR oi.status = 'cancelled')
              )
              SELECT numbered.*,
                     CEIL(completed_rank::numeric / 30) AS milestone_batch
