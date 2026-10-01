@@ -55,7 +55,7 @@ router.get('/seller/:sellerId', async (req, res) => {
 router.get('/pending-items', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar,
+            `SELECT DISTINCT u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar,
                     p.id AS product_id, p.title AS product_title
              FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
