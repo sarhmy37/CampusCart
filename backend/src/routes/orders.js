@@ -22,6 +22,19 @@ const PAYSTACK_MARKUP_RATE = 0.02; // flat 2% added at Paystack checkout (Paysta
 
 const { insertNotification } = require('../utils/notifications');
 
+// Varied "funds available" messages so sellers don't see the same line every time.
+const FUNDS_MESSAGES = [
+    (amt, note, title) => `💰 Cha-ching! GHS ${amt}${note} just landed in your Payouts tab for "${title}".`,
+    (amt, note, title) => `🎉 You got paid! GHS ${amt}${note} for "${title}" is now in your Payouts tab.`,
+    (amt, note, title) => `✅ Sale confirmed! GHS ${amt}${note} for "${title}" is ready in your Payouts tab.`,
+    (amt, note, title) => `🤑 Money moves! GHS ${amt}${note} from "${title}" is waiting in your Payouts tab.`,
+    (amt, note, title) => `🚀 Nice one! GHS ${amt}${note} for "${title}" is now available to withdraw.`,
+    (amt, note, title) => `💸 Fresh funds! GHS ${amt}${note} for "${title}" just hit your Payouts tab.`,
+    (amt, note, title) => `🙌 Another win! GHS ${amt}${note} for "${title}" is yours to withdraw.`,
+];
+const pickFundsMessage = (amt, note, title) =>
+    FUNDS_MESSAGES[Math.floor(Math.random() * FUNDS_MESSAGES.length)](amt, note, title);
+
 // POST /api/orders — create pending order + get Paystack payment link
 router.post('/', requireAuth, async (req, res) => {
     const { items, delivery_method, buyer_lat, buyer_lng } = req.body;
@@ -189,6 +202,16 @@ router.post('/', requireAuth, async (req, res) => {
             await client.query('COMMIT');
 
             try {
+                // Buyer: payment successful
+                await insertNotification(
+                    req.userId,
+                    'payment_success_buyer',
+                    `Your payment for Order #${orderId} was successful. The seller(s) have been notified.`,
+                    orderId,
+                    '/dashboard?tab=orders'
+                );
+
+                // Sellers: new order
                 const buyerRow = (await pool.query('SELECT name, location FROM users WHERE id = $1', [req.userId])).rows[0];
                 const deliveryNote = delivery_method === 'delivery'
                     ? 'get it delivered within 1–3 working days to secure the sale.'
@@ -207,7 +230,7 @@ router.post('/', requireAuth, async (req, res) => {
                     );
                 }
             } catch (notifyErr) {
-                console.error('Credit order seller notify error:', notifyErr);
+                console.error('Credit order notify error:', notifyErr);
             }
 
             return res.status(201).json({
@@ -229,14 +252,14 @@ router.post('/', requireAuth, async (req, res) => {
 
         await client.query('COMMIT');
 
-const paystackRes = await initializeTransaction({
-    email: buyerEmail,
-    amountGHS: paystackAmount,
-    reference,
-    callback_url: 'https://campuscart-tdfn.onrender.com/paystack/callback',
-    cancel_action: 'https://campuscart-tdfn.onrender.com/paystack/callback?status=cancel',
-    metadata: { order_id: orderId, buyer_id: req.userId },
-});
+        const paystackRes = await initializeTransaction({
+            email: buyerEmail,
+            amountGHS: paystackAmount,
+            reference,
+            callback_url: 'https://campuscart-tdfn.onrender.com/paystack/callback',
+            cancel_action: 'https://campuscart-tdfn.onrender.com/paystack/callback?status=cancel',
+            metadata: { order_id: orderId, buyer_id: req.userId },
+        });
 
         res.status(201).json({
             id: orderId,
@@ -341,6 +364,15 @@ router.post('/webhook', async (req, res) => {
         // Mark paid — order still isn't 'completed' until the buyer confirms receipt.
         await pool.query(`UPDATE orders SET status = 'paid' WHERE id = $1`, [order.id]);
 
+        // Buyer: payment successful
+        await insertNotification(
+            order.buyer_id,
+            'payment_success_buyer',
+            `Your payment for Order #${order.id} was successful. The seller(s) have been notified.`,
+            order.id,
+            '/dashboard?tab=orders'
+        );
+
         const buyerResult = await pool.query('SELECT name, location FROM users WHERE id = $1', [order.buyer_id]);
         const buyerName = buyerResult.rows[0]?.name || 'A buyer';
         const buyerLocation = buyerResult.rows[0]?.location;
@@ -373,7 +405,7 @@ router.post('/webhook', async (req, res) => {
 
             const message = `🎉 ${buyerName} just bought ${itemNames} for GHS ${sellerAmount.toFixed(2)}. ${locationPhrase}${deliveryNote}`;
 
-            // Send notification to seller with link to their Delivery tab
+            // Sellers: new order, with link to their Delivery tab
             await insertNotification(sellerId, 'payment_received_seller', message, order.id, '/dashboard?tab=deliveries');
         }
     } catch (err) {
@@ -765,7 +797,8 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             `SELECT COUNT(*) FROM order_items WHERE order_id = $1 AND buyer_confirmed_at IS NULL AND status <> 'cancelled'`,
             [item.order_id]
         );
-        if (parseInt(remainingResult.rows[0].count, 10) === 0) {
+        const orderNowCompleted = parseInt(remainingResult.rows[0].count, 10) === 0;
+        if (orderNowCompleted) {
             await pool.query(`UPDATE orders SET status = 'completed' WHERE id = $1`, [item.order_id]);
         }
 
@@ -812,19 +845,57 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         console.log(`  - Seller Available: GHS ${sellerEarnings.toFixed(2)}`);
         // ======================================================
 
+        // Seller: funds available (fires for every confirmed item)
         const deliveryNote = item.delivery_fee_credited
             ? ` (includes GHS ${parseFloat(item.delivery_fee_credited).toFixed(2)} delivery fee)`
             : '';
-        await insertNotification(
-            item.seller_id,
-            'funds_available',
-            `💰 Whoo! GHS ${sellerEarnings.toFixed(2)}${deliveryNote} just landed in your Payouts tab for "${item.title}".`,
-            item.order_id,
-            '/dashboard?tab=payouts'
-        );
+        const sendFundsNotification = () =>
+            insertNotification(
+                item.seller_id,
+                'funds_available',
+                pickFundsMessage(sellerEarnings.toFixed(2), deliveryNote, item.title),
+                item.order_id,
+                '/dashboard?tab=payouts'
+            ).catch((err) => console.error('Funds notification failed:', err));
+
+        if (orderNowCompleted) {
+            // Let "Order completed" land first, then the funds notification a minute later.
+            setTimeout(sendFundsNotification, 60 * 1000);
+        } else {
+            await sendFundsNotification();
+        }
         if (sellerSmsNumber) {
             sendOrderSMS(sellerSmsNumber, `Tre-X: Buyer confirmed receipt of "${item.title}". GHS ${sellerEarnings.toFixed(2)} is now available in your Payouts tab.`)
                 .catch((err) => console.error('Delivery confirm SMS failed:', err));
+        }
+
+        // Order completed: buyer + sellers (fires once, when the last item is confirmed)
+        if (orderNowCompleted) {
+            try {
+                await insertNotification(
+                    req.userId,
+                    'order_completed_buyer',
+                    `Order #${item.order_id} is complete. Thanks for confirming! Tap to rate your purchase.`,
+                    item.order_id,
+                    '/dashboard?tab=orders'
+                );
+
+                const completedSellers = await pool.query(
+                    `SELECT DISTINCT seller_id FROM order_items WHERE order_id = $1 AND status <> 'cancelled'`,
+                    [item.order_id]
+                );
+                for (const { seller_id } of completedSellers.rows) {
+                    await insertNotification(
+                        seller_id,
+                        'order_completed_seller',
+                        `✅ Order #${item.order_id} is complete. The buyer has confirmed everything.`,
+                        item.order_id,
+                        '/dashboard?tab=payouts'
+                    );
+                }
+            } catch (notifyErr) {
+                console.error('Order completed notifications failed:', notifyErr);
+            }
         }
 
         res.json({

@@ -9,6 +9,9 @@ const NOTIFICATION_TITLES = {
     funds_available: 'Funds available',
     payment_flagged: 'Payment flagged',
     delivery_reminder: 'Delivery reminder',
+    payment_success_buyer: 'Payment successful',
+    order_completed_buyer: 'Order completed',
+    order_completed_seller: 'Order completed',
 };
 
 function getPushTitle(type) {
