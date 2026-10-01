@@ -430,10 +430,19 @@ router.get('/mine', requireAuth, async (req, res) => {
         );
         const orders = ordersResult.rows;
 
+        const meResult = await pool.query(
+            `SELECT name, CASE WHEN plan_expires_at > NOW() THEN plan ELSE 'free' END AS plan FROM users WHERE id = $1`,
+            [req.userId]
+        );
+        const me = meResult.rows[0] || {};
+
         for (const order of orders) {
+            order.buyer_name = me.name;
+            order.buyer_plan = me.plan;
             const itemsResult = await pool.query(
                 `SELECT oi.id, oi.product_id, oi.title, oi.quantity, oi.price_at_purchase, oi.seller_id, oi.buyer_confirmed_at, oi.status, oi.delivered_at,
-                        p.primary_image AS image, u.name AS seller_name
+                        p.primary_image AS image, u.name AS seller_name,
+                        CASE WHEN u.plan_expires_at > NOW() THEN u.plan ELSE 'free' END AS seller_plan
                  FROM order_items oi
                  LEFT JOIN products p ON p.id = oi.product_id
                  LEFT JOIN users u ON u.id = oi.seller_id
