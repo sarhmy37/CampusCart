@@ -79,6 +79,22 @@ function chargeAuthorization({ email, amountGHS, authorization_code, reference, 
     });
 }
 
+async function refundTransaction(reference, amountGHS) {
+    const body = { transaction: reference };
+    if (amountGHS) body.amount = Math.round(amountGHS * 100);
+    const res = await fetch('https://api.paystack.co/refund', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.status) throw new Error(data.message || 'Paystack refund failed');
+    return data;
+}
+
 module.exports = {
     paystackRequest,
     initializeTransaction,
@@ -86,4 +102,5 @@ module.exports = {
     createTransferRecipient,
     initiateTransfer,
     chargeAuthorization,
+    refundTransaction,
 };

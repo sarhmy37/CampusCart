@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { sendSupportReplyEmail } = require('../utils/mailer');
+const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -193,16 +194,23 @@ router.get('/orders/search', async (req, res) => {
     }
 });
 
-// GET /api/admin/orders/overdue
+// GET /api/admin/orders/overdue — missed deliveries, buyers silent after delivery, and buyer reports
 router.get('/orders/overdue', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT o.id, o.status, o.total_amount, o.created_at, o.overdue_flagged_at,
-                    u.name AS buyer_name, u.university_email AS buyer_email
+            `SELECT o.id, o.status, o.total_amount, o.created_at, o.delivered_at,
+                    CASE
+                        WHEN o.reported_at IS NOT NULL THEN 'reported'
+                        WHEN o.flagged_overdue_at IS NOT NULL THEN 'unconfirmed'
+                        ELSE 'not_delivered'
+                    END AS overdue_reason,
+                    COALESCE(o.reported_at, o.flagged_overdue_at, o.overdue_flagged_at) AS flagged_at,
+                    u.name AS buyer_name, u.university_email AS buyer_email, u.whatsapp AS buyer_whatsapp
              FROM orders o
              JOIN users u ON u.id = o.buyer_id
-             WHERE o.overdue_flagged_at IS NOT NULL AND o.status = 'paid'
-             ORDER BY o.overdue_flagged_at DESC`
+             WHERE o.status = 'paid'
+               AND (o.overdue_flagged_at IS NOT NULL OR o.flagged_overdue_at IS NOT NULL OR o.reported_at IS NOT NULL)
+             ORDER BY COALESCE(o.reported_at, o.flagged_overdue_at, o.overdue_flagged_at) DESC`
         );
         res.json(result.rows);
     } catch (err) {
@@ -494,6 +502,84 @@ router.get('/deleted-chats/:id/messages', async (req, res) => {
     }
 });
 
+// POST /api/admin/orders/:id/release — admin confirms receipt for the buyer and releases the sellers' money
+router.post('/orders/:id/release', async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    const fail = async (status, error) => {
+        await client.query('ROLLBACK');
+        return res.status(status).json({ error });
+    };
+    try {
+        await client.query('BEGIN');
+
+        const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+        const order = orderResult.rows[0];
+        if (!order) return fail(404, 'Order not found');
+        if (order.status !== 'paid') return fail(400, 'Only paid orders can be released');
+        if (!order.delivered_at) return fail(400, 'The seller has not marked this order as delivered');
+
+        const itemsResult = await client.query(
+            `SELECT * FROM order_items
+             WHERE order_id = $1 AND buyer_confirmed_at IS NULL AND status <> 'cancelled' AND delivered_at IS NOT NULL`,
+            [id]
+        );
+        if (itemsResult.rows.length === 0) return fail(400, 'Nothing left to release on this order');
+
+        const paidBySeller = {};
+        for (const item of itemsResult.rows) {
+            const goods = parseFloat(item.price_at_purchase) * item.quantity;
+            const adminNetProfit = Math.round(
+                (goods * 0.02 + parseFloat(item.platform_fee || 0) + parseFloat(item.admin_delivery_share || 0)) * 100
+            ) / 100;
+
+            await client.query(
+                `UPDATE order_items SET buyer_confirmed_at = now(), status = 'completed', admin_net_profit = $1 WHERE id = $2`,
+                [adminNetProfit, item.id]
+            );
+            paidBySeller[item.seller_id] = (paidBySeller[item.seller_id] || 0) + parseFloat(item.seller_earnings || 0);
+        }
+        const stillOpen = await client.query(
+            `SELECT 1 FROM order_items WHERE order_id = $1 AND buyer_confirmed_at IS NULL AND status <> 'cancelled' LIMIT 1`,
+            [id]
+        );
+        if (stillOpen.rows.length === 0) {
+            await client.query(`UPDATE orders SET status = 'completed' WHERE id = $1`, [id]);
+        }
+
+        await client.query('COMMIT');
+        res.json({ message: 'Payment released to seller' });
+
+        try {
+        for (const [sellerId, amount] of Object.entries(paidBySeller)) {
+            await insertNotification(
+                sellerId,
+                'funds_available',
+                `💰 GHS ${amount.toFixed(2)} for Order #${id} was released to your Payouts tab after our team reviewed it.`,
+                id,
+                '/dashboard?tab=payouts'
+            );
+        }
+        await insertNotification(
+            order.buyer_id,
+            'order_released_buyer',
+            `Order #${id} was marked as received after a review by our team.`,
+            id,
+            '/dashboard?tab=orders'
+        );
+
+        } catch (notifyErr) {
+            console.error('Release notifications failed:', notifyErr);
+        }
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Admin release order error:', err);
+        res.status(500).json({ error: 'Something went wrong releasing this order' });
+    } finally {
+        client.release();
+    }
+});
+
 // POST /api/admin/orders/:id/refund
 // body: { percent: 25|50|75|100, noItemsReceived: boolean }
 router.post('/orders/:id/refund', async (req, res) => {
@@ -508,26 +594,54 @@ router.post('/orders/:id/refund', async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+        const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
         const order = orderResult.rows[0];
         if (!order) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
         if (order.status !== 'paid') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Only paid orders can be refunded this way' }); }
 
-        const subtotalRefund = parseFloat(order.subtotal) * (percent / 100);
-        const deliveryRefund = noItemsReceived ? parseFloat(order.delivery_fee) : 0;
-        const refundAmount = subtotalRefund + deliveryRefund;
+        // Only items still in play: not cancelled (already refunded) and not buyer-confirmed (seller already paid).
+        const liveItems = (await client.query(
+            `SELECT price_at_purchase, quantity, platform_fee, seller_earnings, admin_delivery_share
+             FROM order_items
+             WHERE order_id = $1 AND status <> 'cancelled' AND buyer_confirmed_at IS NULL`,
+            [id]
+        )).rows;
+        if (liveItems.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No refundable items left on this order' });
+        }
+
+        let goodsTotal = 0;
+        let deliveryTotal = 0;
+        for (const i of liveItems) {
+            const goods = parseFloat(i.price_at_purchase) * i.quantity;
+            goodsTotal += goods;
+            const sellerDelivery = i.seller_earnings == null
+                ? 0
+                : parseFloat(i.seller_earnings) - (goods - parseFloat(i.platform_fee || 0));
+            deliveryTotal += sellerDelivery + parseFloat(i.admin_delivery_share || 0);
+        }
+        const subtotalRefund = goodsTotal * (percent / 100);
+        const deliveryRefund = noItemsReceived ? deliveryTotal : 0;
+        const refundAmount = Math.round((subtotalRefund + deliveryRefund) * 100) / 100;
 
         const newStatus = percent === 100 ? 'refunded' : 'partially_refunded';
         await client.query(`UPDATE orders SET status = $1 WHERE id = $2`, [newStatus, id]);
-        await client.query(`UPDATE order_items SET status = $1 WHERE order_id = $2`, [newStatus, id]);
+        await client.query(
+            `UPDATE order_items SET status = $1 WHERE order_id = $2 AND status <> 'cancelled' AND buyer_confirmed_at IS NULL`,
+            [newStatus, id]
+        );
         await client.query('UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2', [refundAmount, order.buyer_id]);
 
         await client.query('COMMIT');
 
-        await pool.query(
-            `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
-            [order.buyer_id, 'order_refunded', `Order #${id} was ${percent < 100 ? `partially (${percent}%)` : 'fully'} refunded as GHS ${refundAmount.toFixed(2)} credit to your account.`, id, '/dashboard?tab=orders']
-        );
+        await insertNotification(
+            order.buyer_id,
+            'order_refunded',
+            `Order #${id} was ${percent < 100 ? `partially (${percent}%)` : 'fully'} refunded as GHS ${refundAmount.toFixed(2)} credit to your account.`,
+            id,
+            '/dashboard?tab=orders'
+        ).catch((err) => console.error('Refund notification failed:', err));
 
         res.json({ message: 'Order refunded', refundAmount });
     } catch (err) {

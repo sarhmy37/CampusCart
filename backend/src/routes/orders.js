@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { initializeTransaction, verifyWebhookSignature } = require('../utils/paystack');
+const { initializeTransaction, verifyWebhookSignature, refundTransaction } = require('../utils/paystack');
 const { sendOrderSMS } = require('../utils/mailer');
 const { calcDeliveryFee } = require('../utils/distance');
 const { getDeliveryDiscountRate } = require('../utils/plans');
@@ -180,12 +180,35 @@ router.post('/', requireAuth, async (req, res) => {
         const reference = `cc_${orderId}`;
         await client.query('UPDATE orders SET payment_reference = $1 WHERE id = $2', [reference, orderId]);
 
-        // Fully covered by credit — leave pending until buyer confirms. No Paystack charge at all.
+        // Fully covered by credit — no Paystack charge. Mark paid straight away and notify the sellers.
         if (totalAmount <= 0) {
             for (const item of lineItems) {
                 await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);
             }
+            await client.query(`UPDATE orders SET status = 'paid', paystack_amount = 0 WHERE id = $1`, [orderId]);
             await client.query('COMMIT');
+
+            try {
+                const buyerRow = (await pool.query('SELECT name, location FROM users WHERE id = $1', [req.userId])).rows[0];
+                const deliveryNote = delivery_method === 'delivery'
+                    ? 'get it delivered within 1–3 working days to secure the sale.'
+                    : "they'll reach out to arrange pickup on campus.";
+                const locationPhrase = buyerRow?.location ? `This person is located at ${buyerRow.location}, ` : '';
+                for (const sellerId of [...new Set(lineItems.map((i) => i.seller_id))]) {
+                    const mine = lineItems.filter((i) => i.seller_id === sellerId);
+                    const names = mine.map((i) => i.title).join(', ');
+                    const amount = mine.reduce((s, i) => s + parseFloat(i.price_at_purchase) * i.quantity, 0);
+                    await insertNotification(
+                        sellerId,
+                        'payment_received_seller',
+                        `🎉 ${buyerRow?.name || 'A buyer'} just bought ${names} for GHS ${amount.toFixed(2)}. ${locationPhrase}${deliveryNote}`,
+                        orderId,
+                        '/dashboard?tab=deliveries'
+                    );
+                }
+            } catch (notifyErr) {
+                console.error('Credit order seller notify error:', notifyErr);
+            }
 
             return res.status(201).json({
                 id: orderId,
@@ -210,8 +233,8 @@ const paystackRes = await initializeTransaction({
     email: buyerEmail,
     amountGHS: paystackAmount,
     reference,
-    callback_url: 'https://campus-cart-tdfn.onrender.com/api/orders/payment-redirect?status=success',
-    cancel_action: 'https://campus-cart-tdfn.onrender.com/api/orders/payment-redirect?status=cancel',
+    callback_url: 'https://campuscart-tdfn.onrender.com/paystack/callback',
+    cancel_action: 'https://campuscart-tdfn.onrender.com/paystack/callback?status=cancel',
     metadata: { order_id: orderId, buyer_id: req.userId },
 });
 
@@ -377,7 +400,7 @@ router.get('/mine', requireAuth, async (req, res) => {
 
         for (const order of orders) {
             const itemsResult = await pool.query(
-                `SELECT oi.id, oi.title, oi.quantity, oi.price_at_purchase, oi.seller_id, oi.buyer_confirmed_at,
+                `SELECT oi.id, oi.title, oi.quantity, oi.price_at_purchase, oi.seller_id, oi.buyer_confirmed_at, oi.status, oi.delivered_at,
                         p.primary_image AS image
                  FROM order_items oi
                  LEFT JOIN products p ON p.id = oi.product_id
@@ -445,7 +468,7 @@ router.get('/deliveries', requireAuth, async (req, res) => {
          const result = await pool.query(
             `SELECT
                 o.id AS order_id, o.status, o.delivery_method, o.created_at,
-                o.delivered_at, o.delivered_by_seller_id,
+                MAX(oi.delivered_at) AS delivered_at, o.delivered_by_seller_id,
                 u.name AS buyer_name, u.location AS buyer_location, u.whatsapp AS buyer_whatsapp,
                 COALESCE(
                     json_agg(json_build_object('title', oi.title, 'quantity', oi.quantity, 'image', p.primary_image))
@@ -453,7 +476,7 @@ router.get('/deliveries', requireAuth, async (req, res) => {
                     '[]'
                 ) AS items
              FROM orders o
-             JOIN order_items oi ON oi.order_id = o.id AND oi.seller_id = $1
+             JOIN order_items oi ON oi.order_id = o.id AND oi.seller_id = $1 AND oi.status <> 'cancelled'
              JOIN users u ON u.id = o.buyer_id
              LEFT JOIN products p ON p.id = oi.product_id
              WHERE o.status = 'paid'
@@ -507,7 +530,7 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
         const ownershipCheck = await pool.query(
-            `SELECT 1 FROM order_items WHERE order_id = $1 AND seller_id = $2 LIMIT 1`,
+            `SELECT 1 FROM order_items WHERE order_id = $1 AND seller_id = $2 AND status <> 'cancelled' LIMIT 1`,
             [id, req.userId]
         );
         if (ownershipCheck.rows.length === 0) {
@@ -517,8 +540,12 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
         if (order.status !== 'paid') {
             return res.status(400).json({ error: 'This order is not currently awaiting delivery' });
         }
-        if (order.delivered_at) {
-            return res.status(400).json({ error: 'This order has already been marked as delivered' });
+        const myUndelivered = await pool.query(
+            `SELECT 1 FROM order_items WHERE order_id = $1 AND seller_id = $2 AND status <> 'cancelled' AND delivered_at IS NULL LIMIT 1`,
+            [id, req.userId]
+        );
+        if (myUndelivered.rows.length === 0) {
+            return res.status(400).json({ error: 'You have already marked your items as delivered' });
         }
 
         const sellerResult = await pool.query('SELECT name FROM users WHERE id = $1', [req.userId]);
@@ -529,7 +556,15 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
         const buyerSmsNumber = buyerResult.rows[0]?.sms_number;
 
         await pool.query(
-            `UPDATE orders SET delivered_at = now(), delivered_by_seller_id = $1, last_delivery_reminder_at = now() WHERE id = $2`,
+            `UPDATE order_items SET delivered_at = now()
+             WHERE order_id = $1 AND seller_id = $2 AND status <> 'cancelled' AND delivered_at IS NULL`,
+            [id, req.userId]
+        );
+        await pool.query(
+            `UPDATE orders SET delivered_at = COALESCE(delivered_at, now()),
+                    delivered_by_seller_id = COALESCE(delivered_by_seller_id, $1),
+                    last_delivery_reminder_at = now()
+             WHERE id = $2`,
             [req.userId, id]
         );
 
@@ -548,13 +583,151 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
     }
 });
 
+// POST /api/orders/:id/cancel — a seller cancels THEIR items in an order before delivery.
+// The buyer is refunded that seller's share (items + delivery); other sellers' items carry on.
+router.post('/:id/cancel', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    const fail = async (status, error) => {
+        await client.query('ROLLBACK');
+        return res.status(status).json({ error });
+    };
+    const round2 = (n) => Math.round(n * 100) / 100;
+
+    try {
+        await client.query('BEGIN');
+
+        const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+        const order = orderResult.rows[0];
+        if (!order) return fail(404, 'Order not found');
+        if (order.status !== 'paid') return fail(400, 'Only paid orders can be cancelled');
+
+        const itemsResult = await client.query(
+            `SELECT id, title, product_id, quantity, seller_id, price_at_purchase, platform_fee,
+                    seller_earnings, admin_delivery_share, buyer_confirmed_at, delivered_at, status
+             FROM order_items WHERE order_id = $1`,
+            [id]
+        );
+        const activeItems = itemsResult.rows.filter((i) => i.status !== 'cancelled');
+        const myItems = activeItems.filter((i) => i.seller_id === req.userId);
+        if (myItems.length === 0) return fail(403, "You don't have any active items in this order");
+        if (myItems.some((i) => i.buyer_confirmed_at || i.delivered_at)) return fail(400, 'You already marked these items as delivered, so they can no longer be cancelled');
+
+        // What the buyer paid for this seller's items: goods + this seller's delivery share
+        // (seller's 80% + the admin share stored per item), before credit and Paystack markup.
+        const valueOf = (i) => {
+            const goods = parseFloat(i.price_at_purchase) * i.quantity;
+            const sellerDelivery = i.seller_earnings == null
+                ? 0
+                : parseFloat(i.seller_earnings) - (goods - parseFloat(i.platform_fee || 0));
+            return goods + sellerDelivery + parseFloat(i.admin_delivery_share || 0);
+        };
+        const myValue = myItems.reduce((s, i) => s + valueOf(i), 0);
+        const orderValue = parseFloat(order.subtotal) + parseFloat(order.delivery_fee || 0);
+
+        const isLastSeller = activeItems.every((i) => i.seller_id === req.userId);
+        const share = orderValue > 0 ? Math.min(1, myValue / orderValue) : 1;
+
+        // Refund is based on total_amount (what the order cost), not paystack_amount (which includes the non-refundable 2%).
+        const paystackTotal = parseFloat(order.total_amount || 0);
+        const creditTotal = parseFloat(order.credit_applied || 0);
+        // Last seller gets the exact remainder so rounding never leaves pesewas behind.
+        const refundPaystack = isLastSeller
+            ? round2(paystackTotal - parseFloat(order.paystack_refunded || 0))
+            : round2(paystackTotal * share);
+        const refundCredit = isLastSeller
+            ? round2(creditTotal - parseFloat(order.credit_refunded || 0))
+            : round2(creditTotal * share);
+
+        for (const i of myItems) {
+            await client.query('UPDATE products SET stock = stock + $1 WHERE id = $2', [i.quantity, i.product_id]);
+        }
+        if (refundCredit > 0) {
+            await client.query('UPDATE users SET credit_balance = credit_balance + $1 WHERE id = $2', [refundCredit, order.buyer_id]);
+        }
+
+        await client.query(
+            `UPDATE order_items SET status = 'cancelled', cancelled_at = now()
+             WHERE order_id = $1 AND seller_id = $2 AND status <> 'cancelled'`,
+            [id, req.userId]
+        );
+
+        const remaining = await client.query(
+            `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE buyer_confirmed_at IS NULL) AS unconfirmed
+             FROM order_items WHERE order_id = $1 AND status <> 'cancelled'`,
+            [id]
+        );
+        const total = parseInt(remaining.rows[0].total, 10);
+        const unconfirmed = parseInt(remaining.rows[0].unconfirmed, 10);
+        let newStatus = 'paid';
+        if (total === 0) newStatus = 'cancelled';
+        else if (unconfirmed === 0) newStatus = 'completed';
+
+        await client.query(
+            `UPDATE orders SET status = $1,
+                    paystack_refunded = COALESCE(paystack_refunded, 0) + $2,
+                    credit_refunded = COALESCE(credit_refunded, 0) + $3
+             WHERE id = $4`,
+            [newStatus, refundPaystack, refundCredit, id]
+        );
+        if (newStatus === 'cancelled') {
+            await client.query(
+                `UPDATE orders SET cancelled_at = now(), cancelled_by_seller_id = $1 WHERE id = $2`,
+                [req.userId, id]
+            );
+        }
+
+        // Refund last: if Paystack rejects it, everything above rolls back.
+        if (refundPaystack > 0) await refundTransaction(order.payment_reference, refundPaystack);
+
+        await client.query('COMMIT');
+
+        const refundTotal = round2(refundPaystack + refundCredit);
+        res.json({ success: true, order_status: newStatus, refunded: refundTotal });
+
+        try {
+        const titles = myItems.map((i) => i.title).join(', ');
+        const sellerName = (await pool.query('SELECT name FROM users WHERE id = $1', [req.userId])).rows[0]?.name || 'The seller';
+        const buyerSmsNumber = (await pool.query('SELECT sms_number FROM users WHERE id = $1', [order.buyer_id])).rows[0]?.sms_number;
+
+        await insertNotification(
+            order.buyer_id,
+            'order_cancelled_buyer',
+            `❌ ${sellerName} cancelled ${titles} in Order #${order.id}. GHS ${refundTotal.toFixed(2)} is being refunded to you (the 2% processing fee is non-refundable).`,
+            order.id,
+            '/dashboard?tab=orders'
+        );
+        await insertNotification(
+            req.userId,
+            'order_cancelled_seller',
+            `You cancelled ${titles} in Order #${order.id}. The buyer has been refunded.`,
+            order.id,
+            '/dashboard?tab=deliveries'
+        );
+        if (buyerSmsNumber) {
+            sendOrderSMS(buyerSmsNumber, `Tre-X: ${titles} in Order #${order.id} was cancelled by the seller. GHS ${refundTotal.toFixed(2)} is being refunded.`)
+                .catch((err) => console.error('Cancel SMS failed:', err));
+        }
+
+        } catch (notifyErr) {
+            console.error('Cancel notifications failed:', notifyErr);
+        }
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Cancel order error:', err);
+        res.status(500).json({ error: 'Could not cancel this order. Nothing was changed, please try again.' });
+    } finally {
+        client.release();
+    }
+});
+
 // POST /api/orders/order-items/:itemId/confirm
 router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
     const { itemId } = req.params;
 
     try {
         const itemResult = await pool.query(
-            `SELECT oi.*, o.buyer_id, u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at
+            `SELECT oi.*, o.buyer_id, o.status AS order_status, u.plan AS seller_plan, u.plan_expires_at AS seller_plan_expires_at
              FROM order_items oi
              JOIN orders o ON oi.order_id = o.id
              JOIN users u ON u.id = oi.seller_id
@@ -569,6 +742,15 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         if (item.buyer_id !== req.userId) {
             return res.status(403).json({ error: 'You are not the buyer of this item' });
         }
+        if (item.order_status !== 'paid') {
+            return res.status(400).json({ error: 'This order is not awaiting confirmation' });
+        }
+        if (item.status === 'cancelled') {
+            return res.status(400).json({ error: 'This item was cancelled' });
+        }
+        if (item.buyer_confirmed_at) {
+            return res.status(400).json({ error: 'You already confirmed this item' });
+        }
 
         const sellerSmsResult = await pool.query('SELECT sms_number FROM users WHERE id = $1', [item.seller_id]);
         const sellerSmsNumber = sellerSmsResult.rows[0]?.sms_number;
@@ -580,7 +762,7 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
 
         // If every item in this order is now confirmed, mark the whole order completed
         const remainingResult = await pool.query(
-            `SELECT COUNT(*) FROM order_items WHERE order_id = $1 AND buyer_confirmed_at IS NULL`,
+            `SELECT COUNT(*) FROM order_items WHERE order_id = $1 AND buyer_confirmed_at IS NULL AND status <> 'cancelled'`,
             [item.order_id]
         );
         if (parseInt(remainingResult.rows[0].count, 10) === 0) {
@@ -589,7 +771,7 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
 
         // ============ ADMIN NET PROFIT CALCULATION ============
         // 1. Base product price
-        const basePrice = parseFloat(item.price_at_purchase);
+        const basePrice = parseFloat(item.price_at_purchase) * item.quantity;
 
         // 2. Buyer 2% fee
         const buyerFee = basePrice * 0.02;
@@ -743,6 +925,107 @@ router.delete('/cart-sync', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Cart clear error:', err);
         res.status(500).json({ error: 'Failed to clear cart order' });
+    }
+});
+
+// POST /api/orders/:id/report — buyer says a delivered order hasn't arrived. Admin reviews it by hand.
+router.post('/:id/report', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `UPDATE orders SET reported_at = now()
+             WHERE id = $1 AND buyer_id = $2 AND status = 'paid'
+               AND delivered_at IS NOT NULL AND reported_at IS NULL
+             RETURNING id`,
+            [req.params.id, req.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'This order cannot be reported right now' });
+        }
+        const orderId = result.rows[0].id;
+
+        await insertNotification(
+            req.userId,
+            'order_reported_buyer',
+            `Your report on Order #${orderId} was received. We'll review it and contact you.`,
+            orderId,
+            '/dashboard?tab=orders'
+        );
+
+        const sellers = await pool.query(
+            `SELECT DISTINCT seller_id FROM order_items WHERE order_id = $1 AND status <> 'cancelled'`,
+            [orderId]
+        );
+        for (const { seller_id } of sellers.rows) {
+            await insertNotification(
+                seller_id,
+                'order_reported_seller',
+                `The buyer reported a problem with Order #${orderId}. Our team is reviewing it.`,
+                orderId,
+                '/dashboard?tab=deliveries'
+            );
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Report order error:', err);
+        res.status(500).json({ error: 'Could not send your report. Please try again.' });
+    }
+});
+
+// POST /api/orders/run-delivery-reminders — called by an external cron every ~10 minutes.
+router.post('/run-delivery-reminders', async (req, res) => {
+    if (!process.env.CRON_KEY || req.headers['x-cron-key'] !== process.env.CRON_KEY) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        // 1. Delivered 3+ days ago and still unconfirmed: stop reminding, flag for admin.
+        const flagged = await pool.query(
+            `UPDATE orders SET flagged_overdue_at = now()
+             WHERE status = 'paid' AND flagged_overdue_at IS NULL
+               AND EXISTS (
+                   SELECT 1 FROM order_items oi
+                   WHERE oi.order_id = orders.id AND oi.delivered_at < now() - interval '3 days'
+                     AND oi.buyer_confirmed_at IS NULL AND oi.status <> 'cancelled'
+               )
+             RETURNING id`
+        );
+
+        // 2. Reminder every 6 hours. The UPDATE claims the order, so overlapping runs can't double-send.
+        const due = await pool.query(
+            `UPDATE orders o SET last_delivery_reminder_at = now()
+             FROM users u
+             WHERE u.id = o.buyer_id AND o.status = 'paid' AND o.delivered_at IS NOT NULL
+               AND o.flagged_overdue_at IS NULL AND o.reported_at IS NULL
+               AND (o.last_delivery_reminder_at IS NULL OR o.last_delivery_reminder_at < now() - interval '6 hours')
+               AND EXISTS (
+                   SELECT 1 FROM order_items oi
+                   WHERE oi.order_id = o.id AND oi.buyer_confirmed_at IS NULL AND oi.status <> 'cancelled' AND oi.delivered_at IS NOT NULL
+               )
+             RETURNING o.id, o.buyer_id, o.delivered_at, o.delivery_sms_reminder_sent, u.sms_number`
+        );
+
+        for (const o of due.rows) {
+            await insertNotification(
+                o.buyer_id,
+                'delivery_reminder_buyer',
+                `⏰ Did Order #${o.id} arrive? Confirm it in your Orders tab so the seller gets paid, or report a problem.`,
+                o.id,
+                '/dashboard?tab=orders'
+            );
+
+            // SMS only once more, on day 2 (the first SMS already goes out when the seller marks delivered).
+            const twoDaysOld = new Date(o.delivered_at).getTime() < Date.now() - 2 * 24 * 60 * 60 * 1000;
+            if (twoDaysOld && !o.delivery_sms_reminder_sent && o.sms_number) {
+                sendOrderSMS(o.sms_number, `Tre-X: Did Order #${o.id} arrive? Open the app and confirm it, or report a problem.`)
+                    .catch((err) => console.error('Reminder SMS failed:', err));
+                await pool.query('UPDATE orders SET delivery_sms_reminder_sent = true WHERE id = $1', [o.id]);
+            }
+        }
+
+        res.json({ flagged: flagged.rows.length, reminded: due.rows.length });
+    } catch (err) {
+        console.error('Delivery reminders error:', err);
+        res.status(500).json({ error: 'Reminder run failed' });
     }
 });
 

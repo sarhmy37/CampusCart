@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const pool = require('../db/pool');
+const { blockDeleteIfOrdersOpen } = require('../utils/accountDeletion');
 const { requireAuth } = require('../middleware/auth');
 const { uploadAvatar } = require('../middleware/upload');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
@@ -853,7 +854,7 @@ router.post('/me/verify', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/auth/me
-router.delete('/me', requireAuth, async (req, res) => {
+router.delete('/me', requireAuth, blockDeleteIfOrdersOpen, async (req, res) => {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password is required to delete your account' });
 

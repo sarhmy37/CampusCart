@@ -96,7 +96,8 @@ router.post('/', requireAuth, async (req, res) => {
             email: sellerEmail,
             amountGHS: totalPrice,
             reference,
-            callback_url: `https://campus-cart-tdfn.onrender.com/api/orders/payment-redirect?status=success&boost_ref=${reference}`,
+            callback_url: `https://campuscart-tdfn.onrender.com/paystack/callback?boost_ref=${reference}`,
+            cancel_action: 'https://campuscart-tdfn.onrender.com/paystack/callback?status=cancel',
             metadata: { boost_ids: boostIds, seller_id, product_ids, tier },
         });
 
