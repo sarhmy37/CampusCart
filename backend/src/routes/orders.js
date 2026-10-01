@@ -432,10 +432,11 @@ router.get('/mine', requireAuth, async (req, res) => {
 
         for (const order of orders) {
             const itemsResult = await pool.query(
-                `SELECT oi.id, oi.title, oi.quantity, oi.price_at_purchase, oi.seller_id, oi.buyer_confirmed_at, oi.status, oi.delivered_at,
-                        p.primary_image AS image
+                `SELECT oi.id, oi.product_id, oi.title, oi.quantity, oi.price_at_purchase, oi.seller_id, oi.buyer_confirmed_at, oi.status, oi.delivered_at,
+                        p.primary_image AS image, u.name AS seller_name
                  FROM order_items oi
                  LEFT JOIN products p ON p.id = oi.product_id
+                 LEFT JOIN users u ON u.id = oi.seller_id
                  WHERE oi.order_id = $1`,
                 [order.id]
             );
