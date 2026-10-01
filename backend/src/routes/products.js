@@ -126,7 +126,7 @@ router.get('/', optionalAuth, async (req, res) => {
 router.get('/boosted', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT p.id, p.title, p.description, p.price, p.stock, p.primary_image, p.created_at, p.boosted_until,
+           `SELECT p.id, p.title, p.description, p.price, p.stock, p.primary_image, p.video_url, p.created_at, p.boosted_until,
                     u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar,
                     CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS seller_plan,
                     c.name AS category
