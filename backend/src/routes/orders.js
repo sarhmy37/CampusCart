@@ -511,7 +511,7 @@ router.get('/deliveries', requireAuth, async (req, res) => {
             `SELECT
                 o.id AS order_id, o.status, o.delivery_method, o.created_at,
                 MAX(oi.delivered_at) AS delivered_at, o.delivered_by_seller_id,
-                u.name AS buyer_name, u.location AS buyer_location, u.whatsapp AS buyer_whatsapp,
+                o.buyer_id, u.name AS buyer_name, u.location AS buyer_location, u.whatsapp AS buyer_whatsapp,
                 COALESCE(
                     json_agg(json_build_object('title', oi.title, 'quantity', oi.quantity, 'image', p.primary_image))
                     FILTER (WHERE oi.id IS NOT NULL),
