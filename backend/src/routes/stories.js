@@ -9,6 +9,7 @@ router.get('/feed', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
+             s.trim_start_ms, s.trim_end_ms,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar,
              CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
@@ -49,6 +50,8 @@ router.get('/feed', requireAuth, async (req, res) => {
         created_at: row.created_at,
         viewed: row.viewed,
         content_type: row.content_type,
+        trim_start_ms: row.trim_start_ms,
+        trim_end_ms: row.trim_end_ms,
         view_count: Number(row.view_count),
       });
     }
@@ -88,6 +91,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
+             s.trim_start_ms, s.trim_end_ms,
              u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan
       FROM stories s
       JOIN users u ON u.id = s.user_id
@@ -123,10 +127,22 @@ router.post('/', requireAuth, async (req, res) => {
 
     const inserted = [];
     for (const item of media) {
+      const isVideo = item.media_type === 'video';
+      const trimStart = isVideo && Number.isFinite(item.trim_start_ms) ? Math.max(0, Math.round(item.trim_start_ms)) : null;
+      let trimEnd = isVideo && Number.isFinite(item.trim_end_ms) ? Math.round(item.trim_end_ms) : null;
+      if (trimStart !== null && trimEnd !== null) {
+        // keep it valid: end after start, never longer than 60s
+        trimEnd = Math.min(Math.max(trimEnd, trimStart + 1000), trimStart + 60000);
+      }
+
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [req.userId, item.media_url, item.media_type, item.caption || null, ALLOWED_TAGS.includes(item.content_type) ? item.content_type : null]
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [
+          req.userId, item.media_url, item.media_type, item.caption || null,
+          ALLOWED_TAGS.includes(item.content_type) ? item.content_type : null,
+          trimStart, trimEnd,
+        ]
       );
       inserted.push(rows[0]);
     }

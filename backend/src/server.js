@@ -111,6 +111,8 @@ app.use('/api/admin/auth', adminAuthRoutes);
 
 app.use('/api/orders', orderRoutes);
 
+app.use('/api/calls', require('./routes/calls'));
+
 app.use('/api/reports', reportRoutes);
 
 app.use('/api/bookings', bookingsRouter.router);
