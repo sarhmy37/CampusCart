@@ -12,6 +12,7 @@ router.get('/feed', requireAuth, async (req, res) => {
              s.trim_start_ms, s.trim_end_ms,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar,
+             (u.account_type = 'seller') AS is_seller,
              CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
              CASE WHEN u.account_type = 'seller'
                THEN (SELECT COUNT(*) FROM order_items oi WHERE oi.seller_id = u.id AND oi.buyer_confirmed_at IS NOT NULL)
@@ -20,7 +21,13 @@ router.get('/feed', requireAuth, async (req, res) => {
              EXISTS (
                SELECT 1 FROM story_views v
                WHERE v.story_id = s.id AND v.viewer_id = $1
-             ) AS viewed
+             ) AS viewed,
+             (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
+             EXISTS (
+               SELECT 1 FROM story_likes l
+               WHERE l.story_id = s.id AND l.user_id = $1
+             ) AS liked,
+             (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id) AS comment_count
       FROM stories s
       JOIN users u ON u.id = s.user_id
       WHERE s.expires_at > NOW()
@@ -35,6 +42,7 @@ router.get('/feed', requireAuth, async (req, res) => {
           user_name: row.user_name,
           user_avatar: row.user_avatar,
           user_plan: row.user_plan,
+          is_seller: row.is_seller,
           activity_count: Number(row.activity_count),
           stories: [],
         });
@@ -53,6 +61,9 @@ router.get('/feed', requireAuth, async (req, res) => {
         trim_start_ms: row.trim_start_ms,
         trim_end_ms: row.trim_end_ms,
         view_count: Number(row.view_count),
+        like_count: Number(row.like_count),
+        liked: row.liked,
+        comment_count: Number(row.comment_count),
       });
     }
 
@@ -92,13 +103,24 @@ router.get('/:id', requireAuth, async (req, res) => {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
              s.trim_start_ms, s.trim_end_ms,
-             u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan
+             u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
+             (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
+             EXISTS (
+               SELECT 1 FROM story_likes l
+               WHERE l.story_id = s.id AND l.user_id = $2
+             ) AS liked,
+             (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id) AS comment_count
       FROM stories s
       JOIN users u ON u.id = s.user_id
       WHERE s.id = $1
-    `, [req.params.id]);
+    `, [req.params.id, req.userId]);
     if (rows.length === 0) return res.status(404).json({ error: 'Story not found' });
-    res.json(rows[0]);
+    const r = rows[0];
+    res.json({
+      ...r,
+      like_count: Number(r.like_count),
+      comment_count: Number(r.comment_count),
+    });
   } catch (err) {
     console.error('Get story error:', err);
     res.status(500).json({ error: 'Failed to load story' });
@@ -165,6 +187,86 @@ router.post('/:id/view', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('View story error:', err);
     res.status(500).json({ error: 'Failed to mark viewed' });
+  }
+});
+
+// POST /api/stories/:id/like
+router.post('/:id/like', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      `INSERT INTO story_likes (story_id, user_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [req.params.id, req.userId]
+    );
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS like_count FROM story_likes WHERE story_id = $1',
+      [req.params.id]
+    );
+    res.json({ liked: true, like_count: rows[0].like_count });
+  } catch (err) {
+    console.error('Like story error:', err);
+    res.status(500).json({ error: 'Failed to like story' });
+  }
+});
+
+// DELETE /api/stories/:id/like
+router.delete('/:id/like', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM story_likes WHERE story_id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS like_count FROM story_likes WHERE story_id = $1',
+      [req.params.id]
+    );
+    res.json({ liked: false, like_count: rows[0].like_count });
+  } catch (err) {
+    console.error('Unlike story error:', err);
+    res.status(500).json({ error: 'Failed to unlike story' });
+  }
+});
+
+// GET /api/stories/:id/comments
+router.get('/:id/comments', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.id, c.text, c.created_at, c.user_id,
+              u.name AS user_name, u.avatar_url AS user_avatar
+       FROM story_comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.story_id = $1
+       ORDER BY c.created_at DESC
+       LIMIT 100`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get comments error:', err);
+    res.status(500).json({ error: 'Failed to load comments' });
+  }
+});
+
+// POST /api/stories/:id/comments
+router.post('/:id/comments', requireAuth, async (req, res) => {
+  try {
+    const text = String(req.body.text || '').trim().slice(0, 300);
+    if (!text) return res.status(400).json({ error: 'Comment is empty' });
+
+    const { rows } = await pool.query(
+      `WITH ins AS (
+         INSERT INTO story_comments (story_id, user_id, text)
+         VALUES ($1, $2, $3) RETURNING *
+       )
+       SELECT ins.id, ins.text, ins.created_at, ins.user_id,
+              u.name AS user_name, u.avatar_url AS user_avatar
+       FROM ins JOIN users u ON u.id = ins.user_id`,
+      [req.params.id, req.userId, text]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('Post comment error:', err);
+    res.status(500).json({ error: 'Failed to post comment' });
   }
 });
 
