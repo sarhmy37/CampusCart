@@ -231,11 +231,12 @@ router.delete('/:id/like', requireAuth, async (req, res) => {
 router.get('/:id/comments', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT c.id, c.text, c.created_at, c.user_id,
-              u.name AS user_name, u.avatar_url AS user_avatar
+      `SELECT c.id, c.text, c.created_at, c.user_id, c.parent_id,
+              u.name AS user_name, u.avatar_url AS user_avatar,
+              (SELECT COUNT(*)::int FROM story_comments r WHERE r.parent_id = c.id) AS reply_count
        FROM story_comments c
        JOIN users u ON u.id = c.user_id
-       WHERE c.story_id = $1
+       WHERE c.story_id = $1 AND c.parent_id IS NULL
        ORDER BY c.created_at DESC
        LIMIT 100`,
       [req.params.id]
@@ -247,21 +248,53 @@ router.get('/:id/comments', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/stories/:id/comments/:commentId/replies
+router.get('/:id/comments/:commentId/replies', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.id, c.text, c.created_at, c.user_id, c.parent_id,
+              u.name AS user_name, u.avatar_url AS user_avatar
+       FROM story_comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.story_id = $1 AND c.parent_id = $2
+       ORDER BY c.created_at ASC
+       LIMIT 100`,
+      [req.params.id, req.params.commentId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get replies error:', err);
+    res.status(500).json({ error: 'Failed to load replies' });
+  }
+});
+
 // POST /api/stories/:id/comments
 router.post('/:id/comments', requireAuth, async (req, res) => {
   try {
     const text = String(req.body.text || '').trim().slice(0, 300);
     if (!text) return res.status(400).json({ error: 'Comment is empty' });
 
+    // replying to a comment? Replies stay one level deep: a reply to a reply
+    // is attached to the original comment.
+    let parentId = req.body.parent_id || null;
+    if (parentId) {
+      const parent = await pool.query(
+        'SELECT id, parent_id FROM story_comments WHERE id = $1 AND story_id = $2',
+        [parentId, req.params.id]
+      );
+      if (parent.rows.length === 0) return res.status(404).json({ error: 'Comment not found' });
+      parentId = parent.rows[0].parent_id || parent.rows[0].id;
+    }
+
     const { rows } = await pool.query(
       `WITH ins AS (
-         INSERT INTO story_comments (story_id, user_id, text)
-         VALUES ($1, $2, $3) RETURNING *
+         INSERT INTO story_comments (story_id, user_id, text, parent_id)
+         VALUES ($1, $2, $3, $4) RETURNING *
        )
-       SELECT ins.id, ins.text, ins.created_at, ins.user_id,
+       SELECT ins.id, ins.text, ins.created_at, ins.user_id, ins.parent_id,
               u.name AS user_name, u.avatar_url AS user_avatar
        FROM ins JOIN users u ON u.id = ins.user_id`,
-      [req.params.id, req.userId, text]
+      [req.params.id, req.userId, text, parentId]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
