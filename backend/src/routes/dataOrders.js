@@ -5,12 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // Helper: insert a notification (mirrors the pattern in orders.js)
-async function insertNotification(userId, type, message, relatedId = null, link = null) {
-    await pool.query(
-        `INSERT INTO notifications (user_id, type, message, related_id, link) VALUES ($1, $2, $3, $4, $5)`,
-        [userId, type, message, relatedId, link]
-    );
-}
+const { insertNotification } = require('../utils/notifications');
 
 // POST /api/data-orders — buyer places a data order
 router.post('/', requireAuth, async (req, res) => {
