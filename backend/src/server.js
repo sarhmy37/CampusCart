@@ -38,6 +38,9 @@ const chatRoutes = require('./routes/chat');
 
 const storefrontRoutes = require('./routes/storefront');
 
+const pool = require('./db/pool');
+const { requireAuth } = require('./middleware/auth');
+
 const app = express();
 
 // Trust the reverse proxy (Render, etc.) so req.ip, req.secure, and
@@ -133,7 +136,7 @@ app.use('/api/stories', require('./routes/stories'));
 
 app.use('/api/reviews', reviewRoutes);
 
-app.use('/story-export', require('./routes/storyExport')({ pool, requireAuth }));
+app.use('/api/story-export', require('./routes/storyExport')({ pool, requireAuth }));
 
 app.use('/api/chat', chatRoutes);
 

@@ -1,5 +1,5 @@
 // backend/routes/storyExport.js
-// Mount: app.use('/story-export', require('./routes/storyExport')({ pool, requireAuth }));
+// Mount: app.use('/api/story-export', require('./routes/storyExport')({ pool, requireAuth }));
 const express = require('express');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -132,7 +132,7 @@ module.exports = ({ pool, requireAuth }) => {
       if (!s) return res.status(404).json({ error: 'Story not found' });
       if (s.media_type !== 'video') return res.status(400).json({ error: 'Only videos can be exported' });
       const { rows: [u] } = await pool.query(
-        'SELECT plan, plan_expires_at FROM users WHERE id = $1', [req.user.id]);
+        'SELECT plan, plan_expires_at FROM users WHERE id = $1', [req.userId]);
       const watermarked = !planActive(u);
       const token = sign({ sid: s.id, wm: watermarked, exp: Date.now() + 10 * 60 * 1000 });
       const proto = String(req.get('x-forwarded-proto') || req.protocol).split(',')[0];
