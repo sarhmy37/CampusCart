@@ -123,6 +123,7 @@ router.get('/can-review/:sellerId', requireAuth, async (req, res) => {
             `SELECT 1 FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
              WHERE oi.seller_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
+               AND oi.seller_id <> o.buyer_id
              LIMIT 1`,
             [sellerId, req.userId]
         );
@@ -185,6 +186,7 @@ router.post('/', requireAuth, async (req, res) => {
             `SELECT 1 FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
              WHERE oi.seller_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
+               AND oi.seller_id <> o.buyer_id
              LIMIT 1`,
             [seller_id, req.userId]
         );
