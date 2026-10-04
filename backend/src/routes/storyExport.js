@@ -88,15 +88,17 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
     const namePath = `${out}.name.png`;
     fs.writeFileSync(namePath, name.buf);
     const cx = Math.round(720 - 24 - Math.max(name.width, 100) / 2);
+    const half = (durMs / 2000).toFixed(3);
+    const ph = `mod(if(lt(t,${half}),t,t-${half}),5)`;
     const filter =
       `[0:v]scale=720:-2,setsar=1[base];` +
-      `[1:v]format=rgba,scale=w='max(2,2*trunc(45*abs(cos(2*PI*t/6))))':h='2*trunc(45*ih/iw)':eval=frame:flags=bicubic[logo];` +
-      `[base][logo]overlay=x='if(lt(mod(t,10),5),630,90)-w/2':y='if(lt(mod(t,10),5),H-200-h/2,H*0.25-h/2)':shortest=1[b2];` +
-      `[b2][2:v]overlay=x='if(lt(mod(t,10),5),630,90)-w/2':y='if(lt(mod(t,10),5),H-165,H*0.25+35)':shortest=1[v]`;
+      `[1:v]format=rgba,scale=w='max(2,round(45*if(lt(${ph},3),abs(cos(2*PI*${ph}/3)),1)))':h='round(45*ih/iw)':eval=frame:flags=lanczos[logo];` +
+      `[base][logo]overlay=x='if(lt(t,${half}),630,90)-round(w/2)':y='if(lt(t,${half}),H-200-round(h/2),H*0.25-round(h/2))':shortest=1[b2];` +
+      `[b2][2:v]overlay=x='if(lt(t,${half}),630,90)-w/2':y='if(lt(t,${half}),H-165,H*0.25+35)':shortest=1[v]`;
     const args = ['-y', '-loglevel', 'error'];
     if (startMs > 0) args.push('-ss', String(startMs / 1000));
     args.push('-t', String(durMs / 1000), '-i', src,
-      '-loop', '1', '-framerate', '30', '-i', LOGO,
+      '-loop', '1', '-framerate', '60', '-i', LOGO,
       '-loop', '1', '-framerate', '30', '-i', namePath,
       '-filter_complex', filter,
       '-map', '[v]', '-map', '0:a?',
