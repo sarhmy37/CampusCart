@@ -52,7 +52,7 @@ const handleOf = (n) => {
 };
 
 function namePng(text) {
-  const fs_ = 22;
+  const fs_ = 26;
   const lines = ['TRE-X', text];
   const m = createCanvas(10, 10).getContext('2d');
   m.font = `${fs_}px Poppins`;
@@ -92,9 +92,9 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
     const ph = `mod(if(lt(t,${half}),t,t-${half}),5)`;
     const filter =
       `[0:v]scale=720:-2,setsar=1[base];` +
-      `[1:v]format=rgba,scale=w='max(2,round(45*if(lt(${ph},3),abs(cos(2*PI*${ph}/3)),1)))':h='round(45*ih/iw)':eval=frame:flags=lanczos[logo];` +
-      `[base][logo]overlay=x='if(lt(t,${half}),630,90)-round(w/2)':y='if(lt(t,${half}),H-200-round(h/2),H*0.25-round(h/2))':shortest=1[b2];` +
-      `[b2][2:v]overlay=x='if(lt(t,${half}),630,90)-w/2':y='if(lt(t,${half}),H-165,H*0.25+35)':shortest=1[v]`;
+      `[1:v]format=rgba,scale=w='max(2,round(60*if(lt(${ph},3),abs(cos(2*PI*${ph}/3)),1)))':h='round(60*ih/iw)':eval=frame:flags=lanczos[logo];` +
+      `[base][logo]overlay=x='if(lt(t,${half}),630,90)-round(w/2)':y='if(lt(t,${half}),H-210-round(h/2),H*0.25-round(h/2))':shortest=1[b2];` +
+      `[b2][2:v]overlay=x='if(lt(t,${half}),630,90)-w/2':y='if(lt(t,${half}),H-170,H*0.25+40)':shortest=1[v]`;
     const args = ['-y', '-loglevel', 'error'];
     if (startMs > 0) args.push('-ss', String(startMs / 1000));
     args.push('-t', String(durMs / 1000), '-i', src,
