@@ -10,6 +10,7 @@
     "migrate": "node src/db/migrate.js"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.10",
     "@resvg/resvg-js": "^2.6.2",
     "@sanity/client": "^8.6.2",
     "agora-token": "^2.0.6",
@@ -17,6 +18,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "ffmpeg-static": "^5.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.6.0",

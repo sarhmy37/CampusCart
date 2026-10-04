@@ -133,6 +133,8 @@ app.use('/api/stories', require('./routes/stories'));
 
 app.use('/api/reviews', reviewRoutes);
 
+app.use('/story-export', require('./routes/storyExport')({ pool, requireAuth }));
+
 app.use('/api/chat', chatRoutes);
 
 app.use('/api/data-orders', require('./routes/dataOrders'));
