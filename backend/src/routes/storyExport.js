@@ -90,10 +90,17 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
     const cx = Math.round(720 - 24 - Math.max(name.width, 100) / 2);
     const half = (durMs / 2000).toFixed(3);
     const ph = `mod(if(lt(t,${half}),t,t-${half}),5)`;
+    const cv = `if(lt(${ph},3),cos(2*PI*${ph}/3),1)`;
+    const sc = `scale=w='max(2,round(60*abs(${cv})))':h='round(60*ih/iw)':eval=frame:flags=lanczos`;
+    const px = `x='if(lt(t,${half}),630,90)-round(w/2)':y='if(lt(t,${half}),H-210-round(h/2),H*0.25-round(h/2))'`;
     const filter =
       `[0:v]scale=720:-2,setsar=1[base];` +
-      `[1:v]format=rgba,scale=w='max(2,round(60*if(lt(${ph},3),abs(cos(2*PI*${ph}/3)),1)))':h='round(60*ih/iw)':eval=frame:flags=lanczos[logo];` +
-      `[base][logo]overlay=x='if(lt(t,${half}),630,90)-round(w/2)':y='if(lt(t,${half}),H-210-round(h/2),H*0.25-round(h/2))':shortest=1[b2];` +
+      `[1:v]format=rgba,split[l1][l2];` +
+      `[l2]hflip[l2f];` +
+      `[l1]${sc}[lf];` +
+      `[l2f]${sc}[lb];` +
+      `[base][lf]overlay=${px}:enable='gte(${cv},0)':shortest=1[b1];` +
+      `[b1][lb]overlay=${px}:enable='lt(${cv},0)':shortest=1[b2];` +
       `[b2][2:v]overlay=x='if(lt(t,${half}),630,90)-w/2':y='if(lt(t,${half}),H-170,H*0.25+40)':shortest=1[v]`;
     const args = ['-y', '-loglevel', 'error'];
     if (startMs > 0) args.push('-ss', String(startMs / 1000));
