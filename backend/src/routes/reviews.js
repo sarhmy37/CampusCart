@@ -63,6 +63,7 @@ router.get('/pending-items', requireAuth, async (req, res) => {
              JOIN products p ON p.id = oi.product_id
              WHERE o.buyer_id = $1
                AND oi.status = 'completed'
+               AND oi.seller_id <> $1
                AND NOT EXISTS (
                    SELECT 1 FROM product_reviews pr WHERE pr.product_id = oi.product_id AND pr.user_id = $1
                )
@@ -149,6 +150,7 @@ router.get('/can-review-product/:productId', requireAuth, async (req, res) => {
             `SELECT 1 FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
              WHERE oi.product_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
+               AND oi.seller_id <> $2
              LIMIT 1`,
             [productId, req.userId]
         );
@@ -327,6 +329,7 @@ router.post('/product', requireAuth, upload.single('image'), async (req, res) =>
             `SELECT 1 FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
              WHERE oi.product_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
+               AND oi.seller_id <> $2
              LIMIT 1`,
             [product_id, req.userId]
         );

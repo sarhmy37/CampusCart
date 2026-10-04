@@ -72,6 +72,7 @@ router.post('/', requireAuth, async (req, res) => {
             );
             const product = productResult.rows[0];
             if (!product) throw { status: 404, message: 'A product in your cart no longer exists' };
+            if (String(product.seller_id) === String(req.userId)) throw { status: 400, message: 'You cannot buy your own listing' };
             if (product.stock < qty) throw { status: 400, message: `Not enough stock for "${product.title}"` };
 
             if (!sellerDeliveryInfo[product.seller_id]) {
