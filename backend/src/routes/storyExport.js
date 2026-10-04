@@ -48,7 +48,7 @@ const planActive = (u) =>
 
 const handleOf = (n) => {
   const t = String(n || '').trim();
-  return `TRE-X @${t.length > 16 ? t.slice(0, 14) + '..' : t}`;
+  return `TRE-X @${t.length > 10 ? t.slice(0, 8) + '..' : t}`;
 };
 
 function namePng(text) {
@@ -89,8 +89,8 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
     const filter =
       `[0:v]scale=720:-2,setsar=1[base];` +
       `[1:v]format=rgba,scale=w='2*trunc(45*(1+0.06*sin(2*PI*t/2.4)))':h=-2:eval=frame:flags=bicubic[logo];` +
-      `[base][logo]overlay=x='${cx}-w/2':y='H-200-h/2':shortest=1[b2];` +
-      `[b2][2:v]overlay=x='${cx}-w/2':y='H-135':shortest=1[v]`;
+      `[base][logo]overlay=x='if(lt(mod(t,10),5),630,90)-w/2':y='if(lt(mod(t,10),5),H-200-h/2,H*0.25-h/2)':shortest=1[b2];` +
+      `[b2][2:v]overlay=x='if(lt(mod(t,10),5),630,90)-w/2':y='if(lt(mod(t,10),5),H-135,H*0.25+65)':shortest=1[v]`;
     const args = ['-y', '-loglevel', 'error'];
     if (startMs > 0) args.push('-ss', String(startMs / 1000));
     args.push('-t', String(durMs / 1000), '-i', src,
