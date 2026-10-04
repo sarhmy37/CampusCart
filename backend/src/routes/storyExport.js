@@ -48,15 +48,17 @@ const planActive = (u) =>
 
 const handleOf = (n) => {
   const t = String(n || '').trim();
-  return `TRE-X @${t.length > 10 ? t.slice(0, 8) + '..' : t}`;
+  return `@${t.length > 12 ? t.slice(0, 10) + '..' : t}`;
 };
 
 function namePng(text) {
-  const fs_ = 18;
+  const fs_ = 22;
+  const lines = ['TRE-X', text];
   const m = createCanvas(10, 10).getContext('2d');
   m.font = `${fs_}px Poppins`;
-  const w = Math.ceil(m.measureText(text).width) + 16;
-  const h = fs_ + 16;
+  const w = Math.ceil(Math.max(...lines.map((l) => m.measureText(l).width))) + 16;
+  const lh = fs_ + 6;
+  const h = lh * 2 + 12;
   const c = createCanvas(w, h);
   const x = c.getContext('2d');
   x.font = `${fs_}px Poppins`;
@@ -66,7 +68,7 @@ function namePng(text) {
   x.shadowBlur = 4;
   x.shadowOffsetY = 1;
   x.fillStyle = '#fff';
-  x.fillText(text, w / 2, h / 2 + 1);
+  lines.forEach((l, i) => x.fillText(l, w / 2, 8 + lh * i + lh / 2));
   return { buf: c.toBuffer('image/png'), width: w };
 }
 
