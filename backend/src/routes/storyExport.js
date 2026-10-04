@@ -154,6 +154,18 @@ module.exports = ({ pool, requireAuth }) => {
     }
   });
 
+  // app reports a successful export
+  router.post('/:id/done', requireAuth, async (req, res) => {
+    try {
+      const { rows: [r] } = await pool.query(
+        'UPDATE stories SET export_count = COALESCE(export_count, 0) + 1 WHERE id = $1 RETURNING export_count',
+        [req.params.id]);
+      res.json({ count: r ? r.export_count : 0 });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed' });
+    }
+  });
+
   // 2) app downloads the file (token is the auth)
   router.get('/file', async (req, res) => {
     const tok = verify(req.query.t);

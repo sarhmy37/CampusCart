@@ -9,7 +9,7 @@ router.get('/feed', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
-             s.trim_start_ms, s.trim_end_ms,
+             s.trim_start_ms, s.trim_end_ms, COALESCE(s.export_count, 0) AS export_count,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar,
              (u.account_type = 'seller') AS is_seller,
@@ -64,6 +64,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         like_count: Number(row.like_count),
         liked: row.liked,
         comment_count: Number(row.comment_count),
+        export_count: Number(row.export_count),
       });
     }
 
