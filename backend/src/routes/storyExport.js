@@ -48,11 +48,11 @@ const planActive = (u) =>
 
 const handleOf = (n) => {
   const t = String(n || '').trim();
-  return `@${t.length > 22 ? t.slice(0, 20) + '..' : t}`;
+  return `TRE-X @${t.length > 16 ? t.slice(0, 14) + '..' : t}`;
 };
 
 function namePng(text) {
-  const fs_ = 24;
+  const fs_ = 18;
   const m = createCanvas(10, 10).getContext('2d');
   m.font = `${fs_}px Poppins`;
   const w = Math.ceil(m.measureText(text).width) + 16;
@@ -85,12 +85,12 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
     const name = namePng(handle);
     const namePath = `${out}.name.png`;
     fs.writeFileSync(namePath, name.buf);
-    const cx = Math.round(720 - 24 - Math.max(name.width, 140) / 2); // logo + name share this centre line
+    const cx = Math.round(720 - 24 - Math.max(name.width, 100) / 2);
     const filter =
       `[0:v]scale=720:-2,setsar=1[base];` +
-      `[1:v]format=rgba,scale=w='120*(0.9+0.1*sin(2*PI*t/1.8))':h=-1:eval=frame[logo];` +
-      `[base][logo]overlay=x='${cx}-w/2':y='H-170-h/2':shortest=1[b2];` +
-      `[b2][2:v]overlay=x='${cx}-w/2':y='H-100':shortest=1[v]`;
+      `[1:v]format=rgba,scale=w='2*trunc(45*(1+0.06*sin(2*PI*t/2.4)))':h=-2:eval=frame:flags=bicubic[logo];` +
+      `[base][logo]overlay=x='${cx}-w/2':y='H-200-h/2':shortest=1[b2];` +
+      `[b2][2:v]overlay=x='${cx}-w/2':y='H-135':shortest=1[v]`;
     const args = ['-y', '-loglevel', 'error'];
     if (startMs > 0) args.push('-ss', String(startMs / 1000));
     args.push('-t', String(durMs / 1000), '-i', src,
