@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { ensureWatermarked } = require('./storyExport');
 
 const router = express.Router();
 
@@ -159,6 +160,11 @@ router.post('/', requireAuth, async (req, res) => {
       inserted.push(rows[0]);
     }
     res.status(201).json(inserted);
+    pool.query('SELECT name FROM users WHERE id = $1', [req.userId]).then(({ rows: [u] }) => {
+      inserted
+        .filter((r) => r.media_type === 'video')
+        .forEach((r) => ensureWatermarked({ ...r, owner_name: u?.name }).catch(() => {}));
+    }).catch(() => {});
   } catch (err) {
     console.error('Post story error:', err);
     res.status(500).json({ error: 'Failed to post story' });

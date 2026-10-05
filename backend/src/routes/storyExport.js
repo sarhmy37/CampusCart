@@ -44,7 +44,7 @@ const queued = (fn) => {
 };
 
 const planActive = (u) =>
-  !!(u && u.plan && u.plan !== 'free' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date());
+  !!(u && u.plan === 'premium' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date());
 
 const handleOf = (n) => {
   const t = String(n || '').trim();
@@ -123,13 +123,35 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
 }
 
 function sweep() {
-  const cutoff = Date.now() - 2 * 3600 * 1000;
+  const cutoff = Date.now() - 24 * 3600 * 1000;
   fs.readdir(TMP, (e, files) => {
     (files || []).forEach((f) => {
       const fp = path.join(TMP, f);
       fs.stat(fp, (_e, st) => { if (st && st.mtimeMs < cutoff) fs.rm(fp, () => {}); });
     });
   });
+}
+
+async function ensureWatermarked(s) {
+  const out = path.join(TMP, `${s.id}.mp4`);
+  if (fs.existsSync(out)) return out;
+  const src = path.join(TMP, `${s.id}.src`);
+  await queued(async () => {
+    if (fs.existsSync(out)) return;
+    await fetchSource(s.media_url, src);
+    const hasTrim = s.trim_start_ms != null && s.trim_end_ms != null && s.trim_end_ms > s.trim_start_ms;
+    const startMs = hasTrim ? Number(s.trim_start_ms) : 0;
+    const durMs = Math.min(hasTrim ? s.trim_end_ms - s.trim_start_ms : MAX_MS, MAX_MS);
+    const tmpOut = `${out}.part.mp4`;
+    try {
+      await renderWatermarked({ src, out: tmpOut, handle: handleOf(s.owner_name), startMs, durMs });
+      fs.renameSync(tmpOut, out);
+    } finally {
+      fs.rm(src, () => {});
+      fs.rm(tmpOut, () => {});
+    }
+  });
+  return out;
 }
 
 module.exports = ({ pool, requireAuth }) => {
@@ -185,25 +207,7 @@ module.exports = ({ pool, requireAuth }) => {
         return res.type('video/mp4').sendFile(src, () => fs.rm(src, () => {}));
       }
 
-      // Free: watermarked copy (cached, same for every free exporter)
-      const out = path.join(TMP, `${s.id}.mp4`);
-      if (!fs.existsSync(out)) {
-        await queued(async () => {
-          if (fs.existsSync(out)) return;
-          await fetchSource(s.media_url, src);
-          const hasTrim = s.trim_start_ms != null && s.trim_end_ms != null && s.trim_end_ms > s.trim_start_ms;
-          const startMs = hasTrim ? Number(s.trim_start_ms) : 0;
-          const durMs = Math.min(hasTrim ? s.trim_end_ms - s.trim_start_ms : MAX_MS, MAX_MS);
-          const tmpOut = `${out}.part.mp4`;
-          try {
-            await renderWatermarked({ src, out: tmpOut, handle: handleOf(s.owner_name), startMs, durMs });
-            fs.renameSync(tmpOut, out);
-          } finally {
-            fs.rm(src, () => {});
-            fs.rm(tmpOut, () => {});
-          }
-        });
-      }
+      const out = await ensureWatermarked(s);
       res.type('video/mp4').sendFile(out);
     } catch (e) {
       console.error('export file', e);
@@ -213,3 +217,4 @@ module.exports = ({ pool, requireAuth }) => {
 
   return router;
 };
+module.exports.ensureWatermarked = ensureWatermarked;
