@@ -128,7 +128,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/stories — paid users only
+// POST /api/stories — any logged-in user
 router.post('/', requireAuth, async (req, res) => {
   const { media } = req.body;
   const ALLOWED_TAGS = ['products', 'services', 'deals', 'announcements', 'campus', 'tips', 'events'];
@@ -137,17 +137,6 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   try {
-    const userResult = await pool.query(
-      'SELECT plan, plan_expires_at FROM users WHERE id = $1',
-      [req.userId]
-    );
-    const user = userResult.rows[0];
-    const planActive = user?.plan && user.plan !== 'free' &&
-      user.plan_expires_at && new Date(user.plan_expires_at) > new Date();
-    if (!planActive) {
-      return res.status(403).json({ error: 'Pro or Premium plan required to post stories' });
-    }
-
     const inserted = [];
     for (const item of media) {
       const isVideo = item.media_type === 'video';
