@@ -10,7 +10,7 @@ router.get('/feed', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
-             s.trim_start_ms, s.trim_end_ms, COALESCE(s.export_count, 0) AS export_count,
+             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, COALESCE(s.export_count, 0) AS export_count,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar,
              (u.account_type = 'seller') AS is_seller,
@@ -31,9 +31,9 @@ router.get('/feed', requireAuth, async (req, res) => {
              (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id) AS comment_count
       FROM stories s
       JOIN users u ON u.id = s.user_id
-      WHERE s.expires_at > NOW()
+      WHERE s.expires_at > NOW() AND ($2::text IS NULL OR s.kind = $2)
       ORDER BY s.created_at DESC
-    `, [req.userId]);
+    `, [req.userId, req.query.kind || null]);
 
     const groupsMap = new Map();
     for (const row of rows) {
@@ -59,6 +59,8 @@ router.get('/feed', requireAuth, async (req, res) => {
         created_at: row.created_at,
         viewed: row.viewed,
         content_type: row.content_type,
+        kind: row.kind,
+        crop: row.crop,
         trim_start_ms: row.trim_start_ms,
         trim_end_ms: row.trim_end_ms,
         view_count: Number(row.view_count),
@@ -86,8 +88,9 @@ router.get('/feed', requireAuth, async (req, res) => {
 router.get('/mine', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT s.id, s.media_url, s.media_type, s.caption, s.created_at,
-             (SELECT COUNT(*) FROM story_views v WHERE v.story_id = s.id) AS view_count
+      SELECT s.id, s.media_url, s.media_type, s.caption, s.created_at, s.kind,
+             (SELECT COUNT(*) FROM story_views v WHERE v.story_id = s.id) AS view_count,
+             (SELECT COUNT(*)::int FROM story_likes l WHERE l.story_id = s.id) AS like_count
       FROM stories s
       WHERE s.user_id = $1 AND s.expires_at > NOW()
       ORDER BY s.created_at ASC
@@ -132,6 +135,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 // POST /api/stories — any logged-in user
 router.post('/', requireAuth, async (req, res) => {
   const { media } = req.body;
+  const kind = req.body.kind === 'spotlight' ? 'spotlight' : 'story';
   const ALLOWED_TAGS = ['products', 'services', 'deals', 'announcements', 'campus', 'tips', 'events'];
   if (!Array.isArray(media) || media.length === 0) {
     return res.status(400).json({ error: 'No media provided' });
@@ -148,13 +152,29 @@ router.post('/', requireAuth, async (req, res) => {
         trimEnd = Math.min(Math.max(trimEnd, trimStart + 1000), trimStart + 60000);
       }
 
+      let crop = null;
+      const c = item.crop;
+      if (isVideo && c && [c.x, c.y, c.w, c.h].every(Number.isFinite)) {
+        const x = Math.min(Math.max(c.x, 0), 1);
+        const y = Math.min(Math.max(c.y, 0), 1);
+        crop = {
+          x,
+          y,
+          w: Math.min(Math.max(c.w, 0.05), 1 - x),
+          h: Math.min(Math.max(c.h, 0.05), 1 - y),
+          fa: Number.isFinite(c.fa) && c.fa > 0 ? c.fa : null,
+        };
+      }
+
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb,
+           CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
+         RETURNING *`,
         [
           req.userId, item.media_url, item.media_type, item.caption || null,
           ALLOWED_TAGS.includes(item.content_type) ? item.content_type : null,
-          trimStart, trimEnd,
+          trimStart, trimEnd, kind, crop ? JSON.stringify(crop) : null,
         ]
       );
       inserted.push(rows[0]);
