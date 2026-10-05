@@ -82,8 +82,11 @@ async function fetchSource(url, dest) {
   await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(dest));
 }
 
-function renderWatermarked({ src, out, handle, startMs, durMs }) {
+function renderWatermarked({ src, out, handle, startMs, durMs, crop }) {
   return new Promise((resolve, reject) => {
+    const cropF = crop
+      ? `crop=w='trunc(iw*${crop.w}/2)*2':h='trunc(ih*${crop.h}/2)*2':x='trunc(iw*${crop.x})':y='trunc(ih*${crop.y})',`
+      : '';
     const name = namePng(handle);
     const namePath = `${out}.name.png`;
     fs.writeFileSync(namePath, name.buf);
@@ -94,7 +97,7 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
     const sc = `scale=w='max(2,round(60*abs(${cv})))':h='round(60*ih/iw)':eval=frame:flags=lanczos`;
     const px = `x='if(lt(t,${half}),630,90)-round(w/2)':y='if(lt(t,${half}),H-210-round(h/2),H*0.25-round(h/2))'`;
     const filter =
-      `[0:v]scale=720:-2,setsar=1[base];` +
+      await renderWatermarked({ src, out: tmpOut, handle: handleOf(s.owner_name), startMs, durMs, crop: s.crop });
       `[1:v]format=rgba,split[l1][l2];` +
       `[l2]hflip[l2f];` +
       `[l1]${sc}[lf];` +
@@ -120,6 +123,46 @@ function renderWatermarked({ src, out, handle, startMs, durMs }) {
       code === 0 ? resolve() : reject(new Error(err.slice(-500) || `ffmpeg ${code}`));
     });
   });
+}
+
+function renderPlain({ src, out, startMs, durMs, crop }) {
+  return new Promise((resolve, reject) => {
+    const args = ['-y', '-loglevel', 'error'];
+    if (startMs > 0) args.push('-ss', String(startMs / 1000));
+    args.push('-t', String(durMs / 1000), '-i', src);
+    if (crop) {
+      args.push('-vf', `crop=w='trunc(iw*${crop.w}/2)*2':h='trunc(ih*${crop.h}/2)*2':x='trunc(iw*${crop.x})':y='trunc(ih*${crop.y})'`);
+    }
+    args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', out);
+    const p = spawn(ffmpegPath, args);
+    let err = '';
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('error', reject);
+    p.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.slice(-500) || `ffmpeg ${code}`))));
+  });
+}
+
+async function ensureClean(s) {
+  const out = path.join(TMP, `${s.id}.clean.mp4`);
+  if (fs.existsSync(out)) return out;
+  const src = path.join(TMP, `${s.id}.csrc`);
+  await queued(async () => {
+    if (fs.existsSync(out)) return;
+    await fetchSource(s.media_url, src);
+    const hasTrim = s.trim_start_ms != null && s.trim_end_ms != null && s.trim_end_ms > s.trim_start_ms;
+    const startMs = hasTrim ? Number(s.trim_start_ms) : 0;
+    const durMs = Math.min(hasTrim ? s.trim_end_ms - s.trim_start_ms : MAX_MS, MAX_MS);
+    const tmpOut = `${out}.part.mp4`;
+    try {
+      await renderPlain({ src, out: tmpOut, startMs, durMs, crop: s.crop });
+      fs.renameSync(tmpOut, out);
+    } finally {
+      fs.rm(src, () => {});
+      fs.rm(tmpOut, () => {});
+    }
+  });
+  return out;
 }
 
 function sweep() {
@@ -196,12 +239,17 @@ module.exports = ({ pool, requireAuth }) => {
     const src = path.join(TMP, `${tok.sid}.src`);
     try {
       const { rows: [s] } = await pool.query(
-        `SELECT s.id, s.media_url, s.trim_start_ms, s.trim_end_ms, u.name AS owner_name
+        `SELECT s.id, s.media_url, s.trim_start_ms, s.trim_end_ms, s.crop, u.name AS owner_name
            FROM stories s JOIN users u ON u.id = s.user_id WHERE s.id = $1`, [tok.sid]);
       if (!s) return res.status(404).json({ error: 'Story not found' });
 
       // Pro / Premium: original file, no watermark
       if (!tok.wm) {
+        const hasTrim = s.trim_start_ms != null && s.trim_end_ms != null && s.trim_end_ms > s.trim_start_ms;
+        if (hasTrim || s.crop) {
+          const clean = await ensureClean(s);
+          return res.type('video/mp4').sendFile(clean);
+        }
         if (/^https?:/i.test(s.media_url)) return res.redirect(s.media_url);
         await fetchSource(s.media_url, src);
         return res.type('video/mp4').sendFile(src, () => fs.rm(src, () => {}));
