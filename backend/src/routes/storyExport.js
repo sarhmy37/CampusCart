@@ -97,7 +97,7 @@ function renderWatermarked({ src, out, handle, startMs, durMs, crop }) {
     const sc = `scale=w='max(2,round(60*abs(${cv})))':h='round(60*ih/iw)':eval=frame:flags=lanczos`;
     const px = `x='if(lt(t,${half}),630,90)-round(w/2)':y='if(lt(t,${half}),H-210-round(h/2),H*0.25-round(h/2))'`;
     const filter =
-      await renderWatermarked({ src, out: tmpOut, handle: handleOf(s.owner_name), startMs, durMs, crop: s.crop });
+      `[0:v]${cropF.replace(/,$/, '')}[base];` +
       `[1:v]format=rgba,split[l1][l2];` +
       `[l2]hflip[l2f];` +
       `[l1]${sc}[lf];` +
@@ -187,7 +187,7 @@ async function ensureWatermarked(s) {
     const durMs = Math.min(hasTrim ? s.trim_end_ms - s.trim_start_ms : MAX_MS, MAX_MS);
     const tmpOut = `${out}.part.mp4`;
     try {
-      await renderWatermarked({ src, out: tmpOut, handle: handleOf(s.owner_name), startMs, durMs });
+      await renderWatermarked({ src, out: tmpOut, handle: handleOf(s.owner_name), startMs, durMs, crop: s.crop });
       fs.renameSync(tmpOut, out);
     } finally {
       fs.rm(src, () => {});
