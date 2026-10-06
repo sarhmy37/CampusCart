@@ -10,7 +10,7 @@ router.get('/feed', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
-             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag,
+             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay,
              COALESCE(s.export_count, 0) AS export_count,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar,
@@ -63,6 +63,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         kind: row.kind,
         crop: row.crop,
         product_tag: row.product_tag,
+        text_overlay: row.text_overlay,
         trim_start_ms: row.trim_start_ms,
         trim_end_ms: row.trim_end_ms,
         view_count: Number(row.view_count),
@@ -109,7 +110,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
-             s.trim_start_ms, s.trim_end_ms, s.product_tag, s.crop,
+             s.trim_start_ms, s.trim_end_ms, s.product_tag, s.crop, s.text_overlay,
              u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
              (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
              EXISTS (
@@ -168,6 +169,12 @@ router.post('/', requireAuth, async (req, res) => {
         };
       }
 
+      let textOverlay = null;
+      const o = item.text_overlay;
+      if (o && typeof o.text === 'string' && o.text.trim() && Number.isFinite(o.y)) {
+        textOverlay = { text: o.text.trim().slice(0, 200), y: Math.min(Math.max(o.y, 0), 1) };
+      }
+
       // Product tag card — only the product's own seller may tag it
       let productTag = null;
       const t = item.product_tag;
@@ -190,8 +197,8 @@ router.post('/', requireAuth, async (req, res) => {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb,
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb,
            CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
          RETURNING *`,
         [
@@ -199,6 +206,7 @@ router.post('/', requireAuth, async (req, res) => {
           ALLOWED_TAGS.includes(item.content_type) ? item.content_type : null,
           trimStart, trimEnd, kind, crop ? JSON.stringify(crop) : null,
           productTag ? JSON.stringify(productTag) : null,
+          textOverlay ? JSON.stringify(textOverlay) : null,
         ]
       );
       inserted.push(rows[0]);
