@@ -142,7 +142,7 @@ router.get('/check-username', async (req, res) => {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-    const { username, name, university_email, password, school, account_type, whatsapp, sms_number, location, meeting_place, referral_code,
+    const { username, name, university_email, password, school, account_type, whatsapp, sms_number, location, location_lat, location_lng, meeting_place, referral_code,
             bank_code, account_number, account_name, payout_method } = req.body;
 
     const displayName = (username || name || '').trim();
@@ -176,6 +176,9 @@ router.post('/register', async (req, res) => {
 
     if (resolvedAccountType === 'buyer' && !location) {
         return res.status(400).json({ error: 'Delivery location is required for buyer accounts' });
+    }
+    if (resolvedAccountType === 'buyer' && (typeof location_lat !== 'number' || typeof location_lng !== 'number')) {
+        return res.status(400).json({ error: 'Please set your location on the map or use your current location' });
     }
 
     if (resolvedAccountType === 'seller' && !meeting_place) {
@@ -269,9 +272,9 @@ router.post('/register', async (req, res) => {
         // 👇 If buyer, save their signup location as first saved & default delivery location
         if (resolvedAccountType === 'buyer' && location) {
             await client.query(
-                `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default)
-                 VALUES ($1, $2, true)`,
-                [user.id, location.trim()]
+                `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default, lat, lng)
+                 VALUES ($1, $2, true, $3, $4)`,
+                [user.id, location.trim(), location_lat ?? null, location_lng ?? null]
             );
         }
 

@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, location, is_default, created_at
+            `SELECT id, location, is_default, lat, lng, created_at
              FROM buyer_delivery_locations
              WHERE buyer_id = $1
              ORDER BY is_default DESC, created_at ASC`,
@@ -25,7 +25,7 @@ router.get('/mine', requireAuth, async (req, res) => {
 // adds automatically becomes the default; later ones don't, until the buyer
 // explicitly sets a different default.
 router.post('/', requireAuth, async (req, res) => {
-    const { location } = req.body;
+    const { location, lat, lng } = req.body;
     if (!location || !location.trim()) {
         return res.status(400).json({ error: 'Location is required' });
     }
@@ -41,9 +41,9 @@ router.post('/', requireAuth, async (req, res) => {
         const isFirst = parseInt(countResult.rows[0].count, 10) === 0;
 
         const result = await client.query(
-            `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default)
-             VALUES ($1, $2, $3) RETURNING *`,
-            [req.userId, location.trim(), isFirst]
+            `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default, lat, lng)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [req.userId, location.trim(), isFirst, lat ?? null, lng ?? null]
         );
 
         await client.query('COMMIT');

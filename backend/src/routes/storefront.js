@@ -134,7 +134,7 @@ router.get('/store/:id/og-image.png', async (req, res) => {
                                     {
                                         type: 'div',
                                         props: {
-                                            style: { display: 'flex', gap: '32px', fontSize: 28, marginTop: '12px' },
+                                            style: { display: 'flex', gap: '32px', fontSize: 19, marginTop: '12px' },
                                             children: [
                                                 { type: 'div', props: { children: `${seller.listingCount} listings` } },
                                                 {
