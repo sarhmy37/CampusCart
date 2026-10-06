@@ -10,7 +10,8 @@ router.get('/feed', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
-             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, COALESCE(s.export_count, 0) AS export_count,
+             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag,
+             COALESCE(s.export_count, 0) AS export_count,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar,
              (u.account_type = 'seller') AS is_seller,
@@ -61,6 +62,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         content_type: row.content_type,
         kind: row.kind,
         crop: row.crop,
+        product_tag: row.product_tag,
         trim_start_ms: row.trim_start_ms,
         trim_end_ms: row.trim_end_ms,
         view_count: Number(row.view_count),
@@ -107,7 +109,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
-             s.trim_start_ms, s.trim_end_ms,
+             s.trim_start_ms, s.trim_end_ms, s.product_tag,
              u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
              (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
              EXISTS (
@@ -166,15 +168,37 @@ router.post('/', requireAuth, async (req, res) => {
         };
       }
 
+      // Product tag card — only the product's own seller may tag it
+      let productTag = null;
+      const t = item.product_tag;
+      if (t && t.product_id && [t.x, t.y, t.rot].every(Number.isFinite)) {
+        const own = await pool.query(
+          'SELECT 1 FROM products WHERE id = $1 AND seller_id = $2',
+          [t.product_id, req.userId]
+        );
+        if (own.rows.length > 0) {
+          productTag = {
+            product_id: String(t.product_id),
+            title: String(t.title || '').slice(0, 80),
+            price: Number.isFinite(Number(t.price)) ? Number(t.price) : 0,
+            image: typeof t.image === 'string' ? t.image : null,
+            x: Math.min(Math.max(t.x, 0), 1),
+            y: Math.min(Math.max(t.y, 0), 1),
+            rot: Math.min(Math.max(t.rot, -360), 360),
+          };
+        }
+      }
+
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb,
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb,
            CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
          RETURNING *`,
         [
           req.userId, item.media_url, item.media_type, item.caption || null,
           ALLOWED_TAGS.includes(item.content_type) ? item.content_type : null,
           trimStart, trimEnd, kind, crop ? JSON.stringify(crop) : null,
+          productTag ? JSON.stringify(productTag) : null,
         ]
       );
       inserted.push(rows[0]);
