@@ -43,43 +43,6 @@ async function notifyStoryComment(storyId, commenterId, text, isReply) {
   } catch (err) { console.error('Story comment notify error:', err); }
 }
 
-const { insertNotification } = require('../services/notifications');
-
-async function notifyStoryLike(storyId, likerId) {
-  try {
-    const { rows: [s] } = await pool.query(
-      `SELECT s.user_id, s.kind, u.name AS actor
-       FROM stories s, users u WHERE s.id = $1 AND u.id = $2`,
-      [storyId, likerId]
-    );
-    if (!s || s.kind !== 'story' || String(s.user_id) === String(likerId)) return;
-    const message = `${s.actor} liked your status`;
-    const dup = await pool.query(
-      `SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'story_like' AND related_id = $2 AND message = $3`,
-      [s.user_id, storyId, message]
-    );
-    if (dup.rows.length) return;
-    await insertNotification(s.user_id, 'story_like', message, storyId, `/stories?story=${storyId}`);
-  } catch (err) { console.error('Story like notify error:', err); }
-}
-
-async function notifyStoryComment(storyId, commenterId, text, isReply) {
-  try {
-    const { rows: [s] } = await pool.query(
-      `SELECT s.user_id, s.kind, u.name AS actor
-       FROM stories s, users u WHERE s.id = $1 AND u.id = $2`,
-      [storyId, commenterId]
-    );
-    if (!s || s.kind !== 'spotlight' || String(s.user_id) === String(commenterId)) return;
-    const snippet = text.length > 60 ? text.slice(0, 60) + '…' : text;
-    await insertNotification(
-      s.user_id, 'story_comment',
-      `${s.actor} ${isReply ? 'replied on' : 'commented on'} your reel: "${snippet}"`,
-      storyId, `/stories?story=${storyId}`
-    );
-  } catch (err) { console.error('Story comment notify error:', err); }
-}
-
 // GET /api/stories/feed — anyone can view
 router.get('/feed', requireAuth, async (req, res) => {
   try {
