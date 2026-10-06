@@ -82,6 +82,27 @@ router.get('/', optionalAuth, async (req, res) => {
         else conditions.push('FALSE'); // types that don't apply to listings (deals, events, ...)
     }
 
+    const { excludeServices, newOnly, verified, priceMin, priceMax, mine, keywords } = req.query;
+    if (excludeServices) conditions.push(`(c.name IS NULL OR c.name != 'Services')`);
+    if (newOnly) conditions.push(`p.created_at >= now() - interval '3 days'`);
+    if (verified) conditions.push(`u.verified = TRUE`);
+    if (priceMin !== undefined && Number.isFinite(parseFloat(priceMin))) {
+        values.push(parseFloat(priceMin));
+        conditions.push(`p.price >= $${values.length}`);
+    }
+    if (priceMax !== undefined && Number.isFinite(parseFloat(priceMax))) {
+        values.push(parseFloat(priceMax));
+        conditions.push(`p.price <= $${values.length}`);
+    }
+    if (mine && req.userId) {
+        values.push(req.userId);
+        conditions.push(`p.seller_id = $${values.length}`);
+    }
+    if (keywords) {
+        values.push(String(keywords).split('|').map((k) => `%${k}%`));
+        conditions.push(`(p.title ILIKE ANY($${values.length}::text[]) OR p.description ILIKE ANY($${values.length}::text[]))`);
+    }
+
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
     const pageLimit = Math.min(parseInt(req.query.limit, 10) || 0, 50);
@@ -91,7 +112,7 @@ router.get('/', optionalAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT
-                p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.network, p.primary_image, p.video_url, p.created_at,
+                p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.network, p.subcategory, p.primary_image, p.video_url, p.created_at,
                 p.rating, p.review_count, p.price_max, p.service_duration, p.boosted_until, p.boost_tier,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
@@ -104,6 +125,7 @@ router.get('/', optionalAuth, async (req, res) => {
              LEFT JOIN categories c ON c.id = p.category_id
              ${whereClause}
              ORDER BY
+                CASE WHEN p.stock <= 0 THEN 1 ELSE 0 END,
                 CASE
                     WHEN p.boosted_until IS NOT NULL AND p.boosted_until > now() THEN 0
                     WHEN u.plan = 'premium' AND u.plan_expires_at > now() THEN 1
@@ -286,7 +308,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.old_price, p.condition, p.stock, p.video_url, p.created_at,
-                p.rating, p.review_count, p.service_duration, p.price_max,
+                p.rating, p.review_count, p.service_duration, p.price_max, p.subcategory,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place,
@@ -322,7 +344,7 @@ router.post('/', requireAuth, async (req, res) => {
     const {
         title, description, price, price_max, condition, category, stock, images, video, network,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
-        service_duration,
+        service_duration, subcategory,
     } = req.body;
 
     if (!title || !price || !images || images.length === 0) {
@@ -376,11 +398,12 @@ router.post('/', requireAuth, async (req, res) => {
         const productResult = await client.query(
             `INSERT INTO products
                 (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url, network,
-                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus, service_duration, price_max)
-             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus, service_duration, price_max, subcategory)
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
              RETURNING id`,
             [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl, network || null,
-             feeOnCampus, feeNearCampus, feeFarCampus, service_duration || null, price_max || null]
+             feeOnCampus, feeNearCampus, feeFarCampus, service_duration || null, price_max || null,
+             subcategory ? String(subcategory).slice(0, 60) : null]
         );
 
         const productId = productResult.rows[0].id;
@@ -452,7 +475,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const {
         title, description, price, condition, category, stock,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
-        images, video_url, service_duration, price_max,
+        images, video_url, service_duration, price_max, subcategory,
     } = req.body;
 
     try {
@@ -504,12 +527,13 @@ router.patch('/:id', requireAuth, async (req, res) => {
                 video_url = COALESCE($13, video_url),
                 service_duration = COALESCE($14, service_duration),
                 price_max = $15,
+                subcategory = COALESCE($16, subcategory),
                 restocked_at = CASE WHEN $11 THEN now() ELSE restocked_at END
              WHERE id = $10
              RETURNING *`,
             [title, description, price, condition, stock, categoryId,
              feeOnCampus, feeNearCampus, feeFarCampus, req.params.id, isRestock, primaryImage, video_url,
-             service_duration, nextPriceMax]
+             service_duration, nextPriceMax, subcategory || null]
         );
 
         if (hasImageUpdate) {

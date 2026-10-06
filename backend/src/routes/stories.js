@@ -2,13 +2,98 @@ const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { ensureWatermarked } = require('./storyExport');
+const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
+
+async function notifyStoryLike(storyId, likerId) {
+  try {
+    const { rows: [s] } = await pool.query(
+      `SELECT s.user_id, s.kind, u.name AS actor
+       FROM stories s, users u WHERE s.id = $1 AND u.id = $2`,
+      [storyId, likerId]
+    );
+    if (!s || String(s.user_id) === String(likerId)) return;
+    const what = s.kind === 'spotlight' ? 'reel' : 'status';
+    const message = `${s.actor} liked your ${what}`;
+    const dup = await pool.query(
+      `SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'story_like' AND related_id = $2 AND message = $3`,
+      [s.user_id, storyId, message]
+    );
+    if (dup.rows.length) return;
+    await insertNotification(s.user_id, 'story_like', message, storyId, `/stories?openStoryId=${storyId}`);
+  } catch (err) { console.error('Story like notify error:', err); }
+}
+
+async function notifyStoryComment(storyId, commenterId, text, isReply) {
+  try {
+    const { rows: [s] } = await pool.query(
+      `SELECT s.user_id, s.kind, u.name AS actor
+       FROM stories s, users u WHERE s.id = $1 AND u.id = $2`,
+      [storyId, commenterId]
+    );
+    if (!s || String(s.user_id) === String(commenterId)) return;
+    const what = s.kind === 'spotlight' ? 'reel' : 'status';
+    const snippet = text.length > 60 ? text.slice(0, 60) + '…' : text;
+    await insertNotification(
+      s.user_id, 'story_comment',
+      `${s.actor} ${isReply ? 'replied on' : 'commented on'} your ${what}: "${snippet}"`,
+      storyId, `/stories?openStoryId=${storyId}`
+    );
+  } catch (err) { console.error('Story comment notify error:', err); }
+}
+
+const { insertNotification } = require('../services/notifications');
+
+async function notifyStoryLike(storyId, likerId) {
+  try {
+    const { rows: [s] } = await pool.query(
+      `SELECT s.user_id, s.kind, u.name AS actor
+       FROM stories s, users u WHERE s.id = $1 AND u.id = $2`,
+      [storyId, likerId]
+    );
+    if (!s || s.kind !== 'story' || String(s.user_id) === String(likerId)) return;
+    const message = `${s.actor} liked your status`;
+    const dup = await pool.query(
+      `SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'story_like' AND related_id = $2 AND message = $3`,
+      [s.user_id, storyId, message]
+    );
+    if (dup.rows.length) return;
+    await insertNotification(s.user_id, 'story_like', message, storyId, `/stories?story=${storyId}`);
+  } catch (err) { console.error('Story like notify error:', err); }
+}
+
+async function notifyStoryComment(storyId, commenterId, text, isReply) {
+  try {
+    const { rows: [s] } = await pool.query(
+      `SELECT s.user_id, s.kind, u.name AS actor
+       FROM stories s, users u WHERE s.id = $1 AND u.id = $2`,
+      [storyId, commenterId]
+    );
+    if (!s || s.kind !== 'spotlight' || String(s.user_id) === String(commenterId)) return;
+    const snippet = text.length > 60 ? text.slice(0, 60) + '…' : text;
+    await insertNotification(
+      s.user_id, 'story_comment',
+      `${s.actor} ${isReply ? 'replied on' : 'commented on'} your reel: "${snippet}"`,
+      storyId, `/stories?story=${storyId}`
+    );
+  } catch (err) { console.error('Story comment notify error:', err); }
+}
 
 // GET /api/stories/feed — anyone can view
 router.get('/feed', requireAuth, async (req, res) => {
   try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 0, 50) || null;
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const { rows } = await pool.query(`
+      WITH page_users AS (
+        SELECT user_id, MAX(created_at) AS latest
+        FROM stories
+        WHERE expires_at > NOW() AND ($2::text IS NULL OR kind = $2)
+        GROUP BY user_id
+        ORDER BY latest DESC
+        LIMIT $3::int OFFSET $4::int
+      )
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
              s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay,
              COALESCE(s.export_count, 0) AS export_count,
@@ -31,10 +116,11 @@ router.get('/feed', requireAuth, async (req, res) => {
              ) AS liked,
              (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id) AS comment_count
       FROM stories s
+      JOIN page_users pu ON pu.user_id = s.user_id
       JOIN users u ON u.id = s.user_id
       WHERE s.expires_at > NOW() AND ($2::text IS NULL OR s.kind = $2)
-      ORDER BY s.created_at DESC
-    `, [req.userId, req.query.kind || null]);
+      ORDER BY pu.latest DESC, s.created_at DESC
+    `, [req.userId, req.query.kind || null, limit, offset]);
 
     const groupsMap = new Map();
     for (const row of rows) {
@@ -241,11 +327,12 @@ router.post('/:id/view', requireAuth, async (req, res) => {
 // POST /api/stories/:id/like
 router.post('/:id/like', requireAuth, async (req, res) => {
   try {
-    await pool.query(
+    const ins = await pool.query(
       `INSERT INTO story_likes (story_id, user_id) VALUES ($1, $2)
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT DO NOTHING RETURNING story_id`,
       [req.params.id, req.userId]
     );
+    if (ins.rowCount > 0) notifyStoryLike(req.params.id, req.userId);
     const { rows } = await pool.query(
       'SELECT COUNT(*)::int AS like_count FROM story_likes WHERE story_id = $1',
       [req.params.id]
@@ -345,6 +432,7 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
       [req.params.id, req.userId, text, parentId]
     );
     res.status(201).json(rows[0]);
+    notifyStoryComment(req.params.id, req.userId, text, !!parentId);
   } catch (err) {
     console.error('Post comment error:', err);
     res.status(500).json({ error: 'Failed to post comment' });

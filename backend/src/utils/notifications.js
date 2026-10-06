@@ -22,6 +22,8 @@ const NOTIFICATION_TITLES = {
     order_reported_buyer: 'Report received',
     order_reported_seller: 'Order reported',
     subscription_activated: 'Plan activated',
+    story_like: 'Tre-X',
+    story_comment: 'Tre-X',
 };
 
 function getPushTitle(type) {
