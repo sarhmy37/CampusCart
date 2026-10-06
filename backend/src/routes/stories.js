@@ -109,7 +109,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
-             s.trim_start_ms, s.trim_end_ms, s.product_tag,
+             s.trim_start_ms, s.trim_end_ms, s.product_tag, s.crop,
              u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
              (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
              EXISTS (
