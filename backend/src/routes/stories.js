@@ -188,7 +188,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 router.post('/', requireAuth, async (req, res) => {
   const { media } = req.body;
   const kind = req.body.kind === 'spotlight' ? 'spotlight' : 'story';
-  const ALLOWED_TAGS = ['products', 'services', 'deals', 'announcements', 'campus', 'tips', 'events'];
+  const ALLOWED_TAGS = ['entertainment', 'educational', 'news', 'commercial', 'lifestyle', 'creative', 'inspirational'];
   if (!Array.isArray(media) || media.length === 0) {
     return res.status(400).json({ error: 'No media provided' });
   }
