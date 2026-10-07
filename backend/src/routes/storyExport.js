@@ -204,9 +204,11 @@ module.exports = ({ pool, requireAuth }) => {
   router.post('/:id', requireAuth, async (req, res) => {
     try {
       const { rows: [s] } = await pool.query(
-        'SELECT id, media_type FROM stories WHERE id = $1', [req.params.id]);
+        'SELECT id, media_type, media_url FROM stories WHERE id = $1', [req.params.id]);
       if (!s) return res.status(404).json({ error: 'Story not found' });
-      if (s.media_type !== 'video') return res.status(400).json({ error: 'Only videos can be exported' });
+      if (s.media_type !== 'video') {
+        return res.json({ url: s.media_url, watermarked: false, type: 'image' });
+      }
       const { rows: [u] } = await pool.query(
         'SELECT plan, plan_expires_at FROM users WHERE id = $1', [req.userId]);
       const watermarked = !planActive(u);

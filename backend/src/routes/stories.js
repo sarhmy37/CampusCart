@@ -390,9 +390,6 @@ router.post('/:id/repost', requireAuth, async (req, res) => {
   try {
     const { rows: [s] } = await pool.query('SELECT user_id FROM stories WHERE id = $1', [req.params.id]);
     if (!s) return res.status(404).json({ error: 'Story not found' });
-    if (String(s.user_id) === String(req.userId)) {
-      return res.status(403).json({ error: "You can't repost your own post" });
-    }
     const ins = await pool.query(
       `INSERT INTO story_reposts (story_id, user_id) VALUES ($1, $2)
        ON CONFLICT DO NOTHING RETURNING story_id`,
