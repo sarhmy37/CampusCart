@@ -826,4 +826,145 @@ router.post('/support/:id/reply', async (req, res) => {
     }
 });
 
+// ─── Tre-X broadcast / direct messaging ────────────────────────────────
+const TREX_ID = '09dabd6c-c9ea-440d-b42a-0ba1d9011e8a';
+
+// Send a Tre-X message to one user. Creates the conversation if it doesn't
+// exist, then inserts the message from Tre-X.
+async function sendTrexMessage(client, recipientId, content) {
+  const trimmed = content.trim();
+  if (!trimmed) throw new Error('Message is empty');
+
+  // Find or create the Tre-X ↔ recipient conversation
+  let convoId;
+  const existing = await client.query(
+    `SELECT id FROM conversations
+     WHERE buyer_id = $1 AND seller_id = $2 AND product_id IS NULL`,
+    [recipientId, TREX_ID]
+  );
+  if (existing.rows.length > 0) {
+    convoId = existing.rows[0].id;
+  } else {
+    const inserted = await client.query(
+      `INSERT INTO conversations (buyer_id, seller_id, product_id)
+       VALUES ($1, $2, NULL) RETURNING id`,
+      [recipientId, TREX_ID]
+    );
+    convoId = inserted.rows[0].id;
+  }
+
+  await client.query(
+    `INSERT INTO messages (conversation_id, sender_id, content, read, media_type)
+     VALUES ($1, $2, $3, FALSE, NULL)`,
+    [convoId, TREX_ID, trimmed]
+  );
+
+  return convoId;
+}
+
+// GET /api/admin/message/accounts — every user (for the individual picker)
+router.get('/message/accounts', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  try {
+    const params = [];
+    let where = `WHERE id != $1 AND role != 'system'`;
+    params.push(TREX_ID);
+
+    if (q) {
+      params.push(`%${q}%`);
+      where += ` AND (name ILIKE $${params.length} OR university_email ILIKE $${params.length})`;
+    }
+
+    const result = await pool.query(
+      `SELECT id, name, username, university_email, account_type, avatar_url
+       FROM users ${where}
+       ORDER BY created_at DESC
+       LIMIT 100`,
+      params
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin message accounts error:', err);
+    res.status(500).json({ error: 'Failed to fetch accounts' });
+  }
+});
+
+// POST /api/admin/message/individual
+// body: { userId, content }
+router.post('/message/individual', async (req, res) => {
+  const { userId, content } = req.body;
+  if (!userId || !content?.trim()) {
+    return res.status(400).json({ error: 'userId and content are required' });
+  }
+
+  try {
+    const target = await pool.query(
+      `SELECT id, name FROM users WHERE id = $1 AND role != 'system'`,
+      [userId]
+    );
+    if (target.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const convoId = await sendTrexMessage(pool, userId, content);
+
+    // Fire a push so they see it immediately
+    insertNotification(
+      userId,
+      'new_message',
+      `Tre-X: ${content.trim().slice(0, 100)}`,
+      convoId,
+      `/chat/${convoId}`,
+      'Tre-X',
+      content.trim().slice(0, 100)
+    ).catch((err) => console.error('Tre-X push error:', err));
+
+    res.json({ success: true, conversationId: convoId });
+  } catch (err) {
+    console.error('Admin individual message error:', err);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// POST /api/admin/message/group
+// body: { group: 'all' | 'sellers' | 'buyers', content }
+router.post('/message/group', async (req, res) => {
+  const { group, content } = req.body;
+  if (!['all', 'sellers', 'buyers'].includes(group) || !content?.trim()) {
+    return res.status(400).json({ error: 'Valid group and content are required' });
+  }
+
+  try {
+    let where = `WHERE role != 'system' AND banned = FALSE`;
+    if (group === 'sellers') where += ` AND account_type = 'seller'`;
+    if (group === 'buyers') where += ` AND account_type = 'buyer'`;
+
+    const recipients = await pool.query(`SELECT id FROM users ${where}`);
+
+    let sent = 0;
+    for (const row of recipients.rows) {
+      try {
+        const convoId = await sendTrexMessage(pool, row.id, content);
+        insertNotification(
+          row.id,
+          'new_message',
+          `Tre-X: ${content.trim().slice(0, 100)}`,
+          convoId,
+          `/chat/${convoId}`,
+          'Tre-X',
+          content.trim().slice(0, 100)
+        ).catch(() => {});
+        sent++;
+      } catch (err) {
+        console.error(`Failed to message user ${row.id}:`, err.message);
+      }
+    }
+
+    res.json({ success: true, sent, total: recipients.rows.length });
+  } catch (err) {
+    console.error('Admin group message error:', err);
+    res.status(500).json({ error: 'Failed to send group message' });
+  }
+});
+
 module.exports = router;
