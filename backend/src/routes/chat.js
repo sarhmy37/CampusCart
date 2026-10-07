@@ -6,6 +6,8 @@ const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
+const TREX_ID = '09dabd6c-c9ea-440d-b42a-0ba1d9011e8a';
+
 async function touchLastActive(userId) {
     try {
         await pool.query(`UPDATE users SET last_active_at = now() WHERE id = $1`, [userId]);
@@ -18,7 +20,7 @@ async function touchLastActive(userId) {
 // conversation before letting them read/write anything tied to it.
 async function getConversationOrForbid(conversationId, userId, res) {
     const convo = await pool.query(
-        `SELECT buyer_id, seller_id FROM conversations WHERE id = $1`,
+        `SELECT buyer_id, seller_id, allow_replies FROM conversations WHERE id = $1`,
         [conversationId]
     );
     if (convo.rows.length === 0) {
@@ -31,6 +33,16 @@ async function getConversationOrForbid(conversationId, userId, res) {
         return null;
     }
     return convo.rows[0];
+}
+
+// Returns true if the requesting user is allowed to send in this conversation.
+// Tre-X conversations are read-only for the recipient unless allow_replies is on.
+function isSendBlockedByTrexLock(convoRow, userId) {
+    if (!convoRow) return false;
+    const isTrexConvo = convoRow.seller_id === TREX_ID;
+    if (!isTrexConvo) return false;
+    if (userId === TREX_ID) return false;
+    return !convoRow.allow_replies;
 }
 
 // POST /api/chat/start — find or create a conversation with a seller
@@ -48,20 +60,20 @@ router.post('/start', requireAuth, async (req, res) => {
             return res.status(404).json({ error: 'Seller not found' });
         }
         if (sellerCheck.rows[0].banned) {
-            return res.status(403).json({ 
+            return res.status(403).json({
                 error: 'This seller\'s account has been banned.',
-                banned: true 
+                banned: true
             });
         }
 
         await touchLastActive(req.userId);
 
         const existing = await pool.query(
-    `SELECT id FROM conversations
-     WHERE (buyer_id = $1 AND seller_id = $2)
-        OR (buyer_id = $2 AND seller_id = $1)`,
-    [req.userId, sellerId]
-);
+            `SELECT id FROM conversations
+             WHERE (buyer_id = $1 AND seller_id = $2)
+                OR (buyer_id = $2 AND seller_id = $1)`,
+            [req.userId, sellerId]
+        );
 
         let conversationId;
         if (existing.rows.length > 0) {
@@ -75,6 +87,7 @@ router.post('/start', requireAuth, async (req, res) => {
         }
 
         const seller = await pool.query(`SELECT name, avatar_url, account_type, plan, plan_expires_at FROM users WHERE id = $1`, [sellerId]);
+        const repliesRow = await pool.query(`SELECT allow_replies FROM conversations WHERE id = $1`, [conversationId]);
 
         res.json({
             id: conversationId,
@@ -83,6 +96,7 @@ router.post('/start', requireAuth, async (req, res) => {
             seller_account_type: seller.rows[0]?.account_type || null,
             seller_plan: seller.rows[0]?.plan || null,
             seller_plan_expires_at: seller.rows[0]?.plan_expires_at || null,
+            allow_replies: repliesRow.rows[0]?.allow_replies ?? true,
         });
     } catch (err) {
         console.error('Start conversation error:', err);
@@ -106,6 +120,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 CASE WHEN c.buyer_id = $1 THEN su.plan_expires_at ELSE bu.plan_expires_at END AS other_user_plan_expires_at,
                 CASE WHEN c.buyer_id = $1 THEN su.last_active_at ELSE bu.last_active_at END AS other_user_last_active,
                 CASE WHEN c.buyer_id = $1 THEN 'buying' ELSE 'selling' END AS my_role,
+                c.allow_replies,
                 p.title AS product_title,
                 COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' WHEN lm.media_type = 'video' THEN '🎥 Video' WHEN lm.media_type = 'file' THEN '📄 File'ELSE NULL END) AS last_message,
                 lm.created_at AS last_message_at,
@@ -221,8 +236,6 @@ router.put('/:id/wallpaper', requireAuth, async (req, res) => {
 });
 
 // POST /api/chat/:id/wallpaper/upload — custom image wallpaper
-// Uses uploadWallpaper (image-only, unlike uploadChatMedia which also allows
-// audio for voice notes). Stored as a base64 data URL, same pattern as /media.
 router.post('/:id/wallpaper/upload', requireAuth, uploadWallpaper.single('wallpaper'), async (req, res) => {
     const { id } = req.params;
 
@@ -303,7 +316,7 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
     }
 });
 
-// POST /api/chat/:id/media — send an image or voice note as a message
+// POST /api/chat/:id/media — send an image, voice note, video, or file
 router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (req, res) => {
     const { id } = req.params;
 
@@ -313,7 +326,7 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
 
     try {
         const convo = await pool.query(
-            `SELECT buyer_id, seller_id FROM conversations WHERE id = $1`,
+            `SELECT buyer_id, seller_id, allow_replies FROM conversations WHERE id = $1`,
             [id]
         );
         if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
@@ -322,10 +335,15 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
             return res.status(403).json({ error: 'Not part of this conversation' });
         }
 
+        // Tre-X lock
+        if (isSendBlockedByTrexLock(convo.rows[0], req.userId)) {
+            return res.status(403).json({ error: 'This conversation is read-only' });
+        }
+
         await touchLastActive(req.userId);
 
         const mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-         const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio'
+        const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio'
             : req.file.mimetype.startsWith('video/') ? 'video'
             : req.file.mimetype.startsWith('image/') ? 'image' : 'file';
 
@@ -368,13 +386,18 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
 
     try {
         const convo = await pool.query(
-            `SELECT buyer_id, seller_id FROM conversations WHERE id = $1`,
+            `SELECT buyer_id, seller_id, allow_replies FROM conversations WHERE id = $1`,
             [id]
         );
         if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
         const { buyer_id, seller_id } = convo.rows[0];
         if (req.userId !== buyer_id && req.userId !== seller_id) {
             return res.status(403).json({ error: 'Not part of this conversation' });
+        }
+
+        // Tre-X lock
+        if (isSendBlockedByTrexLock(convo.rows[0], req.userId)) {
+            return res.status(403).json({ error: 'This conversation is read-only' });
         }
 
         await touchLastActive(req.userId);
@@ -411,7 +434,8 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
             const senderResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
             const senderName = senderResult.rows[0]?.name || 'Someone';
             const preview = content?.trim() ? content.trim().slice(0, 100) : 'Sent a photo/voice note';
-            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview)                .catch((err) => console.error('New message notification error:', err));
+            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview)
+                .catch((err) => console.error('New message notification error:', err));
         }
 
         res.json(inserted.rows[0]);
@@ -421,7 +445,7 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
     }
 });
 
-// PUT /api/chat/:id/wallpaper/hide — toggle "hide wallpaper for me" (personal, doesn't affect the other person)
+// PUT /api/chat/:id/wallpaper/hide — toggle "hide wallpaper for me"
 router.put('/:id/wallpaper/hide', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { hidden } = req.body;
@@ -451,7 +475,7 @@ router.put('/:id/wallpaper/hide', requireAuth, async (req, res) => {
     }
 });
 
-// POST /api/chat/:id/delete-for-me — hides this conversation from my inbox only
+// POST /api/chat/:id/delete-for-me
 router.post('/:id/delete-for-me', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
@@ -472,7 +496,7 @@ router.post('/:id/delete-for-me', requireAuth, async (req, res) => {
     }
 });
 
-// POST /api/chat/:id/delete-for-everyone — hides all messages up to now for BOTH users
+// POST /api/chat/:id/delete-for-everyone
 router.post('/:id/delete-for-everyone', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {

@@ -831,7 +831,7 @@ const TREX_ID = '09dabd6c-c9ea-440d-b42a-0ba1d9011e8a';
 
 // Send a Tre-X message to one user. Creates the conversation if it doesn't
 // exist, then inserts the message from Tre-X.
-async function sendTrexMessage(client, recipientId, content) {
+async function sendTrexMessage(client, recipientId, content, allowReplies = false) {
   const trimmed = content.trim();
   if (!trimmed) throw new Error('Message is empty');
 
@@ -844,11 +844,19 @@ async function sendTrexMessage(client, recipientId, content) {
   );
   if (existing.rows.length > 0) {
     convoId = existing.rows[0].id;
+    // Only flip the flag if admin is explicitly enabling replies.
+    // Never auto-unlock here — locked stays locked unless admin opts in.
+    if (allowReplies) {
+      await client.query(
+        `UPDATE conversations SET allow_replies = TRUE WHERE id = $1`,
+        [convoId]
+      );
+    }
   } else {
     const inserted = await client.query(
-      `INSERT INTO conversations (buyer_id, seller_id, product_id)
-       VALUES ($1, $2, NULL) RETURNING id`,
-      [recipientId, TREX_ID]
+      `INSERT INTO conversations (buyer_id, seller_id, product_id, allow_replies)
+       VALUES ($1, $2, NULL, $3) RETURNING id`,
+      [recipientId, TREX_ID, allowReplies]
     );
     convoId = inserted.rows[0].id;
   }
@@ -892,7 +900,7 @@ router.get('/message/accounts', async (req, res) => {
 // POST /api/admin/message/individual
 // body: { userId, content }
 router.post('/message/individual', async (req, res) => {
-  const { userId, content } = req.body;
+  const { userId, content, allowReplies } = req.body;
   if (!userId || !content?.trim()) {
     return res.status(400).json({ error: 'userId and content are required' });
   }
@@ -906,7 +914,7 @@ router.post('/message/individual', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const convoId = await sendTrexMessage(pool, userId, content);
+    const convoId = await sendTrexMessage(pool, userId, content, !!allowReplies);
 
     // Fire a push so they see it immediately
     insertNotification(
@@ -944,7 +952,7 @@ router.post('/message/group', async (req, res) => {
     let sent = 0;
     for (const row of recipients.rows) {
       try {
-        const convoId = await sendTrexMessage(pool, row.id, content);
+        const convoId = await sendTrexMessage(pool, row.id, content, false);
         insertNotification(
           row.id,
           'new_message',
