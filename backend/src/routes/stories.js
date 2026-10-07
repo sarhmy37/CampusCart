@@ -43,6 +43,35 @@ async function notifyStoryComment(storyId, commenterId, text, isReply) {
   } catch (err) { console.error('Story comment notify error:', err); }
 }
 
+// Top reposter: Premium > Pro > none, then most completed orders
+const topReposter = (storyIdExpr) => `(
+  SELECT ru.name FROM story_reposts r
+  JOIN users ru ON ru.id = r.user_id
+  WHERE r.story_id = ${storyIdExpr}
+  ORDER BY
+    CASE WHEN ru.plan = 'premium' AND ru.plan_expires_at > NOW() THEN 0
+         WHEN ru.plan = 'pro' AND ru.plan_expires_at > NOW() THEN 1 ELSE 2 END,
+    CASE WHEN ru.account_type = 'seller'
+      THEN (SELECT COUNT(*) FROM order_items oi WHERE oi.seller_id = ru.id AND oi.buyer_confirmed_at IS NOT NULL)
+      ELSE (SELECT COUNT(*) FROM orders o WHERE o.buyer_id = ru.id)
+    END DESC,
+    r.created_at DESC
+  LIMIT 1)`;
+
+async function repostSummary(storyId) {
+  const { rows: [r] } = await pool.query(
+    `SELECT (SELECT COUNT(*)::int FROM story_reposts WHERE story_id = $1) AS repost_count,
+            (SELECT MAX(created_at) FROM story_reposts WHERE story_id = $1) AS last_repost_at,
+            ${topReposter('$1')} AS reposted_by_name`,
+    [storyId]
+  );
+  return {
+    repost_count: r.repost_count,
+    reposted_by: r.reposted_by_name ? { name: r.reposted_by_name } : null,
+    last_repost_at: r.last_repost_at,
+  };
+}
+
 // GET /api/stories/feed — anyone can view
 router.get('/feed', requireAuth, async (req, res) => {
   try {
@@ -50,10 +79,12 @@ router.get('/feed', requireAuth, async (req, res) => {
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const { rows } = await pool.query(`
       WITH page_users AS (
-        SELECT user_id, MAX(created_at) AS latest
-        FROM stories
-        WHERE expires_at > NOW() AND ($2::text IS NULL OR kind = $2)
-        GROUP BY user_id
+        SELECT st.user_id,
+               GREATEST(MAX(st.created_at), COALESCE(MAX(rp.created_at), MAX(st.created_at))) AS latest
+        FROM stories st
+        LEFT JOIN story_reposts rp ON rp.story_id = st.id
+        WHERE st.expires_at > NOW() AND ($2::text IS NULL OR st.kind = $2)
+        GROUP BY st.user_id
         ORDER BY latest DESC
         LIMIT $3::int OFFSET $4::int
       )
@@ -77,7 +108,14 @@ router.get('/feed', requireAuth, async (req, res) => {
                SELECT 1 FROM story_likes l
                WHERE l.story_id = s.id AND l.user_id = $1
              ) AS liked,
-             (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id) AS comment_count
+             (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id) AS comment_count,
+             (SELECT COUNT(*) FROM story_reposts rp WHERE rp.story_id = s.id) AS repost_count,
+             EXISTS (
+               SELECT 1 FROM story_reposts rp
+               WHERE rp.story_id = s.id AND rp.user_id = $1
+             ) AS reposted,
+             (SELECT MAX(rp.created_at) FROM story_reposts rp WHERE rp.story_id = s.id) AS last_repost_at,
+             ${topReposter('s.id')} AS reposted_by_name
       FROM stories s
       JOIN page_users pu ON pu.user_id = s.user_id
       JOIN users u ON u.id = s.user_id
@@ -120,6 +158,10 @@ router.get('/feed', requireAuth, async (req, res) => {
         liked: row.liked,
         comment_count: Number(row.comment_count),
         export_count: Number(row.export_count),
+        reposted: row.reposted,
+        repost_count: Number(row.repost_count),
+        last_repost_at: row.last_repost_at,
+        reposted_by: row.reposted_by_name ? { name: row.reposted_by_name } : null,
       });
     }
 
@@ -322,6 +364,38 @@ router.delete('/:id/like', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Unlike story error:', err);
     res.status(500).json({ error: 'Failed to unlike story' });
+  }
+});
+// POST /api/stories/:id/repost — not your own post
+router.post('/:id/repost', requireAuth, async (req, res) => {
+  try {
+    const { rows: [s] } = await pool.query('SELECT user_id FROM stories WHERE id = $1', [req.params.id]);
+    if (!s) return res.status(404).json({ error: 'Story not found' });
+    if (String(s.user_id) === String(req.userId)) {
+      return res.status(403).json({ error: "You can't repost your own post" });
+    }
+    await pool.query(
+      `INSERT INTO story_reposts (story_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [req.params.id, req.userId]
+    );
+    res.json(await repostSummary(req.params.id));
+  } catch (err) {
+    console.error('Repost error:', err);
+    res.status(500).json({ error: 'Failed to repost' });
+  }
+});
+
+// DELETE /api/stories/:id/repost
+router.delete('/:id/repost', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM story_reposts WHERE story_id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+    res.json(await repostSummary(req.params.id));
+  } catch (err) {
+    console.error('Unrepost error:', err);
+    res.status(500).json({ error: 'Failed to remove repost' });
   }
 });
 
