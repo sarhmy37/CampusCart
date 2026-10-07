@@ -17,7 +17,7 @@ router.get('/', requireAuth, async (req, res) => {
                     FROM conversations c
                     JOIN users bu ON bu.id = c.buyer_id
                     JOIN users su ON su.id = c.seller_id
-                    WHERE c.id = n.related_id
+                    WHERE c.id::text = n.related_id
                   )
                   ELSE NULL
                 END AS sender_avatar,
@@ -28,7 +28,7 @@ router.get('/', requireAuth, async (req, res) => {
                     FROM conversations c
                     JOIN users bu ON bu.id = c.buyer_id
                     JOIN users su ON su.id = c.seller_id
-                    WHERE c.id = n.related_id
+                    WHERE c.id::text = n.related_id
                   )
                   ELSE NULL
                 END AS sender_name
