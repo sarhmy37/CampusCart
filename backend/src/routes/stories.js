@@ -64,7 +64,7 @@ async function notifyStoryComment(storyId, commenterId, text, isReply) {
 
 // Top reposter: Premium > Pro > none, then most completed orders
 const topReposter = (storyIdExpr) => `(
-  SELECT ru.name FROM story_reposts r
+  SELECT json_build_object('name', ru.name, 'avatar', ru.avatar_url) FROM story_reposts r
   JOIN users ru ON ru.id = r.user_id
   WHERE r.story_id = ${storyIdExpr}
   ORDER BY
@@ -86,7 +86,7 @@ async function repostSummary(storyId) {
   );
   return {
     repost_count: r.repost_count,
-    reposted_by: r.reposted_by_name ? { name: r.reposted_by_name } : null,
+    reposted_by: r.reposted_by_name || null,
     last_repost_at: r.last_repost_at,
   };
 }
@@ -180,7 +180,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         reposted: row.reposted,
         repost_count: Number(row.repost_count),
         last_repost_at: row.last_repost_at,
-        reposted_by: row.reposted_by_name ? { name: row.reposted_by_name } : null,
+        reposted_by: row.reposted_by_name || null,
       });
     }
 
