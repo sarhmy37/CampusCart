@@ -25,6 +25,25 @@ async function notifyStoryLike(storyId, likerId) {
   } catch (err) { console.error('Story like notify error:', err); }
 }
 
+async function notifyStoryRepost(storyId, reposterId) {
+  try {
+    const { rows: [s] } = await pool.query(
+      `SELECT s.user_id, s.kind, u.name AS actor
+       FROM stories s, users u WHERE s.id = $1 AND u.id = $2`,
+      [storyId, reposterId]
+    );
+    if (!s || String(s.user_id) === String(reposterId)) return;
+    const what = s.kind === 'spotlight' ? 'reel' : 'status';
+    const message = `${s.actor} reposted your ${what}`;
+    const dup = await pool.query(
+      `SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'story_repost' AND related_id = $2 AND message = $3`,
+      [s.user_id, storyId, message]
+    );
+    if (dup.rows.length) return;
+    await insertNotification(s.user_id, 'story_repost', message, storyId, `/stories?openStoryId=${storyId}`);
+  } catch (err) { console.error('Story repost notify error:', err); }
+}
+
 async function notifyStoryComment(storyId, commenterId, text, isReply) {
   try {
     const { rows: [s] } = await pool.query(
@@ -374,10 +393,12 @@ router.post('/:id/repost', requireAuth, async (req, res) => {
     if (String(s.user_id) === String(req.userId)) {
       return res.status(403).json({ error: "You can't repost your own post" });
     }
-    await pool.query(
-      `INSERT INTO story_reposts (story_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    const ins = await pool.query(
+      `INSERT INTO story_reposts (story_id, user_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING RETURNING story_id`,
       [req.params.id, req.userId]
     );
+    if (ins.rowCount > 0) notifyStoryRepost(req.params.id, req.userId);
     res.json(await repostSummary(req.params.id));
   } catch (err) {
     console.error('Repost error:', err);
