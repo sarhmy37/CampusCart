@@ -119,18 +119,23 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 CASE WHEN c.buyer_id = $1 THEN su.plan ELSE bu.plan END AS other_user_plan,
                 CASE WHEN c.buyer_id = $1 THEN su.plan_expires_at ELSE bu.plan_expires_at END AS other_user_plan_expires_at,
                 CASE WHEN c.buyer_id = $1 THEN su.last_active_at ELSE bu.last_active_at END AS other_user_last_active,
-                CASE WHEN c.buyer_id = $1 THEN 'buying' ELSE 'selling' END AS my_role,
+                CASE
+                  WHEN c.seller_id = '09dabd6c-c9ea-440d-b42a-0ba1d9011e8a' THEN 'trex'
+                  WHEN c.buyer_id = $1 THEN 'buying'
+                  ELSE 'selling'
+                END AS my_role,
                 c.allow_replies,
                 p.title AS product_title,
                 COALESCE(lm.content, CASE WHEN lm.media_type = 'audio' THEN '🎤 Voice note' WHEN lm.media_type = 'image' THEN '📷 Photo' WHEN lm.media_type = 'video' THEN '🎥 Video' WHEN lm.media_type = 'file' THEN '📄 File'ELSE NULL END) AS last_message,
                 lm.created_at AS last_message_at,
+                lm.sender_id AS last_message_sender_id,
                 COALESCE(uc.unread_count, 0) AS unread_count
              FROM conversations c
              JOIN users bu ON bu.id = c.buyer_id
              JOIN users su ON su.id = c.seller_id
              LEFT JOIN products p ON p.id = c.product_id
              LEFT JOIN LATERAL (
-                 SELECT content, media_type, created_at FROM messages m
+                 SELECT content, media_type, created_at, sender_id FROM messages m
                  WHERE m.conversation_id = c.id
                  ORDER BY m.created_at DESC
                  LIMIT 1
