@@ -58,7 +58,14 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
     const videoInputRef = useRef(null);
 
     useEffect(() => {
-        api.get('/categories').then((res) => setCategories(res.data)).catch(() => {});
+        api.get('/categories')
+      .then((res) => {
+        const list = [...res.data].sort((a: any, b: any) =>
+          (a.name === 'Other' ? 1 : 0) - (b.name === 'Other' ? 1 : 0)
+        );
+        setCategories(list);
+      })
+      .catch(() => {});
     }, []);
 
     // Load the listing's current gallery whenever a different product is opened.

@@ -394,13 +394,56 @@ router.get('/me', requireAuth, async (req, res) => {
 });
 
 // PATCH /api/auth/me
+router.get('/seller-location/:sellerId', requireAuth, async (req, res) => {
+    try {
+        const allowed = await pool.query(
+            `SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
+             WHERE o.buyer_id = $1 AND oi.seller_id = $2 AND o.status = 'paid' LIMIT 1`,
+            [req.userId, req.params.sellerId]
+        );
+        if (allowed.rows.length === 0) return res.status(403).json({ error: 'Not allowed' });
+        const r = await pool.query(
+            'SELECT location, school, location_lat AS lat, location_lng AS lng FROM users WHERE id = $1',
+            [req.params.sellerId]
+        );
+        res.json(r.rows[0] || {});
+    } catch (err) {
+        console.error('Seller location error:', err);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
+router.get('/me/location-lock', requireAuth, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT 1 FROM orders WHERE buyer_id = $1 AND status IN ('pending','paid') LIMIT 1`,
+            [req.userId]
+        );
+        res.json({ locked: r.rows.length > 0 });
+    } catch (err) {
+        console.error('Location lock error:', err);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
 router.patch('/me', requireAuth, async (req, res) => {
-     const { about, personal_email, whatsapp, sms_number, location, meeting_place, name, school, avatar_url } = req.body;
+     const { about, personal_email, whatsapp, sms_number, location, location_lat, location_lng, meeting_place, name, school, avatar_url } = req.body;
     const verified = undefined;
 
     const PROFILE_EDIT_COOLDOWN_SECONDS = 60 * 60;
 
     try {
+        const acctRow = await pool.query('SELECT account_type FROM users WHERE id = $1', [req.userId]);
+        const isBuyerAcct = acctRow.rows[0]?.account_type === 'buyer';
+        if (isBuyerAcct && location_lat != null && location_lng != null) {
+            const open = await pool.query(
+                `SELECT 1 FROM orders WHERE buyer_id = $1 AND status IN ('pending','paid') LIMIT 1`,
+                [req.userId]
+            );
+            if (open.rows.length > 0) {
+                return res.status(409).json({ error: 'Location cannot be edited while an order is Pending or Placed' });
+            }
+        }
         const isUserProfileEdit = about !== undefined || personal_email !== undefined ||
             whatsapp !== undefined || sms_number !== undefined || location !== undefined || meeting_place !== undefined ||
             name !== undefined || school !== undefined;
@@ -439,6 +482,26 @@ router.patch('/me', requireAuth, async (req, res) => {
             [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit, avatar_url, meeting_place, sms_number]
         );
         
+        if (!isBuyerAcct && location_lat != null && location_lng != null) {
+            await pool.query(
+                'UPDATE users SET location_lat = $1, location_lng = $2 WHERE id = $3',
+                [location_lat, location_lng, req.userId]
+            );
+        }
+        if (isBuyerAcct && location_lat != null && location_lng != null && location) {
+            const upd = await pool.query(
+                `UPDATE buyer_delivery_locations SET location = $2, lat = $3, lng = $4
+                 WHERE buyer_id = $1 AND is_default = true`,
+                [req.userId, location.trim(), location_lat, location_lng]
+            );
+            if (upd.rowCount === 0) {
+                await pool.query(
+                    `INSERT INTO buyer_delivery_locations (buyer_id, location, is_default, lat, lng)
+                     VALUES ($1, $2, true, $3, $4)`,
+                    [req.userId, location.trim(), location_lat, location_lng]
+                );
+            }
+        }
         res.json(toPublicUser(result.rows[0]));
     } catch (err) {
         console.error('Update profile error:', err);

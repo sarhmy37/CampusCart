@@ -1207,6 +1207,25 @@ function OrdersTab() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+  const [routeDest, setRouteDest] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeTitle, setRouteTitle] = useState('');
+
+  const trackSeller = async (sellerId: any, name?: string) => {
+    try {
+      const res = await api.get(`/auth/seller-location/${sellerId}`);
+      const fb = res.data?.school ? SCHOOL_COORDS[res.data.school] : undefined;
+      const lat = res.data?.lat ?? fb?.lat;
+      const lng = res.data?.lng ?? fb?.lng;
+      if (lat == null || lng == null) {
+        Toast.show({ type: 'error', text1: "This seller hasn't set a location yet." });
+        return;
+      }
+      setRouteTitle(name || 'Seller');
+      setRouteDest({ lat, lng });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not load the location' });
+    }
+  };
     const [searching, setSearching] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(false);

@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "app",
+    "slug": "app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/hero/main-logo.png",
+    "scheme": "app",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": {
+        "light": "./assets/hero/main-logo.png",
+        "dark": "./assets/hero/logo-light.png"
+      },
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Used for voice calls and voice notes"
+      }
+    },
+    "android": {
+      "package": "com.sammy45.trex",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/hero/main-logo.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/hero/main-logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/hero/main-logo.png",
+          "imageWidth": 76,
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/hero/logo-light.png",
+            "imageWidth": 76
+          }
+        }
+      ],
+      "expo-video",
+      "expo-asset",
+      "expo-audio",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/hero/main-logo.png",
+          "color": "#000000"
+        }
+      ],
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "55195f07-8304-4625-a8c8-b6fbac63d812"
+      }
+    },
+    "owner": "sammy_45"
+  }
+}

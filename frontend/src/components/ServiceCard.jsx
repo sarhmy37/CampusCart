@@ -1,132 +1,169 @@
-import { Link } from 'react-router-dom';
-import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
+import { useMemo } from 'react';
+import { View, Text, Pressable } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react-native';
+import { useColors } from '@/hooks/useColors';
 
-function parseAvailability(raw) {
-    if (!raw) return null;
-    try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') return parsed;
-        return null;
-    } catch {
-        return null; // old plain-text duration values (e.g. "2hrs")
-    }
+function parseAvailability(raw: any) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') return parsed;
+    return null;
+  } catch {
+    return null; // old plain-text duration values (e.g. "2hrs")
+  }
 }
 
-function formatTime12(time24) {
-    if (!time24 || typeof time24 !== 'string') return '';
-    const [hStr, mStr] = time24.split(':');
-    let h = parseInt(hStr, 10);
-    if (Number.isNaN(h)) return '';
-    const period = h < 12 ? 'AM' : 'PM';
-    const displayHour = h % 12 === 0 ? 12 : h % 12;
-    return `${displayHour}:${mStr} ${period}`;
+function formatTime12(time24?: string) {
+  if (!time24 || typeof time24 !== 'string') return '';
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr, 10);
+  if (Number.isNaN(h)) return '';
+  const period = h < 12 ? 'AM' : 'PM';
+  const displayHour = h % 12 === 0 ? 12 : h % 12;
+  return `${displayHour}:${mStr} ${period}`;
 }
 
-export default function ServiceCard({ service }) {
-    const hasRating = service.rating && parseFloat(service.rating) > 0;
+export default function ServiceCard({ service }: { service: any }) {
+  const colors = useColors();
+  const router = useRouter();
 
+  const hasRating = service.rating && parseFloat(service.rating) > 0;
+
+  const durationLabel = useMemo(() => {
     const availability = parseAvailability(service.service_duration);
     const legacyDuration = !availability ? service.service_duration : null;
     const hasScheduledHours = !!(
-        availability && !availability.is_24_7 &&
-        Array.isArray(availability.days) && availability.days.length > 0
+      availability && !availability.is_24_7 &&
+      Array.isArray(availability.days) && availability.days.length > 0
     );
-    const durationLabel = availability
-        ? (availability.is_24_7
-            ? 'Open 24/7'
-            : hasScheduledHours
-                ? `${availability.days[0].day} ${formatTime12(availability.days[0].open)}–${formatTime12(availability.days[0].close)}${availability.days.length > 1 ? ` +${availability.days.length - 1}` : ''}`
-                : null)
-        : legacyDuration;
+    if (availability) {
+      if (availability.is_24_7) return 'Open 24/7';
+      if (hasScheduledHours) {
+        const d = availability.days[0];
+        const extra = availability.days.length > 1 ? ` +${availability.days.length - 1}` : '';
+        return `${d.day} ${formatTime12(d.open)}–${formatTime12(d.close)}${extra}`;
+      }
+      return null;
+    }
+    return legacyDuration;
+  }, [service.service_duration]);
 
-    const isPlanActive = service.seller_plan && service.seller_plan !== 'free' &&
-        service.seller_plan_expires_at && new Date(service.seller_plan_expires_at) > new Date();
-    const planTier = isPlanActive ? service.seller_plan.toLowerCase() : null;
+  const isPlanActive = service.seller_plan && service.seller_plan !== 'free' &&
+    service.seller_plan_expires_at && new Date(service.seller_plan_expires_at) > new Date();
+  const planTier = isPlanActive ? service.seller_plan.toLowerCase() : null;
 
-    return (
-        <Link
-            to={`/service/${service.id}`}
-            className="group block bg-white dark:bg-ink-800 rounded-2xl border border-slate-200 dark:border-ink-600 overflow-hidden hover:shadow-xl hover:shadow-slate-900/5 dark:hover:shadow-black/20 hover:-translate-y-0.5 transition-all duration-300"
+  return (
+    <Pressable
+      onPress={() => router.push(`/service/${service.id}`)}
+      style={{
+        width: '100%',
+        backgroundColor: colors.card,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden',
+      }}
+    >
+      {/* IMAGE (4:3 like web) */}
+      <View style={{ aspectRatio: 4 / 3, backgroundColor: colors.cardAlt, overflow: 'hidden' }}>
+        {service.primary_image ? (
+          <Image
+            source={{ uri: service.primary_image }}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            cachePolicy="disk"
+          />
+        ) : (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ShieldCheck size={24} color={colors.textFaint} />
+          </View>
+        )}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.5)']}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          pointerEvents="none"
+        />
+      </View>
+
+      {/* BODY */}
+      <View style={{ padding: 8 }}>
+        {/* Title + badges */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 3 }}>
+          <Text
+            numberOfLines={2}
+            style={{ flex: 1, fontSize: 12, fontWeight: '700', color: colors.text, lineHeight: 14 }}
+          >
+            {service.title || service.name}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 }}>
+            {planTier === 'premium' && <Sparkles size={10} color="#a855f7" />}
+            {planTier === 'pro' && <Star size={10} color="#3b82f6" fill="#3b82f6" />}
+            {service.seller_verified && <ShieldCheck size={10} color="#10b981" />}
+          </View>
+        </View>
+
+        {!!service.description && (
+          <Text numberOfLines={2} style={{ fontSize: 100, color: colors.textFaint, marginTop: 2, lineHeight: 12 }}>
+            {service.description}
+          </Text>
+        )}
+
+        {/* Rating + location */}
+        <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.borderMuted, gap: 3 }}>
+          {hasRating && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Star size={9} color="#f59e0b" fill="#f59e0b" />
+              <Text style={{ fontSize: 100, fontWeight: '600', color: colors.textSecondary }}>
+                {parseFloat(service.rating).toFixed(1)}
+              </Text>
+              {service.review_count > 0 && (
+                <Text style={{ fontSize: 100, color: colors.textFaint }}>({service.review_count})</Text>
+              )}
+            </View>
+          )}
+
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4 }}>
+            <MapPin size={9} color={colors.textFaint} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text numberOfLines={1} style={{ fontSize: 100, color: colors.textMuted }}>
+                {service.seller_school || 'Location not specified'}
+              </Text>
+              {!!service.seller_meeting_place && (
+                <Text numberOfLines={1} style={{ fontSize: 100, color: colors.textFaint, marginTop: 1 }}>
+                  {service.seller_meeting_place}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {!!durationLabel && (
+            <Text numberOfLines={1} style={{ fontSize: 100, color: colors.textFaint }}>
+              {durationLabel}
+            </Text>
+          )}
+        </View>
+
+        {/* CTA */}
+        <View
+          style={{
+            marginTop: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            paddingVertical: 7,
+            borderRadius: 8,
+            backgroundColor: colors.brand,
+          }}
         >
-            {/* IMAGE */}
-            <div className="relative aspect-[4/3] bg-slate-100 dark:bg-ink-700 overflow-hidden">
-                {service.primary_image ? (
-                    <img
-                        src={service.primary_image}
-                        alt={service.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-gold-300/20">
-                        <ShieldCheck size={32} />
-                    </div>
-                )}
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-transparent pointer-events-none" />
-            </div>
-
-            {/* BODY */}
-            <div className="p-3.5">
-                {/* TITLE + verified/premium badge */}
-                <div className="flex items-start gap-1">
-                    <p className="font-bold text-sm text-slate-900 dark:text-gold-50 line-clamp-2 leading-snug flex-1 min-w-0">
-                        {service.title || service.name}
-                    </p>
-                    <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                        {planTier === 'premium' && (
-                            <Sparkles size={12} className="text-purple-500 fill-purple-500 shrink-0" />
-                        )}
-                        {planTier === 'pro' && (
-                            <Star size={12} className="text-blue-500 fill-blue-500 shrink-0" />
-                        )}
-                        {service.seller_verified && (
-                            <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
-                        )}
-                    </div>
-                </div>
-
-                {service.description && (
-                    <p className="text-xs text-slate-400 dark:text-gold-200/50 mt-0.5 line-clamp-2 leading-snug">
-                        {service.description}
-                    </p>
-                )}
-
-                {/* RATING + LOCATION */}
-                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-ink-600 space-y-1">
-                    {hasRating && (
-                        <div className="flex items-center gap-1">
-                            <Star size={11} className="text-gold-400 fill-gold-400" />
-                            <span className="text-xs font-semibold text-slate-700 dark:text-gold-200">
-                                {parseFloat(service.rating).toFixed(1)}
-                            </span>
-                            {service.review_count > 0 && (
-                                <span className="text-[10px] text-slate-400 dark:text-gold-200/50">
-                                    ({service.review_count})
-                                </span>
-                            )}
-                        </div>
-                    )}
-                    <div className="flex items-center gap-1.5 text-slate-500 dark:text-gold-200/60">
-                        <MapPin size={11} className="shrink-0" />
-                        <div className="min-w-0">
-                            <p className="text-[10px] leading-tight truncate">
-                                {service.seller_school || 'Location not specified'}
-                            </p>
-                            {service.seller_meeting_place && (
-                                <p className="text-[10px] leading-tight truncate text-slate-400 dark:text-gold-200/40">
-                                    {service.seller_meeting_place}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* CTA */}
-                <span className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-brand-600 dark:bg-gold-500 text-white dark:text-ink-900 text-xs font-bold group-hover:bg-brand-700 dark:group-hover:bg-gold-400 transition">
-                    Book now
-                    <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
-                </span>
-            </div>
-        </Link>
-    );
+          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Book now</Text>
+          <ArrowRight size={10} color={colors.textOnGold} />
+        </View>
+      </View>
+    </Pressable>
+  );
 }

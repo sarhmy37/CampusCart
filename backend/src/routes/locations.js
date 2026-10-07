@@ -94,6 +94,27 @@ router.patch('/default/:id', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/locations/order/:orderId — seller fetches the buyer's default delivery pin for a paid order
+router.get('/order/:orderId', requireAuth, async (req, res) => {
+    try {
+        const own = await pool.query(
+            `SELECT o.buyer_id FROM orders o JOIN order_items oi ON oi.order_id = o.id
+             WHERE o.id = $1 AND oi.seller_id = $2 AND o.status = 'paid' LIMIT 1`,
+            [req.params.orderId, req.userId]
+        );
+        if (own.rows.length === 0) return res.status(403).json({ error: 'Not allowed' });
+        const loc = await pool.query(
+            `SELECT location, lat, lng FROM buyer_delivery_locations
+             WHERE buyer_id = $1 ORDER BY is_default DESC, created_at ASC LIMIT 1`,
+            [own.rows[0].buyer_id]
+        );
+        res.json(loc.rows[0] || {});
+    } catch (err) {
+        console.error('Order location error:', err);
+        res.status(500).json({ error: 'Failed to fetch location' });
+    }
+});
+
 // DELETE /api/locations/:id
 router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
