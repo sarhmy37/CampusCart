@@ -8,10 +8,33 @@ const router = express.Router();
 router.get('/', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, type, message, related_id, link, read, created_at
-             FROM notifications
-             WHERE user_id = $1
-             ORDER BY created_at DESC`,
+            `SELECT
+                n.id, n.type, n.message, n.related_id, n.link, n.read, n.created_at,
+                CASE
+                  WHEN n.type = 'new_message' AND n.related_id IS NOT NULL
+                  THEN (
+                    SELECT CASE WHEN c.buyer_id = $1 THEN su.avatar_url ELSE bu.avatar_url END
+                    FROM conversations c
+                    JOIN users bu ON bu.id = c.buyer_id
+                    JOIN users su ON su.id = c.seller_id
+                    WHERE c.id = n.related_id
+                  )
+                  ELSE NULL
+                END AS sender_avatar,
+                CASE
+                  WHEN n.type = 'new_message' AND n.related_id IS NOT NULL
+                  THEN (
+                    SELECT CASE WHEN c.buyer_id = $1 THEN su.name ELSE bu.name END
+                    FROM conversations c
+                    JOIN users bu ON bu.id = c.buyer_id
+                    JOIN users su ON su.id = c.seller_id
+                    WHERE c.id = n.related_id
+                  )
+                  ELSE NULL
+                END AS sender_name
+             FROM notifications n
+             WHERE n.user_id = $1
+             ORDER BY n.created_at DESC`,
             [req.userId]
         );
         res.json(result.rows);
