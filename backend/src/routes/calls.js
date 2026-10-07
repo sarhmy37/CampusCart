@@ -42,7 +42,7 @@ router.post('/start', requireAuth, async (req, res) => {
             return res.status(404).json({ error: 'User not available' });
         }
         await pool.query(
-            `UPDATE calls SET status = 'missed' WHERE caller_id = $1 AND status = 'ringing'`,
+            `UPDATE calls SET status = 'missed' WHERE caller_id = $1 AND status IN ('ringing', 'delivered')`,
             [req.userId]
         );
         const created = await pool.query(
@@ -93,6 +93,22 @@ router.get('/:id', requireAuth, async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Get call error:', err);
+        res.status(500).json({ error: 'Something went wrong' });
+    }
+});
+
+// POST /api/calls/:id/ringing — callee's phone confirms it received the call
+router.post('/:id/ringing', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `UPDATE calls SET status = 'delivered'
+             WHERE id = $1 AND callee_id = $2 AND status = 'ringing'
+             RETURNING id, status`,
+            [req.params.id, req.userId]
+        );
+        res.json(result.rows[0] || { id: req.params.id, status: 'unchanged' });
+    } catch (err) {
+        console.error('Ringing call error:', err);
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
