@@ -134,6 +134,8 @@ app.use('/api/payouts', payoutRoutes);
 
 app.use('/api/stories', require('./routes/stories'));
 
+app.use('/api/follows', require('./routes/follows'));
+
 app.use('/api/reviews', reviewRoutes);
 
 app.use('/api/story-export', require('./routes/storyExport')({ pool, requireAuth }));

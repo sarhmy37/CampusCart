@@ -24,6 +24,7 @@ const NOTIFICATION_TITLES = {
     subscription_activated: 'Plan activated',
     story_like: 'Tre-X',
     story_comment: 'Tre-X',
+    follow_post: 'New post',
 };
 
 function getPushTitle(type) {

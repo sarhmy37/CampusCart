@@ -81,6 +81,24 @@ async function notifyCommentLike(storyId, commentId, likerId) {
   } catch (err) { console.error('Comment like notify error:', err); }
 }
 
+async function notifyFollowersOfPost(authorId, firstStoryId, kind) {
+  try {
+    const { rows: [a] } = await pool.query('SELECT name FROM users WHERE id = $1', [authorId]);
+    if (!a) return;
+    const { rows: followers } = await pool.query(
+      `SELECT f.follower_id FROM follows f
+       WHERE f.following_id = $1
+         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = f.follower_id AND b.blocked_id = $1)`,
+      [authorId]
+    );
+    const what = kind === 'spotlight' ? 'a new reel' : 'a new status';
+    const message = `${a.name} posted ${what}`;
+    for (const f of followers) {
+      await insertNotification(f.follower_id, 'follow_post', message, firstStoryId, `/stories?openStoryId=${firstStoryId}`);
+    }
+  } catch (err) { console.error('Follower notify error:', err); }
+}
+
 // Top reposter: Premium > Pro > none, then most completed orders
 const topReposter = (storyIdExpr) => `(
   SELECT json_build_object('name', ru.name, 'avatar', ru.avatar_url) FROM story_reposts r
@@ -122,6 +140,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         FROM stories st
         LEFT JOIN story_reposts rp ON rp.story_id = st.id
         WHERE st.expires_at > NOW() AND ($2::text IS NULL OR st.kind = $2)
+          AND ($5::boolean IS NOT TRUE OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.following_id = st.user_id))
           AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = st.id AND h.user_id = $1)
           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = st.user_id) OR (b.blocker_id = st.user_id AND b.blocked_id = $1))
         GROUP BY st.user_id
@@ -132,6 +151,7 @@ router.get('/feed', requireAuth, async (req, res) => {
              s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay, s.comments_off,
              COALESCE(s.export_count, 0) AS export_count,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
+             EXISTS (SELECT 1 FROM follows fl WHERE fl.follower_id = $1 AND fl.following_id = s.user_id) AS is_following,
              u.name AS user_name, u.avatar_url AS user_avatar,
              (u.account_type = 'seller') AS is_seller,
              CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
@@ -163,7 +183,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = s.id AND h.user_id = $1)
         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = s.user_id) OR (b.blocker_id = s.user_id AND b.blocked_id = $1))
       ORDER BY pu.latest DESC, s.created_at DESC
-    `, [req.userId, req.query.kind || null, limit, offset]);
+    `, [req.userId, req.query.kind || null, limit, offset, req.query.following === 'true']);
 
     const groupsMap = new Map();
     for (const row of rows) {
@@ -174,6 +194,7 @@ router.get('/feed', requireAuth, async (req, res) => {
           user_avatar: row.user_avatar,
           user_plan: row.user_plan,
           is_seller: row.is_seller,
+          is_following: row.is_following,
           activity_count: Number(row.activity_count),
           stories: [],
         });
@@ -384,6 +405,7 @@ router.post('/', requireAuth, async (req, res) => {
       inserted.push(rows[0]);
     }
     res.status(201).json(inserted);
+    notifyFollowersOfPost(req.userId, inserted[0].id, kind);
     pool.query('SELECT name FROM users WHERE id = $1', [req.userId]).then(({ rows: [u] }) => {
       inserted
         .filter((r) => r.media_type === 'video')
