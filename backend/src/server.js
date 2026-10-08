@@ -152,6 +152,8 @@ app.use('/api/saved-searches', require('./routes/savedSearches'));
 
 app.use('/api/support', require('./routes/support'));
 
+app.use('/api/spotlight', require('./routes/spotlight'));
+
 // No /api prefix — this needs to be a clean, shareable URL like
 // https://your-api.onrender.com/store/:id
 app.use(storefrontRoutes);

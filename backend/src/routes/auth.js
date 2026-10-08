@@ -61,6 +61,8 @@ function toPublicUser(row) {
         social_telegram: row.social_telegram,
         notify_messages: row.notify_messages,
         plan_discount_expires_at: row.plan_discount_expires_at,
+        cover_url: row.cover_url,
+        spotlight_bio: row.spotlight_bio,
     };
 }
 
