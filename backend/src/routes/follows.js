@@ -4,6 +4,22 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// POST /api/follows/check — which of these users do I already follow?
+router.post('/check', requireAuth, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids.slice(0, 50).map(String) : [];
+    if (ids.length === 0) return res.json({ following: [] });
+    const { rows } = await pool.query(
+      'SELECT following_id FROM follows WHERE follower_id = $1 AND following_id = ANY($2::uuid[])',
+      [req.userId, ids]
+    );
+    res.json({ following: rows.map((r) => String(r.following_id)) });
+  } catch (err) {
+    console.error('Follow check error:', err);
+    res.status(500).json({ error: 'Failed to check follows' });
+  }
+});
+
 // POST /api/follows/:userId — follow someone
 router.post('/:userId', requireAuth, async (req, res) => {
   try {
