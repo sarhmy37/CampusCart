@@ -457,6 +457,27 @@ router.post('/', requireAuth, async (req, res) => {
                         isServiceListing ? `/service/${productId}` : `/product/${productId}`
                     );
                 }
+
+                // Notify followers (skip anyone already notified by a saved search)
+                const alreadyNotified = new Set(matches.rows.map((m) => String(m.buyer_id)));
+                const sellerNameResult = await pool.query('SELECT name FROM users WHERE id = $1', [req.userId]);
+                const sellerName = sellerNameResult.rows[0]?.name || 'Someone you follow';
+                const followersResult = await pool.query(
+                    `SELECT f.follower_id FROM follows f
+                     WHERE f.following_id = $1
+                       AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = f.follower_id AND b.blocked_id = $1)`,
+                    [req.userId]
+                );
+                for (const f of followersResult.rows) {
+                    if (alreadyNotified.has(String(f.follower_id))) continue;
+                    await insertNotification(
+                        f.follower_id,
+                        'follow_listing',
+                        `${sellerName} listed a new ${isServiceListing ? 'service' : 'product'}: "${title}"`,
+                        productId,
+                        isServiceListing ? `/service/${productId}` : `/product/${productId}`
+                    );
+                }
             } catch (err) {
                 console.error('Saved search match error:', err);
             }
