@@ -82,7 +82,7 @@ router.get('/', optionalAuth, async (req, res) => {
         else conditions.push('FALSE'); // types that don't apply to listings (deals, events, ...)
     }
 
-    const { excludeServices, newOnly, verified, priceMin, priceMax, mine, keywords } = req.query;
+    const { excludeServices, newOnly, verified, priceMin, priceMax, mine, subcategory } = req.query;
     if (excludeServices) conditions.push(`(c.name IS NULL OR c.name != 'Services')`);
     if (newOnly) conditions.push(`p.created_at >= now() - interval '3 days'`);
     if (verified) conditions.push(`u.verified = TRUE`);
@@ -98,9 +98,9 @@ router.get('/', optionalAuth, async (req, res) => {
         values.push(req.userId);
         conditions.push(`p.seller_id = $${values.length}`);
     }
-    if (keywords) {
-        values.push(String(keywords).split('|').map((k) => `%${k}%`));
-        conditions.push(`(p.title ILIKE ANY($${values.length}::text[]) OR p.description ILIKE ANY($${values.length}::text[]))`);
+    if (subcategory) {
+        values.push(String(subcategory));
+        conditions.push(`p.subcategory = $${values.length}`);
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
