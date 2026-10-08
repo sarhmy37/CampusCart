@@ -101,7 +101,7 @@ function ThemedShell() {
           <Stack.Screen name="chat" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="login" />
-          <Stack.Screen name="spotlightprofile" />
+          <Stack.Screen name="SpotlightProfile" />
           <Stack.Screen name="register" />
           <Stack.Screen name="stories" />
           <Stack.Screen

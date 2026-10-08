@@ -555,7 +555,9 @@ const openStory = (g: any) => {
                       color: unread ? colors.text : colors.textMuted,
                     }}
                   >
-                    {convo.last_message || 'Say hello 👋'}
+                    {convo.last_message
+                      ? (convo.last_message_sender_id === user?.id ? 'You: ' : '') + convo.last_message
+                      : 'Say hello 👋'}
                   </Text>
 
                   {muted ? (

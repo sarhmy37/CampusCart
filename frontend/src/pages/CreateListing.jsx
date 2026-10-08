@@ -599,7 +599,7 @@ export default function CreateListing() {
             const payload = {
                 title: form.title,
                 description: form.description,
-                price: toCharmPrice(form.price),
+                price: form.price,
                 condition: form.condition,
                 stock: form.stock,
                 category: category ? category.name : '',

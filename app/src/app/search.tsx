@@ -11,6 +11,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCREEN_PADDING_X } from '@/constants/theme';
 import api from '@/api/client';
+import Toast from 'react-native-toast-message';
 import { useChat } from '@/context/ChatContext';
 import {
   ShoppingBagIcon as BagSolid, WrenchScrewdriverIcon as ToolSolid, UserIcon as UserSolid,
@@ -68,6 +69,25 @@ export default function SearchScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { openChat } = useChat();
+  const [followMap, setFollowMap] = useState<Record<string, boolean>>({});
+  const isFollowingUser = (item: any) => followMap[String(item.id)] ?? !!item.is_following;
+  const toggleFollowUser = async (item: any) => {
+    const id = String(item.id);
+    const current = isFollowingUser(item);
+    setFollowMap((p) => ({ ...p, [id]: !current }));
+    try {
+      if (!current) await api.post(`/follows/${id}`);
+      else await api.delete(`/follows/${id}`);
+      Toast.show({
+        type: 'success',
+        text1: !current ? `Following ${String(item.name || '').split(' ')[0]}` : 'Unfollowed',
+        text2: !current ? "You'll be notified when they post" : undefined,
+      });
+    } catch {
+      setFollowMap((p) => ({ ...p, [id]: current }));
+      Toast.show({ type: 'error', text1: "Couldn't update follow" });
+    }
+  };
 
   const handleUserPress = (item: any) => {
     const openUserChat = () => openChat({ sellerId: item.id, sellerName: item.name });
@@ -128,6 +148,18 @@ export default function SearchScreen() {
         const users = u.data || [];
         setResults(prods);
         setUserResults(users);
+        if (users.length > 0) {
+          api.post('/follows/check', { ids: users.map((x: any) => String(x.id)) })
+            .then((r) => {
+              const set = new Set<string>(r.data.following || []);
+              setFollowMap((prev) => {
+                const next = { ...prev };
+                users.forEach((x: any) => { next[String(x.id)] = set.has(String(x.id)); });
+                return next;
+              });
+            })
+            .catch(() => {});
+        }
         if (!tabPickedRef.current) {
           const counts = {
             product: prods.filter((x: any) => !isServiceItem(x)).length,
@@ -293,7 +325,15 @@ export default function SearchScreen() {
             </View>
           }
           renderItem={({ item }) => typeFilter === 'user' ? (
-            <UserRow item={item} colors={colors} onPress={() => handleUserPress(item)} />
+            <UserRow
+              item={item}
+              colors={colors}
+              onPress={() => handleUserPress(item)}
+              showActions={String(item.id) !== String(user?.id)}
+              following={isFollowingUser(item)}
+              onFollow={() => toggleFollowUser(item)}
+              onChat={() => openChat({ sellerId: item.id, sellerName: item.name })}
+            />
           ) : (
             <Pressable
               onPress={() => handleSelect(item)}
@@ -350,7 +390,12 @@ export default function SearchScreen() {
   );
 }
 
-function UserRow({ item, colors, onPress }: { item: any; colors: any; onPress: () => void }) {
+function UserRow({
+  item, colors, onPress, showActions, following, onFollow, onChat,
+}: {
+  item: any; colors: any; onPress: () => void;
+  showActions: boolean; following: boolean; onFollow: () => void; onChat: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -381,6 +426,38 @@ function UserRow({ item, colors, onPress }: { item: any; colors: any; onPress: (
           {[item.username ? `@${item.username}` : null, item.school].filter(Boolean).join(' · ')}
         </Text>
       </View>
+
+      {showActions && (
+        <View style={{ flexDirection: 'row' }}>
+          <Pressable
+            onPress={onFollow}
+            style={{
+              backgroundColor: following ? colors.card : colors.brand,
+              borderWidth: 1,
+              borderColor: following ? colors.border : colors.brand,
+              paddingHorizontal: 10, paddingVertical: 6,
+              borderTopLeftRadius: 10, borderBottomLeftRadius: 10,
+              borderTopRightRadius: 0, borderBottomRightRadius: 0,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: following ? colors.text : colors.textOnGold }}>
+              {following ? 'Following' : 'Follow'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onChat}
+            style={{
+              backgroundColor: colors.card,
+              borderWidth: 1, borderLeftWidth: 0, borderColor: colors.border,
+              paddingHorizontal: 10, paddingVertical: 6,
+              borderTopLeftRadius: 0, borderBottomLeftRadius: 0,
+              borderTopRightRadius: 10, borderBottomRightRadius: 10,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Chat</Text>
+          </Pressable>
+        </View>
+      )}
     </Pressable>
   );
 }

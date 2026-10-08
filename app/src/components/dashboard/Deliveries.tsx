@@ -9,8 +9,6 @@ import { SkeletonList, ErrorState, EmptyState } from './shared';
 import { useColors } from '@/hooks/useColors';
 import { useChat } from '@/context/ChatContext';
 import RouteMapModal from '@/components/RouteMapModal';
-import { SCHOOL_COORDS } from '@/data/schoolCoords';
-import RouteMapModal from '@/components/RouteMapModal';
 
 export default function Deliveries({ highlightOrder, onScrollToY }: { highlightOrder?: string; onScrollToY?: (y: number) => void }) {
   const colors = useColors();

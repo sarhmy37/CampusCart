@@ -13,7 +13,7 @@ import { useReviewPrompt } from '@/context/ReviewPromptContext';
 
 const TIMELINE_STEPS = ['Placed', 'Delivered', 'Received', 'Completed'];
 
-export default function Orders({ period, isSeller, highlightOrder }: { period: string; isSeller: boolean; highlightOrder?: string }) {
+export default function Orders({ period, isSeller, highlightOrder, mode = 'active' }: { period: string; isSeller: boolean; highlightOrder?: string; mode?: 'active' | 'completed' }) {
   const colors = useColors();
   const { scheduleReviewCheck } = useReviewPrompt();
   const { openChat } = useChat();
@@ -166,9 +166,16 @@ export default function Orders({ period, isSeller, highlightOrder }: { period: s
   if (status === 'loading') return <SkeletonList />;
   if (status === 'error') return <ErrorState icon={ShoppingBag} text="Couldn't load your orders right now." onRetry={loadOrders} />;
 
-  const hasAny = orders?.length > 0 || dataOrders.length > 0 || serviceOrders.length > 0;
+  const isCompletedTab = mode === 'completed';
+  const modeOrders = (orders || []).filter((o: any) => (o.status === 'completed') === isCompletedTab);
+  const modeDataOrders = dataOrders.filter((d) => (d.status === 'delivered') === isCompletedTab);
+  const modeServiceOrders = isCompletedTab ? [] : serviceOrders;
+
+  const hasAny = modeOrders.length > 0 || modeDataOrders.length > 0 || modeServiceOrders.length > 0;
   if (!hasAny) {
-    return <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
+    return isCompletedTab
+      ? <EmptyState icon={ShoppingBag} text="No completed orders yet." />
+      : <EmptyState icon={ShoppingBag} text="No orders yet." cta="Browse listings" ctaLink="/browse" />;
   }
 
   const statusStyle = (s: string) => {
@@ -184,8 +191,8 @@ export default function Orders({ period, isSeller, highlightOrder }: { period: s
 
 const q = search.trim().toLowerCase();
   const filteredOrders = !q
-    ? orders || []
-    : (orders || []).filter((o: any) =>
+    ? modeOrders
+    : modeOrders.filter((o: any) =>
         String(o.id).includes(q) ||
         o.status?.toLowerCase().includes(q) ||
         o.items?.some((i: any) => i.title?.toLowerCase().includes(q)) ||
@@ -205,10 +212,10 @@ const q = search.trim().toLowerCase();
       <RouteMapModal visible={!!routeDest} destination={routeDest} title={routeTitle} onClose={() => setRouteDest(null)} />
 
       {/* SERVICE BOOKINGS */}
-      {serviceOrders.length > 0 && (
+      {modeServiceOrders.length > 0 && (
         <>
           <SectionHeader label="Service Bookings" color={colors.success} colors={colors} />
-          {serviceOrders.map((b) => (
+          {modeServiceOrders.map((b) => (
             <View key={b.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -249,10 +256,10 @@ const q = search.trim().toLowerCase();
       )}
 
       {/* DATA ORDERS */}
-      {dataOrders.length > 0 && (
+      {modeDataOrders.length > 0 && (
         <>
           <SectionHeader label="Data Orders" color={colors.textFaint} colors={colors} />
-          {dataOrders.map((d) => (
+          {modeDataOrders.map((d) => (
             <View key={d.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <View style={{ flex: 1 }}>
@@ -280,9 +287,9 @@ const q = search.trim().toLowerCase();
       )}
 
       {/* REGULAR ORDERS */}
-      {orders?.length > 0 && (
+      {modeOrders.length > 0 && (
         <>
-          {orders.length >= 3 && (
+          {modeOrders.length >= 3 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12 }}>
               <Search size={16} color={colors.textFaint} />
               <TextInput
@@ -296,7 +303,7 @@ const q = search.trim().toLowerCase();
               />
             </View>
           )}
-          <SectionHeader label="Orders" color={colors.textFaint} colors={colors} />
+          <SectionHeader label={isCompletedTab ? 'Completed' : 'Orders'} color={colors.textFaint} colors={colors} />
           {filteredOrders.length === 0 && (
             <Text style={{ fontSize: 12, color: colors.textFaint, textAlign: 'center', paddingVertical: 12 }}>
               No orders match your search.
@@ -347,14 +354,6 @@ const q = search.trim().toLowerCase();
                               Seller: {item.seller_name}
                             </Text>
                             <PlanIcon plan={item.seller_plan} />
-                            {o.status === 'paid' && item.status !== 'cancelled' && !item.buyer_confirmed_at && !!item.seller_id && (
-                              <Text
-                                onPress={() => trackSeller(item.seller_id, item.seller_name)}
-                                style={{ fontSize: 11, fontWeight: '700', color: colors.brand, textDecorationLine: 'underline' }}
-                              >
-                                📍 Track
-                              </Text>
-                            )}
                           </View>
                         )}
                       </View>
@@ -400,9 +399,6 @@ const q = search.trim().toLowerCase();
                     <Pressable onPress={() => handleReport(o.id)} hitSlop={8}>
                       <Text style={{ fontSize: 12, fontWeight: '600', color: colors.error }}>Report a problem</Text>
                     </Pressable>
-                  )}
-                  {o.status === 'paid' && o.reported_at && (
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.warning }}>Problem reported</Text>
                   )}
                 </View>
 

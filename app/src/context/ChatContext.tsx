@@ -24,7 +24,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [conversations, setConversations] = useState<any[]>([]);
   const [visibleCount, setVisibleCount] = useState(INBOX_PAGE_SIZE);
   const [pendingDraft, setPendingDraft] = useState<string | null>(null);
-
+  const [pendingAutoRecord, setPendingAutoRecord] = useState(false);
   const [wallpaper, setWallpaper] = useState<any>(null);
   const [mutedIds, setMutedIds] = useState<Set<number>>(new Set());
   const [pendingStoryReply, setPendingStoryReply] = useState<any>(null);
@@ -116,8 +116,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [conversation, fetchWallpaper]);
 
-  // NOTE: `file` here will come from expo-image-picker later ({ uri, name, type }),
-  // not a browser File — this still works with FormData.append as-is on RN.
   const uploadWallpaper = useCallback(async (file: any) => {
     if (!conversation) return;
     setUploadingWallpaper(true);
@@ -136,11 +134,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [conversation]);
 
-  const openChat = useCallback(async ({ sellerId, sellerName, productId, draftMessage, storyId, storyMediaUrl, storyMediaType, storyCaption }: any) => {
+  const openChat = useCallback(async ({ sellerId, sellerName, productId, draftMessage, storyId, storyMediaUrl, storyMediaType, storyCaption , autoRecord }: any) => {
     setIsOpen(true);
     setLoading(true);
     setMessages([]);
     setWallpaper(null);
+    setPendingAutoRecord(!!autoRecord);
     setPendingDraft(draftMessage || null);
     setPendingStoryReply(storyId ? { id: storyId, mediaUrl: storyMediaUrl, mediaType: storyMediaType, caption: storyCaption } : null);
     try {
@@ -153,6 +152,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         otherUserAccountType: res.data.seller_account_type || null,
         otherUserPlan: res.data.seller_plan || null,
         otherUserPlanExpiresAt: res.data.seller_plan_expires_at || null,
+        allowReplies: res.data.allow_replies ?? true,
       };
       setConversation(convo);
       await Promise.all([fetchMessages(convo.id), fetchWallpaper(convo.id)]);
@@ -164,6 +164,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
       setIsOpen(false);
       setPendingDraft(null);
+      setPendingAutoRecord(false);
     } finally {
       setLoading(false);
     }
@@ -183,6 +184,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       otherUserAccountType: convo.other_user_account_type || null,
       otherUserPlan: convo.other_user_plan || null,
       otherUserPlanExpiresAt: convo.other_user_plan_expires_at || null,
+      allowReplies: convo.allow_replies ?? true,
     });
     await Promise.all([fetchMessages(convo.id), fetchWallpaper(convo.id)]);
     setLoading(false);
@@ -202,6 +204,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       otherUserAccountType: convo.other_user_account_type || null,
       otherUserPlan: convo.other_user_plan || null,
       otherUserPlanExpiresAt: convo.other_user_plan_expires_at || null,
+      allowReplies: convo.allow_replies ?? true,
     });
     await Promise.all([fetchMessages(convo.id), fetchWallpaper(convo.id)]);
     setLoading(false);
@@ -209,6 +212,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const closeChat = useCallback(() => setIsOpen(false), []);
   const clearPendingDraft = useCallback(() => setPendingDraft(null), []);
+  const clearPendingAutoRecord = useCallback(() => setPendingAutoRecord(false), []);
   const clearPendingStoryReply = useCallback(() => setPendingStoryReply(null), []);
 
   const deleteForMe = useCallback(async () => {
@@ -417,7 +421,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         deleteMessageForEveryone, sendMessage, sendMedia, conversations, visibleCount,
         showMoreConversations, unreadCount, wallpaper, isMuted, toggleMute, uploadingWallpaper,
         setWallpaperPreset, uploadWallpaper, hideWallpaperForMe, sendQuickMessage,
-        fetchConversations,
+        fetchConversations, pendingAutoRecord, clearPendingAutoRecord,
       }}
     >
       {children}

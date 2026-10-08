@@ -13,6 +13,7 @@ import { useColors } from '@/hooks/useColors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const AnimatedKeyboardAvoidingView = Animated.createAnimatedComponent(KeyboardAvoidingView);
+const MAX_VIDEO_DURATION_MS = 60000;
 
 // ─── STORY GROUP PREVIEW (shown only mid-swipe transition) ────────────
 function StoryGroupPreview({ group }: { group?: any }) {
@@ -52,6 +53,8 @@ export default function StoryViewer({
     showToast(ok ? `Sent ${emoji}` : "Couldn't send");
   };
   const [barRowWidth, setBarRowWidth] = useState(0);
+    const [imgAspect, setImgAspect] = useState<number | null>(null);
+  useEffect(() => { setImgAspect(null); }, [story.id]);
   const [replyText, setReplyText] = useState('');
   const replyInputRef = useRef<TextInput>(null);
   const [isTyping, setIsTyping] = useState(false);
@@ -489,7 +492,7 @@ export default function StoryViewer({
                       <View
                         key={i}
                         style={{
-                          flex: 1, height: isScrubbing && i === currentIndex ? 8 : 3, borderRadius: 4,
+                          flex: 1, height: 3, borderRadius: 4,
                           backgroundColor: 'rgba(255,255,255,0.3)',
                           overflow: 'hidden',
                         }}
@@ -644,7 +647,7 @@ export default function StoryViewer({
         )}
 
         {/* Reply bar — a real, solid-background footer, not an overlay */}
-        {!isOwnStory && (
+        {(!isOwnStory || isVertical) && (
                   <View
                     style={{
                       backgroundColor: '#000',
@@ -769,6 +772,7 @@ function StoryVideoPlayer({
   });
   const readyRef = useRef(false);
   const durRef = useRef(0);
+  const [aspect, setAspect] = useState<number | null>(null);
 
   useEffect(() => {
     if (!seekRef) return;
@@ -792,6 +796,9 @@ function StoryVideoPlayer({
           ? Math.min(trimEndMs!, fullMs ?? trimEndMs!) - trimStartMs!
           : fullMs;
         durRef.current = durationMs ?? 0;
+        const sz: any = (player as any).videoTrack?.size;
+        if (crop?.fa && crop.w > 0 && crop.h > 0) setAspect((crop.w * crop.fa) / crop.h);
+        else if (sz?.width && sz?.height) setAspect(sz.width / sz.height);
         onReady(durationMs);
       }
     });
@@ -806,13 +813,17 @@ function StoryVideoPlayer({
     else player.play();
   }, [paused, player]);
 
-  return <CroppedVideoView player={player} crop={crop} />;
+  return (
+    <View style={{ width: '100%', height: '100%' }}>
+      <CroppedVideoView player={player} crop={crop} contain />
+    </View>
+  );
 }
 
 type VideoCropT = { x: number; y: number; w: number; h: number; fa?: number | null };
 
 // Shows only the cropped part of a video, filling the box
-function CroppedVideoView({ player, crop }: { player: any; crop?: VideoCropT | null }) {
+function CroppedVideoView({ player, crop, contain }: { player: any; crop?: VideoCropT | null; contain?: boolean }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   if (!crop || !crop.fa || crop.w <= 0 || crop.h <= 0) {
     return (

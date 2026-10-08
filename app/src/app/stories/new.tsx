@@ -1730,25 +1730,23 @@ function CroppedVideoView({ player, crop }: { player: any; crop?: any }) {
     );
   }
   const fa = crop.fa;
-  const s = box.w > 0 ? Math.max(box.w / (crop.w * fa), box.h / crop.h) : 0;
+  const s = box.w > 0 ? Math.min(box.w / (crop.w * fa), box.h / crop.h) : 0;
   const FW = fa * s;
   const FH = s;
   return (
     <View
-      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+      style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}
       onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
     >
       {s > 0 && (
-        <VideoView
-          player={player}
-          style={{
-            position: 'absolute', width: FW, height: FH,
-            left: -crop.x * FW + (box.w - crop.w * FW) / 2,
-            top: -crop.y * FH + (box.h - crop.h * FH) / 2,
-          }}
-          contentFit="fill"
-          nativeControls={false}
-        />
+        <View style={{ width: crop.w * FW, height: crop.h * FH, overflow: 'hidden' }}>
+          <VideoView
+            player={player}
+            style={{ position: 'absolute', width: FW, height: FH, left: -crop.x * FW, top: -crop.y * FH }}
+            contentFit="fill"
+            nativeControls={false}
+          />
+        </View>
       )}
     </View>
   );

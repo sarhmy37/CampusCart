@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import {
   View, Text, Pressable, ScrollView, Dimensions, Modal, ActivityIndicator, Animated, Easing, PanResponder,
-  TextInput, KeyboardAvoidingView, Platform, Keyboard,
+  TextInput, KeyboardAvoidingView, Platform, Keyboard, AppState, Alert
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import StoryViewer from '@/components/StoryViewer';
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop, Pattern, Line, Rect, Path } from 'react-native-svg';
@@ -12,9 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   Plus, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Eye, Sparkles, Star, Flame, Send, Play, Heart,
-  MessageCircle, Repeat, Reply, MoreHorizontal, Maximize2, Download, Share2, Check,
+  MessageCircle, Repeat, Reply, MoreHorizontal, Maximize2, Download, Share2, Check, Pause,
+  Trash2, EyeOff, Ban, Flag, Pin, Rocket,
 } from 'lucide-react-native';
 import ProductCard from '@/components/ProductCard';
+import ServiceCard from '@/components/ServiceCard';
+import InsetShadow from '@/components/InsetShadow';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { useChat } from '@/context/ChatContext';
@@ -37,6 +41,7 @@ const PHOTO_DURATION_MS = 6000;      // photos show for a fixed 6s
 const MAX_VIDEO_DURATION_MS = 60000; // videos never play past 60s in the viewer
 
 const CONTENT_TYPES = [
+  { key: 'all', emoji: '🌐', label: 'All', desc: 'Everything in this Feed' },
   { key: 'entertainment', emoji: '🎭', label: 'Entertainment', desc: 'Skits, memes, dance, challenges' },
   { key: 'educational', emoji: '📚', label: 'Educational', desc: 'Tutorials, explainers, study tips' },
   { key: 'news', emoji: '📰', label: 'News & Commentary', desc: 'Current events, opinions, sports' },
@@ -74,7 +79,12 @@ type Story = {
   trim_start_ms?: number | null;
   trim_end_ms?: number | null;
   export_count?: number;
+  comments_off?: boolean;
   kind?: 'story' | 'spotlight';
+  reposted?: boolean;
+  repost_count?: number;
+  reposted_by?: { name: string; avatar?: string | null } | null;
+  last_repost_at?: string | null;
   crop?: { x: number; y: number; w: number; h: number; fa?: number | null } | null;
   text_overlay?: { text: string; y: number } | null;
   product_tag?: { product_id: string; title: string; price: number; image: string | null; x: number; y: number; rot: number } | null;
@@ -87,6 +97,7 @@ type StoryGroup = {
   user_plan?: 'pro' | 'premium';
   activity_count?: number;
   is_seller?: boolean;
+  is_following?: boolean;
   stories: Story[];
   allViewed: boolean;
 };
@@ -232,7 +243,9 @@ const DEMO_EXPLORE = Array.from({ length: 20 }, (_, i) => ({
   condition: i % 3 === 0 ? 'New' : 'Used',
 }));
 
+const REPORT_REASONS = ['Spam', 'Nudity or sexual content', 'Harassment or hate', 'Scam or fake', 'Something else'];
 const AnimatedKeyboardAvoidingView = Animated.createAnimatedComponent(KeyboardAvoidingView);
+let currentFeedStop: (() => void) | null = null;
 
 type ExportUi = { busy: (text: string | null) => void; msg: (text: string, isError?: boolean) => void };
 
@@ -250,7 +263,8 @@ async function runExport(story: Story, kind: 'gallery' | 'share', ui: ExportUi, 
   ui.busy('Preparing video...');
   try {
     const { data } = await api.post(`/story-export/${story.id}`);
-    const dest = `${FileSystem.cacheDirectory}trex-${story.id}.mp4`;
+    const isImage = data.type === 'image';
+    const dest = `${FileSystem.cacheDirectory}trex-${story.id}.${isImage ? 'jpg' : 'mp4'}`;
     let lastPct = -1;
     const dl = FileSystem.createDownloadResumable(data.url, dest, {}, (p) => {
       if (!p.totalBytesExpectedToWrite) return;
@@ -272,7 +286,7 @@ async function runExport(story: Story, kind: 'gallery' | 'share', ui: ExportUi, 
       countIt();
     } else {
       if (!(await Sharing.isAvailableAsync())) { ui.msg("Sharing isn't available", true); return; }
-      await Sharing.shareAsync(res.uri, { mimeType: 'video/mp4', dialogTitle: 'Share video' });
+      await Sharing.shareAsync(res.uri, { mimeType: isImage ? 'image/jpeg' : 'video/mp4', dialogTitle: isImage ? 'Share image' : 'Share video' });
       countIt();
     }
   } catch (e: any) {
@@ -364,7 +378,7 @@ const { openChat, sendQuickMessage } = useChat();
     if (feedFetchingRef.current || !feedHasMoreRef.current) return;
     feedFetchingRef.current = true;
     setLoadingMore(true);
-    api.get('/stories/feed', { params: { limit: FEED_PAGE, offset: feedOffsetRef.current } })
+    api.get('/stories/feed', { params: { limit: FEED_PAGE, offset: feedOffsetRef.current, foryou: 'true' } })
       .then((res) => {
         const next: StoryGroup[] = res.data || [];
         feedOffsetRef.current += next.length;
@@ -400,9 +414,11 @@ const { openChat, sendQuickMessage } = useChat();
     if (reelStyleOpen) reelDrag.translateY.setValue(0);
   }, [reelStyleOpen]);
   const [reelStyleOpen, setReelStyleOpen] = useState(false);
+  const [feedTab, setFeedTab] = useState<'all' | 'following' | 'foryou'>('foryou');
   const [commentsStoryId, setCommentsStoryId] = useState<string | null>(null);
   const [exportStory, setExportStory] = useState<Story | null>(null);
   const [reelStyle, setReelStyle] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [previewGroup, setPreviewGroup] = useState<any>(null);
 
   // restore the saved reel style when the screen opens
   useEffect(() => {
@@ -424,6 +440,14 @@ const { openChat, sendQuickMessage } = useChat();
 
   const [allGroups, setGroups] = useState<StoryGroup[]>([]);
   const [viewerSource, setViewerSource] = useState<'story' | 'spotlight'>('story');
+  const [pinnedLatest, setPinnedLatest] = useState<Record<string, number>>({});
+  const pinnedLatestRef = useRef<Record<string, number>>({});
+  const pinScrollYRef = useRef(0);
+  const releasePins = () => {
+    if (Object.keys(pinnedLatestRef.current).length === 0) return;
+    pinnedLatestRef.current = {};
+    setPinnedLatest({});
+  };
 
   const groupsOfKind = (kind: 'story' | 'spotlight', match?: (s: Story) => boolean) =>
     allGroups
@@ -454,6 +478,7 @@ const { openChat, sendQuickMessage } = useChat();
   const [activeGroupIndex, setActiveGroupIndex] = useState<number | null>(null);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const [mediaReady, setMediaReady] = useState(false);
+  const [replayKey, setReplayKey] = useState(0);
   const loadedStoryIds = useRef<Set<string>>(new Set());
   // Per-story duration cache, keyed by story id — replaces the old single
   // shared ref, which could leak a stale duration (e.g. a short one left
@@ -501,6 +526,35 @@ const { openChat, sendQuickMessage } = useChat();
 
   const [ringOverlayInteractive, setRingOverlayInteractive] = useState(false);
 
+  // ── Scroll-to-top button ──
+  const TOP_BTN_THRESHOLD = 800; // px scrolled before the button is ever allowed to show
+  const topBtnOpacity = useRef(new Animated.Value(0)).current;
+  const topBtnTimerRef = useRef<any>(null);
+  const topBtnVisibleRef = useRef(false);
+  const [topBtnTouchable, setTopBtnTouchable] = useState(false);
+
+  const hideTopBtn = () => {
+    clearTimeout(topBtnTimerRef.current);
+    if (!topBtnVisibleRef.current) return;
+    topBtnVisibleRef.current = false;
+    Animated.timing(topBtnOpacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(({ finished }) => {
+      if (finished && !topBtnVisibleRef.current) setTopBtnTouchable(false);
+    });
+  };
+
+  const showTopBtn = () => {
+    clearTimeout(topBtnTimerRef.current);
+    if (!topBtnVisibleRef.current) {
+      topBtnVisibleRef.current = true;
+      setTopBtnTouchable(true);
+      Animated.timing(topBtnOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    }
+    // fades away 1s after scrolling stops
+    topBtnTimerRef.current = setTimeout(hideTopBtn, 2500);
+  };
+
+  useEffect(() => () => clearTimeout(topBtnTimerRef.current), []);
+
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     {
@@ -508,9 +562,12 @@ const { openChat, sendQuickMessage } = useChat();
       listener: (e: any) => {
         const y = e.nativeEvent.contentOffset.y;
         lastScrollYRef.current = y;
+        if (Object.keys(pinnedLatestRef.current).length > 0 && Math.abs(y - pinScrollYRef.current) > 600) releasePins();
         const { contentSize, layoutMeasurement } = e.nativeEvent;
         if (y + layoutMeasurement.height >= contentSize.height - 600) loadMoreExplore();
         setRingOverlayInteractive(y >= COLLAPSE_SCROLL_DISTANCE - 2);
+        if (y > TOP_BTN_THRESHOLD) showTopBtn();
+        else hideTopBtn();
 
         if (y <= 0 && collapseStateRef.current !== 'expanded') {
           collapseStateRef.current = 'expanded';
@@ -630,6 +687,13 @@ const hasYouSlot = true;
   const activeGroupIndexRef = useRef(activeGroupIndex);
   activeGroupIndexRef.current = activeGroupIndex;
 
+  // stop any playing feed video when leaving this screen / switching tabs
+  useFocusEffect(
+    useCallback(() => {
+      return () => { currentFeedStop?.(); releasePins(); };
+    }, [])
+  );
+
   useEffect(() => {
     if (activeGroupIndex === null) setViewerSource('story');
   }, [activeGroupIndex]);
@@ -639,7 +703,7 @@ const hasYouSlot = true;
       if (activeGroupIndexRef.current !== null) return; // don't refetch under the open viewer
       let cancelled = false;
       if (!hasLoadedRef.current) setLoading(true);
-      api.get('/stories/feed', { params: { limit: FEED_PAGE, offset: 0 } })
+      api.get('/stories/feed', { params: { limit: FEED_PAGE, offset: 0, foryou: 'true' } })
         .then((res) => {
           if (cancelled) return;
           const live = res.data || [];
@@ -702,6 +766,23 @@ const hasYouSlot = true;
     })));
   };
 
+  const removeStory = (id: string) => {
+    setActiveGroupIndex(null);
+    setActiveStoryIndex(0);
+    setGroups((prev) => prev
+      .map((g) => {
+        const stories = g.stories.filter((s) => s.id !== id);
+        return { ...g, stories, allViewed: stories.every((s) => s.viewed) };
+      })
+      .filter((g) => g.stories.length > 0));
+  };
+
+  const removeUser = (userId: string) => {
+    setActiveGroupIndex(null);
+    setActiveStoryIndex(0);
+    setGroups((prev) => prev.filter((g) => String(g.user_id) !== String(userId)));
+  };
+
   const toggleFeedLike = async (s: Story) => {
     const next = !s.liked;
     const count = s.like_count ?? 0;
@@ -716,10 +797,71 @@ const hasYouSlot = true;
     }
   };
 
+  const toggleFollow = async (g: StoryGroup) => {
+    const next = !g.is_following;
+    const setFollowing = (v: boolean) =>
+      setGroups((prev) => prev.map((x) => (
+        String(x.user_id) === String(g.user_id) ? { ...x, is_following: v } : x
+      )));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFollowing(next);
+    try {
+      if (next) await api.post(`/follows/${g.user_id}`);
+      else await api.delete(`/follows/${g.user_id}`);
+      Toast.show({
+        type: 'success',
+        text1: next ? `Following ${g.user_name.split(' ')[0]}` : 'Unfollowed',
+        text2: next ? "You'll be notified when they post" : undefined,
+      });
+    } catch {
+      setFollowing(!next);
+      Toast.show({ type: 'error', text1: "Couldn't update follow" });
+    }
+  };
+
+    const toggleFeedRepost = async (s: Story) => {
+
+    const next = !s.reposted;
+    const pinKey = String(s.user_id);
+    if (pinnedLatestRef.current[pinKey] === undefined) {
+      const fi = feedItems.find((i) => String(i.group.user_id) === pinKey);
+      if (fi) {
+        pinnedLatestRef.current = { ...pinnedLatestRef.current, [pinKey]: fi.latest };
+        setPinnedLatest(pinnedLatestRef.current);
+        pinScrollYRef.current = lastScrollYRef.current;
+      }
+    }
+    const prev = {
+      reposted: s.reposted, repost_count: s.repost_count,
+      reposted_by: s.reposted_by, last_repost_at: s.last_repost_at,
+    };
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    patchStory(s.id, {
+      reposted: next,
+      repost_count: Math.max(0, (s.repost_count ?? 0) + (next ? 1 : -1)),
+      ...(next ? { last_repost_at: new Date().toISOString() } : {}),
+    });
+    try {
+      const res = next
+        ? await api.post(`/stories/${s.id}/repost`)
+        : await api.delete(`/stories/${s.id}/repost`);
+      patchStory(s.id, {
+        repost_count: res.data.repost_count,
+        reposted_by: res.data.reposted_by,
+        last_repost_at: res.data.last_repost_at,
+      });
+      Toast.show({ type: 'success', text1: next ? 'Reposted' : 'Repost removed' });
+    } catch {
+      patchStory(s.id, prev);
+      Toast.show({ type: 'error', text1: "Couldn't update repost" });
+    }
+  };
+
   const goToStory = (groupIdx: number, storyIdx: number, source: 'story' | 'spotlight' = viewerSource) => {
     setViewerSource(source);
     const list = source === 'spotlight' ? spotlightList : statusList;
     const nextStory = list[groupIdx]?.stories[storyIdx];
+    if (nextStory && pinnedLatestRef.current[String(nextStory.user_id)] === undefined) releasePins();
     if (nextStory && nextStory.media_type !== 'video') {
       storyDurationsRef.current[nextStory.id] = PHOTO_DURATION_MS;
     }
@@ -739,6 +881,13 @@ const hasYouSlot = true;
     const group = groups[activeGroupIndex];
     if (activeStoryIndex < group.stories.length - 1) {
       goToStory(activeGroupIndex, activeStoryIndex + 1);
+    } else if (reelStyle === 'vertical') {
+      if (group.stories.length === 1) {
+        setMediaReady(group.stories[0].media_type !== 'video');
+        setReplayKey((k) => k + 1);
+      } else {
+        goToStory(activeGroupIndex, 0);
+      }
     } else {
       goToStory((activeGroupIndex + 1) % groups.length, 0);
     }
@@ -807,6 +956,7 @@ const hasYouSlot = true;
             crop: s.crop,
             product_tag: s.product_tag,
             text_overlay: s.text_overlay,
+            comments_off: s.comments_off,
           }],
         };
         setGroups((prev) => [standaloneGroup, ...prev]);
@@ -878,10 +1028,14 @@ const hasYouSlot = true;
         id: `feed-${group.user_id}`,
         group,
         groupIndex,
-        latest: Math.max(...group.stories.map((s) => new Date(s.created_at).getTime())),
+        latest: pinnedLatest[String(group.user_id)] ?? Math.max(...group.stories.map((s) => Math.max(
+          new Date(s.created_at).getTime(),
+          s.last_repost_at ? new Date(s.last_repost_at).getTime() : 0,
+        ))),
       }))
-      .sort((a, b) => b.latest - a.latest)
-  ), [spotlightList]);
+      .filter((i) => feedTab !== 'following' || !!i.group.is_following)
+      .sort((a, b) => (feedTab === 'foryou' ? a.groupIndex - b.groupIndex : b.latest - a.latest))
+  ), [spotlightList, pinnedLatest, feedTab]);
   totalExploreRef.current = reelStyle === 'vertical' ? feedItems.length : exploreStatusItems.length;
 
   if (loading) {
@@ -1170,41 +1324,48 @@ const hasYouSlot = true;
           {(sortedStatusItems.length > 0 || spotlightAll.length > 0 || filterActive) && (
             <View style={{ marginTop: 20 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Eye size={14} color={colors.brand} />
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                    {reelStyle === 'vertical' ? 'Feed' : 'Status'}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                  {reelStyle === 'vertical' ? (
+                    <Flame size={22} color={colors.brand} strokeWidth={2.2} />
+                  ) : (
+                    <Eye size={22} color={colors.brand} strokeWidth={2.2} />
+                  )}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                      {reelStyle === 'vertical' ? 'Feed' : 'Status'}
+                    </Text>
+                    <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
+                      {reelStyle === 'vertical' ? 'Fresh posts from your campus' : 'Tap a story to watch'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable
-                  onPress={() => setReelStyleOpen(true)}
-                  hitSlop={8}
-                >
-                  <DevicePhoneMobileIcon size={18} color={theme === 'dark' ? '#f5b301' : '#b45309'} />
-                </Pressable>
-                {reelStyle === 'vertical' && (
-                  <>
-                    <Text style={{ marginHorizontal: 8, fontSize: 14, color: theme === 'dark' ? '#f5b301' : '#b45309' }}>|</Text>
-                    <Pressable
-                      onPress={() => setFilterOpen(true)}
-                      hitSlop={8}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 11, fontWeight: '800', letterSpacing: 0.6,
-                          color: theme === 'dark' ? '#f5b301' : '#b45309',
-                        }}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                  <Pressable
+                    onPress={() => setReelStyleOpen(true)}
+                    hitSlop={8}
+                  >
+                    <DevicePhoneMobileIcon size={18} color={theme === 'dark' ? '#f5b301' : '#b45309'} />
+                  </Pressable>
+                  {reelStyle === 'vertical' && (
+                    <>
+                      <Text style={{ marginHorizontal: 8, fontSize: 14, color: theme === 'dark' ? '#f5b301' : '#b45309' }}>|</Text>
+                      <Pressable
+                        onPress={() => setFilterOpen(true)}
+                        hitSlop={8}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
                       >
-                        {filterActive
-                          ? (CONTENT_TYPES.find((t) => t.key === contentFilter)?.label ?? 'CONTENT TYPE').toUpperCase()
-                          : 'CONTENT TYPE'}
-                      </Text>
-                      <ChevronRight size={14} color={theme === 'dark' ? '#f5b301' : '#b45309'} strokeWidth={2.6} />
-                    </Pressable>
-                  </>
-                )}
+                        <Text
+                          style={{
+                            fontSize: 11, fontWeight: '800', letterSpacing: 0.6,
+                            color: theme === 'dark' ? '#f5b301' : '#b45309',
+                          }}
+                        >
+                          {(CONTENT_TYPES.find((t) => t.key === contentFilter)?.label ?? 'CONTENT TYPE').toUpperCase()}
+                        </Text>
+                        <ChevronRight size={14} color={theme === 'dark' ? '#f5b301' : '#b45309'} strokeWidth={2.6} />
+                      </Pressable>
+                    </>
+                  )}
                 </View>
               </View>
 
@@ -1231,38 +1392,68 @@ const hasYouSlot = true;
             </Text>
           )}
 
-          {/* Spotlight — boosted products only */}
-          {boostedSellers.length > 0 && (
-            <View style={{ marginTop: 20, paddingHorizontal: 16 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Sparkles size={14} color={colors.brand} />
-                <Text style={{ fontSize: 12, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                  {spotlightWord}
-                </Text>
+          {/* Boosted — browse-style band with shadows + launch animation, feed (vertical) mode only */}
+          {reelStyle === 'vertical' && boostedProducts.length > 0 && (
+            <View style={{ marginTop: 20, backgroundColor: theme === 'dark' ? '#0a0a0a' : '#ffffff' }}>
+              <InsetShadow direction="down" />
+              <View style={{ paddingBottom: 4 }}>
+                <View style={{ paddingHorizontal: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <RocketLaunch color={colors.brand} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                      Boosted
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
+                      Promoted by sellers. Priority placement, just for a while.
+                    </Text>
+                  </View>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+                >
+                  {boostedProducts.map((item: any) => (
+                    <View key={`boost-${item.id}`} style={{ width: 128 }}>
+                      {(item.category || item.category_name) === 'Services'
+                        ? <ServiceCard service={item} />
+                        : <ProductCard product={item} />}
+                    </View>
+                  ))}
+                </ScrollView>
               </View>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 14, paddingRight: 16 }}
-                snapToInterval={CARD_WIDTH + 14}
-                decelerationRate="fast"
-              >
-                {boostedSellers.map((seller) => (
-                  <SellerSpotlightCard
-                    key={seller.key}
-                    seller={seller}
-                    colors={colors}
-                    onPress={() => setSpotlightSeller(seller)}
-                  />
-                ))}
-              </ScrollView>
+              <InsetShadow direction="up" />
             </View>
           )}
 
           {/* Reel feed (vertical mode) */}
           {reelStyle === 'vertical' && (
             <View style={{ marginTop: 20 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 22, paddingHorizontal: 16, marginBottom: 4 }}>
+                {([['all', 'All'], ['foryou', 'For you'], ['following', 'Following']] as const).map(([key, label]) => {
+                  const active = feedTab === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFeedTab(key); setVisibleCount(PAGE_SIZE); }}
+                      hitSlop={8}
+                      style={{
+                        paddingBottom: 6, borderBottomWidth: 2,
+                        borderBottomColor: active ? colors.brand : 'transparent',
+                      }}
+                    >
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: active ? colors.text : colors.textMuted }}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {feedTab === 'following' && feedItems.length === 0 && (
+                <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 13, marginTop: 40, paddingHorizontal: 30 }}>
+                  Follow people to see their posts here
+                </Text>
+              )}
               {feedItems.slice(0, visibleCount).map((item) => (
                 <FeedPost
                   key={item.id}
@@ -1272,14 +1463,14 @@ const hasYouSlot = true;
                   scrollY={scrollY}
                   onOpen={(storyIndex) => goToStory(item.groupIndex, storyIndex, 'spotlight')}
                   onLike={(story) => toggleFeedLike(story)}
-                  onComments={(story) => setCommentsStoryId(story.id)}
-                  onExport={(story) => {
-                    if (story.media_type !== 'video') {
-                      Toast.show({ type: 'error', text1: 'Only videos can be exported' });
-                      return;
-                    }
-                    setExportStory(story);
-                  }}
+                  onRepost={(story) => toggleFeedRepost(story)}
+                  viewerOpen={activeGroupIndex !== null}
+                  onComments={(story) => story.comments_off && String(story.user_id) !== String(user?.id)
+                    ? Toast.show({ type: 'error', text1: 'Comments are turned off' })
+                    : setCommentsStoryId(story.id)}
+                  onExport={(story) => setExportStory(story)}
+                  onOpenProfile={(group) => setPreviewGroup(group)}
+                  onFollow={(group) => toggleFollow(group)}
                   onChat={(story) => openChat({
                     sellerId: item.group.user_id,
                     sellerName: item.group.user_name,
@@ -1326,6 +1517,7 @@ const hasYouSlot = true;
         onRequestClose={() => setExportStory(null)}
       >
         <ExportSheet
+          isImage={exportStory?.media_type !== 'video'}
           onClose={() => setExportStory(null)}
           onPick={(kind) => {
             const s = exportStory;
@@ -1333,7 +1525,35 @@ const hasYouSlot = true;
             if (s) setTimeout(() => runExport(s, kind, toastUi, (c) => patchStory(s.id, { export_count: c })), 350);
           }}
         />
+        <Toast />
       </Modal>
+
+      {/* Scroll-to-top button */}
+      <Animated.View
+        pointerEvents={topBtnTouchable ? 'box-none' : 'none'}
+        style={{
+          position: 'absolute', left: 0, right: 0, bottom: 24, alignItems: 'center',
+          opacity: topBtnOpacity,
+          transform: [{ translateY: topBtnOpacity.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+        }}
+      >
+        <Pressable
+          onPress={() => {
+            mainScrollRef.current?.scrollTo({ y: 0, animated: true });
+            hideTopBtn();
+          }}
+          hitSlop={8}
+          style={{
+            width: 34, height: 34, borderRadius: 17,
+            borderWidth: 3, borderColor: colors.brand,
+            overflow: 'hidden',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <BlurView intensity={30} tint={theme === 'dark' ? 'dark' : 'light'} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+          <ChevronUp size={18} color={colors.brand} strokeWidth={2.8} />
+        </Pressable>
+      </Animated.View>
 
       {/* Comments sheet (feed message icon) */}
       <CommentsSheet
@@ -1440,14 +1660,19 @@ const hasYouSlot = true;
             <View {...filterDrag.panHandlers} style={{ paddingBottom: 4 }}>
               <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 16 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>Content type</Text>
-                <Pressable onPress={() => setContentFilter('all')} hitSlop={8}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Reset</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>Content type</Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, marginBottom: 14 }}>
+                    Choose what you see in Spotlight.
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setFilterOpen(false)}
+                  style={{ backgroundColor: colors.brand, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 7, alignSelf: 'flex-start' }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textOnGold }}>Done</Text>
                 </Pressable>
               </View>
-              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, marginBottom: 14 }}>
-                Choose what you see in Spotlight.
-              </Text>
             </View>
 
             <ScrollView style={{ maxHeight: SCREEN_HEIGHT * 0.6, marginBottom: 18 }} showsVerticalScrollIndicator={false}>
@@ -1459,7 +1684,7 @@ const hasYouSlot = true;
                       key={t.key}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setContentFilter(active ? 'all' : t.key);
+                        setContentFilter(t.key === 'all' || active ? 'all' : t.key);
                       }}
                       style={{
                         width: (SCREEN_WIDTH - 40 - 20) / 3,
@@ -1479,13 +1704,6 @@ const hasYouSlot = true;
                 })}
               </View>
             </ScrollView>
-
-            <Pressable
-              onPress={() => setFilterOpen(false)}
-              style={{ backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>Done</Text>
-            </Pressable>
           </Animated.View>
         </View>
       </Modal>
@@ -1562,6 +1780,21 @@ const hasYouSlot = true;
         </Pressable>
       </Modal>
 
+      {/* Spotlight profile preview (from feed avatar/name tap) */}
+      {!!previewGroup && (
+        <SpotlightPreviewModal
+          group={previewGroup}
+          colors={colors}
+          onClose={() => setPreviewGroup(null)}
+          onOpenProfile={(g) => {
+            setPreviewGroup(null);
+            setTimeout(() => {
+              router.push({ pathname: '/SpotlightProfile', params: { userId: g.user_id, guest: '1' } });
+            }, 200);
+          }}
+        />
+      )}
+
       {/* Full-screen viewer */}
       <Modal
         visible={activeGroupIndex !== null}
@@ -1578,8 +1811,13 @@ const hasYouSlot = true;
               ?? PHOTO_DURATION_MS
             }
             mediaReady={mediaReady}
+            replayKey={replayKey}
             reelStyle={reelStyle}
             onPatch={patchStory}
+            onRemoveStory={removeStory}
+            onRemoveUser={removeUser}
+            onRepost={toggleFeedRepost}
+            onFollow={toggleFollow}
             onMediaReady={(durationMs?: number) => {
               const currentStory = groups[activeGroupIndex]?.stories[activeStoryIndex];
               if (currentStory) {
@@ -1624,6 +1862,7 @@ const hasYouSlot = true;
             }}
           />
         )}
+        <Toast />
       </Modal>
     </View>
   );
@@ -2204,14 +2443,18 @@ function StoryGroupPreview({ group }: { group?: StoryGroup }) {
 
 // ─── FEED POST (one post per person, swipe sideways through their stories) ───
 function FeedPost({
-  item, colors, onOpen, onLike, onChat, isOwn, scrollY, onComments, onExport,
+  item, colors, onOpen, onLike, onChat, isOwn, scrollY, onComments, onExport, onRepost, viewerOpen, onOpenProfile, onFollow,
 }: {
+  viewerOpen: boolean;
   item: any; colors: any; scrollY: Animated.Value;
   onOpen: (storyIndex: number) => void;
   onLike: (story: Story) => void;
   onChat: (story: Story) => void;
   onComments: (story: Story) => void;
   onExport: (story: Story) => void;
+  onRepost: (story: Story) => void;
+  onOpenProfile: (group: any) => void;
+  onFollow: (group: any) => void;
   isOwn: boolean;
 }) {
   const { group } = item;
@@ -2232,6 +2475,11 @@ function FeedPost({
   const fullH = SCREEN_WIDTH - 84 + ACTION_H;
   const [expanded, setExpanded] = useState(false);
   const postRef = useRef<View>(null);
+  const [burst, setBurst] = useState<{ id: number; x: number; y: number } | null>(null);
+  const doubleLike = (x: number, y: number) => {
+    setBurst((b) => ({ id: (b?.id ?? 0) + 1, x, y }));
+    if (!story.liked) onLike(story);
+  };
 
   // while expanded, collapse again once the post has scrolled out of view
   useEffect(() => {
@@ -2252,7 +2500,7 @@ function FeedPost({
           alignItems: story.caption ? 'flex-start' : 'center',
         }}
       >
-        <View style={{ width: 40, height: 40, borderRadius: 20, overflow: 'hidden', backgroundColor: colors.chipBg }}>
+        <Pressable onPress={() => onOpenProfile(group)} hitSlop={6} style={{ width: 40, height: 40, borderRadius: 20, overflow: 'hidden', backgroundColor: colors.chipBg }}>
           {group.user_avatar ? (
             <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
           ) : (
@@ -2262,28 +2510,54 @@ function FeedPost({
               </Text>
             </View>
           )}
-        </View>
+        </Pressable>
 
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 15, fontWeight: '800', color: colors.text }}>
-              {group.user_name}
-            </Text>
+            <Pressable onPress={() => onOpenProfile(group)} hitSlop={4} style={{ flexShrink: 1 }}>
+              <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>
+                {group.user_name}
+              </Text>
+            </Pressable>
             <PlanBadge plan={group.user_plan} size={14} />
             <Text style={{ fontSize: 14, color: colors.textMuted }}>· {relativeTime(story.created_at)}</Text>
             <View style={{ flex: 1 }} />
             {!isOwn && (
-              <Pressable
-                onPress={() => onChat(story)}
-                hitSlop={6}
-                style={{
-                  borderWidth: 1, borderColor: colors.border,
-                  paddingHorizontal: 14, paddingVertical: 5, borderRadius: 10,
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Chat</Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row' }}>
+                <Pressable
+                  onPress={() => onFollow(group)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6 }}
+                  style={{
+                    backgroundColor: group.is_following ? colors.card : colors.brand,
+                    borderWidth: 1,
+                    borderColor: group.is_following ? colors.border : colors.brand,
+                    paddingHorizontal: 12, paddingVertical: 5,
+                    borderTopLeftRadius: 10, borderBottomLeftRadius: 10,
+                    borderTopRightRadius: 0, borderBottomRightRadius: 0,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: group.is_following ? colors.text : colors.textOnGold }}>
+                    {group.is_following ? 'Following' : 'Follow'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => onChat(story)}
+                  hitSlop={{ top: 6, bottom: 6, right: 6 }}
+                  style={{
+                    backgroundColor: colors.card,
+                    borderWidth: 1, borderLeftWidth: 0, borderColor: colors.border,
+                    paddingHorizontal: 12, paddingVertical: 5,
+                    borderTopLeftRadius: 0, borderBottomLeftRadius: 0,
+                    borderTopRightRadius: 10, borderBottomRightRadius: 10,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Chat</Text>
+                </Pressable>
+              </View>
             )}
+            <Pressable onPress={() => onOpen(activeIdx)} hitSlop={10} style={{ marginLeft: 8 }}>
+              <Maximize2 size={16} color={colors.brand} />
+            </Pressable>
           </View>
 
           {!!story.caption && (
@@ -2308,27 +2582,22 @@ function FeedPost({
           nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / mediaW))}
+          onScrollBeginDrag={() => currentFeedStop?.()}
         >
-          {stories.map((s, i) => (
-            <Pressable key={s.id} onPress={() => onOpen(i)} style={{ width: mediaW, height: fullH }}> 
-              {s.media_type === 'video' ? (
-                <>
-                  <ExploreStoryVideoThumb uri={s.media_url} crop={s.crop} />
-                  <View
-                    style={{
-                      position: 'absolute', right: 10, bottom: 10, width: 30, height: 30, borderRadius: 15,
-                      backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    <Play size={14} color="#fff" fill="#fff" />
-                  </View>
-                </>
-              ) : (
-                <Image source={{ uri: s.media_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-              )}
-            </Pressable>
-          ))}
+          {stories.map((s, i) =>
+            s.media_type === 'video' ? (
+              <View key={s.id} style={{ width: mediaW, height: fullH }}>
+                <FeedVideo uri={s.media_url} crop={s.crop} active={i === activeIdx && !viewerOpen} onDoubleTap={doubleLike} />
+              </View>
+            ) : (
+              <View key={s.id} style={{ width: mediaW, height: fullH }}>
+                <FeedImage uri={s.media_url} onOpen={() => onOpen(i)} onDoubleTap={doubleLike} />
+              </View>
+            )
+          )}
         </ScrollView>
+
+        <HeartBurst burst={burst} />
 
         {stories.length > 1 && (
           <>
@@ -2386,14 +2655,26 @@ function FeedPost({
                 alignItems: 'center', paddingLeft: 16, gap: 14,
               }}
             >
-              <Pressable onPress={() => onOpen(activeIdx)} hitSlop={10}>
-                                <Maximize2 size={12} color={colors.brand} />
-              </Pressable>
-              {group.is_seller && (
-                <Pressable onPress={() => router.push(`/seller/${group.user_id}`)} hitSlop={8}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>View store</Text>
-                </Pressable>
-              )}
+              <View style={{ flexShrink: 1 }}>
+                {group.is_seller && (
+                  <Pressable
+                    onPress={() => router.push(`/seller/${group.user_id}`)}
+                    hitSlop={8}
+                    style={{
+                      alignSelf: 'flex-start',
+                      marginLeft: -12,
+                      paddingHorizontal: 12, paddingVertical: 4,
+                      borderRadius: 999,
+                      borderWidth: 1, borderColor: colors.brand,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>View store</Text>
+                  </Pressable>
+                )}
+                <View style={{ marginTop: group.is_seller ? 2 : 0 }}>
+                  <RepostedBy story={story} color={colors.brand} nameColor={colors.text} />
+                </View>
+              </View>
             </View>
           </View>
         )}
@@ -2409,14 +2690,14 @@ function FeedPost({
             />
             <Text style={[stat, story.liked && { color: '#ef4444' }]}>{formatCount(story.like_count ?? 0)}</Text>
           </Pressable>
-          <Pressable onPress={() => onComments(story)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Pressable onPress={() => onComments(story)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, display: story.comments_off && !isOwn ? 'none' : 'flex' }}>
             <MessageCircle size={18} color="#fff" />
             <Text style={stat}>{formatCount(story.comment_count ?? 0)}</Text>
           </Pressable>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Eye size={18} color="#fff" />
-            <Text style={stat}>{formatCount(story.view_count ?? 0)}</Text>
-          </View>
+          <Pressable onPress={() => onRepost(story)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Repeat size={18} color={story.reposted ? '#22c55e' : '#fff'} />
+            <Text style={[stat, story.reposted && { color: '#22c55e' }]}>{formatCount(story.repost_count ?? 0)}</Text>
+          </Pressable>
           <Pressable onPress={() => onExport(story)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Send size={17} color="#fff" />
             <Text style={stat}>{formatCount(story.export_count ?? 0)}</Text>
@@ -2425,6 +2706,143 @@ function FeedPost({
       </View>
       <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 16, marginTop: 20 }} />
     </View>
+  );
+}
+
+function useDoubleTap(onSingle: () => void, onDouble: (x: number, y: number) => void, delay = 260) {
+  const lastRef = useRef(0);
+  const timerRef = useRef<any>(null);
+  const singleRef = useRef(onSingle);
+  const doubleRef = useRef(onDouble);
+  singleRef.current = onSingle;
+  doubleRef.current = onDouble;
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  return (e?: any) => {
+    const now = Date.now();
+    clearTimeout(timerRef.current);
+    if (now - lastRef.current < delay) {
+      lastRef.current = 0;
+      doubleRef.current(e?.nativeEvent?.locationX ?? SCREEN_WIDTH / 2, e?.nativeEvent?.locationY ?? 200);
+    } else {
+      lastRef.current = now;
+      timerRef.current = setTimeout(() => { lastRef.current = 0; singleRef.current(); }, delay);
+    }
+  };
+}
+
+function HeartBurst({ burst }: { burst: { id: number; x: number; y: number } | null }) {
+  const hearts = useRef(
+    Array.from({ length: 9 }, () => ({
+      v: new Animated.Value(0),
+      dx: (Math.random() - 0.5) * 160,
+      jitter: (Math.random() - 0.5) * 60,
+      size: 42 + Math.random() * 28,
+    }))
+  ).current;
+
+  useEffect(() => {
+    if (!burst) return;
+    hearts.forEach((h) => h.v.setValue(0));
+    Animated.stagger(
+      70,
+      hearts.map((h) => Animated.timing(h.v, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: true })),
+    ).start();
+  }, [burst?.id]);
+
+  if (!burst) return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}>
+      {hearts.map((h, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            position: 'absolute',
+            left: burst.x + h.jitter - h.size / 2,
+            top: burst.y - h.size / 2,
+            opacity: h.v.interpolate({ inputRange: [0, 0.15, 0.7, 1], outputRange: [0, 1, 1, 0] }),
+            transform: [
+              { translateY: h.v.interpolate({ inputRange: [0, 1], outputRange: [0, -260] }) },
+              { translateX: h.v.interpolate({ inputRange: [0, 1], outputRange: [0, h.dx] }) },
+              { scale: h.v.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0.4, 1.2, 1] }) },
+            ],
+          }}
+        >
+          <Heart size={h.size} color="#ef4444" fill="#ef4444" />
+        </Animated.View>
+      ))}
+    </View>
+  );
+}
+
+function FeedImage({ uri, onOpen, onDoubleTap }: { uri: string; onOpen: () => void; onDoubleTap: (x: number, y: number) => void }) {
+  const tap = useDoubleTap(onOpen, onDoubleTap);
+  return (
+    <Pressable onPress={tap} style={{ width: SCREEN_WIDTH, height: '100%' }}>
+      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+    </Pressable>
+  );
+}
+
+function FeedVideo({ uri, crop, active, onDoubleTap }: { uri: string; crop?: VideoCropT | null; active: boolean; onDoubleTap?: (x: number, y: number) => void }) {
+  const player = useVideoPlayer({ uri, useCaching: true }, (p) => { p.loop = true; });
+  const [playing, setPlaying] = useState(false);
+  const [showIcon, setShowIcon] = useState(true);
+  const timerRef = useRef<any>(null);
+
+  const stop = () => {
+    clearTimeout(timerRef.current);
+    try { player.pause(); } catch {}
+    setPlaying(false);
+    setShowIcon(true);
+  };
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  const stable = useRef(() => stopRef.current()).current;
+
+  const toggle = () => {
+    clearTimeout(timerRef.current);
+    if (playing) {
+      stop();
+    } else {
+      if (currentFeedStop && currentFeedStop !== stable) currentFeedStop();
+      currentFeedStop = stable;
+      player.play();
+      setPlaying(true);
+      setShowIcon(true);
+      timerRef.current = setTimeout(() => setShowIcon(false), 1500);
+    }
+  };
+
+  const tap = useDoubleTap(toggle, (x, y) => onDoubleTap?.(x, y));
+
+  // pause when swiped to another story or the full-screen viewer opens
+  useEffect(() => {
+    if (!active && playing) stop();
+  }, [active]);
+
+  useEffect(() => () => {
+    clearTimeout(timerRef.current);
+    if (currentFeedStop === stable) currentFeedStop = null;
+  }, []);
+
+    useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s !== 'active') stopRef.current();
+    });
+    return () => sub.remove();
+  }, []);
+
+  return (
+    <Pressable onPress={tap} style={{ width: '100%', height: '100%' }}>
+      <CroppedVideoView player={player} crop={crop} />
+      {showIcon && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+            {playing ? <Pause size={28} color="#fff" fill="#fff" /> : <Play size={28} color="#fff" fill="#fff" />}
+          </View>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -2449,22 +2867,234 @@ function ReelAction({
   );
 }
 
+// ─── SPOTLIGHT PREVIEW MODAL (from feed avatar/name tap) ────────────
+function SpotlightPreviewModal({
+  group, colors, onClose, onOpenProfile,
+}: { group: any; colors: any; onClose: () => void; onOpenProfile: (g: any) => void }) {
+  const [followers, setFollowers] = useState(0);
+  useEffect(() => {
+    if (!group?.user_id) return;
+    api.get(`/follows/stats/${group.user_id}`)
+      .then((r) => setFollowers(r.data.followers ?? 0))
+      .catch(() => {});
+  }, [group?.user_id]);
+  if (!group) return null;
+  const spotlightCount = (group.stories || []).filter((s: any) => (s.kind ?? 'story') === 'spotlight').length;
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        onPress={onClose}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}
+      >
+        <Pressable
+          onPress={(e) => e.stopPropagation?.()}
+          style={{
+            width: '100%', maxWidth: 380,
+            backgroundColor: colors.card,
+            borderRadius: 20, overflow: 'hidden',
+            borderWidth: 1, borderColor: colors.border,
+          }}
+        >
+          <View style={{ height: 130, position: 'relative', backgroundColor: colors.chipBg }}>
+            {group.user_avatar && (
+              <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+            )}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              style={{ position: 'absolute', top: 8, right: 8, padding: 6, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.5)' }}
+            >
+              <X size={16} color="#fff" />
+            </Pressable>
+          </View>
+
+          <View style={{ paddingHorizontal: 16, marginTop: -36 }}>
+            <View
+              style={{
+                width: 72, height: 72, borderRadius: 36, overflow: 'hidden',
+                backgroundColor: colors.chipBg, borderWidth: 4, borderColor: colors.card,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              {group.user_avatar ? (
+                <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+              ) : (
+                <Text style={{ fontSize: 22, fontWeight: '800', color: colors.brand }}>
+                  {group.user_name?.[0]?.toUpperCase() || '?'}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text numberOfLines={1} style={{ flex: 1, fontSize: 18, fontWeight: '800', color: colors.text }}>
+                {group.user_name}
+              </Text>
+              <PlanBadge plan={group.user_plan} size={14} />
+            </View>
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 3 }}>
+              {formatCount(followers)} {followers === 1 ? 'follower' : 'followers'}
+            </Text>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+              {spotlightCount} {spotlightCount === 1 ? 'spotlight post' : 'spotlight posts'}
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => onOpenProfile(group)}
+            style={{
+              paddingVertical: 14, backgroundColor: colors.brand,
+              alignItems: 'center', justifyContent: 'center',
+              flexDirection: 'row', gap: 6,
+            }}
+          >
+            <Text style={{ color: colors.textOnGold, fontSize: 14, fontWeight: '800' }}>
+              View full profile
+            </Text>
+            <ChevronRight size={16} color={colors.textOnGold} strokeWidth={2.6} />
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// Rocket squeezes along its diagonal, shoots off top-right, then re-enters from bottom-left. Loops ~every 3s.
+function RocketLaunch({ color }: { color: string }) {
+  const x = useRef(new Animated.Value(0)).current;
+  const sx = useRef(new Animated.Value(1)).current;
+  const shake = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const t = (v: Animated.Value, to: number, duration: number, easing?: (n: number) => number) =>
+      Animated.timing(v, { toValue: to, duration, easing, useNativeDriver: true });
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(4500),
+        Animated.parallel([
+          t(sx, 0.6, 900, Easing.inOut(Easing.quad)),
+          t(x, -4, 900),
+          Animated.sequence(
+            Array.from({ length: 18 }).map((_, i) =>
+              t(shake, i % 2 === 0 ? 2.5 : -2.5, 50)
+            ).concat([t(shake, 0, 0)])
+          ),
+        ]),
+        Animated.parallel([t(sx, 1.3, 260, Easing.in(Easing.cubic)), t(x, 50, 260, Easing.in(Easing.cubic))]),
+        Animated.parallel([t(x, -50, 0), t(sx, 1, 0)]),
+        t(x, 0, 450, Easing.out(Easing.cubic)),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  return (
+    <View style={{ width: 40, height: 40, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ transform: [{ rotate: '-45deg' }] }}>
+        <Animated.View style={{ transform: [{ translateX: x }, { translateY: shake }, { scaleX: sx }] }}>
+          <View style={{ transform: [{ rotate: '45deg' }] }}>
+            <Rocket size={40} color={color} />
+          </View>
+        </Animated.View>
+      </View>
+    </View>
+  );
+}
+
 // ─── FULL-SCREEN VIEWER ──────────────────────────────────────────────
-function StoryViewerLocal({
+export function StoryViewerLocal({
   group, story, durationMs, mediaReady, isOwnStory, onMediaReady, onClose, onBack, onNext,
-  onSwipeNextGroup, onSwipePrevGroup, prevGroup, nextGroup,onReply, onQuickReact, notice, reelStyle, onPatch,
+  onSwipeNextGroup, onSwipePrevGroup, prevGroup, nextGroup,onReply, onQuickReact, notice, reelStyle, onPatch, onRepost, replayKey, onRemoveStory, onRemoveUser, onFollow,
 }: any) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colors = useColors();
   const isVertical = reelStyle === 'vertical';
   const [exportOpen, setExportOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportStep, setReportStep] = useState<'menu' | 'reasons'>('menu');
+  const sendReport = async (reason: string) => {
+    setReportOpen(false);
+    try {
+      await api.post(`/stories/${story.id}/report`, { reason });
+      showToast('Report sent');
+    } catch {
+      showToast("Couldn't send report");
+    }
+  };
+  const hidePost = async () => {
+    setReportOpen(false);
+    try {
+      await api.post(`/stories/${story.id}/hide`);
+      onRemoveStory?.(story.id);
+      Toast.show({ type: 'success', text1: "Got it, you'll see less like this" });
+    } catch {
+      showToast("Couldn't hide post");
+    }
+  };
+
+  const blockUser = () => {
+    setReportOpen(false);
+    Alert.alert(
+      `Block ${group.user_name.split(' ')[0]}?`,
+      "You won't see their posts and they won't see yours.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block', style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.post(`/stories/block/${group.user_id}`);
+              onRemoveUser?.(group.user_id);
+              Toast.show({ type: 'success', text1: 'User blocked' });
+            } catch {
+              showToast("Couldn't block user");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const deletePost = () => {
+    setReportOpen(false);
+    Alert.alert('Delete this post?', "This can't be undone.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.delete(`/stories/${story.id}`);
+            onRemoveStory?.(story.id);
+            Toast.show({ type: 'success', text1: 'Post deleted' });
+          } catch {
+            showToast("Couldn't delete post");
+          }
+        },
+      },
+    ]);
+  };
+
+  const toggleComments = async () => {
+    setReportOpen(false);
+    const off = !story.comments_off;
+    onPatch?.(story.id, { comments_off: off });
+    try {
+      await api.patch(`/stories/${story.id}/comments-off`, { off });
+      showToast(off ? 'Comments turned off' : 'Comments turned on');
+    } catch {
+      onPatch?.(story.id, { comments_off: !off });
+      showToast("Couldn't update comments");
+    }
+  };
+
   const [exporting, setExporting] = useState(false);
   const [exportText, setExportText] = useState<string | null>(null);
-  const openExport = () => {
-    if (story.media_type !== 'video') { showToast('Only videos can be exported'); return; }
-    setExportOpen(true);
-  };
+  const openExport = () => setExportOpen(true);
   const handleExport = (kind: 'gallery' | 'share') => {
     setExportOpen(false);
     runExport(story, kind, {
@@ -2488,6 +3118,8 @@ function StoryViewerLocal({
     showToast(ok ? `Sent ${emoji}` : "Couldn't send");
   };
   const [barRowWidth, setBarRowWidth] = useState(0);
+    const [imgAspect, setImgAspect] = useState<number | null>(null);
+  useEffect(() => { setImgAspect(null); }, [story.id]);
   const [replyText, setReplyText] = useState('');
   const [liked, setLiked] = useState(!!story.liked);
   const [likeCount, setLikeCount] = useState<number>(story.like_count ?? 0);
@@ -2517,6 +3149,36 @@ function StoryViewerLocal({
     setRepliesById({});
   }, [story.id]);
 
+  const ownerId = group.user_id;
+  const isOwner = isOwnStory;
+  const togglePin = async (c: any) => {
+    try {
+      await api.patch(`/stories/${story.id}/comments/${c.id}/pin`, { pinned: !c.pinned });
+      const res = await api.get(`/stories/${story.id}/comments`);
+      setComments(res.data || []);
+    } catch {
+      showToast("Couldn't update pin");
+    }
+  };
+
+  const toggleCommentLike = async (c: any, threadId?: string) => {
+    const next = !c.liked;
+    const count = c.like_count ?? 0;
+    const apply = (fn: (x: any) => any) => {
+      if (threadId) setRepliesById((p) => ({ ...p, [threadId]: (p[threadId] || []).map(fn) }));
+      else setComments((prev) => prev.map(fn));
+    };
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    apply((x) => (x.id === c.id ? { ...x, liked: next, like_count: Math.max(0, count + (next ? 1 : -1)) } : x));
+    try {
+      if (next) await api.post(`/stories/${story.id}/comments/${c.id}/like`);
+      else await api.delete(`/stories/${story.id}/comments/${c.id}/like`);
+    } catch {
+      apply((x) => (x.id === c.id ? { ...x, liked: !next, like_count: count } : x));
+      showToast("Couldn't update like");
+    }
+  };
+
   const toggleLike = async () => {
     const next = !liked;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2535,6 +3197,7 @@ function StoryViewerLocal({
   };
 
   const openComments = async () => {
+    if (story.comments_off && !isOwnStory) { showToast('Comments are turned off'); return; }
     setCommentsOpen(true);
     setCommentsLoading(true);
     try {
@@ -2597,7 +3260,11 @@ function StoryViewerLocal({
           loadReplies(threadId);
         }
       } else {
-        setComments((prev) => [{ ...res.data, reply_count: 0 }, ...prev]);
+        setComments((prev) => [
+          ...prev.filter((x) => x.pinned),
+          { ...res.data, reply_count: 0 },
+          ...prev.filter((x) => !x.pinned),
+        ]);
       }
       setCommentCount((c) => c + 1);
       onPatch?.(story.id, { comment_count: commentCount + 1 });
@@ -2687,7 +3354,7 @@ function StoryViewerLocal({
       currentAnimRef.current?.stop();
       clearTimeout(advanceTimerRef.current);
     };
-  }, [currentIndex, mediaReady, group.user_id]);
+  }, [currentIndex, mediaReady, group.user_id, replayKey]);
 
   // ── Swipe-down-to-dismiss / swipe left-right to switch story groups ──
   const DISMISS_THRESHOLD = 120;
@@ -2983,7 +3650,25 @@ function StoryViewerLocal({
     clearTimeout(advanceTimerRef.current);
   };
 
-  const handlePressOutSide = (side: 'back' | 'next') => {
+  const lastTapRef = useRef(0);
+  const tapTimerRef = useRef<any>(null);
+  const [burst, setBurst] = useState<{ id: number; x: number; y: number } | null>(null);
+  useEffect(() => () => clearTimeout(tapTimerRef.current), []);
+  const quickTap = (action: () => void, x: number, y: number) => {
+    const now = Date.now();
+    clearTimeout(tapTimerRef.current);
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+      setBurst((b) => ({ id: (b?.id ?? 0) + 1, x, y }));
+      if (!liked) toggleLike();
+      resumeCurrentBar();
+      return;
+    }
+    lastTapRef.current = now;
+    tapTimerRef.current = setTimeout(() => { lastTapRef.current = 0; action(); }, 280);
+  };
+
+  const handlePressOutSide = (side: 'back' | 'next', px = SCREEN_WIDTH / 2, py = SCREEN_HEIGHT / 2) => {
     if (isTyping || keyboardHeight > 0) {
       setIsPaused(false);
       Keyboard.dismiss();
@@ -2994,16 +3679,22 @@ function StoryViewerLocal({
       setIsHolding(false);
       if (heldMs >= HOLD_THRESHOLD_MS) {
         setIsPaused(false);
-      } else if (story.media_type === 'video') {
-        setIsPaused((p: boolean) => !p);
       } else {
-        resumeCurrentBar();
+        quickTap(() => {
+          const zone = px < SCREEN_WIDTH * 0.3 ? 'left' : px > SCREEN_WIDTH * 0.7 ? 'right' : 'middle';
+          if (zone === 'left' && currentIndex > 0) { setIsPaused(false); onBack(); }
+          else if (zone === 'right' && currentIndex < group.stories.length - 1) { setIsPaused(false); onNext(); }
+          else if (zone === 'middle' && story.media_type === 'video') setIsPaused((p: boolean) => !p);
+          else resumeCurrentBar();
+        }, px, py);
       }
       return;
     }
     if (heldMs < HOLD_THRESHOLD_MS && !heldRef.current) {
-      setIsPaused(false);
-      side === 'back' ? onBack() : onNext();
+      quickTap(() => {
+        setIsPaused(false);
+        side === 'back' ? onBack() : onNext();
+      }, px, py);
     } else {
       setIsPaused(false);
       resumeCurrentBar();
@@ -3065,7 +3756,7 @@ function StoryViewerLocal({
     onPanResponderTerminate: scrubEnd,
   })).current;
 
-  const barPaused = isPaused || isTyping || commentsOpen || exportOpen || isScrubbing;
+  const barPaused = isPaused || isTyping || commentsOpen || exportOpen || reportOpen || isScrubbing;
   const barPausedRef = useRef(false);
   barPausedRef.current = barPaused;
   const firstPauseRun = useRef(true);
@@ -3167,13 +3858,23 @@ function StoryViewerLocal({
   crop={story.crop}
 />
           ) : (
-            <Image
-              key={story.id}
-              source={{ uri: story.media_url }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="contain"
-              onLoad={() => onMediaReady()}
-            />
+            <View key={`${story.id}-${replayKey}`} style={{ width: '100%', height: '100%' }}>
+              <GapFill
+                aspect={imgAspect}
+                render={() => (
+                  <Image source={{ uri: story.media_url }} style={{ width: '100%', height: '100%' }} contentFit="fill" />
+                )}
+              />
+              <Image
+                source={{ uri: story.media_url }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="contain"
+                onLoad={(e: any) => {
+                  if (e?.source?.width && e?.source?.height) setImgAspect(e.source.width / e.source.height);
+                  onMediaReady();
+                }}
+              />
+            </View>
           )}
 
           {!!story.text_overlay && <ViewerTextOverlay overlay={story.text_overlay} />}
@@ -3266,6 +3967,7 @@ function StoryViewerLocal({
                   <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
                     {relativeTime(story.created_at)}
                   </Text>
+                  <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={11} />
                 </View>
                 <Pressable onPress={onClose} style={{ padding: 6 }}>
                   <X size={22} color="#fff" />
@@ -3277,7 +3979,7 @@ function StoryViewerLocal({
           {/* Tap zones */}
           <Pressable
             onPressIn={() => { handlePressIn(); startHoldWatch(); }}
-            onPressOut={() => { clearTimeout(holdTimerRef.current); handlePressOutSide('back'); }}
+            onPressOut={(e) => { clearTimeout(holdTimerRef.current); handlePressOutSide('back', e.nativeEvent.pageX, e.nativeEvent.pageY); }}
             style={{
               position: 'absolute',
               top: insets.top + 70, bottom: 0,
@@ -3286,13 +3988,15 @@ function StoryViewerLocal({
           />
           <Pressable
             onPressIn={() => { handlePressIn(); startHoldWatch(); }}
-            onPressOut={() => { clearTimeout(holdTimerRef.current); handlePressOutSide('next'); }}
+            onPressOut={(e) => { clearTimeout(holdTimerRef.current); handlePressOutSide('next', e.nativeEvent.pageX, e.nativeEvent.pageY); }}
             style={{
               position: 'absolute',
               top: insets.top + 70, bottom: 0,
               right: 0, width: SCREEN_WIDTH * 0.5,
             }}
           />
+
+          <HeartBurst burst={burst} />
 
           {story.media_type === 'video' && mediaReady && scrubSegW > 0 && (
             <View
@@ -3383,14 +4087,20 @@ function StoryViewerLocal({
                     count={formatCount(likeCount)}
                     onPress={toggleLike}
                   />
+                  {(!story.comments_off || isOwnStory) && (
+                    <ReelAction
+                      icon={<MessageCircle size={27} color="#fff" />}
+                      count={formatCount(commentCount)}
+                      onPress={openComments}
+                    />
+                  )}
                   <ReelAction
-                    icon={<MessageCircle size={27} color="#fff" />}
-                    count={formatCount(commentCount)}
-                    onPress={openComments}
+                    icon={<Repeat size={27} color={story.reposted ? '#22c55e' : '#fff'} />}
+                    count={formatCount(story.repost_count ?? 0)}
+                    onPress={() => onRepost?.(story)}
                   />
-                  <ReelAction icon={<Repeat size={27} color="#fff" />} />
                   <ReelAction icon={<Send size={26} color="#fff" />} count={formatCount(story.export_count ?? 0)} onPress={openExport} />
-                  <ReelAction icon={<MoreHorizontal size={26} color="#fff" />} />
+                  <ReelAction icon={<MoreHorizontal size={26} color="#fff" />} onPress={() => { setReportStep('menu'); setReportOpen(true); }} />
                   <View
                     style={{
                       width: 30, height: 30, borderRadius: 7, overflow: 'hidden',
@@ -3427,18 +4137,40 @@ function StoryViewerLocal({
                   </Text>
                   <PlanBadge plan={group.user_plan} size={14} />
                   {!isOwnStory && (
-                    <Pressable
-                      hitSlop={6}
-                      onPress={() => onReply('')}
-                      style={{
-                        borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)',
-                        paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10,
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Chat</Text>
-                    </Pressable>
+                    <View style={{ flexDirection: 'row' }}>
+                      <Pressable
+                        hitSlop={{ top: 6, bottom: 6, left: 6 }}
+                        onPress={() => onFollow?.(group)}
+                        style={{
+                          backgroundColor: group.is_following ? 'transparent' : colors.brand,
+                          borderWidth: 1,
+                          borderColor: group.is_following ? 'rgba(255,255,255,0.7)' : colors.brand,
+                          paddingHorizontal: 12, paddingVertical: 6,
+                          borderTopLeftRadius: 10, borderBottomLeftRadius: 10,
+                          borderTopRightRadius: 0, borderBottomRightRadius: 0,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: group.is_following ? '#fff' : colors.textOnGold }}>
+                          {group.is_following ? 'Following' : 'Follow'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        hitSlop={{ top: 6, bottom: 6, right: 6 }}
+                        onPress={() => onReply('')}
+                        style={{
+                          borderWidth: 1, borderLeftWidth: 0, borderColor: 'rgba(255,255,255,0.7)',
+                          paddingHorizontal: 12, paddingVertical: 6,
+                          borderTopLeftRadius: 0, borderBottomLeftRadius: 0,
+                          borderTopRightRadius: 10, borderBottomRightRadius: 10,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Chat</Text>
+                      </Pressable>
+                    </View>
                   )}
                 </View>
+
+                                <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={12} />
 
                 {!!story.caption && (
                   <Text
@@ -3523,7 +4255,7 @@ function StoryViewerLocal({
         )}
 
         {/* Reply bar — a real, solid-background footer, not an overlay */}
-        {!isOwnStory && (
+        {(!isOwnStory || isVertical) && (
   <View
     style={{
       backgroundColor: isVertical ? '#0b0d10' : '#000',
@@ -3553,7 +4285,7 @@ function StoryViewerLocal({
           onPress={openComments}
           style={{ flex: 1, height: '100%', justifyContent: 'center' }}
         >
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>Add comment...</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>{story.comments_off && !isOwnStory ? 'Comments are turned off' : 'Add comment...'}</Text>
         </Pressable>
       )}
       <TextInput
@@ -3615,7 +4347,55 @@ function StoryViewerLocal({
       </View>
     )}
 
-    {exportOpen && <ExportSheet onClose={() => setExportOpen(false)} onPick={handleExport} />}
+    {exportOpen && <ExportSheet isImage={story.media_type !== 'video'} onClose={() => setExportOpen(false)} onPick={handleExport} />}
+
+    {reportOpen && reportStep === 'menu' && (
+      <PostOptionsSheet
+        isOwn={isOwnStory}
+        commentsOff={!!story.comments_off}
+        onClose={() => setReportOpen(false)}
+        onReport={() => setReportStep('reasons')}
+        onHide={hidePost}
+        onBlock={blockUser}
+        onDelete={deletePost}
+        onToggleComments={toggleComments}
+      />
+    )}
+
+    {reportOpen && reportStep === 'reasons' && (
+      <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' }}>
+        <Pressable
+          onPress={() => setReportOpen(false)}
+          style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
+        />
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderTopLeftRadius: 28, borderTopRightRadius: 28,
+            paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 20,
+          }}
+        >
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 16 }} />
+          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>Report this post</Text>
+          <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, marginBottom: 8 }}>
+            Why are you reporting it?
+          </Text>
+          {REPORT_REASONS.map((r, i) => (
+            <Pressable
+              key={r}
+              onPress={() => sendReport(r)}
+              style={{
+                paddingVertical: 15,
+                borderBottomWidth: i === REPORT_REASONS.length - 1 ? 0 : 1,
+                borderBottomColor: colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{r}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    )}
 
     {commentsOpen && (
       <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' }}>
@@ -3626,7 +4406,6 @@ function StoryViewerLocal({
         <Animated.View
           style={{
             height: SCREEN_HEIGHT * 0.6,
-            marginBottom: keyboardHeight,
             backgroundColor: colors.card,
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             paddingTop: 12,
@@ -3641,7 +4420,7 @@ function StoryViewerLocal({
             </Text>
           </View>
 
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }} onStartShouldSetResponder={() => { Keyboard.dismiss(); return false; }}>
             {commentsLoading ? (
               <ActivityIndicator color={colors.brand} style={{ marginTop: 24 }} />
             ) : comments.length === 0 ? (
@@ -3652,7 +4431,7 @@ function StoryViewerLocal({
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingBottom: 8 }}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingBottom: 8 + keyboardHeight }}
               >
                 {comments.map((c: any) => (
                   <View key={c.id} style={{ flexDirection: 'row', gap: 10 }}>
@@ -3669,10 +4448,27 @@ function StoryViewerLocal({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 12, fontWeight: '800', color: colors.text }}>
-                        {c.user_name}
+                        {c.user_name}{String(c.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
                         <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(c.created_at)}</Text>
                       </Text>
                       <Text style={{ fontSize: 14, color: colors.text, marginTop: 2 }}>{c.text}</Text>
+                      {!!c.pinned && (
+                        <View style={{ position: 'absolute', top: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Pin size={11} color={colors.brand} fill={colors.brand} />
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand }}>Pinned</Text>
+                        </View>
+                      )}
+
+                      <Pressable
+                        onPress={() => toggleCommentLike(c)}
+                        hitSlop={8}
+                        style={{ position: 'absolute', right: 0, top: c.pinned ? 18 : 0, alignItems: 'center', gap: 1 }}
+                      >
+                        <Heart size={15} color={c.liked ? '#ef4444' : colors.textMuted} fill={c.liked ? '#ef4444' : 'transparent'} />
+                        {(c.like_count ?? 0) > 0 && (
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: c.liked ? '#ef4444' : colors.textMuted }}>{formatCount(c.like_count)}</Text>
+                        )}
+                      </Pressable>
 
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
                         <Pressable
@@ -3683,6 +4479,14 @@ function StoryViewerLocal({
                           <Reply size={13} color={colors.textMuted} />
                           <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted }}>Reply</Text>
                         </Pressable>
+                        {isOwner && (
+                          <>
+                            <Text style={{ fontSize: 12, color: colors.textMuted }}>·</Text>
+                            <Pressable onPress={() => togglePin(c)} hitSlop={8}>
+                              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted }}>{c.pinned ? 'Unpin' : 'Pin'}</Text>
+                            </Pressable>
+                          </>
+                        )}
                         {(c.reply_count ?? 0) > 0 && (
                           <>
                             <Text style={{ fontSize: 12, color: colors.textMuted }}>·</Text>
@@ -3717,10 +4521,20 @@ function StoryViewerLocal({
                               </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={{ fontSize: 12, fontWeight: '800', color: colors.text }}>
-                                  {r.user_name}
+                                  {r.user_name}{String(r.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
                                   <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(r.created_at)}</Text>
                                 </Text>
                                 <Text style={{ fontSize: 14, color: colors.text, marginTop: 2 }}>{r.text}</Text>
+                                <Pressable
+                                  onPress={() => toggleCommentLike(r, c.id)}
+                                  hitSlop={8}
+                                  style={{ position: 'absolute', right: 0, top: 0, alignItems: 'center', gap: 1 }}
+                                >
+                                  <Heart size={14} color={r.liked ? '#ef4444' : colors.textMuted} fill={r.liked ? '#ef4444' : 'transparent'} />
+                                  {(r.like_count ?? 0) > 0 && (
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: r.liked ? '#ef4444' : colors.textMuted }}>{formatCount(r.like_count)}</Text>
+                                  )}
+                                </Pressable>
                                 <Pressable
                                   onPress={() => { setReplyTo({ id: r.id, name: r.user_name }); commentInputRef.current?.focus(); }}
                                   hitSlop={8}
@@ -3745,7 +4559,7 @@ function StoryViewerLocal({
             <View
               style={{
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                paddingHorizontal: 16, paddingVertical: 6, marginTop: 6,
+                paddingHorizontal: 16, paddingVertical: 6, marginTop: 6, transform: [{ translateY: -keyboardHeight }],
                 backgroundColor: colors.chipBg,
               }}
             >
@@ -3757,7 +4571,7 @@ function StoryViewerLocal({
               </Pressable>
             </View>
           )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: colors.card, transform: [{ translateY: -keyboardHeight }] }}>
             <TextInput
               ref={commentInputRef}
               value={commentText}
@@ -3787,6 +4601,33 @@ function StoryViewerLocal({
         </Animated.View>
       </View>
     )}
+    </View>
+  );
+}
+
+// Fills the empty top/bottom bars with a blurred copy of the media's own top/bottom part
+function GapFill({ aspect, render }: { aspect: number | null; render: () => React.ReactNode }) {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const mediaH = aspect && box.w ? box.w / aspect : 0;
+  const gap = Math.max(0, (box.h - mediaH) / 2);
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
+      {gap > 1 && (
+        <>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: gap, overflow: 'hidden' }}>
+            <View style={{ position: 'absolute', top: 0, left: 0, width: box.w, height: mediaH }}>{render()}</View>
+            <BlurView intensity={100} tint="dark" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+          </View>
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: gap, overflow: 'hidden' }}>
+            <View style={{ position: 'absolute', bottom: 0, left: 0, width: box.w, height: mediaH }}>{render()}</View>
+            <BlurView intensity={100} tint="dark" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -3882,6 +4723,30 @@ function RingName({ group, colors }: { group: StoryGroup; colors: any }) {
   );
 }
 
+function RepostedBy({ story, color, nameColor, fontSize = 10 }: { story: Story; color: string; nameColor: string; fontSize?: number }) {
+  const n = story.repost_count ?? 0;
+  const by = story.reposted_by;
+  if (n < 1 || !by?.name) return null;
+  const others = n - 1;
+  const first = by.name.split(' ')[0];
+  const av = fontSize + 8;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <Text style={{ fontSize: fontSize + 1, fontWeight: '800', color }}>Reposted by: </Text>
+      <View style={{ width: av, height: av, borderRadius: av / 2, overflow: 'hidden', backgroundColor: 'rgba(128,128,128,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+        {by.avatar ? (
+          <Image source={{ uri: by.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        ) : (
+          <Text style={{ fontSize: fontSize - 2, fontWeight: '800', color }}>{first[0]?.toUpperCase()}</Text>
+        )}
+      </View>
+      <Text numberOfLines={1} style={{ flexShrink: 1, fontSize, color: nameColor }}>
+        {first}{others > 0 ? ` and ${others > 9 ? '9+' : others} ${others === 1 ? 'other' : 'others'}` : ''}
+      </Text>
+    </View>
+  );
+}
+
 function formatCount(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
@@ -3922,6 +4787,7 @@ function StoryVideoPlayer({
   });
   const readyRef = useRef(false);
   const durRef = useRef(0);
+  const [aspect, setAspect] = useState<number | null>(null);
 
   useEffect(() => {
     if (!seekRef) return;
@@ -3945,6 +4811,9 @@ function StoryVideoPlayer({
           ? Math.min(trimEndMs!, fullMs ?? trimEndMs!) - trimStartMs!
           : fullMs;
         durRef.current = durationMs ?? 0;
+        const sz: any = (player as any).videoTrack?.size;
+        if (crop?.fa && crop.w > 0 && crop.h > 0) setAspect((crop.w * crop.fa) / crop.h);
+        else if (sz?.width && sz?.height) setAspect(sz.width / sz.height);
         onReady(durationMs);
       }
     });
@@ -3959,13 +4828,18 @@ function StoryVideoPlayer({
     else player.play();
   }, [paused, player]);
 
-  return <CroppedVideoView player={player} crop={crop} />;
+  return (
+    <View style={{ width: '100%', height: '100%' }}>
+      <GapFill aspect={aspect} render={() => <CroppedVideoView player={player} crop={crop} />} />
+      <CroppedVideoView player={player} crop={crop} contain />
+    </View>
+  );
 }
 
 type VideoCropT = { x: number; y: number; w: number; h: number; fa?: number | null };
 
 // Shows only the cropped part of a video, filling the box
-function CroppedVideoView({ player, crop }: { player: any; crop?: VideoCropT | null }) {
+function CroppedVideoView({ player, crop, contain }: { player: any; crop?: VideoCropT | null; contain?: boolean }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   if (!crop || !crop.fa || crop.w <= 0 || crop.h <= 0) {
     return (
@@ -3978,9 +4852,32 @@ function CroppedVideoView({ player, crop }: { player: any; crop?: VideoCropT | n
     );
   }
   const fa = crop.fa;
-  const s = box.w > 0 ? Math.max(box.w / (crop.w * fa), box.h / crop.h) : 0;
+  const s = box.w > 0
+    ? (contain
+        ? Math.min(box.w / (crop.w * fa), box.h / crop.h)
+        : Math.max(box.w / (crop.w * fa), box.h / crop.h))
+    : 0;
   const FW = fa * s;
   const FH = s;
+  if (contain) {
+    return (
+      <View
+        style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}
+        onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      >
+        {s > 0 && (
+          <View style={{ width: crop.w * FW, height: crop.h * FH, overflow: 'hidden' }}>
+            <VideoView
+              player={player}
+              style={{ position: 'absolute', width: FW, height: FH, left: -crop.x * FW, top: -crop.y * FH }}
+              contentFit="fill"
+              nativeControls={false}
+            />
+          </View>
+        )}
+      </View>
+    );
+  }
   return (
     <View
       style={{ width: '100%', height: '100%', overflow: 'hidden' }}
@@ -4151,8 +5048,8 @@ function StoriesSkeleton({ colors }: { colors: any }) {
 
 // ─── EXPORT SHEET ────────────────────────────────────────────────────
 function ExportSheet({
-  onClose, onPick,
-}: { onClose: () => void; onPick: (kind: 'gallery' | 'share') => void }) {
+  onClose, onPick, isImage,
+}: { onClose: () => void; onPick: (kind: 'gallery' | 'share') => void; isImage?: boolean }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -4179,40 +5076,44 @@ function ExportSheet({
         }}
       >
         <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 16 }} />
-        <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>Export video</Text>
-        <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, marginBottom: 18 }}>
-          {noWatermark
-            ? 'Your export will have no watermark.'
-            : 'Exports include the Tre-X watermark. Upgrade to Premium to remove it.'}
-        </Text>
-
-        {options.map(({ key, label, desc, Icon }) => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>{isImage ? 'Export photo' : 'Export video'}</Text>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, marginBottom: 18 }}>
+              {isImage || noWatermark
+                ? 'Your export will have no watermark.'
+                : 'Exports include the Tre-X watermark. Upgrade to Premium to remove it.'}
+            </Text>
+          </View>
           <Pressable
-            key={key}
-            onPress={() => onPick(key)}
-            style={{
-              flexDirection: 'row', alignItems: 'center', gap: 12,
-              paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14, marginBottom: 8,
-              borderWidth: 1, borderColor: colors.border,
-            }}
+            onPress={onClose}
+            style={{ backgroundColor: colors.brand, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 7, alignSelf: 'flex-start' }}
           >
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon size={20} color={colors.brand} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>{label}</Text>
-              <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>{desc}</Text>
-            </View>
-            <ChevronRight size={16} color={colors.textMuted} />
+            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textOnGold }}>Cancel</Text>
           </Pressable>
-        ))}
+        </View>
 
-        <Pressable
-          onPress={onClose}
-          style={{ backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 8 }}
-        >
-          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>Cancel</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {options.map(({ key, label, desc, Icon }) => (
+            <Pressable
+              key={key}
+              onPress={() => onPick(key)}
+              style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+                paddingVertical: 12, paddingHorizontal: 10, borderRadius: 14,
+                borderWidth: 1, borderColor: colors.border,
+              }}
+            >
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={20} color={colors.brand} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>{label}</Text>
+                <Text numberOfLines={2} style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>{desc}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -4226,7 +5127,10 @@ function CommentsSheet({
   onCountChange: (storyId: string, count: number) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const storyId = story?.id;
+  const ownerId = story?.user_id;
+  const isOwner = !!story && String(story.user_id) === String(user?.id);
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState('');
@@ -4265,7 +5169,35 @@ function CommentsSheet({
       .finally(() => setLoading(false));
   }, [storyId]);
 
+  const togglePin = async (c: any) => {
+    try {
+      await api.patch(`/stories/${storyId}/comments/${c.id}/pin`, { pinned: !c.pinned });
+      const res = await api.get(`/stories/${storyId}/comments`);
+      setComments(res.data || []);
+    } catch {
+      Toast.show({ type: 'error', text1: "Couldn't update pin" });
+    }
+  };
+
   const close = () => { Keyboard.dismiss(); onClose(); };
+
+  const toggleCommentLike = async (c: any, threadId?: string) => {
+    const next = !c.liked;
+    const count = c.like_count ?? 0;
+    const apply = (fn: (x: any) => any) => {
+      if (threadId) setRepliesById((p) => ({ ...p, [threadId]: (p[threadId] || []).map(fn) }));
+      else setComments((prev) => prev.map(fn));
+    };
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    apply((x) => (x.id === c.id ? { ...x, liked: next, like_count: Math.max(0, count + (next ? 1 : -1)) } : x));
+    try {
+      if (next) await api.post(`/stories/${storyId}/comments/${c.id}/like`);
+      else await api.delete(`/stories/${storyId}/comments/${c.id}/like`);
+    } catch {
+      apply((x) => (x.id === c.id ? { ...x, liked: !next, like_count: count } : x));
+      Toast.show({ type: 'error', text1: "Couldn't update like" });
+    }
+  };
 
   const loadReplies = async (commentId: string) => {
     setRepliesLoading((p) => ({ ...p, [commentId]: true }));
@@ -4317,7 +5249,11 @@ function CommentsSheet({
           loadReplies(threadId);
         }
       } else {
-        setComments((prev) => [{ ...res.data, reply_count: 0 }, ...prev]);
+        setComments((prev) => [
+          ...prev.filter((x) => x.pinned),
+          { ...res.data, reply_count: 0 },
+          ...prev.filter((x) => !x.pinned),
+        ]);
       }
       const next = total + 1;
       setTotal(next);
@@ -4331,6 +5267,7 @@ function CommentsSheet({
 
   return (
     <Modal visible={!!story} transparent animationType="none" onRequestClose={close}>
+      <Toast />
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable
           onPress={close}
@@ -4339,7 +5276,6 @@ function CommentsSheet({
         <Animated.View
           style={{
             height: SCREEN_HEIGHT * 0.6,
-            marginBottom: keyboardHeight,
             backgroundColor: colors.card,
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             paddingTop: 12,
@@ -4354,7 +5290,7 @@ function CommentsSheet({
             </Text>
           </View>
 
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }} onStartShouldSetResponder={() => { Keyboard.dismiss(); return false; }}>
             {loading ? (
               <ActivityIndicator color={colors.brand} style={{ marginTop: 24 }} />
             ) : comments.length === 0 ? (
@@ -4365,7 +5301,7 @@ function CommentsSheet({
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingBottom: 8 }}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingBottom: 8 + keyboardHeight }}
               >
                 {comments.map((c: any) => (
                   <View key={c.id} style={{ flexDirection: 'row', gap: 10 }}>
@@ -4382,10 +5318,27 @@ function CommentsSheet({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 12, fontWeight: '800', color: colors.text }}>
-                        {c.user_name}
+                        {c.user_name}{String(c.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
                         <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(c.created_at)}</Text>
                       </Text>
                       <Text style={{ fontSize: 14, color: colors.text, marginTop: 2 }}>{c.text}</Text>
+                      {!!c.pinned && (
+                        <View style={{ position: 'absolute', top: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Pin size={11} color={colors.brand} fill={colors.brand} />
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand }}>Pinned</Text>
+                        </View>
+                      )}
+
+                      <Pressable
+                        onPress={() => toggleCommentLike(c)}
+                        hitSlop={8}
+                        style={{ position: 'absolute', right: 0, top: c.pinned ? 18 : 0, alignItems: 'center', gap: 1 }}
+                      >
+                        <Heart size={15} color={c.liked ? '#ef4444' : colors.textMuted} fill={c.liked ? '#ef4444' : 'transparent'} />
+                        {(c.like_count ?? 0) > 0 && (
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: c.liked ? '#ef4444' : colors.textMuted }}>{formatCount(c.like_count)}</Text>
+                        )}
+                      </Pressable>
 
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
                         <Pressable
@@ -4396,6 +5349,14 @@ function CommentsSheet({
                           <Reply size={13} color={colors.textMuted} />
                           <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted }}>Reply</Text>
                         </Pressable>
+                        {isOwner && (
+                          <>
+                            <Text style={{ fontSize: 12, color: colors.textMuted }}>·</Text>
+                            <Pressable onPress={() => togglePin(c)} hitSlop={8}>
+                              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted }}>{c.pinned ? 'Unpin' : 'Pin'}</Text>
+                            </Pressable>
+                          </>
+                        )}
                         {(c.reply_count ?? 0) > 0 && (
                           <>
                             <Text style={{ fontSize: 12, color: colors.textMuted }}>·</Text>
@@ -4430,10 +5391,20 @@ function CommentsSheet({
                               </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={{ fontSize: 12, fontWeight: '800', color: colors.text }}>
-                                  {r.user_name}
+                                  {r.user_name}{String(r.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
                                   <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(r.created_at)}</Text>
                                 </Text>
                                 <Text style={{ fontSize: 14, color: colors.text, marginTop: 2 }}>{r.text}</Text>
+                                <Pressable
+                                  onPress={() => toggleCommentLike(r, c.id)}
+                                  hitSlop={8}
+                                  style={{ position: 'absolute', right: 0, top: 0, alignItems: 'center', gap: 1 }}
+                                >
+                                  <Heart size={14} color={r.liked ? '#ef4444' : colors.textMuted} fill={r.liked ? '#ef4444' : 'transparent'} />
+                                  {(r.like_count ?? 0) > 0 && (
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: r.liked ? '#ef4444' : colors.textMuted }}>{formatCount(r.like_count)}</Text>
+                                  )}
+                                </Pressable>
                                 <Pressable
                                   onPress={() => { setReplyTo({ id: r.id, name: r.user_name }); inputRef.current?.focus(); }}
                                   hitSlop={8}
@@ -4458,7 +5429,7 @@ function CommentsSheet({
             <View
               style={{
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                paddingHorizontal: 16, paddingVertical: 6, marginTop: 6,
+                paddingHorizontal: 16, paddingVertical: 6, marginTop: 6, transform: [{ translateY: -keyboardHeight }],
                 backgroundColor: colors.chipBg,
               }}
             >
@@ -4470,7 +5441,7 @@ function CommentsSheet({
               </Pressable>
             </View>
           )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: colors.card, transform: [{ translateY: -keyboardHeight }] }}>
             <TextInput
               ref={inputRef}
               value={text}
@@ -4578,6 +5549,7 @@ function useSheetDrag(onClose: () => void) {
     onMoveShouldSetPanResponder: () => true,
     onPanResponderMove: (_e, g) => translateY.setValue(Math.max(0, g.dy)),
     onPanResponderRelease: (_e, g) => {
+      if (Math.abs(g.dx) < 5 && Math.abs(g.dy) < 5) Keyboard.dismiss();
       if (g.dy > 120 || g.vy > 0.8) {
         Animated.timing(translateY, { toValue: SCREEN_HEIGHT, duration: 200, useNativeDriver: false }).start(() => {
           Keyboard.dismiss();
@@ -4592,4 +5564,56 @@ function useSheetDrag(onClose: () => void) {
     },
   })).current;
   return { translateY, panHandlers: pan.panHandlers };
+}
+function PostOptionsSheet({
+  isOwn, commentsOff, onClose, onReport, onHide, onBlock, onDelete, onToggleComments,
+}: {
+  isOwn: boolean; commentsOff: boolean; onClose: () => void;
+  onReport: () => void; onHide: () => void; onBlock: () => void;
+  onDelete: () => void; onToggleComments: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+
+  const rows: { key: string; label: string; Icon: any; danger?: boolean; onPress: () => void }[] = isOwn
+    ? [
+        { key: 'comments', label: commentsOff ? 'Turn on comments' : 'Turn off comments', Icon: MessageCircle, onPress: onToggleComments },
+        { key: 'delete', label: 'Delete post', Icon: Trash2, danger: true, onPress: onDelete },
+      ]
+    : [
+        { key: 'hide', label: 'Not interested', Icon: EyeOff, onPress: onHide },
+        { key: 'block', label: 'Block this person', Icon: Ban, danger: true, onPress: onBlock },
+        { key: 'report', label: 'Report post', Icon: Flag, danger: true, onPress: onReport },
+      ];
+
+  return (
+    <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' }}>
+      <Pressable
+        onPress={onClose}
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
+      />
+      <View
+        style={{
+          backgroundColor: colors.card,
+          borderTopLeftRadius: 28, borderTopRightRadius: 28,
+          paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 20,
+        }}
+      >
+        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 }} />
+        {rows.map(({ key, label, Icon, danger, onPress }, i) => (
+          <Pressable
+            key={key}
+            onPress={onPress}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15,
+              borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: colors.border,
+            }}
+          >
+            <Icon size={20} color={danger ? '#ef4444' : colors.text} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: danger ? '#ef4444' : colors.text }}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
 }

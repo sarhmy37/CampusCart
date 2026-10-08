@@ -210,6 +210,7 @@ export default function VerifyModal({
           )}
         </Pressable>
       </Pressable>
+      <Toast />
     </Modal>
   );
 }

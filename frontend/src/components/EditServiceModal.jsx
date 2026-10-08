@@ -445,7 +445,7 @@ export default function EditServiceModal({ product, open, onClose, onSaved }) {
             const payload = {
                 title: form.title,
                 description: form.description || 'No description provided.',
-                price: toCharmPrice(form.price),
+                price: form.price,
                 price_max: form.priceMax ? toCharmPrice(form.priceMax) : null,
                 service_duration: JSON.stringify(schedule),
                 images: imageUrls,

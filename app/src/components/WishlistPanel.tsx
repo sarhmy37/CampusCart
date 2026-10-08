@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
 import { useWishlist } from '@/context/WishlistContext';
 import { useColors } from '@/hooks/useColors';
+import { Toast } from 'react-native-toast-message/lib/src/Toast';
 
 export default function WishlistPanel({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const colors = useColors();
@@ -71,6 +72,7 @@ export default function WishlistPanel({ visible, onClose }: { visible: boolean; 
           )}
         </View>
       </Pressable>
+      <Toast />
     </Modal>
   );
 }

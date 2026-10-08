@@ -3,9 +3,10 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-nati
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import MessagesTab from '@/components/admin/MessagesTab';
 import {
   Users, Package, ShoppingBag, DollarSign, TrendingUp,
-  Flag, MessageCircle, Trash2, AlertTriangle, ChevronLeft,
+  Flag, MessageCircle, Trash2, AlertTriangle, ChevronLeft, MessageSquare,
 } from 'lucide-react-native';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +21,7 @@ import ReportsTab from '@/components/admin/ReportsTab';
 import SupportTab from '@/components/admin/SupportTab';
 import DeletedChatsTab from '@/components/admin/DeletedChatsTab';
 
-const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'support', 'deleted chats'] as const;
+const ADMIN_TABS = ['users', 'listings', 'orders', 'overdue', 'reports', 'support', 'deleted chats' , 'messages'] as const;
 type AdminTab = typeof ADMIN_TABS[number];
 
 const TAB_LABELS: Record<AdminTab, string> = {
@@ -31,6 +32,7 @@ const TAB_LABELS: Record<AdminTab, string> = {
   reports: 'Reports',
   support: 'Support',
   'deleted chats': 'Deleted',
+  messages: 'Messages',
 };
 
 const TAB_ICONS: Record<AdminTab, any> = {
@@ -41,6 +43,7 @@ const TAB_ICONS: Record<AdminTab, any> = {
   reports: Flag,
   support: MessageCircle,
   'deleted chats': Trash2,
+  messages: MessageSquare,
 };
 
 export default function Admin() {
@@ -77,7 +80,7 @@ export default function Admin() {
         <AdminVideo uri={DASHBOARD_VIDEO as string} />
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.72)' }} />
 
-        <View style={{ paddingHorizontal: 16, paddingTop: insets.top + 12, paddingBottom: 20 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: insets.top - 20, paddingBottom: 20 }}>
           <Pressable
             onPress={() => router.replace('/')}
             style={{
@@ -104,10 +107,8 @@ export default function Admin() {
             <View style={{ marginTop: 16, height: 100, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)' }} />
           ) : stats ? (
             <>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
                 <StatCard icon={Users} label="Users" value={stats.total_users} />
-                <StatCard icon={Package} label="Listings" value={stats.total_products} />
-                <StatCard icon={ShoppingBag} label="Orders" value={stats.total_orders} />
                 <StatCard icon={DollarSign} label="Revenue" value={`GHS ${stats.total_revenue.toFixed(2)}`} />
                 {earnings && (
                   <StatCard icon={TrendingUp} label="Net Earnings" value={`GHS ${earnings.netProfit}`} highlight />
@@ -175,7 +176,7 @@ export default function Admin() {
       {/* TAB CONTENT */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 60 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
         keyboardShouldPersistTaps="handled"
       >
         {tab === 'users' && <UsersTab />}
@@ -185,6 +186,7 @@ export default function Admin() {
         {tab === 'reports' && <ReportsTab />}
         {tab === 'support' && <SupportTab />}
         {tab === 'deleted chats' && <DeletedChatsTab />}
+        {tab === 'messages' && <MessagesTab />}
       </ScrollView>
     </View>
   );

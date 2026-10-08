@@ -19,9 +19,9 @@ const CTA_SLIDE_MS = 500;
 const CTA_DELETE_CHAR_MS = 20;
 const CTA_TYPE_CHAR_MS = 45;
 
-const SELL_LABEL_DEFAULT = 'Start selling';
+const SELL_LABEL_DEFAULT = 'Start Selling';
 const SELL_LABEL_ALT = 'Offer Services';
-const BROWSE_LABEL_DEFAULT = 'Browse listings';
+const BROWSE_LABEL_DEFAULT = 'Browse Products';
 const BROWSE_LABEL_ALT = 'Browse Services';
 
 export default function Hero() {
@@ -191,7 +191,7 @@ export default function Hero() {
         <Reveal>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
             <Sparkles size={13} color="white" />
-            <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>Exclusively for university students</Text>
+            <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>Students sell. Everyone buys.</Text>
           </View>
         </Reveal>
 
@@ -237,7 +237,7 @@ export default function Hero() {
                   transform: [{ translateX: oldTranslate }],
                 }}
               >
-                <Text style={{ color: colors.brandDark, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
+                <Text style={{ color: colors.brandDark, fontWeight: '700', fontSize: 13 }}>{sellCurrentLabel}</Text>
                 <Animated.View style={{ transform: [{ scale: arrowScale }, { rotate: rotateInterpolate }] }}>
                   <ArrowRight size={16} color={colors.brandDark} />
                 </Animated.View>
@@ -257,11 +257,11 @@ export default function Hero() {
                   transform: [{ translateX: newTranslate }],
                 }}
               >
-                <Text style={{ color: colors.brandDark, fontWeight: '700', fontSize: 14 }}>{sellNextLabel}</Text>
+                <Text style={{ color: colors.brandDark, fontWeight: '700', fontSize: 13 }}>{sellNextLabel}</Text>
                 <ArrowRight size={16} color={colors.brandDark} />
               </Animated.View>
 
-              <Text style={{ opacity: 0, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
+              <Text style={{ opacity: 0, fontWeight: '700', fontSize: 13 }}>{sellCurrentLabel}</Text>
             </Pressable>
 
             <Pressable
@@ -278,7 +278,7 @@ export default function Hero() {
                 borderRadius: 999,
               }}
             >
-              <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>{browseDisplay}</Text>
+              <Text style={{ color: 'white', fontWeight: '600', fontSize: 13 }}>{browseDisplay}</Text>
             </Pressable>
           </View>
         </Reveal>

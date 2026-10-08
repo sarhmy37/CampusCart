@@ -239,7 +239,7 @@ export default function EditListingModal({ product, open, onClose, onSaved }) {
     const calculateDiscount = () => {
         // Use the charmed price here too, so the preview matches what
         // actually gets saved (e.g. typing 46 previews against 45.99).
-        const newPrice = parseFloat(toCharmPrice(form.price));
+  const newPrice = parseFloat(form.price);
         if (!currentSavedPrice || !newPrice || currentSavedPrice <= newPrice || currentSavedPrice <= 0 || newPrice <= 0) {
             return null;
         }

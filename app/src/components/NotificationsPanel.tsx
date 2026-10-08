@@ -135,7 +135,15 @@ export default function NotificationsPanel({ visible, onClose }: { visible: bool
                       backgroundColor: n.read ? colors.card : colors.brandSoft,
                     }}
                   >
-                    {n.primary_image ? (
+                    {n.type === 'new_message' && n.sender_avatar ? (
+                      <Image source={{ uri: n.sender_avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                    ) : n.type === 'new_message' ? (
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>
+                          {n.sender_name?.[0]?.toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                    ) : n.primary_image ? (
                       <Image source={{ uri: n.primary_image }} style={{ width: 40, height: 40, borderRadius: 12 }} />
                     ) : (
                       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>

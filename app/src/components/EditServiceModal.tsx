@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
-  View, Text, Pressable, TextInput, ScrollView, Modal, ActivityIndicator,
+  View, Text, Pressable, TextInput, ScrollView, Modal, ActivityIndicator, FlatList,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Toast from 'react-native-toast-message';
 import {
-  X, Clock, MapPin, Map as MapIcon, Loader2, ImagePlus, Video as VideoIcon, RefreshCw, Check,
+  X, Clock, MapPin, Map as MapIcon, Loader2, ImagePlus, Video as VideoIcon, RefreshCw, Check, ChevronDown,
 } from 'lucide-react-native';
 import api from '@/api/client';
 import ModalPicker from '@/components/ModalPicker';
@@ -31,13 +32,6 @@ const TIME_OPTIONS = (() => {
   }
   return t;
 })();
-
-const toCharmPrice = (value: string) => {
-  const num = parseFloat(value);
-  if (isNaN(num)) return value;
-  if (Number.isInteger(num)) return (num - 1 + 0.99).toFixed(2);
-  return num.toFixed(2);
-};
 
 export default function EditServiceModal({
   product, open, onClose, onSaved,
@@ -338,8 +332,8 @@ export default function EditServiceModal({
       const payload = {
         title: form.title,
         description: form.description || 'No description provided.',
-        price: toCharmPrice(form.price),
-        price_max: form.priceMax ? toCharmPrice(form.priceMax) : null,
+        price: form.price,
+        price_max: form.priceMax || null,
         service_duration: JSON.stringify(schedule),
         images: imageUrls,
         video_url: videoUrl,
@@ -405,119 +399,143 @@ export default function EditServiceModal({
               style={[inputStyle, { minHeight: 80, textAlignVertical: 'top' }]}
             />
 
-            {/* Photos */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 16, marginBottom: 6 }}>Photos</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {previews.map((uri, i) => (
-                <Pressable
-                  key={uri + i}
-                  onPress={() => handleThumbnailTap(i)}
-                  style={{
-                    width: 84, height: 84, borderRadius: 12, overflow: 'hidden',
-                    borderWidth: 2,
-                    borderColor: photoMode === 'selecting-replace' ? colors.brand : colors.border,
-                  }}
+            {/* Photos + Video */}
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 16 }}>
+              {/* Photos */}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Photos</Text>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ height: 84 }}
+                  contentContainerStyle={{ gap: 8, alignItems: 'center' }}
                 >
-                  <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                  {photoMode === 'selecting-replace' && (
-                    <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
-                      <RefreshCw size={14} color="#fff" />
-                    </View>
-                  )}
-                  {photoMode !== 'selecting-replace' && (
+                  {previews.map((uri, i) => (
                     <Pressable
-                      onPress={() => removeImage(i)}
+                      key={uri + i}
+                      onPress={() => handleThumbnailTap(i)}
                       style={{
-                        position: 'absolute', top: 2, right: 2,
-                        width: 18, height: 18, borderRadius: 9,
-                        backgroundColor: 'rgba(15,23,42,0.85)',
-                        alignItems: 'center', justifyContent: 'center',
+                        width: 84, height: 84, borderRadius: 12, overflow: 'hidden',
+                        borderWidth: 2,
+                        borderColor: photoMode === 'selecting-replace' ? colors.brand : colors.border,
                       }}
                     >
-                      <X size={10} color="#fff" />
+                      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                      {photoMode === 'selecting-replace' && (
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                          <RefreshCw size={14} color="#fff" />
+                        </View>
+                      )}
+                      {photoMode !== 'selecting-replace' && (
+                        <Pressable
+                          onPress={() => removeImage(i)}
+                          style={{
+                            position: 'absolute', top: 2, right: 2,
+                            width: 18, height: 18, borderRadius: 9,
+                            backgroundColor: 'rgba(15,23,42,0.85)',
+                            alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          <X size={10} color="#fff" />
+                        </Pressable>
+                      )}
+                      {i === 0 && (
+                        <View style={{ position: 'absolute', bottom: 2, left: 2, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 8, fontWeight: '700' }}>Cover</Text>
+                        </View>
+                      )}
                     </Pressable>
-                  )}
-                  {i === 0 && (
-                    <View style={{ position: 'absolute', bottom: 2, left: 2, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
-                      <Text style={{ fontSize: 8, fontWeight: '700' }}>Cover</Text>
+                  ))}
+                  {uploading && (
+                    <View style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
+                      <ActivityIndicator color={colors.brand} />
                     </View>
                   )}
-                </Pressable>
-              ))}
-              {uploading && (
-                <View style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={colors.brand} />
+                </ScrollView>
+
+                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                  {photoMode === 'selecting-replace' ? 'Tap a photo to replace it.' : `Up to ${MAX_IMAGES}. First is cover.`}
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                  <Pressable
+                    onPress={handleReplacePhotoClick}
+                    disabled={uploading || photoMode === 'selecting-replace'}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: uploading || photoMode === 'selecting-replace' ? 0.5 : 1,
+                    }}
+                  >
+                    <RefreshCw size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleAddPhotos}
+                    disabled={uploading || imageUrls.length >= MAX_IMAGES}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: uploading || imageUrls.length >= MAX_IMAGES ? 0.5 : 1,
+                    }}
+                  >
+                    <ImagePlus size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                  </Pressable>
                 </View>
-              )}
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Pressable
-                onPress={handleReplacePhotoClick}
-                disabled={uploading || photoMode === 'selecting-replace'}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: uploading || photoMode === 'selecting-replace' ? 0.5 : 1,
-                }}
-              >
-                <RefreshCw size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleAddPhotos}
-                disabled={uploading || imageUrls.length >= MAX_IMAGES}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: uploading || imageUrls.length >= MAX_IMAGES ? 0.5 : 1,
-                }}
-              >
-                <ImagePlus size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
-              </Pressable>
-            </View>
-
-            {/* Video */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 16, marginBottom: 6 }}>Video</Text>
-            {videoUploading ? (
-              <View style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator color={colors.brand} />
               </View>
-            ) : videoPreview ? (
-              <VideoPreview uri={videoPreview} />
-            ) : (
-              <View style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                <VideoIcon size={16} color={colors.textFaint} />
-                <Text style={{ fontSize: 9, color: colors.textFaint, marginTop: 4 }}>No video</Text>
-              </View>
-            )}
 
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Pressable
-                onPress={handleVideoPick}
-                disabled={videoUploading || !videoUrl}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: videoUploading || !videoUrl ? 0.5 : 1,
-                }}
-              >
-                <RefreshCw size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleVideoPick}
-                disabled={videoUploading || !!videoUrl}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: videoUploading || !!videoUrl ? 0.5 : 1,
-                }}
-              >
-                <VideoIcon size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
-              </Pressable>
+              {/* Video */}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Video</Text>
+
+                <View style={{ height: 84 }}>
+                  {videoUploading ? (
+                    <View style={{ width: '100%', height: 84, borderRadius: 12, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+                      <ActivityIndicator color={colors.brand} />
+                    </View>
+                  ) : videoPreview ? (
+                    <VideoPreview uri={videoPreview} />
+                  ) : (
+                    <View style={{ width: '100%', height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                      <VideoIcon size={16} color={colors.textFaint} />
+                      <Text style={{ fontSize: 9, color: colors.textFaint, marginTop: 4 }}>No video</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                  Optional. Max 20MB.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                  <Pressable
+                    onPress={handleVideoPick}
+                    disabled={videoUploading || !videoUrl}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: videoUploading || !videoUrl ? 0.5 : 1,
+                    }}
+                  >
+                    <RefreshCw size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleVideoPick}
+                    disabled={videoUploading || !!videoUrl}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: videoUploading || !!videoUrl ? 0.5 : 1,
+                    }}
+                  >
+                    <VideoIcon size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
 
             {/* Price range */}
@@ -542,65 +560,71 @@ export default function EditServiceModal({
             </View>
 
             {/* Working hours */}
-            <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted, paddingTop: 14 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Clock size={15} color={colors.textMuted} />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Working hours</Text>
-              </View>
-
-              {!is247 && workingDays.map((d) => (
-                <View key={d.day} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <Pressable
-                    onPress={() => toggleWorkingDay(d.day)}
-                    style={{
-                      width: 56, paddingVertical: 8, borderRadius: 10, alignItems: 'center',
-                      backgroundColor: d.enabled ? colors.brand : colors.chipBg,
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: d.enabled ? colors.textOnGold : colors.textMuted }}>
-                      {d.day}
-                    </Text>
-                  </Pressable>
-                  {d.enabled ? (
-                    <>
-                      <View style={{ flex: 1 }}>
-                        <ModalPicker
-                          value={d.open}
-                          onSelect={(v) => updateWorkingDayTime(d.day, 'open', v)}
-                          options={TIME_OPTIONS}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <ModalPicker
-                          value={d.close}
-                          onSelect={(v) => updateWorkingDayTime(d.day, 'close', v)}
-                          options={TIME_OPTIONS}
-                        />
-                      </View>
-                    </>
-                  ) : (
-                    <Text style={{ flex: 1, fontSize: 12, color: colors.textFaint }}>Closed</Text>
-                  )}
-                </View>
-              ))}
-
-              <Pressable
-                onPress={() => setIs247(!is247)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}
-              >
-                <View
-                  style={{
-                    width: 20, height: 20, borderRadius: 4, borderWidth: 2,
-                    borderColor: is247 ? colors.brand : colors.border,
-                    backgroundColor: is247 ? colors.brand : 'transparent',
-                    alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  {is247 && <Check size={12} color={colors.textOnGold} />}
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Working 24/7</Text>
-              </Pressable>
+            <View style={{ height: 1, backgroundColor: colors.borderMuted, marginTop: 16, marginBottom: 16 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <Clock size={15} color={colors.textMuted} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Working hours</Text>
             </View>
+
+            {!is247 && (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                {[workingDays.slice(0, 4), workingDays.slice(4)].map((col, ci) => (
+                  <View key={ci} style={{ flex: 1, gap: 8 }}>
+                    {col.map((d) => (
+                      <View key={d.day} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Pressable
+                          onPress={() => toggleWorkingDay(d.day)}
+                          style={{
+                            width: 46, paddingVertical: 8, borderRadius: 8, alignItems: 'center', borderWidth: 1,
+                            borderColor: d.enabled ? colors.brand : colors.border,
+                            backgroundColor: d.enabled ? colors.brand : colors.card,
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, fontWeight: '600', color: d.enabled ? colors.textOnGold : colors.textFaint }}>
+                            {d.day}
+                          </Text>
+                        </Pressable>
+                        {d.enabled ? (
+                          <View style={{ flex: 1, gap: 4 }}>
+                            <TinySelect
+                              colors={colors}
+                              value={d.open}
+                              options={TIME_OPTIONS}
+                              onChange={(v) => updateWorkingDayTime(d.day, 'open', v)}
+                            />
+                            <TinySelect
+                              colors={colors}
+                              value={d.close}
+                              options={TIME_OPTIONS}
+                              onChange={(v) => updateWorkingDayTime(d.day, 'close', v)}
+                            />
+                          </View>
+                        ) : (
+                          <Text style={{ flex: 1, fontSize: 12, color: colors.textFaint }}>Closed</Text>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <Pressable
+              onPress={() => setIs247(!is247)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}
+            >
+              <View
+                style={{
+                  width: 18, height: 18, borderRadius: 4, borderWidth: 2,
+                  borderColor: is247 ? colors.brand : colors.border,
+                  backgroundColor: is247 ? colors.brand : 'transparent',
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {is247 && <Check size={11} color={colors.textOnGold} />}
+              </View>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>Working 24/7</Text>
+            </Pressable>
 
             {/* Location */}
             <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted, paddingTop: 14 }}>
@@ -696,6 +720,8 @@ export default function EditServiceModal({
         </View>
       </View>
 
+      <Toast />
+
       {showLocationPicker && (
         <LocationPickerModal
           colors={colors}
@@ -719,9 +745,74 @@ function VideoPreview({ uri }: { uri: string }) {
   return (
     <VideoView
       player={player}
-      style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: '#000' }}
+      style={{ width: '100%', height: 84, borderRadius: 12, backgroundColor: '#000' }}
       contentFit="cover"
       nativeControls={false}
     />
+  );
+}
+// Compact dropdown, same look as the one on the create screen
+function TinySelect({
+  colors, value, options, onChange,
+}: {
+  colors: any;
+  value: string;
+  options: { label: string; value: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+          borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
+          paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8,
+        }}
+      >
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: selected ? colors.text : colors.textFaint }}>
+          {selected?.label ?? 'Select'}
+        </Text>
+        <ChevronDown size={11} color={colors.textFaint} />
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' }} onPress={() => setOpen(false)}>
+          <View
+            style={{
+              backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+              maxHeight: '60%', paddingBottom: insets.bottom + 8,
+            }}
+          >
+            <FlatList
+              data={options}
+              keyExtractor={(o) => o.value}
+              renderItem={({ item }) => {
+                const active = item.value === value;
+                return (
+                  <Pressable
+                    onPress={() => { onChange(item.value); setOpen(false); }}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      paddingHorizontal: 20, paddingVertical: 14,
+                      borderBottomWidth: 1, borderBottomColor: colors.borderMuted,
+                    }}
+                  >
+                    <Text style={{ fontSize: 14, color: active ? colors.brand : colors.text, fontWeight: active ? '700' : '400' }}>
+                      {item.label}
+                    </Text>
+                    {active && <Check size={16} color={colors.brand} />}
+                  </Pressable>
+                );
+              }}
+            />
+          </View>
+        </Pressable>
+      </Modal>
+    </>
   );
 }

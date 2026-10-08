@@ -8,6 +8,7 @@
     "scheme": "app",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.sammy45.trex",
       "icon": {
         "light": "./assets/hero/main-logo.png",
         "dark": "./assets/hero/logo-light.png"

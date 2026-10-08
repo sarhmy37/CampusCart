@@ -37,6 +37,7 @@ import ReportModal from './ReportModal';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PANEL_WIDTH = Math.min(SCREEN_WIDTH , 450);
 const ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
+const TREX_ID = '09dabd6c-c9ea-440d-b42a-0ba1d9011e8a';
 
 function formatMessageTime(dateString: string) {
   return new Date(dateString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -81,12 +82,36 @@ export default function ChatModal() {
   const isPlanActive = user?.plan && user.plan !== 'free' &&
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
 
-  const {
-    isOpen, conversation, messages, loading, uploading, otherUserLastActive,
-    closeChat, sendMessage, sendMedia, wallpaper, deleteForMe, deleteForEveryone,
-    deleteMessageForMe, deleteMessageForEveryone, pendingDraft, clearPendingDraft,
-    isMuted, toggleMute, pendingStoryReply, clearPendingStoryReply,
-  } = useChat();
+const {
+  isOpen,
+  conversation,
+  messages,
+  loading,
+  uploading,
+  otherUserLastActive,
+
+  closeChat,
+  sendMessage,
+  sendMedia,
+  wallpaper,
+  deleteForMe,
+  deleteForEveryone,
+
+  deleteMessageForMe,
+  deleteMessageForEveryone,
+
+  pendingDraft,
+  clearPendingDraft,
+
+  isMuted,
+  toggleMute,
+
+  pendingStoryReply,
+  clearPendingStoryReply,
+
+  pendingAutoRecord,
+  clearPendingAutoRecord,
+} = useChat();
   const router = useRouter();
   const { startCall } = useCall();
 
@@ -249,6 +274,14 @@ export default function ChatModal() {
       Toast.show({ type: 'error', text1: 'Could not start recording' });
     }
   };
+  // Auto-start a voice note when arriving from an unanswered call
+useEffect(() => {
+  if (!isOpen || loading || !conversation || !pendingAutoRecord) return;
+  clearPendingAutoRecord();
+  const t = setTimeout(() => startRecording(), 300);
+  return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isOpen, loading, conversation?.id, pendingAutoRecord]);
 
   const stopRecordingAndSend = async () => {
     clearInterval(recordingTimerRef.current);
@@ -325,9 +358,12 @@ export default function ChatModal() {
     else await deleteMessageForEveryone(id);
   };
 
+  const isTrexChat = conversation?.otherUserId === TREX_ID;
+  const lockedTrex = isTrexChat && !conversation?.allowReplies;
+
   const wallpaperParsed = parseWallpaper(wallpaper);
   const renderWallpaperBackground = () => {
-    if (wallpaperParsed.kind === 'none') return { backgroundColor: colors.background };
+    if (wallpaperParsed.kind === 'none') return { backgroundColor: '#EFEAFB' };
     if (wallpaperParsed.kind === 'color') return { backgroundColor: wallpaperParsed.color };
     return { backgroundColor: colors.background };
   };
@@ -379,9 +415,11 @@ export default function ChatModal() {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                <Pressable onPress={() => setShowSettingsMenu((v) => !v)} style={{ padding: 6 }}>
-                  <MoreVertical size={18} color={colors.textMuted} />
-                </Pressable>
+                {!isTrexChat && (
+                  <Pressable onPress={() => setShowSettingsMenu((v) => !v)} style={{ padding: 6 }}>
+                    <MoreVertical size={18} color={colors.textMuted} />
+                  </Pressable>
+                )}
 
                 {conversation?.otherUserAvatar ? (
                   <Image
@@ -418,17 +456,19 @@ export default function ChatModal() {
                 </View>
               </View>
 
-              <Pressable
-                onPress={() => {
-                  if (!conversation) return;
-                  const c = conversation;
-                  closeChat();
-                  startCall(c.otherUserId, c.otherUserName, c.otherUserAvatar);
-                }}
-                style={{ padding: 6 }}
-              >
-                <Phone size={18} color={colors.textMuted} />
-              </Pressable>
+              {!isTrexChat && (
+                <Pressable
+                  onPress={() => {
+                    if (!conversation) return;
+                    const c = conversation;
+                    closeChat();
+                    startCall(c.otherUserId, c.otherUserName, c.otherUserAvatar);
+                  }}
+                  style={{ padding: 6 }}
+                >
+                  <Phone size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
               <Pressable onPress={closeEverything} style={{ padding: 6 }}>
                 <X size={18} color={colors.textMuted} />
               </Pressable>
@@ -849,7 +889,36 @@ onPress={() => {
                 </View>
               )}
 
-              {isRecording ? (
+              {lockedTrex ? (
+                <View
+                  style={{
+                    paddingHorizontal: 20,
+                    paddingVertical: 16,
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '600',
+                      color: colors.textMuted,
+                      textAlign: 'center',
+                    }}
+                  >
+                    You can't reply to this conversation.
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: colors.textFaint,
+                      textAlign: 'center',
+                    }}
+                  >
+                    This is an announcement from Tre-X.
+                  </Text>
+                </View>
+              ) : isRecording ? (
                 <View
                   style={{
                     flexDirection: 'row',

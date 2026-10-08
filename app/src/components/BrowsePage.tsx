@@ -5,6 +5,8 @@ import {
   ScrollView, TextInput, Platform, useColorScheme, Animated, Easing, Linking,
   PanResponder, Dimensions,
 } from 'react-native';
+import InsetShadow from '@/components/InsetShadow';
+import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,6 +22,7 @@ import {
   MapPinIcon as PinOutline,
   CheckCircleIcon as CheckOutline,
 } from 'react-native-heroicons/outline';
+import { SUBCATEGORIES } from '@/data/subcategories';
 import {
   Squares2X2Icon as GridSolid,
   SparklesIcon as SparklesSolid,
@@ -54,148 +57,6 @@ const NETWORKS = [
   { id: 'AirtelTigo', name: 'AirtelTigo', logo: AIRTELTIGO_LOGO },
 ];
 
-const SUBCATEGORIES: Record<string, { label: string; keywords: string[] }[]> = {
-  Clothes: [
-    { label: 'T-Shirts', keywords: ['t-shirt', 'tshirt', 'tee', 't shirt', 'polo', 'jersey', 'crew neck', 'graphic tee'] },
-    { label: 'Shirts', keywords: ['shirt', 'button-up', 'button up', 'dress shirt', 'flannel', 'long sleeve'] },
-    { label: 'Jeans', keywords: ['jeans', 'denim', 'skinny jeans', 'baggy jeans', 'straight leg'] },
-    { label: 'Trousers', keywords: ['trouser', 'pants', 'chinos', 'slacks', 'khakis', 'cargo pants', 'joggers'] },
-    { label: 'Shorts', keywords: ['shorts', 'denim shorts', 'cargo shorts', 'boxer shorts'] },
-    { label: 'Dresses', keywords: ['dress', 'gown', 'maxi dress', 'gown dress', 'sundress', 'bodycon'] },
-    { label: 'Skirts', keywords: ['skirt', 'mini skirt', 'midi skirt', 'pencil skirt'] },
-    { label: 'Jackets/Hoodies', keywords: ['jacket', 'hoodie', 'sweater', 'cardigan', 'sweatshirt', 'coat', 'bomber', 'denim jacket', 'windbreaker', 'pullover'] },
-    { label: 'Traditional wear', keywords: ['kente', 'smock', 'traditional', 'batakari', 'ankara', 'kaba', 'slit', 'agbada', 'african print'] },
-    { label: 'Underwear', keywords: ['underwear', 'boxers', 'briefs', 'bra', 'panties', 'lingerie', 'singlet'] },
-    { label: 'Activewear', keywords: ['gym wear', 'sportswear', 'leggings', 'tights', 'tracksuit', 'jogging suit'] },
-    { label: 'Suits/Formal', keywords: ['suit', 'blazer', 'tuxedo', 'formal wear', 'waistcoat', 'vest'] },
-  ],
-  Gadgets: [
-    { label: 'Phones', keywords: ['phone', 'iphone', 'samsung', 'smartphone', 'android', 'tecno', 'infinix', 'itel', 'huawei', 'xiaomi', 'redmi', 'galaxy'] },
-    { label: 'Laptops', keywords: ['laptop', 'macbook', 'notebook', 'chromebook', 'hp laptop', 'dell', 'lenovo', 'thinkpad', 'ultrabook'] },
-    { label: 'Headphones', keywords: ['headphone', 'earbud', 'earphone', 'airpod', 'earpiece', 'bluetooth headset', 'headset'] },
-    { label: 'Chargers & Cables', keywords: ['charger', 'cable', 'adapter', 'power bank', 'powerbank', 'usb cable', 'type-c', 'lightning cable', 'fast charger'] },
-    { label: 'Accessories', keywords: ['case', 'cover', 'screen protector', 'accessory', 'phone case', 'tempered glass', 'pop socket', 'stylus'] },
-    { label: 'Smartwatches', keywords: ['smartwatch', 'watch', 'fitness tracker', 'apple watch', 'smart band'] },
-    { label: 'Speakers', keywords: ['speaker', 'bluetooth speaker', 'jbl', 'soundbar', 'woofer'] },
-    { label: 'Tablets', keywords: ['tablet', 'ipad', 'tab', 'e-reader', 'kindle'] },
-    { label: 'Cameras', keywords: ['camera', 'dslr', 'gopro', 'webcam', 'camcorder', 'action cam'] },
-    { label: 'Gaming', keywords: ['console', 'playstation', 'ps4', 'ps5', 'xbox', 'controller', 'gaming', 'joystick'] },
-    { label: 'Computer Parts', keywords: ['ram', 'ssd', 'hard drive', 'hdd', 'flash drive', 'memory card', 'mouse', 'keyboard', 'monitor', 'graphics card', 'motherboard'] },
-  ],
-  Stationery: [
-    { label: 'Notebooks', keywords: ['notebook', 'exercise book', 'exam pad', 'jotter', 'sketch pad', 'diary', 'planner'] },
-    { label: 'Pens & Pencils', keywords: ['pen', 'pencil', 'biro', 'marker pen', 'highlighter', 'eraser', 'sharpener', 'mechanical pencil'] },
-    { label: 'Files & Folders', keywords: ['file', 'folder', 'ring binder', 'document holder', 'envelope', 'clip board'] },
-    { label: 'Textbooks', keywords: ['textbook', 'book', 'past questions', 'reference book', 'novel', 'course material'] },
-    { label: 'Calculators', keywords: ['calculator', 'scientific calculator', 'casio'] },
-    { label: 'Art supplies', keywords: ['art', 'paint', 'marker', 'drawing', 'crayon', 'sketching', 'canvas', 'paintbrush'] },
-    { label: 'Office supplies', keywords: ['stapler', 'staples', 'tape', 'glue', 'scissors', 'ruler', 'paper clip', 'sticky note', 'correction fluid'] },
-    { label: 'Printing supplies', keywords: ['ink', 'toner', 'printer paper', 'a4 paper', 'cartridge'] },
-    { label: 'Bags', keywords: ['school bag', 'backpack', 'lunch bag', 'pencil case', 'pouch'] },
-  ],
-  Perfumes: [
-    { label: 'Men', keywords: ['men', 'male', 'for him', "men's perfume", 'cologne'] },
-    { label: 'Women', keywords: ['women', 'female', 'for her', "women's perfume"] },
-    { label: 'Unisex', keywords: ['unisex', 'shared scent'] },
-    { label: 'Body sprays', keywords: ['body spray', 'deodorant', 'antiperspirant', 'mist'] },
-    { label: 'Oils', keywords: ['oil', 'attar', 'oud', 'perfume oil', 'concentrated oil'] },
-    { label: 'Body care', keywords: ['lotion', 'body cream', 'shower gel', 'body wash', 'body mist', 'body butter'] },
-  ],
-  Food: [
-    { label: 'Snacks', keywords: ['snack', 'chips', 'biscuit', 'chin chin', 'plantain chips', 'popcorn', 'nuts', 'gari'] },
-    { label: 'Drinks', keywords: ['drink', 'juice', 'water', 'soda', 'smoothie', 'malt', 'soft drink', 'zobo', 'sobolo'] },
-    { label: 'Homemade meals', keywords: ['meal', 'jollof', 'food', 'homemade', 'waakye', 'banku', 'fufu', 'rice', 'stew', 'soup', 'kenkey'] },
-    { label: 'Baked goods', keywords: ['bread', 'cake', 'pastry', 'baked', 'meat pie', 'doughnut', 'donut', 'cupcake', 'cookies'] },
-    { label: 'Fruits', keywords: ['fruit', 'banana', 'orange', 'mango', 'pineapple', 'watermelon', 'apple'] },
-    { label: 'Local delicacies', keywords: ['kelewele', 'yam', 'boiled egg', 'kebab', 'khebab', 'shawarma', 'suya', 'fried rice'] },
-  ],
-  Sneakers: [
-    { label: 'Running', keywords: ['running', 'jogger', 'trainer', 'runner shoe'] },
-    { label: 'Casual', keywords: ['casual', 'canvas', 'low top', 'high top'] },
-    { label: 'Basketball', keywords: ['basketball', 'jordan', 'lebron', 'kd shoe'] },
-    { label: 'Slides & Sandals', keywords: ['slide', 'sandal', 'slipper', 'flip flop', 'crocs'] },
-    { label: 'Boots', keywords: ['boot', 'timberland', 'chelsea boot', 'combat boot'] },
-    { label: 'Official/Loafers', keywords: ['loafer', 'official shoe', 'oxford', 'dress shoe', 'moccasin'] },
-    { label: 'Brands', keywords: ['nike', 'adidas', 'puma', 'vans', 'converse', 'new balance', 'yeezy'] },
-  ],
-  Bags: [
-    { label: 'Backpacks', keywords: ['backpack', 'school bag', 'rucksack', 'laptop bag'] },
-    { label: 'Handbags', keywords: ['handbag', 'purse', 'clutch', 'tote', 'satchel'] },
-    { label: 'Sling/Crossbody', keywords: ['sling', 'crossbody', 'waist bag', 'fanny pack', 'bum bag'] },
-    { label: 'Duffel/Travel', keywords: ['duffel', 'travel bag', 'gym bag', 'suitcase', 'luggage'] },
-    { label: 'Wallets', keywords: ['wallet', 'purse wallet', 'card holder', 'coin purse'] },
-  ],
-  'Beauty & Skincare': [
-    { label: 'Skincare', keywords: ['skincare', 'cream', 'moisturizer', 'serum', 'sunscreen', 'toner', 'cleanser', 'face wash'] },
-    { label: 'Makeup', keywords: ['makeup', 'lipstick', 'foundation', 'concealer', 'mascara', 'eyeliner', 'eyeshadow', 'blush'] },
-    { label: 'Hair care', keywords: ['shampoo', 'conditioner', 'hair oil', 'hair cream', 'relaxer', 'hair gel'] },
-    { label: 'Nails', keywords: ['nail polish', 'nail kit', 'acrylic', 'manicure', 'pedicure'] },
-    { label: 'Tools', keywords: ['brush', 'sponge', 'beauty blender', 'tweezers', 'mirror', 'lash curler'] },
-    { label: 'Fragrances', keywords: ['fragrance', 'body spray', 'roll-on', 'deodorant'] },
-  ],
-  'Hair & Wigs': [
-    { label: 'Wigs', keywords: ['wig', 'lace front', 'closure wig', 'frontal wig'] },
-    { label: 'Weaves/Extensions', keywords: ['weave', 'extension', 'braiding hair', 'bundle', 'crochet hair'] },
-    { label: 'Human hair', keywords: ['human hair', 'raw hair', 'virgin hair'] },
-    { label: 'Synthetic hair', keywords: ['synthetic hair', 'synthetic wig'] },
-    { label: 'Accessories', keywords: ['wig cap', 'edge control', 'hair pins', 'hair net', 'wig stand'] },
-  ],
-  'Jewelry & Watches': [
-    { label: 'Necklaces', keywords: ['necklace', 'chain', 'pendant'] },
-    { label: 'Earrings', keywords: ['earring', 'stud', 'hoop earring'] },
-    { label: 'Rings', keywords: ['ring', 'band ring', 'engagement ring'] },
-    { label: 'Bracelets', keywords: ['bracelet', 'bangle', 'anklet'] },
-    { label: 'Watches', keywords: ['watch', 'wristwatch', 'analog watch', 'digital watch'] },
-  ],
-  Groceries: [
-    { label: 'Staples', keywords: ['rice', 'gari', 'flour', 'beans', 'oil', 'sugar', 'salt', 'spaghetti'] },
-    { label: 'Canned/Packaged', keywords: ['canned', 'tin tomato', 'sardine', 'milo', 'cereal', 'noodles', 'indomie'] },
-    { label: 'Spices & Seasoning', keywords: ['spice', 'seasoning', 'pepper', 'ginger', 'garlic', 'maggi', 'stock cube'] },
-    { label: 'Drinks', keywords: ['drink', 'juice', 'water', 'soda', 'beverage'] },
-    { label: 'Household', keywords: ['detergent', 'soap', 'tissue', 'toilet roll', 'cleaning', 'disinfectant'] },
-  ],
-  'Room Essentials': [
-    { label: 'Bedding', keywords: ['bedsheet', 'duvet', 'pillow', 'blanket', 'mattress', 'pillowcase'] },
-    { label: 'Storage', keywords: ['storage box', 'organizer', 'hanger', 'laundry basket', 'shelf'] },
-    { label: 'Decor', keywords: ['decor', 'curtain', 'rug', 'wall art', 'poster', 'lamp', 'fairy lights'] },
-    { label: 'Kitchenware', keywords: ['cooler', 'flask', 'plate', 'cup', 'cutlery', 'kettle', 'pot'] },
-    { label: 'Cleaning supplies', keywords: ['broom', 'mop', 'bucket', 'cleaning', 'air freshener'] },
-  ],
-  Furniture: [
-    { label: 'Beds', keywords: ['bed', 'bed frame', 'bunk bed'] },
-    { label: 'Desks & Chairs', keywords: ['desk', 'chair', 'study table', 'office chair'] },
-    { label: 'Wardrobes/Storage', keywords: ['wardrobe', 'cabinet', 'drawer', 'closet', 'shelf unit'] },
-    { label: 'Sofas', keywords: ['sofa', 'couch', 'armchair'] },
-    { label: 'Tables', keywords: ['table', 'coffee table', 'side table', 'dining table'] },
-  ],
-  Appliances: [
-    { label: 'Kitchen appliances', keywords: ['microwave', 'blender', 'kettle', 'toaster', 'rice cooker', 'sandwich maker'] },
-    { label: 'Cooling', keywords: ['fan', 'ac', 'air conditioner', 'mini fridge', 'fridge'] },
-    { label: 'Cleaning appliances', keywords: ['vacuum', 'iron', 'washing machine'] },
-    { label: 'Small electronics', keywords: ['extension box', 'power strip', 'stabilizer', 'inverter'] },
-  ],
-  'Sports & Fitness': [
-    { label: 'Gym equipment', keywords: ['dumbbell', 'weights', 'resistance band', 'yoga mat', 'gym equipment'] },
-    { label: 'Sportswear', keywords: ['jersey', 'sportswear', 'gym wear', 'track suit'] },
-    { label: 'Balls & Gear', keywords: ['football', 'basketball', 'volleyball', 'racket', 'ball'] },
-    { label: 'Bicycles', keywords: ['bicycle', 'bike', 'cycling'] },
-    { label: 'Outdoor', keywords: ['tent', 'camping', 'hiking', 'skateboard'] },
-  ],
-  'Music & Instruments': [
-    { label: 'Guitars', keywords: ['guitar', 'acoustic guitar', 'electric guitar'] },
-    { label: 'Keyboards/Pianos', keywords: ['keyboard', 'piano', 'synthesizer'] },
-    { label: 'Drums', keywords: ['drum', 'drum kit', 'djembe', 'conga'] },
-    { label: 'DJ/Audio gear', keywords: ['mixer', 'dj', 'microphone', 'amplifier', 'audio interface'] },
-    { label: 'Accessories', keywords: ['guitar strings', 'strap', 'stand', 'cable', 'pick'] },
-  ],
-  'Tickets & Events': [
-    { label: 'Concerts', keywords: ['concert', 'show ticket', 'live music'] },
-    { label: 'Parties/Socials', keywords: ['party', 'social', 'rave', 'jam'] },
-    { label: 'Sports events', keywords: ['match ticket', 'game ticket', 'sports event'] },
-    { label: 'Campus events', keywords: ['campus event', 'week celebration', 'hall week', 'freshers'] },
-  ],
-};
-
 const SCHOOLS = [
   { name: 'KNUST', lat: 6.6732, lng: -1.5654 },
   { name: 'UG', lat: 5.6505, lng: -0.1895 },
@@ -222,6 +83,28 @@ const PRICE_RANGES = [
   { label: '200 - 500', min: 200, max: 500 },
   { label: '500 - 1000', min: 500, max: 1000 },
   { label: 'Above 1000', min: 1000, max: Infinity },
+];
+
+const SERVICE_TYPES = [
+  { label: '💄 Makeup', keywords: ['makeup', 'make-up', 'mua'] },
+  { label: '💅 Nail fixing', keywords: ['nail'] },
+  { label: '💇 Hair styling/braiding', keywords: ['hair', 'braid', 'braiding', 'weave'] },
+  { label: '🖨️ Printing & photocopying', keywords: ['print', 'photocopy', 'photocopying'] },
+  { label: '🎨 Graphic design', keywords: ['graphic', 'flyer', 'poster', 'logo', 'invitation'] },
+  { label: '💻 Website development', keywords: ['website', 'web dev', 'web development'] },
+  { label: '📸 Photography', keywords: ['photography', 'photo shoot', 'photoshoot', 'photographer'] },
+  { label: '💈 Haircuts/barbering', keywords: ['haircut', 'barber', 'barbering'] },
+  { label: '🏃 Errand running', keywords: ['errand'] },
+  { label: '🎥 Video recording/editing', keywords: ['video', 'videography', 'editing'] },
+  { label: '👕 Custom T-shirts/hoodies', keywords: ['t-shirt', 'tshirt', 'hoodie', 'custom shirt', 'branding'] },
+  { label: '📱 Mobile app development', keywords: ['app dev', 'mobile app', 'app development'] },
+  { label: '📦 Pickup & delivery', keywords: ['pickup', 'delivery', 'courier'] },
+  { label: '📚 Tutoring/lessons', keywords: ['tutor', 'tutoring', 'lessons', 'coaching', 'extra classes'] },
+  { label: '🧺 Laundry', keywords: ['laundry', 'washing', 'ironing'] },
+  { label: '🔧 Phone/laptop repair', keywords: ['repair', 'phone repair', 'laptop repair', 'screen fix'] },
+  { label: '🎉 Event planning/MC', keywords: ['event planning', 'mc', 'emcee', 'host', 'party planning'] },
+  { label: '🧹 Cleaning services', keywords: ['cleaning', 'cleaner', 'housekeeping'] },
+  { label: '🧵 Tailoring/sewing', keywords: ['tailor', 'tailoring', 'sewing', 'seamstress'] },
 ];
 
 const BOOST_TIERS = [
@@ -269,11 +152,12 @@ export default function BrowsePage({ filter }: { filter: Filter }) {
   const [itemCategory, setItemCategory] = useState(params.category || '');
   const [subCategory, setSubCategory] = useState('');
   const [school, setSchool] = useState('');
+  const [serviceType, setServiceType] = useState('');
   const [newOnly, setNewOnly] = useState(filter === 'new');
   const [verifiedOnly, setVerifiedOnly] = useState(filter === 'verified');
   const [locating, setLocating] = useState(false);
   const [priceRange, setPriceRange] = useState<typeof PRICE_RANGES[number] | null>(null);
-  const [openSheet, setOpenSheet] = useState<'category' | 'school' | null>(null);
+  const [openSheet, setOpenSheet] = useState<'category' | 'school' | 'service' | null>(null);
   const isPlanActive = user?.plan && user.plan !== 'free' &&
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
 
@@ -314,7 +198,7 @@ const [placingOrder, setPlacingOrder] = useState(false);
 
   const enterBoostMode = () => {
     setBoostMode(true);
-    setItemCategory('');
+    setItemCategory((c) => (c === 'Services' ? c : ''));
     setSubCategory('');
     setOpenSheet(null);
   };
@@ -463,8 +347,7 @@ const [placingOrder, setPlacingOrder] = useState(false);
       if (priceRange.max !== Infinity) p.priceMax = priceRange.max;
     }
     if (boostMode) p.mine = 1;
-    const sub = (SUBCATEGORIES[itemCategory] || []).find((s) => s.label === subCategory);
-    if (sub) p.keywords = sub.keywords.join('|');
+    if (subCategory) p.subcategory = subCategory;
     return p;
   };
 
@@ -560,6 +443,10 @@ useEffect(() => {
   }
 }, [itemCategory]);
 
+  useEffect(() => {
+    if (itemCategory !== 'Services') setServiceType('');
+  }, [itemCategory]);
+
   const detectNearest = async () => {
     setLocating(true);
     try {
@@ -581,7 +468,7 @@ useEffect(() => {
     if (!value || value === 'Mobile Data' || value === 'Services' || value === 'Other') return null;
     const subs = SUBCATEGORIES[value] || [];
     if (subs.length === 0) return null;
-    return subs.map((s) => ({ value: s.label, label: s.label }));
+    return subs.map((s) => ({ value: s, label: s }));
   };
 
   const filtered = useMemo(() => {
@@ -592,13 +479,7 @@ useEffect(() => {
         : products.filter((p) => (p.category || p.category_name) !== 'Services');
 
     if (subCategory) {
-      const activeSub = (SUBCATEGORIES[itemCategory] || []).find((s) => s.label === subCategory);
-      if (activeSub) {
-        list = list.filter((p) => {
-          const text = `${p.title || ''} ${p.description || ''}`.toLowerCase();
-          return activeSub.keywords.some((kw) => text.includes(kw));
-        });
-      }
+      list = list.filter((p) => p.subcategory === subCategory);
     }
 
     if (newOnly) {
@@ -622,8 +503,17 @@ useEffect(() => {
     if (boostMode) {
       list = list.filter((p) => p.seller_id === user?.id);
     }
+    if (itemCategory === 'Services' && serviceType) {
+      const active = SERVICE_TYPES.find((t) => t.label === serviceType);
+      if (active) {
+        list = list.filter((p) => {
+          const text = `${p.title || ''} ${p.description || ''}`.toLowerCase();
+          return active.keywords.some((kw) => text.includes(kw));
+        });
+      }
+    }
     return list;
-  }, [products, itemCategory, subCategory, newOnly, verifiedOnly, school, priceRange, search, boostMode, user?.id]);
+  }, [products, itemCategory, subCategory, newOnly, verifiedOnly, school, priceRange, search, boostMode, user?.id, serviceType]);
 
   const stockOf = (p: any) => (p.stock !== undefined ? p.stock : 1);
   const inStock = useMemo(() => filtered.filter((p) => stockOf(p) > 0), [filtered]);
@@ -658,6 +548,12 @@ useEffect(() => {
     if (school) setSchool('');
     else setOpenSheet('school');
   };
+  const isBoosted = (p: any) => p.boosted_until && new Date(p.boosted_until) > new Date();
+  const isServices = itemCategory === 'Services';
+  const showBand = isTabActive('all') && (!itemCategory || isServices) && !search && !boostMode;
+  const boostedBand = useMemo(() => (showBand ? inStock.filter(isBoosted) : []), [showBand, inStock]);
+  const gridData = useMemo(() => (showBand ? inStock.filter((p) => !isBoosted(p)) : inStock), [showBand, inStock]);
+
   const headerTitle =
     itemCategory === 'Services' ? 'Browse Services'
     : search ? `Results for "${search}"`
@@ -783,7 +679,23 @@ useEffect(() => {
             </Pressable>
           </View>
         ) : (
-          <View />
+          isServices ? (
+            <Pressable
+              onPress={() => setOpenSheet('service')}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 6,
+                backgroundColor: serviceType ? colors.brandSoft : colors.card,
+                borderWidth: 1, borderColor: serviceType ? colors.brand : colors.border,
+                paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, maxWidth: '60%',
+              }}
+            >
+              <SlidersHorizontal size={12} color={serviceType ? colors.brand : colors.textMuted} />
+              <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '600', color: serviceType ? colors.brand : colors.textMuted, flexShrink: 1 }}>
+                {serviceType || 'All services'}
+              </Text>
+              <ChevronDown size={12} color={serviceType ? colors.brand : colors.textMuted} />
+            </Pressable>
+          ) : <View />
         )}
 
         {boostMode ? (
@@ -901,7 +813,7 @@ useEffect(() => {
     )}
   </ScrollView>
 ) : loading ? (
-  <PulsingLogo colors={colors} />
+  <BrowseSkeleton colors={colors} />
 ) : filtered.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
           <SlidersHorizontal size={28} color={colors.textFaint} />
@@ -914,7 +826,40 @@ useEffect(() => {
           ref={listRef}
           onContentSizeChange={(_w, h) => { contentH.current = h; }}
           onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
-          data={inStock}
+          data={gridData}
+          ListHeaderComponent={
+            boostedBand.length > 0 ? (
+              <View style={{ marginBottom: 4, backgroundColor: isDark ? '#0a0a0a' : '#ececec' }}>
+                <InsetShadow direction="down" />
+                <View style={{ paddingBottom: 4 }}>
+                  <View style={{ paddingHorizontal: 16, marginBottom: 10, marginTop: -12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <RocketLaunch color={colors.brand} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                        {isServices ? 'Boosted services' : 'Boosted'}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
+                        {isServices
+                          ? 'Promoted by providers. Priority placement, just for a while.'
+                          : 'Promoted by sellers. Priority placement, just for a while.'}
+                      </Text>
+                    </View>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+                    {boostedBand.map((item) => (
+                      <View key={`boost-${item.id}`} style={{ width: 128 }}>
+                        {(item.category || item.category_name) === 'Services'
+                          ? <ServiceCard service={item} />
+                          : <ProductCard product={item} />}
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+                <InsetShadow direction="up" />
+                <View style={{ height: 1, backgroundColor: colors.border }} />
+              </View>
+            ) : null
+          }
           keyExtractor={(p) => String(p.id)}
           ListFooterComponent={
             !boostMode && outOfStock.length > 0 ? (
@@ -948,7 +893,14 @@ useEffect(() => {
           renderItem={({ item }) => (
             <View style={{ width: '31.5%' }}>
               {(item.category || item.category_name) === 'Services'
-                ? <ServiceCard service={item} />
+                ? (
+                  <ServiceCard
+                    service={item}
+                    boostMode={boostMode}
+                    boostSelected={selectedBoostIds.includes(item.id)}
+                    onBoostSelect={boostMode ? handleSelectBoostTarget : undefined}
+                  />
+                )
                 : (
                   <ProductCard
                     product={item}
@@ -987,7 +939,7 @@ useEffect(() => {
         </Pressable>
       )}
 
-      {isSeller && !boostMode && itemCategory !== 'Mobile Data' && itemCategory !== 'Services' && (
+      {isSeller && !boostMode && itemCategory !== 'Mobile Data' && (
         <FloatingBoostButton
           colors={colors}
           faded={boostBtnFaded}
@@ -1155,6 +1107,17 @@ useEffect(() => {
         onClose={() => setOpenSheet(null)}
         getSubOptions={getCategorySubOptions}
         onSelectSub={(cat, sub) => { setItemCategory(cat); setSubCategory(sub); setOpenSheet(null); }}
+      />
+
+      {/* SERVICE TYPE SHEET */}
+      <FilterSheet
+        visible={openSheet === 'service'}
+        title="Service type"
+        options={['', ...SERVICE_TYPES.map((t) => t.label)]}
+        renderLabel={(v) => v || 'All services'}
+        selected={serviceType}
+        onSelect={(v) => { setServiceType(v); setOpenSheet(null); }}
+        onClose={() => setOpenSheet(null)}
       />
 
       {/* SCHOOL SHEET */}
@@ -1367,6 +1330,43 @@ function FloatingBoostButton({
     })
   ).current;
   const scale = useRef(new Animated.Value(1)).current;
+  const rx = useRef(new Animated.Value(0)).current;
+  const rsx = useRef(new Animated.Value(1)).current;
+  const rshake = useRef(new Animated.Value(0)).current;
+  const launching = useRef(false);
+
+  const playLaunch = () => {
+    if (launching.current) return;
+    launching.current = true;
+    const t = (v: Animated.Value, to: number, duration: number, easing?: (n: number) => number) =>
+      Animated.timing(v, { toValue: to, duration, easing, useNativeDriver: true });
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+
+    // slow squeeze while vibrating
+    Animated.parallel([
+      t(rsx, 0.6, 600, Easing.inOut(Easing.quad)),
+      t(rx, -3, 600),
+      Animated.sequence([
+        ...Array.from({ length: 12 }).map((_, i) => t(rshake, i % 2 === 0 ? 1.5 : -1.5, 50)),
+        t(rshake, 0, 0),
+      ]),
+    ]).start(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      // launch toward top-right
+      Animated.parallel([
+        t(rsx, 1.3, 260, Easing.in(Easing.cubic)),
+        t(rx, 40, 260, Easing.in(Easing.cubic)),
+      ]).start(() => {
+        onPress();
+        rx.setValue(-40);
+        rsx.setValue(1);
+        t(rx, 0, 450, Easing.out(Easing.cubic)).start(() => {
+          launching.current = false;
+        });
+      });
+    });
+  };
 
   const startPos = useRef({ x: 0, y: 0 });
   const moved = useRef(false);
@@ -1436,12 +1436,7 @@ function FloatingBoostButton({
         Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
 
         if (!moved.current) {
-          // Treat as a tap — bounce like before, then open boost mode.
-          Animated.sequence([
-            Animated.timing(scale, { toValue: 1.25, duration: 150, useNativeDriver: true }),
-            Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
-          ]).start();
-          setTimeout(onPress, 250);
+          playLaunch();
           return;
         }
 
@@ -1485,9 +1480,98 @@ function FloatingBoostButton({
           elevation: 5,
         }}
       >
-        <Rocket size={20} color={colors.brand} />
+        <View style={{ width: 28, height: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ transform: [{ rotate: '-45deg' }] }}>
+            <Animated.View style={{ transform: [{ translateX: rx }, { translateY: rshake }, { scaleX: rsx }] }}>
+              <View style={{ transform: [{ rotate: '45deg' }] }}>
+                <Rocket size={20} color={colors.brand} />
+              </View>
+            </Animated.View>
+          </View>
+        </View>
       </View>
     </Animated.View>
+  );
+}
+
+function BrowseSkeleton({ colors }: { colors: any }) {
+  const pulse = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.45, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const Block = ({ style }: { style: any }) => (
+    <Animated.View style={[{ backgroundColor: colors.cardAlt, opacity: pulse }, style]} />
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background, overflow: 'hidden' }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <View key={i} style={{ width: '31.5%' }}>
+            <Block style={{ width: '100%', aspectRatio: 1, borderRadius: 14 }} />
+            <Block style={{ width: '80%', height: 10, borderRadius: 5, marginTop: 8 }} />
+            <Block style={{ width: '50%', height: 10, borderRadius: 5, marginTop: 6 }} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// Rocket squeezes along its diagonal, shoots off top-right, then re-enters from bottom-left. Loops ~every 3s.
+function RocketLaunch({ color }: { color: string }) {
+  const x = useRef(new Animated.Value(0)).current;
+  const sx = useRef(new Animated.Value(1)).current;
+  const shake = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const t = (v: Animated.Value, to: number, duration: number, easing?: (n: number) => number) =>
+      Animated.timing(v, { toValue: to, duration, easing, useNativeDriver: true });
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(4500),
+        // slow squeeze while vibrating
+        Animated.parallel([
+          t(sx, 0.6, 900, Easing.inOut(Easing.quad)),
+          t(x, -4, 900),
+          Animated.sequence(
+            Array.from({ length: 18 }).map((_, i) =>
+              t(shake, i % 2 === 0 ? 2.5 : -2.5, 50)
+            ).concat([t(shake, 0, 0)])
+          ),
+        ]),
+        // launch toward top-right, stretching
+        Animated.parallel([t(sx, 1.3, 260, Easing.in(Easing.cubic)), t(x, 50, 260, Easing.in(Easing.cubic))]),
+        // jump instantly to the bottom-left, outside the clip box
+        Animated.parallel([t(x, -50, 0), t(sx, 1, 0)]),
+        // glide back into place
+        t(x, 0, 450, Easing.out(Easing.cubic)),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  return (
+    <View style={{ width: 40, height: 40, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ transform: [{ rotate: '-45deg' }] }}>
+        <Animated.View style={{ transform: [{ translateX: x }, { translateY: shake }, { scaleX: sx }] }}>
+          <View style={{ transform: [{ rotate: '45deg' }] }}>
+            <Rocket size={40} color={color} />
+          </View>
+        </Animated.View>
+      </View>
+    </View>
   );
 }
 

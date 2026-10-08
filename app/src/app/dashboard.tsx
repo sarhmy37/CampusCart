@@ -14,7 +14,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import Overview from '@/components/dashboard/Overview';
 import {
   ChevronLeft, ChevronDown, Plus, ShoppingBag, TrendingUp, Tag, Wallet,
-  Store, Package, Truck, Flag, Bookmark,
+  Store, Package, Truck, Flag, Bookmark, CheckCircle,
 } from 'lucide-react-native';
 import api from '@/api/client';
 import { requestDrawerReopen } from '@/utils/drawerSignal';
@@ -38,6 +38,7 @@ const TAB_LABELS: Record<string, string> = {
   payouts: 'Payouts',
   orders: 'Orders',
   deliveries: 'Deliveries',
+  completed: 'Completed',
   sales: 'Sales',
   reports: 'Reports',
   saved: 'Saved',
@@ -64,8 +65,8 @@ useEffect(() => {
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
 
   const tabs = isSeller
-    ? ['overview', 'listings', 'payouts', 'orders', 'deliveries', 'sales', 'reports']
-    : [...(isPlanActive ? ['saved'] : []), 'orders', 'reports'];
+    ? ['overview', 'listings', 'payouts', 'orders', 'completed', 'deliveries', 'sales', 'reports']
+    : [...(isPlanActive ? ['saved'] : []), 'orders', 'completed', 'reports'];
 
   const { tab: paramTab, highlightOrder } = useLocalSearchParams<{ tab?: string; highlightOrder?: string }>();
 
@@ -356,6 +357,7 @@ const TAB_ICONS: Record<string, any> = {
   payouts: Wallet,
   orders: ShoppingBag,
   deliveries: Truck,
+  completed: CheckCircle,
   sales: TrendingUp,
   reports: Flag,
   saved: Bookmark,
@@ -388,6 +390,7 @@ function TabPanel({ tab, period, isSeller, active, highlightOrder, onScrollToY }
   if (tab === 'listings') return <Listings />;
   if (tab === 'payouts') return <Payouts period={period} active={active} />;
   if (tab === 'orders') return <Orders period={period} isSeller={isSeller} highlightOrder={highlightOrder} />;
+  if (tab === 'completed') return <Orders period={period} isSeller={isSeller} mode="completed" />;
   if (tab === 'deliveries') return <Deliveries highlightOrder={highlightOrder} onScrollToY={onScrollToY} />;
   if (tab === 'sales') return <Sales />;
   if (tab === 'reports') return <Reports />;

@@ -7,11 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from 'expo-location';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import Toast from 'react-native-toast-message';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
+import { SUBCATEGORIES } from '@/data/subcategories';
 import { useColors } from '@/hooks/useColors';
 import { CREATE_LISTING_VIDEO } from '@/data/media';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -60,11 +62,6 @@ const CONDITION_OPTIONS = [
   { label: 'New', value: 'new' },
   { label: 'Used', value: 'used' },
 ];
-const SUBCATEGORIES: Record<string, string[]> = {
-  Clothes: ['Tops', 'Trousers & Jeans', 'Dresses', 'Shorts', 'Jackets & Hoodies', 'Underwear', 'Traditional wear', 'Other'],
-  Shoes: ['Sneakers', 'Sandals & Slides', 'Heels', 'Boots', 'Formal shoes', 'Other'],
-  Electronics: ['Phones', 'Laptops', 'Headphones', 'Chargers & Cables', 'Accessories', 'Other'],
-};
 const MAX_IMAGES = 6;
 
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
@@ -206,10 +203,14 @@ const [showLocationPicker, setShowLocationPicker] = useState(false);
     try {
       const urls: string[] = [];
       for (const asset of assets) {
+        const jpeg = await ImageManipulator.manipulateAsync(asset.uri, [], {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        });
         urls.push(await uploadToBackend({
-          uri: asset.uri,
-          name: asset.fileName || 'photo.jpg',
-          type: asset.mimeType || 'image/jpeg',
+          uri: jpeg.uri,
+          name: `photo-${Date.now()}.jpg`,
+          type: 'image/jpeg',
         }));
       }
       setUrls((prev: string[]) => [...prev, ...urls]);
@@ -360,6 +361,7 @@ setLocationSource('gps');
     if (!form.price) return Toast.show({ type: 'error', text1: 'Enter a price' });
     if (imageUrls.length === 0) return Toast.show({ type: 'error', text1: 'Add at least one photo of the item' });
     if (isMobileData && !form.network) return Toast.show({ type: 'error', text1: 'Please select a network' });
+    if (subOptions.length > 0 && !form.subcategory) return Toast.show({ type: 'error', text1: 'Please select a subcategory' });
     if (Object.values(deliveryPrices).some((v) => Number(v) > 0)) {
       setShowDeliveryWarning(true);
       return;
@@ -1033,6 +1035,7 @@ onScroll={(e) => {
             </Pressable>
           </Pressable>
         </Pressable>
+        <Toast />
       </Modal>
     </KeyboardAvoidingView>
   );

@@ -194,6 +194,7 @@ export default function ReportModal({
           </View>
         </Pressable>
       </Pressable>
+      <Toast />
     </Modal>
   );
 }

@@ -3,7 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react-native';
+import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight, Check, Rocket } from 'lucide-react-native';
 import { useColors } from '@/hooks/useColors';
 
 function parseAvailability(raw: any) {
@@ -27,7 +27,14 @@ function formatTime12(time24?: string) {
   return `${displayHour}:${mStr} ${period}`;
 }
 
-export default function ServiceCard({ service }: { service: any }) {
+export default function ServiceCard({
+  service, boostMode, boostSelected, onBoostSelect,
+}: {
+  service: any;
+  boostMode?: boolean;
+  boostSelected?: boolean;
+  onBoostSelect?: (service: any) => void;
+}) {
   const colors = useColors();
   const router = useRouter();
 
@@ -58,13 +65,13 @@ export default function ServiceCard({ service }: { service: any }) {
 
   return (
     <Pressable
-      onPress={() => router.push(`/service/${service.id}`)}
+      onPress={() => (boostMode && onBoostSelect ? onBoostSelect(service) : router.push(`/service/${service.id}`))}
       style={{
         width: '100%',
         backgroundColor: colors.card,
         borderRadius: 14,
-        borderWidth: 1,
-        borderColor: colors.border,
+        borderWidth: boostSelected ? 2 : 1,
+        borderColor: boostSelected ? colors.brand : colors.border,
         overflow: 'hidden',
       }}
     >
@@ -87,6 +94,31 @@ export default function ServiceCard({ service }: { service: any }) {
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           pointerEvents="none"
         />
+        {boostMode && (
+          <View
+            style={{
+              position: 'absolute', top: 6, right: 6,
+              width: 22, height: 22, borderRadius: 11,
+              alignItems: 'center', justifyContent: 'center',
+              backgroundColor: boostSelected ? colors.brand : 'rgba(0,0,0,0.45)',
+              borderWidth: 1.5, borderColor: '#fff',
+            }}
+          >
+            {boostSelected && <Check size={12} color="#fff" />}
+          </View>
+        )}
+        {!boostMode && service.boosted_until && new Date(service.boosted_until) > new Date() && (
+          <View
+            style={{
+              position: 'absolute', top: 6, left: 6,
+              flexDirection: 'row', alignItems: 'center', gap: 3,
+              backgroundColor: colors.brand, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+            }}
+          >
+            <Rocket size={9} color={colors.textOnGold} />
+            <Text style={{ fontSize: 9, fontWeight: '800', color: colors.textOnGold }}>Boosted</Text>
+          </View>
+        )}
       </View>
 
       {/* BODY */}

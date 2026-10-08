@@ -17,10 +17,9 @@ import Toast from 'react-native-toast-message';
 import {
   X, BadgeCheck, ShieldAlert, Mail, Phone,
   MapPin, Map as MapIcon, FileText, Settings, LogOut, LayoutDashboard, Store, ShoppingBag, Clock,
-  ChevronDown, ChevronUp, ChevronRight, MessageCircle, Info, Shield, Star, Sparkles, User,
+  ChevronDown, ChevronUp, ChevronRight, Film , Info, Shield, Star, Sparkles, User,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
-import { useChat } from '@/context/ChatContext';
 import { useColors } from '@/hooks/useColors';
 
 const COOLDOWN_MS = 60 * 60 * 1000;
@@ -31,7 +30,6 @@ const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 320);
 export default function ProfileScreen() {
   const colors = useColors();
   const { user, logout, updateProfile, uploadAvatar, removeAvatar } = useAuth();
-  const { unreadCount: chatUnreadCount } = useChat();
   const [showVerify, setShowVerify] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -96,7 +94,7 @@ export default function ProfileScreen() {
 
   const isBuyer = user.account_type === 'buyer';
 
-source: 'map' | 'gps' | 'campus') => {  const guardLocationEdit = async () => {
+const guardLocationEdit = async () => {
     if (!isBuyer) return true;
     try {
       const res = await api.get('/auth/me/location-lock');
@@ -548,11 +546,10 @@ source: 'map' | 'gps' | 'campus') => {  const guardLocationEdit = async () => {
             )}
 
             <DrawerButton
-              icon={<MessageCircle size={17} color={colors.text} />}
-              label="Chat / Messaging"
-              badge={chatUnreadCount > 0 ? chatUnreadCount : undefined}
+              icon={<Film size={17} color={colors.text} />}
+              label="Spotlight Profile"
               colors={colors}
-              onPress={() => router.replace('/chat')}
+              onPress={() => router.replace('/SpotlightProfile')}
             />
 
             <DrawerButton
@@ -618,6 +615,7 @@ source: 'map' | 'gps' | 'campus') => {  const guardLocationEdit = async () => {
 
       {/* Verify modal */}
       <VerifyModal open={showVerify} onClose={() => setShowVerify(false)} />
+      <Toast />
 
       {showLocPicker && (
         <LocationPickerModal

@@ -9,22 +9,15 @@ import { X, ImagePlus, Loader2, Video as VideoIcon, RefreshCw } from 'lucide-rea
 import { useVideoPlayer, VideoView } from 'expo-video';
 import api from '@/api/client';
 import ModalPicker from '@/components/ModalPicker';
+import { SUBCATEGORIES } from '@/data/subcategories';
 import { useColors } from '@/hooks/useColors';
 
 const MAX_IMAGES = 6;
 const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
 const CONDITIONS = [
   { value: 'new', label: 'New' },
-  { value: 'good', label: 'Good' },
-  { value: 'fair', label: 'Fair' },
+  { value: 'used', label: 'Used' },
 ];
-
-const toCharmPrice = (value: string) => {
-  const num = parseFloat(value);
-  if (isNaN(num)) return value;
-  if (Number.isInteger(num)) return (num - 1 + 0.99).toFixed(2);
-  return num.toFixed(2);
-};
 
 export default function EditListingModal({
   product, open, onClose, onSaved,
@@ -38,6 +31,7 @@ export default function EditListingModal({
     condition: 'good',
     stock: '1',
     category: '',
+    subcategory: '',
     delivery_fee_on_campus: '',
     delivery_fee_near_campus: '',
     delivery_fee_far_campus: '',
@@ -70,6 +64,15 @@ export default function EditListingModal({
     if (product?.id) {
       api.get(`/products/${product.id}`)
         .then((res) => {
+          const d = res.data;
+          setForm((f) => ({
+            ...f,
+            title: d.title ?? f.title,
+            description: d.description || '',
+            subcategory: d.subcategory || f.subcategory,
+            condition: d.condition || f.condition,
+            stock: String(d.stock ?? f.stock),
+          }));
           const urls = (res.data.images || []).map((img: any) => img.image_url);
           setImageUrls(urls);
           setPreviews(urls);
@@ -95,6 +98,7 @@ export default function EditListingModal({
         condition: product.condition || 'good',
         stock: String(product.stock ?? 1),
         category: product.category || '',
+        subcategory: product.subcategory || '',
         delivery_fee_on_campus: String(product.delivery_fee_on_campus ?? ''),
         delivery_fee_near_campus: String(product.delivery_fee_near_campus ?? ''),
         delivery_fee_far_campus: String(product.delivery_fee_far_campus ?? ''),
@@ -255,7 +259,7 @@ export default function EditListingModal({
 
   // ─── PRICE PREVIEW ───────────────────────────────────────────────
   const currentSavedPrice = product ? parseFloat(product.price) : null;
-  const newPrice = parseFloat(toCharmPrice(form.price));
+  const newPrice = parseFloat(form.price);
   const discount =
     currentSavedPrice && newPrice && currentSavedPrice > newPrice && currentSavedPrice > 0 && newPrice > 0
       ? Math.round(((currentSavedPrice - newPrice) / currentSavedPrice) * 100)
@@ -267,11 +271,19 @@ export default function EditListingModal({
       Toast.show({ type: 'error', text1: 'Add at least one photo' });
       return;
     }
+    if (subOptions.length > 0 && !form.subcategory) {
+      Toast.show({ type: 'error', text1: 'Please select a subcategory' });
+      return;
+    }
+        if (form.stock === '' || Number(form.stock) < 0) {
+      Toast.show({ type: 'error', text1: 'Enter a valid stock quantity' });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         ...form,
-        price: toCharmPrice(form.price),
+        price: form.price,
         images: imageUrls,
         video_url: videoUrl,
       };
@@ -286,6 +298,8 @@ export default function EditListingModal({
   };
 
   if (!open || !product) return null;
+
+  const subOptions = (SUBCATEGORIES[form.category] ?? []).map((s) => ({ label: s, value: s }));
 
   const inputStyle = {
     borderWidth: 1,
@@ -369,130 +383,150 @@ export default function EditListingModal({
                   <Text style={{ fontSize: 12, fontWeight: '700', color: colors.success }}>
                     🎉 This will show as -{discount}% off
                   </Text>
-                  <Text style={{ fontSize: 10, color: colors.success, marginTop: 2 }}>
-                    GHS {currentSavedPrice!.toFixed(2)} → GHS {toCharmPrice(form.price)}
+                  <Text style={{ fontSize: 10, color: colors.success, marginTop: 2 }}>               
+                         GHS {currentSavedPrice!.toFixed(2)} → GHS {newPrice.toFixed(2)}
                   </Text>
                 </View>
               )}
             </View>
 
-            {/* Photos */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 16, marginBottom: 6 }}>Photos</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {previews.map((uri, i) => (
-                <Pressable
-                  key={uri + i}
-                  onPress={() => handleThumbnailTap(i)}
-                  style={{
-                    width: 84, height: 84, borderRadius: 12, overflow: 'hidden',
-                    borderWidth: 2,
-                    borderColor: photoMode === 'selecting-replace' ? colors.brand : colors.border,
-                  }}
+            {/* Photos + Video */}
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 16 }}>
+              {/* Photos */}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Photos</Text>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ height: 84 }}
+                  contentContainerStyle={{ gap: 8, alignItems: 'center' }}
                 >
-                  <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                  {photoMode === 'selecting-replace' && (
-                    <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
-                      <RefreshCw size={14} color="#fff" />
-                    </View>
-                  )}
-                  {photoMode !== 'selecting-replace' && (
+                  {previews.map((uri, i) => (
                     <Pressable
-                      onPress={() => removeImage(i)}
+                      key={uri + i}
+                      onPress={() => handleThumbnailTap(i)}
                       style={{
-                        position: 'absolute', top: 2, right: 2,
-                        width: 18, height: 18, borderRadius: 9,
-                        backgroundColor: 'rgba(15,23,42,0.85)',
-                        alignItems: 'center', justifyContent: 'center',
+                        width: 84, height: 84, borderRadius: 12, overflow: 'hidden',
+                        borderWidth: 2,
+                        borderColor: photoMode === 'selecting-replace' ? colors.brand : colors.border,
                       }}
                     >
-                      <X size={10} color="#fff" />
+                      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                      {photoMode === 'selecting-replace' && (
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                          <RefreshCw size={14} color="#fff" />
+                        </View>
+                      )}
+                      {photoMode !== 'selecting-replace' && (
+                        <Pressable
+                          onPress={() => removeImage(i)}
+                          style={{
+                            position: 'absolute', top: 2, right: 2,
+                            width: 18, height: 18, borderRadius: 9,
+                            backgroundColor: 'rgba(15,23,42,0.85)',
+                            alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          <X size={10} color="#fff" />
+                        </Pressable>
+                      )}
+                      {i === 0 && (
+                        <View style={{ position: 'absolute', bottom: 2, left: 2, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 8, fontWeight: '700' }}>Cover</Text>
+                        </View>
+                      )}
                     </Pressable>
-                  )}
-                  {i === 0 && (
-                    <View style={{ position: 'absolute', bottom: 2, left: 2, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
-                      <Text style={{ fontSize: 8, fontWeight: '700' }}>Cover</Text>
+                  ))}
+                  {uploading && (
+                    <View style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
+                      <ActivityIndicator color={colors.brand} />
                     </View>
                   )}
-                </Pressable>
-              ))}
-              {uploading && (
-                <View style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
-                  <ActivityIndicator color={colors.brand} />
+                </ScrollView>
+
+                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                  {photoMode === 'selecting-replace' ? 'Tap a photo to replace it.' : `Up to ${MAX_IMAGES}. First is cover.`}
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                  <Pressable
+                    onPress={handleReplacePhotoClick}
+                    disabled={uploading || photoMode === 'selecting-replace'}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: uploading || photoMode === 'selecting-replace' ? 0.5 : 1,
+                    }}
+                  >
+                    <RefreshCw size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleAddPhotos}
+                    disabled={uploading || imageUrls.length >= MAX_IMAGES}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: uploading || imageUrls.length >= MAX_IMAGES ? 0.5 : 1,
+                    }}
+                  >
+                    <ImagePlus size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                  </Pressable>
                 </View>
-              )}
-            </View>
-
-            <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6 }}>
-              Up to {MAX_IMAGES}. First is cover.{photoMode === 'selecting-replace' && ' Tap a photo to replace it.'}
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Pressable
-                onPress={handleReplacePhotoClick}
-                disabled={uploading || photoMode === 'selecting-replace'}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: uploading || photoMode === 'selecting-replace' ? 0.5 : 1,
-                }}
-              >
-                <RefreshCw size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleAddPhotos}
-                disabled={uploading || imageUrls.length >= MAX_IMAGES}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: uploading || imageUrls.length >= MAX_IMAGES ? 0.5 : 1,
-                }}
-              >
-                <ImagePlus size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
-              </Pressable>
-            </View>
-
-            {/* Video */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 16, marginBottom: 6 }}>Video</Text>
-            {videoUploading ? (
-              <View style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator color={colors.brand} />
               </View>
-            ) : videoPreview ? (
-              <VideoPreview uri={videoPreview} />
-            ) : (
-              <View style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                <VideoIcon size={16} color={colors.textFaint} />
-                <Text style={{ fontSize: 9, color: colors.textFaint, marginTop: 4 }}>No video</Text>
-              </View>
-            )}
 
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-              <Pressable
-                onPress={handleVideoButtonClick}
-                disabled={videoUploading || !videoUrl}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: videoUploading || !videoUrl ? 0.5 : 1,
-                }}
-              >
-                <RefreshCw size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleVideoButtonClick}
-                disabled={videoUploading || !!videoUrl}
-                style={{
-                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  paddingVertical: 8, borderRadius: 10, backgroundColor: colors.brand,
-                  opacity: videoUploading || !!videoUrl ? 0.5 : 1,
-                }}
-              >
-                <VideoIcon size={11} color={colors.textOnGold} />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
-              </Pressable>
+              {/* Video */}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Video</Text>
+
+                <View style={{ height: 84 }}>
+                  {videoUploading ? (
+                    <View style={{ width: '100%', height: 84, borderRadius: 12, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+                      <ActivityIndicator color={colors.brand} />
+                    </View>
+                  ) : videoPreview ? (
+                    <VideoPreview uri={videoPreview} />
+                  ) : (
+                    <View style={{ width: '100%', height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                      <VideoIcon size={16} color={colors.textFaint} />
+                      <Text style={{ fontSize: 9, color: colors.textFaint, marginTop: 4 }}>No video</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                  Optional. Max 20MB.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                  <Pressable
+                    onPress={handleVideoButtonClick}
+                    disabled={videoUploading || !videoUrl}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: videoUploading || !videoUrl ? 0.5 : 1,
+                    }}
+                  >
+                    <RefreshCw size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleVideoButtonClick}
+                    disabled={videoUploading || !!videoUrl}
+                    style={{
+                      flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      borderRadius: 10, backgroundColor: colors.brand,
+                      opacity: videoUploading || !!videoUrl ? 0.5 : 1,
+                    }}
+                  >
+                    <VideoIcon size={11} color={colors.textOnGold} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
 
             {/* Delivery fees */}
@@ -550,14 +584,29 @@ export default function EditListingModal({
               </View>
             </View>
 
-            {/* Category */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 14, marginBottom: 4 }}>Category</Text>
-            <ModalPicker
-              value={form.category}
-              onSelect={(v) => setForm({ ...form, category: v })}
-              placeholder="Select"
-              options={categories.map((c) => ({ label: c.name, value: c.name }))}
-            />
+            {/* Category + Subcategory */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Category</Text>
+                <ModalPicker
+                  value={form.category}
+                  onSelect={(v) => setForm({ ...form, category: v, subcategory: '' })}
+                  placeholder="Select"
+                  options={categories.map((c) => ({ label: c.name, value: c.name }))}
+                />
+              </View>
+              {subOptions.length > 0 && (
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Subcategory</Text>
+                  <ModalPicker
+                    value={form.subcategory}
+                    onSelect={(v) => setForm({ ...form, subcategory: v })}
+                    placeholder="Select"
+                    options={subOptions}
+                  />
+                </View>
+              )}
+            </View>
 
             {/* Actions */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
@@ -587,6 +636,7 @@ export default function EditListingModal({
           </ScrollView>
         </View>
       </View>
+      <Toast />
     </Modal>
   );
 }
@@ -597,7 +647,7 @@ function VideoPreview({ uri }: { uri: string }) {
   return (
     <VideoView
       player={player}
-      style={{ width: 84, height: 84, borderRadius: 12, backgroundColor: '#000' }}
+      style={{ width: '100%', height: 84, borderRadius: 12, backgroundColor: '#000' }}
       contentFit="cover"
       nativeControls={false}
     />

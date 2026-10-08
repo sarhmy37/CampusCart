@@ -142,6 +142,7 @@ export default function LocationPickerModal({ colors, initial, onCancel, onConfi
           </Pressable>
         </View>
       </View>
+      
     </Modal>
   );
 }
