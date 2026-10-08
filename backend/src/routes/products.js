@@ -12,7 +12,7 @@ const router = express.Router();
 router.get('/mine', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.primary_image, p.video_url, p.created_at,
+            `SELECT p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.subcategory, p.primary_image, p.video_url, p.created_at,
                     p.rating, p.review_count, p.views_count, p.boosted_until, p.boost_tier,
                     p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                     c.name AS category,
