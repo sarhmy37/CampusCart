@@ -136,7 +136,15 @@ router.get('/feed', requireAuth, async (req, res) => {
     const { rows } = await pool.query(`
       WITH page_users AS (
         SELECT st.user_id,
-               GREATEST(MAX(st.created_at), COALESCE(MAX(rp.created_at), MAX(st.created_at))) AS latest
+               GREATEST(MAX(st.created_at), COALESCE(MAX(rp.created_at), MAX(st.created_at))) AS latest,
+               CASE WHEN $6::boolean THEN
+                 (CASE WHEN EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.following_id = st.user_id) THEN 3 ELSE 0 END)
+                 + LEAST(5, (SELECT COUNT(*) FROM story_likes l JOIN stories ls ON ls.id = l.story_id WHERE l.user_id = $1 AND ls.user_id = st.user_id))
+                 + 0.5 * LEAST(10, (SELECT COUNT(*) FROM story_likes l JOIN stories ls ON ls.id = l.story_id
+                     WHERE l.user_id = $1 AND ls.content_type IN (SELECT x.content_type FROM stories x WHERE x.user_id = st.user_id AND x.content_type IS NOT NULL AND x.expires_at > NOW())))
+                 + LN(1 + (SELECT COUNT(*) FROM story_likes pl JOIN stories ps ON ps.id = pl.story_id WHERE ps.user_id = st.user_id AND ps.expires_at > NOW()))
+                 + 4.0 / (1 + EXTRACT(EPOCH FROM (NOW() - MAX(st.created_at))) / 21600)
+               ELSE EXTRACT(EPOCH FROM GREATEST(MAX(st.created_at), COALESCE(MAX(rp.created_at), MAX(st.created_at)))) END AS rank_key
         FROM stories st
         LEFT JOIN story_reposts rp ON rp.story_id = st.id
         WHERE st.expires_at > NOW() AND ($2::text IS NULL OR st.kind = $2)
@@ -144,7 +152,7 @@ router.get('/feed', requireAuth, async (req, res) => {
           AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = st.id AND h.user_id = $1)
           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = st.user_id) OR (b.blocker_id = st.user_id AND b.blocked_id = $1))
         GROUP BY st.user_id
-        ORDER BY latest DESC
+        ORDER BY rank_key DESC
         LIMIT $3::int OFFSET $4::int
       )
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
@@ -182,8 +190,8 @@ router.get('/feed', requireAuth, async (req, res) => {
       WHERE s.expires_at > NOW() AND ($2::text IS NULL OR s.kind = $2)
         AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = s.id AND h.user_id = $1)
         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = s.user_id) OR (b.blocker_id = s.user_id AND b.blocked_id = $1))
-      ORDER BY pu.latest DESC, s.created_at DESC
-    `, [req.userId, req.query.kind || null, limit, offset, req.query.following === 'true']);
+      ORDER BY pu.rank_key DESC, s.created_at DESC
+    `, [req.userId, req.query.kind || null, limit, offset, req.query.following === 'true', req.query.foryou === 'true']);
 
     const groupsMap = new Map();
     for (const row of rows) {
