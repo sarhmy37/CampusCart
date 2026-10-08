@@ -466,11 +466,12 @@ router.get('/:id/comments', requireAuth, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT c.id, c.text, c.created_at, c.user_id, c.parent_id,
               u.name AS user_name, u.avatar_url AS user_avatar,
-              (SELECT COUNT(*)::int FROM story_comments r WHERE r.parent_id = c.id) AS reply_count
+              (SELECT COUNT(*)::int FROM story_comments r WHERE r.parent_id = c.id) AS reply_count,
+              c.pinned
        FROM story_comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.story_id = $1 AND c.parent_id IS NULL
-       ORDER BY c.created_at DESC
+       ORDER BY c.pinned DESC, c.created_at DESC
        LIMIT 100`,
       [req.params.id]
     );
@@ -506,8 +507,8 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
   try {
     const text = String(req.body.text || '').trim().slice(0, 300);
     if (!text) return res.status(400).json({ error: 'Comment is empty' });
-    const { rows: [cs] } = await pool.query('SELECT comments_off FROM stories WHERE id = $1', [req.params.id]);
-    if (cs?.comments_off) return res.status(403).json({ error: 'Comments are turned off' });
+    const { rows: [cs] } = await pool.query('SELECT comments_off, user_id FROM stories WHERE id = $1', [req.params.id]);
+    if (cs?.comments_off && String(cs.user_id) !== String(req.userId)) return res.status(403).json({ error: 'Comments are turned off' });
 
     // replying to a comment? Replies stay one level deep: a reply to a reply
     // is attached to the original comment.
@@ -577,6 +578,31 @@ router.delete('/block/:userId', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Unblock user error:', err);
     res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// PATCH /api/stories/:id/comments/:commentId/pin — owner only, one pinned at a time
+router.patch('/:id/comments/:commentId/pin', requireAuth, async (req, res) => {
+  try {
+    const { rows: [s] } = await pool.query('SELECT user_id FROM stories WHERE id = $1', [req.params.id]);
+    if (!s) return res.status(404).json({ error: 'Story not found' });
+    if (String(s.user_id) !== String(req.userId)) return res.status(403).json({ error: 'Only the owner can pin' });
+    const pin = !!req.body.pinned;
+    if (pin) {
+      const c = await pool.query(
+        'SELECT 1 FROM story_comments WHERE id = $1 AND story_id = $2 AND parent_id IS NULL',
+        [req.params.commentId, req.params.id]
+      );
+      if (c.rows.length === 0) return res.status(404).json({ error: 'Comment not found' });
+    }
+    await pool.query('UPDATE story_comments SET pinned = false WHERE story_id = $1', [req.params.id]);
+    if (pin) {
+      await pool.query('UPDATE story_comments SET pinned = true WHERE id = $1', [req.params.commentId]);
+    }
+    res.sendStatus(204);
+  } catch (err) {
+    console.error('Pin comment error:', err);
+    res.status(500).json({ error: 'Failed to pin comment' });
   }
 });
 
