@@ -998,6 +998,22 @@ router.get('/me/referrals', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/auth/avatar/:userId — public avatar image, fetched by push notifications
+router.get('/avatar/:userId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT avatar_url FROM users WHERE id = $1', [req.params.userId]);
+        const url = r.rows[0]?.avatar_url;
+        if (!url) return res.status(404).end();
+        const m = url.match(/^data:(.+?);base64,(.+)$/);
+        if (!m) return res.redirect(url);
+        res.set('Content-Type', m[1]);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(m[2], 'base64'));
+    } catch (err) {
+        res.status(500).end();
+    }
+});
+
 router.get('/ip', (req, res) => {
     res.json({ ip: req.ip || req.connection.remoteAddress });
 });

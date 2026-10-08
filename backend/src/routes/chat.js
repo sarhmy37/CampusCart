@@ -2,7 +2,9 @@ const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { uploadChatMedia, uploadWallpaper } = require('../middleware/upload');
-const { insertNotification } = require('../utils/notifications');
+const { insertNotification, senderExtra } = require('../utils/notifications');
+
+const API_BASE = process.env.PUBLIC_API_URL || 'https://campuscart-tdfn.onrender.com';
 
 const router = express.Router();
 
@@ -271,6 +273,25 @@ router.post('/:id/wallpaper/upload', requireAuth, uploadWallpaper.single('wallpa
     }
 });
 
+// GET /api/chat/media/:messageId — public image for push notification thumbnails (UUID ids are unguessable)
+router.get('/media/:messageId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT media_url, media_type, deleted_for_everyone FROM messages WHERE id = $1`,
+            [req.params.messageId]
+        );
+        const row = r.rows[0];
+        if (!row || row.deleted_for_everyone || row.media_type !== 'image' || !row.media_url) return res.status(404).end();
+        const m = row.media_url.match(/^data:(.+?);base64,(.+)$/);
+        if (!m) return res.redirect(row.media_url);
+        res.set('Content-Type', m[1]);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(m[2], 'base64'));
+    } catch (err) {
+        res.status(500).end();
+    }
+});
+
 // GET /api/chat/:id/messages
 router.get('/:id/messages', requireAuth, async (req, res) => {
     const { id } = req.params;
@@ -369,8 +390,9 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
             const preview = mediaType === 'audio' ? '🎤 Voice note'
                 : mediaType === 'video' ? '🎥 Video'
                 : mediaType === 'file' ? '📄 File' : '📷 Photo';
-            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview)
-                            .catch((err) => console.error('New message notification error:', err));
+            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview,
+                senderExtra(req.userId, senderName, mediaType === 'image' ? `${API_BASE}/api/chat/media/${inserted.rows[0].id}` : null))
+               .catch((err) => console.error('New message notification error:', err));
         }
 
         res.json(inserted.rows[0]);
@@ -439,7 +461,8 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
             const senderResult = await pool.query(`SELECT name FROM users WHERE id = $1`, [req.userId]);
             const senderName = senderResult.rows[0]?.name || 'Someone';
             const preview = content?.trim() ? content.trim().slice(0, 100) : 'Sent a photo/voice note';
-            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview)
+            insertNotification(recipientId, 'new_message', `${senderName}: ${preview}`, id, `/chat/${id}`, senderName, preview,
+                senderExtra(req.userId, senderName, media_type === 'image' ? `${API_BASE}/api/chat/media/${inserted.rows[0].id}` : null))
                 .catch((err) => console.error('New message notification error:', err));
         }
 

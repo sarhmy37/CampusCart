@@ -201,9 +201,12 @@ router.get('/feed', requireAuth, async (req, res) => {
 router.get('/mine', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT s.id, s.media_url, s.media_type, s.caption, s.created_at, s.kind,
-             (SELECT COUNT(*) FROM story_views v WHERE v.story_id = s.id) AS view_count,
-             (SELECT COUNT(*)::int FROM story_likes l WHERE l.story_id = s.id) AS like_count
+      SELECT s.id, s.media_url, s.media_type, s.caption, s.created_at, s.kind, s.content_type,
+             COALESCE(s.export_count, 0)::int AS export_count,
+             (SELECT COUNT(*)::int FROM story_views v WHERE v.story_id = s.id) AS view_count,
+             (SELECT COUNT(*)::int FROM story_likes l WHERE l.story_id = s.id) AS like_count,
+             (SELECT COUNT(*)::int FROM story_comments c WHERE c.story_id = s.id) AS comment_count,
+             (SELECT COUNT(*)::int FROM story_reposts rp WHERE rp.story_id = s.id) AS repost_count
       FROM stories s
       WHERE s.user_id = $1 AND s.expires_at > NOW()
       ORDER BY s.created_at ASC
@@ -212,6 +215,30 @@ router.get('/mine', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('My stories error:', err);
     res.status(500).json({ error: 'Failed to load your stories' });
+  }
+});
+
+// GET /api/stories/reposts/mine — spotlights the current user has reposted
+router.get('/reposts/mine', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption,
+             rp.created_at AS reposted_at,
+             u.name AS owner_name, u.avatar_url AS owner_avatar,
+             (SELECT COUNT(*)::int FROM story_views v WHERE v.story_id = s.id) AS view_count,
+             (SELECT COUNT(*)::int FROM story_likes l WHERE l.story_id = s.id) AS like_count,
+             (SELECT COUNT(*)::int FROM story_comments c WHERE c.story_id = s.id) AS comment_count
+      FROM story_reposts rp
+      JOIN stories s ON s.id = rp.story_id
+      JOIN users u ON u.id = s.user_id
+      WHERE rp.user_id = $1 AND s.kind = 'spotlight' AND s.expires_at > NOW()
+      ORDER BY rp.created_at DESC
+      LIMIT 100
+    `, [req.userId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('My reposts error:', err);
+    res.status(500).json({ error: 'Failed to load reposts' });
   }
 });
 

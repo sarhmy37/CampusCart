@@ -30,7 +30,18 @@ function getPushTitle(type) {
     return NOTIFICATION_TITLES[type] || 'Tre-X';
 }
 
-async function insertNotification(userId, type, message, relatedId = null, link = null, pushTitle = null, pushBody = null) {
+const API_BASE = process.env.PUBLIC_API_URL || 'https://campuscart-tdfn.onrender.com';
+
+function senderExtra(senderId, senderName, imageUrl = null) {
+    return {
+        sender_id: senderId,
+        sender_name: senderName,
+        sender_avatar: `${API_BASE}/api/auth/avatar/${senderId}`,
+        ...(imageUrl ? { image_url: imageUrl } : {}),
+    };
+}
+
+async function insertNotification(userId, type, message, relatedId = null, link = null, pushTitle = null, pushBody = null, extra = {}) {
     const inserted = await pool.query(
         `INSERT INTO notifications (user_id, type, message, related_id, link, pushed, push_title, push_body) VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7) RETURNING id`,
         [userId, type, message, relatedId, link, pushTitle, pushBody]
@@ -43,11 +54,11 @@ async function insertNotification(userId, type, message, relatedId = null, link 
         .then((result) => {
             const pushToken = result.rows[0]?.push_token;
             if (pushToken) {
-                sendPushNotification(pushToken, pushTitle || getPushTitle(type), pushBody || message, { link, related_id: relatedId, type });
+                sendPushNotification(pushToken, pushTitle || getPushTitle(type), pushBody || message, { link, related_id: relatedId, type, ...extra });
                 pool.query('UPDATE notifications SET pushed = TRUE WHERE id = $1', [notificationId]).catch(() => {});
             }
         })
         .catch((err) => console.error('Push lookup error:', err));
 }
 
-module.exports = { insertNotification, getPushTitle };
+module.exports = { insertNotification, getPushTitle, senderExtra };
