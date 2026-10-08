@@ -103,12 +103,14 @@ router.get('/feed', requireAuth, async (req, res) => {
         FROM stories st
         LEFT JOIN story_reposts rp ON rp.story_id = st.id
         WHERE st.expires_at > NOW() AND ($2::text IS NULL OR st.kind = $2)
+          AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = st.id AND h.user_id = $1)
+          AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = st.user_id) OR (b.blocker_id = st.user_id AND b.blocked_id = $1))
         GROUP BY st.user_id
         ORDER BY latest DESC
         LIMIT $3::int OFFSET $4::int
       )
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
-             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay,
+             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay, s.comments_off,
              COALESCE(s.export_count, 0) AS export_count,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              u.name AS user_name, u.avatar_url AS user_avatar,
@@ -139,6 +141,8 @@ router.get('/feed', requireAuth, async (req, res) => {
       JOIN page_users pu ON pu.user_id = s.user_id
       JOIN users u ON u.id = s.user_id
       WHERE s.expires_at > NOW() AND ($2::text IS NULL OR s.kind = $2)
+        AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = s.id AND h.user_id = $1)
+        AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = s.user_id) OR (b.blocker_id = s.user_id AND b.blocked_id = $1))
       ORDER BY pu.latest DESC, s.created_at DESC
     `, [req.userId, req.query.kind || null, limit, offset]);
 
@@ -170,6 +174,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         crop: row.crop,
         product_tag: row.product_tag,
         text_overlay: row.text_overlay,
+        comments_off: row.comments_off,
         trim_start_ms: row.trim_start_ms,
         trim_end_ms: row.trim_end_ms,
         view_count: Number(row.view_count),
@@ -258,7 +263,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
-             s.trim_start_ms, s.trim_end_ms, s.product_tag, s.crop, s.text_overlay,
+             s.trim_start_ms, s.trim_end_ms, s.product_tag, s.crop, s.text_overlay, s.comments_off,
              u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
              (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
              EXISTS (
@@ -501,6 +506,8 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
   try {
     const text = String(req.body.text || '').trim().slice(0, 300);
     if (!text) return res.status(400).json({ error: 'Comment is empty' });
+    const { rows: [cs] } = await pool.query('SELECT comments_off FROM stories WHERE id = $1', [req.params.id]);
+    if (cs?.comments_off) return res.status(403).json({ error: 'Comments are turned off' });
 
     // replying to a comment? Replies stay one level deep: a reply to a reply
     // is attached to the original comment.
@@ -531,6 +538,63 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to post comment' });
   }
 });
+// POST /api/stories/:id/hide — "Not interested"
+router.post('/:id/hide', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      `INSERT INTO story_hidden (user_id, story_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [req.userId, req.params.id]
+    );
+    res.sendStatus(204);
+  } catch (err) {
+    console.error('Hide story error:', err);
+    res.status(500).json({ error: 'Failed to hide post' });
+  }
+});
+
+// POST /api/stories/block/:userId
+router.post('/block/:userId', requireAuth, async (req, res) => {
+  try {
+    if (String(req.params.userId) === String(req.userId)) {
+      return res.status(400).json({ error: "You can't block yourself" });
+    }
+    await pool.query(
+      `INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [req.userId, req.params.userId]
+    );
+    res.sendStatus(204);
+  } catch (err) {
+    console.error('Block user error:', err);
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+// DELETE /api/stories/block/:userId
+router.delete('/block/:userId', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2', [req.userId, req.params.userId]);
+    res.sendStatus(204);
+  } catch (err) {
+    console.error('Unblock user error:', err);
+    res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// PATCH /api/stories/:id/comments-off — owner only
+router.patch('/:id/comments-off', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE stories SET comments_off = $3 WHERE id = $1 AND user_id = $2 RETURNING comments_off',
+      [req.params.id, req.userId, !!req.body.off]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Story not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Comments toggle error:', err);
+    res.status(500).json({ error: 'Failed to update comments' });
+  }
+});
+
 // POST /api/stories/:id/report
 router.post('/:id/report', requireAuth, async (req, res) => {
   try {
