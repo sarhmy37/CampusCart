@@ -531,6 +531,27 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to post comment' });
   }
 });
+// POST /api/stories/:id/report
+router.post('/:id/report', requireAuth, async (req, res) => {
+  try {
+    const reason = String(req.body.reason || '').trim().slice(0, 100);
+    if (!reason) return res.status(400).json({ error: 'Reason is required' });
+    const { rows: [s] } = await pool.query('SELECT user_id FROM stories WHERE id = $1', [req.params.id]);
+    if (!s) return res.status(404).json({ error: 'Story not found' });
+    if (String(s.user_id) === String(req.userId)) {
+      return res.status(400).json({ error: "You can't report your own post" });
+    }
+    await pool.query(
+      `INSERT INTO story_reports (story_id, reporter_id, reason) VALUES ($1, $2, $3)
+       ON CONFLICT (story_id, reporter_id) DO UPDATE SET reason = EXCLUDED.reason`,
+      [req.params.id, req.userId, reason]
+    );
+    res.sendStatus(204);
+  } catch (err) {
+    console.error('Report story error:', err);
+    res.status(500).json({ error: 'Failed to send report' });
+  }
+});
 
 // DELETE /api/stories/:id — owner only
 router.delete('/:id', requireAuth, async (req, res) => {
