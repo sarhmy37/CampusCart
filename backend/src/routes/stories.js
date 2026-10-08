@@ -62,6 +62,25 @@ async function notifyStoryComment(storyId, commenterId, text, isReply) {
   } catch (err) { console.error('Story comment notify error:', err); }
 }
 
+async function notifyCommentLike(storyId, commentId, likerId) {
+  try {
+    const { rows: [c] } = await pool.query(
+      `SELECT c.user_id, c.text, u.name AS actor
+       FROM story_comments c, users u WHERE c.id = $1 AND u.id = $2`,
+      [commentId, likerId]
+    );
+    if (!c || String(c.user_id) === String(likerId)) return;
+    const snippet = c.text.length > 40 ? c.text.slice(0, 40) + '…' : c.text;
+    const message = `${c.actor} liked your comment: "${snippet}"`;
+    const dup = await pool.query(
+      `SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'comment_like' AND related_id = $2 AND message = $3`,
+      [c.user_id, storyId, message]
+    );
+    if (dup.rows.length) return;
+    await insertNotification(c.user_id, 'comment_like', message, storyId, `/stories?openStoryId=${storyId}`);
+  } catch (err) { console.error('Comment like notify error:', err); }
+}
+
 // Top reposter: Premium > Pro > none, then most completed orders
 const topReposter = (storyIdExpr) => `(
   SELECT json_build_object('name', ru.name, 'avatar', ru.avatar_url) FROM story_reposts r
@@ -467,13 +486,15 @@ router.get('/:id/comments', requireAuth, async (req, res) => {
       `SELECT c.id, c.text, c.created_at, c.user_id, c.parent_id,
               u.name AS user_name, u.avatar_url AS user_avatar,
               (SELECT COUNT(*)::int FROM story_comments r WHERE r.parent_id = c.id) AS reply_count,
+              (SELECT COUNT(*)::int FROM story_comment_likes cl WHERE cl.comment_id = c.id) AS like_count,
+              EXISTS (SELECT 1 FROM story_comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = $2) AS liked,
               c.pinned
        FROM story_comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.story_id = $1 AND c.parent_id IS NULL
        ORDER BY c.pinned DESC, c.created_at DESC
        LIMIT 100`,
-      [req.params.id]
+      [req.params.id, req.userId]
     );
     res.json(rows);
   } catch (err) {
@@ -487,13 +508,15 @@ router.get('/:id/comments/:commentId/replies', requireAuth, async (req, res) => 
   try {
     const { rows } = await pool.query(
       `SELECT c.id, c.text, c.created_at, c.user_id, c.parent_id,
-              u.name AS user_name, u.avatar_url AS user_avatar
+              u.name AS user_name, u.avatar_url AS user_avatar,
+              (SELECT COUNT(*)::int FROM story_comment_likes cl WHERE cl.comment_id = c.id) AS like_count,
+              EXISTS (SELECT 1 FROM story_comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = $3) AS liked
        FROM story_comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.story_id = $1 AND c.parent_id = $2
        ORDER BY c.created_at ASC
        LIMIT 100`,
-      [req.params.id, req.params.commentId]
+      [req.params.id, req.params.commentId, req.userId]
     );
     res.json(rows);
   } catch (err) {
@@ -539,6 +562,49 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to post comment' });
   }
 });
+// POST /api/stories/:id/comments/:commentId/like
+router.post('/:id/comments/:commentId/like', requireAuth, async (req, res) => {
+  try {
+    const exists = await pool.query(
+      'SELECT 1 FROM story_comments WHERE id = $1 AND story_id = $2',
+      [req.params.commentId, req.params.id]
+    );
+    if (exists.rows.length === 0) return res.status(404).json({ error: 'Comment not found' });
+    const ins = await pool.query(
+      `INSERT INTO story_comment_likes (comment_id, user_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING RETURNING comment_id`,
+      [req.params.commentId, req.userId]
+    );
+    if (ins.rowCount > 0) notifyCommentLike(req.params.id, req.params.commentId, req.userId);
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS like_count FROM story_comment_likes WHERE comment_id = $1',
+      [req.params.commentId]
+    );
+    res.json({ liked: true, like_count: rows[0].like_count });
+  } catch (err) {
+    console.error('Like comment error:', err);
+    res.status(500).json({ error: 'Failed to like comment' });
+  }
+});
+
+// DELETE /api/stories/:id/comments/:commentId/like
+router.delete('/:id/comments/:commentId/like', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM story_comment_likes WHERE comment_id = $1 AND user_id = $2',
+      [req.params.commentId, req.userId]
+    );
+    const { rows } = await pool.query(
+      'SELECT COUNT(*)::int AS like_count FROM story_comment_likes WHERE comment_id = $1',
+      [req.params.commentId]
+    );
+    res.json({ liked: false, like_count: rows[0].like_count });
+  } catch (err) {
+    console.error('Unlike comment error:', err);
+    res.status(500).json({ error: 'Failed to unlike comment' });
+  }
+});
+
 // POST /api/stories/:id/hide — "Not interested"
 router.post('/:id/hide', requireAuth, async (req, res) => {
   try {
