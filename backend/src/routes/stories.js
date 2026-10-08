@@ -201,12 +201,17 @@ router.get('/feed', requireAuth, async (req, res) => {
 router.get('/mine', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT s.id, s.media_url, s.media_type, s.caption, s.created_at, s.kind, s.content_type,
+      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.kind, s.content_type,
+             s.trim_start_ms, s.trim_end_ms, s.crop, s.product_tag, s.text_overlay,
              COALESCE(s.export_count, 0)::int AS export_count,
              (SELECT COUNT(*)::int FROM story_views v WHERE v.story_id = s.id) AS view_count,
              (SELECT COUNT(*)::int FROM story_likes l WHERE l.story_id = s.id) AS like_count,
+             EXISTS (SELECT 1 FROM story_likes l WHERE l.story_id = s.id AND l.user_id = $1) AS liked,
              (SELECT COUNT(*)::int FROM story_comments c WHERE c.story_id = s.id) AS comment_count,
-             (SELECT COUNT(*)::int FROM story_reposts rp WHERE rp.story_id = s.id) AS repost_count
+             (SELECT COUNT(*)::int FROM story_reposts rp WHERE rp.story_id = s.id) AS repost_count,
+             EXISTS (SELECT 1 FROM story_reposts rp WHERE rp.story_id = s.id AND rp.user_id = $1) AS reposted,
+             (SELECT MAX(rp.created_at) FROM story_reposts rp WHERE rp.story_id = s.id) AS last_repost_at,
+             ${topReposter('s.id')} AS reposted_by
       FROM stories s
       WHERE s.user_id = $1 AND s.expires_at > NOW()
       ORDER BY s.created_at ASC
@@ -222,12 +227,18 @@ router.get('/mine', requireAuth, async (req, res) => {
 router.get('/reposts/mine', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption,
+      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.kind,
+             s.trim_start_ms, s.trim_end_ms, s.crop, s.product_tag, s.text_overlay,
+             COALESCE(s.export_count, 0)::int AS export_count,
              rp.created_at AS reposted_at,
              u.name AS owner_name, u.avatar_url AS owner_avatar,
+             CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS owner_plan,
              (SELECT COUNT(*)::int FROM story_views v WHERE v.story_id = s.id) AS view_count,
              (SELECT COUNT(*)::int FROM story_likes l WHERE l.story_id = s.id) AS like_count,
-             (SELECT COUNT(*)::int FROM story_comments c WHERE c.story_id = s.id) AS comment_count
+             EXISTS (SELECT 1 FROM story_likes l WHERE l.story_id = s.id AND l.user_id = $1) AS liked,
+             (SELECT COUNT(*)::int FROM story_comments c WHERE c.story_id = s.id) AS comment_count,
+             (SELECT COUNT(*)::int FROM story_reposts x WHERE x.story_id = s.id) AS repost_count,
+             ${topReposter('s.id')} AS reposted_by
       FROM story_reposts rp
       JOIN stories s ON s.id = rp.story_id
       JOIN users u ON u.id = s.user_id
