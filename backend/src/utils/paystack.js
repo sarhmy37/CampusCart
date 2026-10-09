@@ -99,8 +99,12 @@ async function refundTransaction(reference, amountGHS) {
 
 const PAYSTACK_MOMO_CODES = { MTN: 'MTN', VOD: 'VOD', AT: 'ATL' };
 
+function toPaystackBankCode(code) {
+    return PAYSTACK_MOMO_CODES[code] || code;
+}
+
 async function resolvePayoutName(bank_code, account_number) {
-    const code = PAYSTACK_MOMO_CODES[bank_code] || bank_code;
+    const code = toPaystackBankCode(bank_code);
     const data = await paystackRequest(
         `/bank/resolve?account_number=${encodeURIComponent(account_number)}&bank_code=${encodeURIComponent(code)}`
     );
@@ -118,4 +122,5 @@ module.exports = {
     chargeAuthorization,
     refundTransaction,
     resolvePayoutName,
+    toPaystackBankCode,
 };

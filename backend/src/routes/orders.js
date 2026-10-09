@@ -35,6 +35,52 @@ const FUNDS_MESSAGES = [
 const pickFundsMessage = (amt, note, title) =>
     FUNDS_MESSAGES[Math.floor(Math.random() * FUNDS_MESSAGES.length)](amt, note, title);
 
+// ---- Paystack transfer (payout) webhook handling ----
+const TRANSFER_EVENT_STATUS = {
+    'transfer.success': 'completed',
+    'transfer.failed': 'failed',
+    'transfer.reversed': 'reversed',
+};
+// Which current statuses may move to the new status (stops out-of-order or repeated events from corrupting a row)
+const TRANSFER_ALLOWED_FROM = {
+    completed: ['pending', 'processing'],
+    failed: ['pending', 'processing'],
+    reversed: ['pending', 'processing', 'completed'],
+};
+
+async function processTransferWebhookEvent(event) {
+    const reference = event.data?.reference;
+    if (!reference || !String(reference).startsWith('wd_')) return; // not one of our withdrawals
+
+    const newStatus = TRANSFER_EVENT_STATUS[event.event];
+    if (!newStatus) return;
+
+    const reason = newStatus === 'completed'
+        ? null
+        : String(event.data?.reason || event.data?.status || event.event).slice(0, 300);
+
+    const r = await pool.query(
+        `UPDATE payout_withdrawals
+         SET status = $1::text,
+             failure_reason = CASE WHEN $1::text = 'completed' THEN failure_reason ELSE $3 END,
+             transfer_code = COALESCE(transfer_code, $5),
+             updated_at = now()
+         WHERE transfer_reference = $2 AND status = ANY($4::text[])
+         RETURNING id, seller_id, amount`,
+        [newStatus, reference, reason, TRANSFER_ALLOWED_FROM[newStatus], event.data?.transfer_code || null]
+    );
+    if (r.rows.length === 0) return; // duplicate or out-of-order delivery
+
+    const w = r.rows[0];
+    const amt = parseFloat(w.amount).toFixed(2);
+    const messages = {
+        completed: `✅ Your withdrawal of GHS ${amt} has been sent to your payout account.`,
+        failed: `⚠️ Your withdrawal of GHS ${amt} could not be completed. The money is back in your available balance.`,
+        reversed: `⚠️ Your withdrawal of GHS ${amt} was reversed by the bank. The money is back in your available balance.`,
+    };
+    await insertNotification(w.seller_id, `withdrawal_${newStatus}`, messages[newStatus], w.id, '/dashboard?tab=payouts');
+}
+
 // POST /api/orders — create pending order + get Paystack payment link
 router.post('/', requireAuth, async (req, res) => {
     const { items, delivery_method, buyer_lat, buyer_lng } = req.body;
@@ -287,6 +333,15 @@ router.post('/webhook', async (req, res) => {
 
     const event = req.body;
     res.sendStatus(200);
+
+    if (TRANSFER_EVENT_STATUS[event.event]) {
+        try {
+            await processTransferWebhookEvent(event);
+        } catch (err) {
+            console.error('Transfer webhook processing error:', err);
+        }
+        return;
+    }
 
     if (event.event !== 'charge.success') return;
 

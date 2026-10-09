@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { createTransferRecipient, initiateTransfer, resolvePayoutName } = require('../utils/paystack');
+const { createTransferRecipient, initiateTransfer, resolvePayoutName, toPaystackBankCode } = require('../utils/paystack');
 
 const router = express.Router();
 
@@ -203,8 +203,8 @@ router.delete('/accounts/:accountId', requireAuth, async (req, res) => {
 // Shared helper: available balance = confirmed earnings minus everything already withdrawn.
 // This replaces the old "mark every unpaid item as paid" approach, which couldn't
 // support partial withdrawals and was wiping the whole balance on any withdraw.
-async function getAvailableBalance(sellerId) {
-    const earnedResult = await pool.query(
+async function getAvailableBalance(sellerId, db = pool) {
+    const earnedResult = await db.query(
         `SELECT COALESCE(SUM(oi.seller_earnings), 0) AS total_earned
          FROM order_items oi
          JOIN orders o ON o.id = oi.order_id
@@ -213,10 +213,10 @@ async function getAvailableBalance(sellerId) {
            AND oi.buyer_confirmed_at IS NOT NULL`,
         [sellerId]
     );
-    const withdrawnResult = await pool.query(
+    const withdrawnResult = await db.query(
         `SELECT COALESCE(SUM(amount), 0) AS total_withdrawn
          FROM payout_withdrawals
-         WHERE seller_id = $1`,
+         WHERE seller_id = $1 AND status NOT IN ('failed', 'reversed')`,
         [sellerId]
     );
 
@@ -239,18 +239,31 @@ router.get('/balance', requireAuth, async (req, res) => {
 // POST /api/payouts/withdraw — withdraws a specific amount, logged as a ledger entry
 // rather than flagging order items as paid. This is what actually fixes the bug
 // where withdrawing part of your balance wiped out the whole thing.
-router.post('/withdraw', requireAuth, async (req, res) => {
-    const { accountId, amountGHS, password } = req.body;
+// Check Paystack's current minimum and transfer fee for Ghana before launch,
+// and decide whether the seller or the platform pays the fee.
+const MIN_WITHDRAWAL_GHS = 1;
 
-    if (!accountId || !amountGHS || amountGHS <= 0) {
+router.post('/withdraw', requireAuth, async (req, res) => {
+    const { accountId, password } = req.body;
+    const amountGHS = Math.round(Number(req.body.amountGHS) * 100) / 100;
+
+    if (!accountId || !Number.isFinite(amountGHS) || amountGHS <= 0) {
         return res.status(400).json({ error: 'Invalid request' });
+    }
+    if (amountGHS < MIN_WITHDRAWAL_GHS) {
+        return res.status(400).json({ error: `Minimum withdrawal is GHS ${MIN_WITHDRAWAL_GHS.toFixed(2)}` });
     }
     if (!password) {
         return res.status(400).json({ error: 'Password is required to confirm withdrawal' });
     }
 
+    let withdrawal;
+    let account;
+
+    // Step 1: validate and reserve the money inside a transaction.
+    const client = await pool.connect();
     try {
-        const userResult = await pool.query('SELECT verified, password_hash FROM users WHERE id = $1', [req.userId]);
+        const userResult = await client.query('SELECT verified, password_hash FROM users WHERE id = $1', [req.userId]);
         const currentUser = userResult.rows[0];
         if (!currentUser?.verified) {
             return res.status(403).json({ error: 'You must verify your account before withdrawing funds' });
@@ -262,43 +275,108 @@ router.post('/withdraw', requireAuth, async (req, res) => {
             return res.status(401).json({ error: 'Incorrect password' });
         }
 
-        const accResult = await pool.query(
-            `SELECT * FROM seller_payout_accounts WHERE id = $1 AND seller_id = $2`,
+        const accResult = await client.query(
+            'SELECT * FROM seller_payout_accounts WHERE id = $1 AND seller_id = $2',
             [accountId, req.userId]
         );
-        const account = accResult.rows[0];
+        account = accResult.rows[0];
         if (!account) {
             return res.status(404).json({ error: 'Payout account not found' });
         }
 
-        const availableBalance = await getAvailableBalance(req.userId);
+        await client.query('BEGIN');
+        // Lock this seller's row so two simultaneous requests can't both pass the balance check
+        await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.userId]);
+
+        const availableBalance = await getAvailableBalance(req.userId, client);
         if (amountGHS > availableBalance) {
+            await client.query('ROLLBACK');
             return res.status(400).json({ error: 'Insufficient balance' });
         }
 
-        let recipientCode = account.paystack_recipient_code;
-        if (!recipientCode) {
-            console.log(`[WITHDRAWAL SETUP] Recipient for ${account.account_name} needs to be created.`);
-        }
-
-        console.log(`[WITHDRAW] Seller ${req.userId} requested GHS ${amountGHS} to account ${accountId}`);
-
-        // Log this withdrawal as its own ledger entry — balance is recalculated
-        // from earnings-minus-withdrawals, so this is the only write needed.
-        await pool.query(
+        const ins = await client.query(
             `INSERT INTO payout_withdrawals (seller_id, account_id, amount, status)
-             VALUES ($1, $2, $3, 'processing')`,
+             VALUES ($1, $2, $3, 'pending') RETURNING id`,
             [req.userId, accountId, amountGHS]
         );
+        const reference = `wd_${ins.rows[0].id}`;
+        const upd = await client.query(
+            `UPDATE payout_withdrawals SET transfer_reference = $1, updated_at = now() WHERE id = $2 RETURNING *`,
+            [reference, ins.rows[0].id]
+        );
+        withdrawal = upd.rows[0];
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Withdraw reserve error:', err);
+        return res.status(500).json({ error: 'Failed to process withdrawal' });
+    } finally {
+        client.release();
+    }
 
-        res.json({
-            success: true,
-            message: `Withdrawal of GHS ${amountGHS.toFixed(2)} initiated successfully!`
+    // Step 2: send the money through Paystack.
+    try {
+        let recipientCode = account.paystack_recipient_code;
+        if (!recipientCode) {
+            const isMomo = account.method === 'mobile_money';
+            const r = await createTransferRecipient({
+                type: isMomo ? 'mobile_money' : 'ghipss',
+                name: account.account_name,
+                account_number: account.account_number,
+                bank_code: toPaystackBankCode(account.bank_code),
+            });
+            recipientCode = r.data.recipient_code;
+            await pool.query(
+                'UPDATE seller_payout_accounts SET paystack_recipient_code = $1 WHERE id = $2',
+                [recipientCode, account.id]
+            );
+        }
+
+        const t = await initiateTransfer({
+            recipient_code: recipientCode,
+            amountGHS,
+            reason: 'Tre-X seller payout',
+            reference: withdrawal.transfer_reference,
         });
 
+        if (t.data?.status === 'otp') {
+            console.error('[WITHDRAW] Paystack is asking for an OTP. Turn OTP off for transfers in the Paystack dashboard (Preferences).', withdrawal.id);
+        }
+
+        // Only move pending -> processing. If the webhook already set a final status, leave it alone.
+        await pool.query(
+            `UPDATE payout_withdrawals
+             SET status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END,
+                 transfer_code = $1, updated_at = now()
+             WHERE id = $2`,
+            [t.data?.transfer_code || null, withdrawal.id]
+        );
+
+        console.log(`[WITHDRAW] Seller ${req.userId} GHS ${amountGHS} sent to Paystack, ref ${withdrawal.transfer_reference}`);
+        return res.json({
+            success: true,
+            message: `Withdrawal of GHS ${amountGHS.toFixed(2)} initiated successfully!`,
+        });
     } catch (err) {
-        console.error('Withdraw error:', err);
-        res.status(500).json({ error: 'Failed to process withdrawal' });
+        const status = err?.status;
+        console.error('[WITHDRAW FAIL]', { withdrawalId: withdrawal.id, status }, err?.message);
+
+        if (status && status >= 400 && status < 500) {
+            // Paystack clearly rejected it (bad recipient, low platform balance, etc.). Release the money.
+            await pool.query(
+                `UPDATE payout_withdrawals SET status = 'failed', failure_reason = $1, updated_at = now()
+                 WHERE id = $2 AND status IN ('pending', 'processing')`,
+                [String(err.message).slice(0, 300), withdrawal.id]
+            );
+            return res.status(400).json({ error: "We couldn't send this withdrawal right now. Your balance was not charged. Please try again later or contact support." });
+        }
+
+        // Network error or Paystack 5xx: we don't know if it went through. Keep it reserved
+        // as processing and let the webhook (or a manual check) settle it.
+        return res.status(202).json({
+            success: true,
+            message: 'Your withdrawal is being processed. We will update its status shortly.',
+        });
     }
 });
 
