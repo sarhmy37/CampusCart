@@ -219,7 +219,7 @@ router.get('/seller', requireAuth, async (req, res) => {
              FROM bookings b
              JOIN products p ON p.id = b.service_id
              JOIN users u ON u.id = b.buyer_id
-             WHERE b.seller_id = $1 AND b.status IN ('pending_payment', 'confirmed')
+             WHERE b.seller_id = $1 AND b.status IN ('pending_payment', 'confirmed', 'completed')
              ORDER BY b.created_at DESC`,
             [req.userId]
         );
@@ -230,7 +230,7 @@ router.get('/seller', requireAuth, async (req, res) => {
     }
 });
 
-// PATCH /api/bookings/:id/confirm – seller confirms the booking as completed
+// PATCH /api/bookings/:id/confirm – seller marks the booking as completed
 router.patch('/:id/confirm', requireAuth, async (req, res) => {
     const { id } = req.params;
     const sellerId = req.userId;
@@ -259,7 +259,7 @@ router.patch('/:id/confirm', requireAuth, async (req, res) => {
         await insertNotification(
             booking.buyer_id,
             'booking_completed',
-            `Your booking for "${booking.service_title}" on ${booking.booking_date} at ${booking.booking_time} has been confirmed by the seller. You can now arrange the service.`,
+            `Your booking for "${booking.service_title}" on ${booking.booking_date} at ${booking.booking_time} has been marked as completed by the seller. You can now leave a review.`,
             booking.id,
             `/dashboard?tab=orders`
         );

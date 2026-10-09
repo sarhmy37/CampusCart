@@ -6,6 +6,27 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
+// True if the user completed an order for this product, or a booking for this service.
+async function hasCompletedPurchase(db, productId, userId) {
+    const order = await db.query(
+        `SELECT 1 FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         WHERE oi.product_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
+           AND oi.seller_id <> $2
+         LIMIT 1`,
+        [productId, userId]
+    );
+    if (order.rows.length > 0) return true;
+
+    const booking = await db.query(
+        `SELECT 1 FROM bookings
+         WHERE service_id = $1 AND buyer_id = $2 AND status = 'completed'
+         LIMIT 1`,
+        [productId, userId]
+    );
+    return booking.rows.length > 0;
+}
+
 // GET /api/reviews/seller/:sellerId — reviews for a seller, with like/comment data
 router.get('/seller/:sellerId', async (req, res) => {
     const { sellerId } = req.params;
@@ -50,26 +71,32 @@ router.get('/seller/:sellerId', async (req, res) => {
     }
 });
 
-// GET /api/reviews/pending-items — this buyer's completed, unreviewed order items,
-// grouped by seller. Drives the post-purchase review prompt (one rating per product).
+// GET /api/reviews/pending-items — this buyer's completed, unreviewed order items AND
+// completed service bookings, grouped by seller. Drives the post-purchase review prompt
+// (one rating per product/service).
 router.get('/pending-items', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT DISTINCT u.id AS seller_id, u.name AS seller_name, u.avatar_url AS seller_avatar,
                     p.id AS product_id, p.title AS product_title
-             FROM order_items oi
-             JOIN orders o ON o.id = oi.order_id
-             JOIN users u ON u.id = oi.seller_id
-             JOIN products p ON p.id = oi.product_id
-             WHERE o.buyer_id = $1
-               AND oi.status = 'completed'
-               AND oi.seller_id <> $1
+             FROM (
+                 SELECT oi.seller_id, oi.product_id
+                 FROM order_items oi
+                 JOIN orders o ON o.id = oi.order_id
+                 WHERE o.buyer_id = $1 AND oi.status = 'completed' AND oi.seller_id <> $1
+                 UNION
+                 SELECT b.seller_id, b.service_id AS product_id
+                 FROM bookings b
+                 WHERE b.buyer_id = $1 AND b.status = 'completed' AND b.seller_id <> $1
+             ) x
+             JOIN users u ON u.id = x.seller_id
+             JOIN products p ON p.id = x.product_id
+             WHERE NOT EXISTS (
+                       SELECT 1 FROM product_reviews pr WHERE pr.product_id = x.product_id AND pr.user_id = $1
+                   )
                AND NOT EXISTS (
-                   SELECT 1 FROM product_reviews pr WHERE pr.product_id = oi.product_id AND pr.user_id = $1
-               )
-               AND NOT EXISTS (
-                   SELECT 1 FROM review_skips rs WHERE rs.seller_id = oi.seller_id AND rs.buyer_id = $1
-               )
+                       SELECT 1 FROM review_skips rs WHERE rs.seller_id = x.seller_id AND rs.buyer_id = $1
+                   )
              ORDER BY u.name ASC, p.title ASC`,
             [req.userId]
         );
@@ -142,20 +169,12 @@ router.get('/can-review/:sellerId', requireAuth, async (req, res) => {
     }
 });
 
-// GET /api/reviews/can-review-product/:productId — has this buyer completed a purchase of this product, and not already reviewed it?
+// GET /api/reviews/can-review-product/:productId — has this buyer completed a purchase (or service booking) of this item, and not already reviewed it?
 router.get('/can-review-product/:productId', requireAuth, async (req, res) => {
     const { productId } = req.params;
 
     try {
-        const purchaseResult = await pool.query(
-            `SELECT 1 FROM order_items oi
-             JOIN orders o ON o.id = oi.order_id
-             WHERE oi.product_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
-               AND oi.seller_id <> $2
-             LIMIT 1`,
-            [productId, req.userId]
-        );
-        const hasPurchased = purchaseResult.rows.length > 0;
+        const hasPurchased = await hasCompletedPurchase(pool, productId, req.userId);
 
         const existingReview = await pool.query(
             'SELECT 1 FROM product_reviews WHERE product_id = $1 AND user_id = $2',
@@ -308,7 +327,7 @@ router.get('/product/:productId', async (req, res) => {
     }
 });
 
-// POST /api/reviews/product — submit a review for a product (only if purchased)
+// POST /api/reviews/product — submit a review for a product or service (only if purchased/booked and completed)
 router.post('/product', requireAuth, upload.single('image'), async (req, res) => {
     const { product_id, rating, comment } = req.body;
 
@@ -326,17 +345,10 @@ router.post('/product', requireAuth, upload.single('image'), async (req, res) =>
 
     const client = await pool.connect();
     try {
-        // Check if the user has purchased this product (order completed)
-        const purchaseResult = await client.query(
-            `SELECT 1 FROM order_items oi
-             JOIN orders o ON o.id = oi.order_id
-             WHERE oi.product_id = $1 AND o.buyer_id = $2 AND oi.status = 'completed'
-               AND oi.seller_id <> $2
-             LIMIT 1`,
-            [product_id, req.userId]
-        );
-        if (purchaseResult.rows.length === 0) {
-            return res.status(403).json({ error: 'You can only review products you have purchased and received.' });
+        // Check if the user has a completed purchase of this product, or a completed booking of this service
+        const purchased = await hasCompletedPurchase(client, product_id, req.userId);
+        if (!purchased) {
+            return res.status(403).json({ error: 'You can only review items you have purchased or services you have booked and completed.' });
         }
 
         // Check if already reviewed

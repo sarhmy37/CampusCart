@@ -736,7 +736,7 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
         await insertNotification(
             order.buyer_id,
             'order_cancelled_buyer',
-            `❌ ${sellerName} cancelled ${titles} in Order #${order.id}. GHS ${refundTotal.toFixed(2)} is being refunded to you (the 2% processing fee is non-refundable).`,
+           `❌ ${sellerName} cancelled ${titles}. Your refund of GHS ${refundTotal.toFixed(2)} is on its way and should reach you within 30 minutes. The 2% processing fee is non-refundable.`,
             order.id,
             '/dashboard?tab=orders'
         );
@@ -748,7 +748,7 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
             '/dashboard?tab=deliveries'
         );
         if (buyerSmsNumber) {
-            sendOrderSMS(buyerSmsNumber, `Tre-X: ${titles} in Order #${order.id} was cancelled by the seller. GHS ${refundTotal.toFixed(2)} is being refunded.`)
+           sendOrderSMS(buyerSmsNumber, `Tre-X: ${titles} was cancelled by the seller. Your refund of GHS ${refundTotal.toFixed(2)} should reach you within 30 minutes.`)
                 .catch((err) => console.error('Cancel SMS failed:', err));
         }
 

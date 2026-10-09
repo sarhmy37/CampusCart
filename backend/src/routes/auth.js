@@ -9,6 +9,20 @@ const { uploadAvatar } = require('../middleware/upload');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 const { sendPushNotification } = require('../utils/pushService');
 const { getPushTitle } = require('../utils/notifications');
+const { paystackRequest } = require('../utils/paystack');
+
+// Paystack's code for AirtelTigo is ATL (the app uses AT)
+const PAYSTACK_MOMO_CODES = { MTN: 'MTN', VOD: 'VOD', AT: 'ATL' };
+
+async function resolvePayoutName(bank_code, account_number) {
+    const code = PAYSTACK_MOMO_CODES[bank_code] || bank_code;
+    const data = await paystackRequest(
+        `/bank/resolve?account_number=${encodeURIComponent(account_number)}&bank_code=${encodeURIComponent(code)}`
+    );
+    const name = data?.data?.account_name;
+    if (!name) throw new Error('No name found');
+    return name.toUpperCase();
+}
 
 const router = express.Router();
 
@@ -142,6 +156,18 @@ router.get('/check-username', async (req, res) => {
     }
 });
 
+// POST /api/auth/resolve-payout-account — looks up the account holder's name (used on signup)
+router.post('/resolve-payout-account', async (req, res) => {
+    const { bank_code, account_number } = req.body;
+    if (!bank_code || !account_number) return res.status(400).json({ error: 'Missing details' });
+    try {
+        const account_name = await resolvePayoutName(bank_code, String(account_number));
+        res.json({ account_name });
+    } catch {
+        res.status(404).json({ error: "Couldn't find an account with these details" });
+    }
+});
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
     const { username, name, university_email, password, school, account_type, whatsapp, sms_number, location, location_lat, location_lng, meeting_place, referral_code,
@@ -167,6 +193,7 @@ router.post('/register', async (req, res) => {
     }
 
     const resolvedAccountType = account_type === 'seller' ? 'seller' : 'buyer';
+    let resolvedAccountName = null;
 
     if (resolvedAccountType === 'seller' && !isAllowedEmailDomain(university_email)) {
         return res.status(400).json({ error: 'Sellers must sign up with a valid university email address' });
@@ -189,11 +216,16 @@ router.post('/register', async (req, res) => {
 
     // Seller payout account validation
     if (resolvedAccountType === 'seller') {
-        if (!bank_code || !account_number || !account_name) {
+        if (!bank_code || !account_number) {
             return res.status(400).json({ error: 'Bank details are required for sellers' });
         }
         if (account_number.length < 9) {
             return res.status(400).json({ error: 'Account number must be at least 9 digits' });
+        }
+        try {
+            resolvedAccountName = await resolvePayoutName(bank_code, account_number);
+        } catch {
+            return res.status(400).json({ error: "We couldn't verify this payout account. Check the number and network/bank." });
         }
     }
 
@@ -260,14 +292,14 @@ router.post('/register', async (req, res) => {
 }
 
         // 👇 If seller, create a default payout account
-        if (resolvedAccountType === 'seller' && account_number && bank_code && account_name) {
+        if (resolvedAccountType === 'seller' && account_number && bank_code && resolvedAccountName) {
             const bankLookup = await client.query('SELECT name FROM banks WHERE code = $1', [bank_code]);
             const bankName = bankLookup.rows[0]?.name || bank_code;
             await client.query(
                 `INSERT INTO seller_payout_accounts 
                  (seller_id, bank_code, bank_name, account_number, account_name, method, is_default)
                  VALUES ($1, $2, $3, $4, $5, $6, true)`,
-                [user.id, bank_code, bankName, account_number, account_name, payout_method || 'bank']
+                [user.id, bank_code, bankName, account_number, resolvedAccountName, payout_method || 'bank']
             );
         }
 
