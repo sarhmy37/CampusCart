@@ -1,44 +1,19 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { createTransferRecipient, initiateTransfer } = require('../utils/paystack');
+const { createTransferRecipient, initiateTransfer, resolvePayoutName } = require('../utils/paystack');
 
 const router = express.Router();
 
 // GET /api/payouts/banks — list available banks (from DB, with a full fallback list)
 router.get('/banks', async (req, res) => {
     try {
-        const banks = await pool.query('SELECT code, name, type FROM banks');
+        const banks = await pool.query('SELECT code, name, type FROM banks ORDER BY type, name');
         if (banks.rows.length === 0) throw new Error('banks table empty');
         res.json(banks.rows);
-    } catch {
-        // Fallback: full default list, used if the table doesn't exist or is empty
-        res.json([
-            { code: '001', name: 'GCB', type: 'bank' },
-            { code: '002', name: 'Stanbic', type: 'bank' },
-            { code: '003', name: 'Ecobank', type: 'bank' },
-            { code: '004', name: 'ABSA', type: 'bank' },
-            { code: '005', name: 'Access Bank', type: 'bank' },
-            { code: '006', name: 'UBA', type: 'bank' },
-            { code: '007', name: 'Fidelity', type: 'bank' },
-            { code: '008', name: 'First National', type: 'bank' },
-            { code: '009', name: 'Republic Bank', type: 'bank' },
-            { code: '010', name: 'CalBank', type: 'bank' },
-            { code: '011', name: 'Prudential Bank', type: 'bank' },
-            { code: '012', name: 'GT Bank', type: 'bank' },
-            { code: '013', name: 'Bank of Africa', type: 'bank' },
-            { code: '014', name: 'First Atlantic', type: 'bank' },
-            { code: '015', name: 'Zenith Bank', type: 'bank' },
-            { code: '016', name: 'FBN Bank', type: 'bank' },
-            { code: '017', name: 'Societe Generale', type: 'bank' },
-            { code: '018', name: 'UMB', type: 'bank' },
-            { code: '019', name: 'NIB', type: 'bank' },
-            { code: '020', name: 'ADB', type: 'bank' },
-            { code: '021', name: 'OmniBSIC', type: 'bank' },
-            { code: 'MTN', name: 'MTN Mobile Money', type: 'mobile_money' },
-            { code: 'VOD', name: 'Vodafone Cash', type: 'mobile_money' },
-            { code: 'AT', name: 'AirtelTigo Money', type: 'mobile_money' },
-        ]);
+    } catch (err) {
+        console.error('Get banks error:', err);
+        res.status(500).json({ error: 'Could not load banks' });
     }
 });
 
@@ -55,18 +30,6 @@ router.get('/check-account', optionalAuth, async (req, res) => {
     } catch (err) {
         console.error('Check payout account error:', err);
         res.json({ taken: false });
-    }
-});
-
-// POST /api/payouts/resolve-account — resolve account name (already exists)
-router.post('/resolve-account', requireAuth, async (req, res) => {
-    const { bank_code, account_number } = req.body;
-    try {
-        // This should call Paystack's resolve endpoint.
-        // For now, return a dummy name.
-        res.json({ account_name: 'SAMPLE NAME' });
-    } catch {
-        res.status(400).json({ error: 'Could not resolve account' });
     }
 });
 
@@ -92,11 +55,19 @@ router.get('/accounts', requireAuth, async (req, res) => {
 router.post('/accounts', requireAuth, async (req, res) => {
     const { bank_code, account_number, account_name, method } = req.body;
 
-    if (!bank_code || !account_number || !account_name) {
+    if (!bank_code || !account_number) {
         return res.status(400).json({ error: 'All fields are required' });
     }
-    if (account_number.length < 9) {
+    if (String(account_number).length < 9) {
         return res.status(400).json({ error: 'Account number must be at least 9 digits' });
+    }
+
+    let verifiedName;
+    try {
+        verifiedName = await resolvePayoutName(bank_code, String(account_number));
+    } catch (err) {
+        console.error('[ADD ACCOUNT RESOLVE FAIL]', { bank_code, len: String(account_number).length, status: err?.status }, err?.message);
+        return res.status(400).json({ error: "We couldn't verify this payout account. Check the number and network/bank." });
     }
 
     const client = await pool.connect();
@@ -127,7 +98,7 @@ router.post('/accounts', requireAuth, async (req, res) => {
             `INSERT INTO seller_payout_accounts (seller_id, bank_code, bank_name, account_number, account_name, method, is_default)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
-            [req.userId, bank_code, bankName, account_number, account_name, method || 'bank', isFirst]
+            [req.userId, bank_code, bankName, account_number, verifiedName, method || 'bank', isFirst]
         );
 
         await client.query('COMMIT');
@@ -367,6 +338,18 @@ router.post('/withdrawals/:id/report', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Report withdrawal error:', err);
         res.status(500).json({ error: 'Failed to submit report' });
+    }
+});
+
+router.post('/resolve-account', requireAuth, async (req, res) => {
+    const { bank_code, account_number } = req.body;
+    if (!bank_code || !account_number) return res.status(400).json({ error: 'Missing details' });
+    try {
+        const account_name = await resolvePayoutName(bank_code, String(account_number));
+        res.json({ account_name });
+    } catch (err) {
+        console.error('[RESOLVE FAIL]', { bank_code, len: String(account_number).length, status: err?.status }, err?.message);
+        res.status(404).json({ error: "Couldn't find an account with these details" });
     }
 });
 

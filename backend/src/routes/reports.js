@@ -368,7 +368,7 @@ router.post('/ban-review', async (req, res) => {
     }
 
     try {
-        const userResult = await pool.query('SELECT id, name, banned FROM users WHERE university_email = $1', [email]);
+        const userResult = await pool.query('SELECT id, name, banned FROM users WHERE LOWER(university_email) = LOWER($1)', [email]);
         const user = userResult.rows[0];
 
         if (!user) {

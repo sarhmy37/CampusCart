@@ -9,20 +9,10 @@ const { uploadAvatar } = require('../middleware/upload');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/mailer');
 const { sendPushNotification } = require('../utils/pushService');
 const { getPushTitle } = require('../utils/notifications');
-const { paystackRequest } = require('../utils/paystack');
+const { paystackRequest, resolvePayoutName } = require('../utils/paystack');
 
-// Paystack's code for AirtelTigo is ATL (the app uses AT)
-const PAYSTACK_MOMO_CODES = { MTN: 'MTN', VOD: 'VOD', AT: 'ATL' };
 
-async function resolvePayoutName(bank_code, account_number) {
-    const code = PAYSTACK_MOMO_CODES[bank_code] || bank_code;
-    const data = await paystackRequest(
-        `/bank/resolve?account_number=${encodeURIComponent(account_number)}&bank_code=${encodeURIComponent(code)}`
-    );
-    const name = data?.data?.account_name;
-    if (!name) throw new Error('No name found');
-    return name.toUpperCase();
-}
+ 
 
 const router = express.Router();
 
@@ -163,7 +153,12 @@ router.post('/resolve-payout-account', async (req, res) => {
     try {
         const account_name = await resolvePayoutName(bank_code, String(account_number));
         res.json({ account_name });
-    } catch {
+    } catch (err) {
+        // Logs bank code, number length and Paystack's message. Never the full account number.
+        console.error('[RESOLVE FAIL]', { bank_code, len: String(account_number).length, status: err?.status }, err?.message);
+        if (err?.status === 429) {
+            return res.status(429).json({ error: 'Too many lookups, wait a moment and try again' });
+        }
         res.status(404).json({ error: "Couldn't find an account with these details" });
     }
 });
@@ -224,7 +219,8 @@ router.post('/register', async (req, res) => {
         }
         try {
             resolvedAccountName = await resolvePayoutName(bank_code, account_number);
-        } catch {
+        } catch (err) {
+            console.error('[REGISTER RESOLVE FAIL]', { bank_code, len: String(account_number).length, status: err?.status }, err?.message);
             return res.status(400).json({ error: "We couldn't verify this payout account. Check the number and network/bank." });
         }
     }
@@ -233,7 +229,7 @@ router.post('/register', async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const existing = await client.query('SELECT id FROM users WHERE university_email = $1', [university_email]);
+        const existing = await client.query('SELECT id FROM users WHERE LOWER(university_email) = LOWER($1)', [university_email.trim()]);
         if (existing.rows.length > 0) {
             await client.query('ROLLBACK');
             return res.status(409).json({ error: 'An account with this email already exists' });
@@ -276,7 +272,7 @@ router.post('/register', async (req, res) => {
         const result = await client.query(
             `INSERT INTO users (name, username, university_email, password_hash, school, account_type, whatsapp, sms_number, location, meeting_place, referral_code, referred_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-            [displayName, displayName, university_email, passwordHash, school || null, resolvedAccountType, whatsapp, sms_number, location || null, meeting_place || null, myReferralCode, referrerId]
+            [displayName, displayName, university_email.trim().toLowerCase(), passwordHash, school || null, resolvedAccountType, whatsapp, sms_number, location || null, meeting_place || null, myReferralCode, referrerId]
         );
         const user = result.rows[0];
 
@@ -340,7 +336,7 @@ router.post('/login', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM users
-             WHERE university_email = $1 OR LOWER(username) = LOWER($1)
+             WHERE LOWER(university_email) = LOWER($1) OR LOWER(username) = LOWER($1)
              LIMIT 1`,
             [loginId]
         );
@@ -662,7 +658,7 @@ router.post('/forgot-password', async (req, res) => {
 
     try {
         const result = await pool.query(
-            'SELECT id, password_reset_last_sent_at FROM users WHERE university_email = $1',
+            'SELECT id, password_reset_last_sent_at FROM users WHERE LOWER(university_email) = LOWER($1)',
             [university_email]
         );
         const user = result.rows[0];
@@ -717,7 +713,7 @@ router.post('/reset-password', async (req, res) => {
 
     try {
         const result = await pool.query(
-            'SELECT id, password_reset_code, password_reset_code_expires, password_reset_attempts FROM users WHERE university_email = $1',
+            'SELECT id, password_reset_code, password_reset_code_expires, password_reset_attempts FROM users WHERE LOWER(university_email) = LOWER($1)',
             [university_email]
         );
         const user = result.rows[0];

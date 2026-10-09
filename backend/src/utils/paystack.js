@@ -12,9 +12,11 @@ async function paystackRequest(pathname, options = {}) {
             ...(options.headers || {}),
         },
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok || data.status === false) {
-        throw new Error(data.message || 'Paystack request failed');
+        const err = new Error(data.message || 'Paystack request failed');
+        err.status = res.status;
+        throw err;
     }
     return data;
 }
@@ -95,6 +97,18 @@ async function refundTransaction(reference, amountGHS) {
     return data;
 }
 
+const PAYSTACK_MOMO_CODES = { MTN: 'MTN', VOD: 'VOD', AT: 'ATL' };
+
+async function resolvePayoutName(bank_code, account_number) {
+    const code = PAYSTACK_MOMO_CODES[bank_code] || bank_code;
+    const data = await paystackRequest(
+        `/bank/resolve?account_number=${encodeURIComponent(account_number)}&bank_code=${encodeURIComponent(code)}`
+    );
+    const name = data?.data?.account_name;
+    if (!name) throw new Error('No name found');
+    return name.toUpperCase();
+}
+
 module.exports = {
     paystackRequest,
     initializeTransaction,
@@ -103,4 +117,5 @@ module.exports = {
     initiateTransfer,
     chargeAuthorization,
     refundTransaction,
+    resolvePayoutName,
 };

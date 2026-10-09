@@ -23,7 +23,7 @@ router.post('/login', async (req, res) => {
         // Find it, or create it once on first login.
         let result = await pool.query(
             `SELECT id, name, university_email, role, account_type, verified
-             FROM users WHERE university_email = $1`,
+             FROM users WHERE LOWER(university_email) = LOWER($1)`,
             [email]
         );
 
