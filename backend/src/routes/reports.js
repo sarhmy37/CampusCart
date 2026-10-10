@@ -12,11 +12,14 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
             SELECT r.*,
                    u.name AS reporter_name, u.university_email AS reporter_email,
                    p.title AS product_title,
-                   reported.name AS reported_user_name
+                   reported.name AS reported_user_name,
+                   ord.total_amount AS order_total,
+                   ord.status AS order_status
             FROM reports r
             LEFT JOIN users u ON u.id = r.reporter_id
             LEFT JOIN products p ON p.id = r.product_id
             LEFT JOIN users reported ON reported.id = r.reported_user_id
+            LEFT JOIN orders ord ON ord.id::text = r.order_id
         `;
         const params = [];
         if (status && status !== 'all') {

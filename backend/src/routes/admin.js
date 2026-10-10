@@ -30,6 +30,37 @@ router.get('/stats', async (req, res) => {
     }
 });
 
+// GET /api/admin/badge-counts?support=<iso>&overdue=<iso>
+// Counts items that arrived after the time the admin last opened each tab.
+router.get('/badge-counts', async (req, res) => {
+    const parse = (v) => {
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? new Date(0).toISOString() : d.toISOString();
+    };
+    try {
+        const support = await pool.query(
+            `SELECT COUNT(*) FROM support_requests
+             WHERE status = 'pending' AND created_at > $1`,
+            [parse(req.query.support)]
+        );
+        const overdue = await pool.query(
+            `SELECT COUNT(*) FROM orders o
+             WHERE o.status = 'paid'
+               AND o.reported_at IS NULL
+               AND (o.overdue_flagged_at IS NOT NULL OR o.flagged_overdue_at IS NOT NULL)
+               AND COALESCE(o.flagged_overdue_at, o.overdue_flagged_at) > $1`,
+            [parse(req.query.overdue)]
+        );
+        res.json({
+            support: parseInt(support.rows[0].count, 10),
+            overdue: parseInt(overdue.rows[0].count, 10),
+        });
+    } catch (err) {
+        console.error('Admin badge counts error:', err);
+        res.status(500).json({ error: 'Something went wrong fetching badge counts' });
+    }
+});
+
 // GET /api/admin/net-earnings
 router.get('/net-earnings', async (req, res) => {
     try {
@@ -208,9 +239,9 @@ router.get('/orders/overdue', async (req, res) => {
                     u.name AS buyer_name, u.university_email AS buyer_email, u.whatsapp AS buyer_whatsapp
              FROM orders o
              JOIN users u ON u.id = o.buyer_id
-             WHERE o.status = 'paid'
-               AND (o.overdue_flagged_at IS NOT NULL OR o.flagged_overdue_at IS NOT NULL OR o.reported_at IS NOT NULL)
-             ORDER BY COALESCE(o.reported_at, o.flagged_overdue_at, o.overdue_flagged_at) DESC`
+             WHERE o.status = 'paid' AND o.reported_at IS NULL
+               AND (o.overdue_flagged_at IS NOT NULL OR o.flagged_overdue_at IS NOT NULL)
+             ORDER BY COALESCE(o.flagged_overdue_at, o.overdue_flagged_at) DESC`
         );
         res.json(result.rows);
     } catch (err) {
@@ -548,6 +579,10 @@ router.post('/orders/:id/release', async (req, res) => {
         }
 
         await client.query('COMMIT');
+        await pool.query(
+            `UPDATE reports SET status = 'actioned' WHERE order_id = $1 AND status = 'pending'`,
+            [String(id)]
+        ).catch((e) => console.error('Report status update failed:', e));
         res.json({ message: 'Payment released to seller' });
 
         try {
@@ -643,6 +678,10 @@ router.post('/orders/:id/refund', async (req, res) => {
             '/dashboard?tab=orders'
         ).catch((err) => console.error('Refund notification failed:', err));
 
+        await pool.query(
+            `UPDATE reports SET status = 'actioned' WHERE order_id = $1 AND status = 'pending'`,
+            [String(id)]
+        ).catch((e) => console.error('Report status update failed:', e));
         res.json({ message: 'Order refunded', refundAmount });
     } catch (err) {
         await client.query('ROLLBACK');

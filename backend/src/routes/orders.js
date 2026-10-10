@@ -666,7 +666,9 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
             [req.userId, id]
         );
 
-        const message = `📦 ${sellerName} says your order is on its way to ${buyerLocation}. Confirm once it arrives so they can get paid.`;
+        
+
+        const message = `📦 ${sellerName} marked your order delivered to ${buyerLocation}. Confirm receipt to release payment, or report an issue if it hasn't arrived.`;
         await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id, '/dashboard?tab=orders');
 
         if (buyerSmsNumber) {
@@ -1079,6 +1081,12 @@ router.post('/:id/report', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'This order cannot be reported right now' });
         }
         const orderId = result.rows[0].id;
+
+        await pool.query(
+            `INSERT INTO reports (id, reporter_id, reason, details, order_id)
+             VALUES (gen_random_uuid(), $1, 'order_not_received', 'Buyer reported that this order has not arrived.', $2)`,
+            [req.userId, String(orderId)]
+        );
 
         await insertNotification(
             req.userId,
