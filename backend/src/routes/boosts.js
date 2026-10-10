@@ -179,7 +179,7 @@ async function processBoostWebhookEvent(event) {
         await insertNotification(
             seller_id,
             'boost_confirmed',
-            `🚀 ${summary} boosted! They'll stay at the top of search and browse results for the next ${tier === '24h' ? '24 hours' : tier === '3d' ? '3 days' : '7 days'}.`,
+            `🚀 ${summary} boosted! They'll stay at the top of search and browse results, and in the Feed on the Stories page, for the next ${tier === '24h' ? '24 hours' : tier === '3d' ? '3 days' : '7 days'}.`,
             productIds[0],
             `/browse`
         );

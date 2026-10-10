@@ -9,7 +9,7 @@ router.get('/', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT
-                n.id, n.type, n.message, n.related_id, n.link, n.read, n.created_at,
+                n.id, n.type, n.message, n.related_id, n.link, n.read, n.created_at, n.sender_id, au.avatar_url AS actor_avatar,
                 CASE
                   WHEN n.type = 'new_message' AND n.related_id IS NOT NULL
                   THEN (
@@ -19,7 +19,7 @@ router.get('/', requireAuth, async (req, res) => {
                     JOIN users su ON su.id = c.seller_id
                     WHERE c.id::text = n.related_id
                   )
-                  ELSE NULL
+                  ELSE au.avatar_url
                 END AS sender_avatar,
                 CASE
                   WHEN n.type = 'new_message' AND n.related_id IS NOT NULL
@@ -33,6 +33,7 @@ router.get('/', requireAuth, async (req, res) => {
                   ELSE NULL
                 END AS sender_name
              FROM notifications n
+             LEFT JOIN users au ON au.id = n.sender_id
              WHERE n.user_id = $1
              ORDER BY n.created_at DESC`,
             [req.userId]

@@ -47,8 +47,8 @@ function senderExtra(senderId, senderName, imageUrl = null) {
 
 async function insertNotification(userId, type, message, relatedId = null, link = null, pushTitle = null, pushBody = null, extra = {}) {
     const inserted = await pool.query(
-        `INSERT INTO notifications (user_id, type, message, related_id, link, pushed, push_title, push_body) VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7) RETURNING id`,
-        [userId, type, message, relatedId, link, pushTitle, pushBody]
+        `INSERT INTO notifications (user_id, type, message, related_id, link, pushed, push_title, push_body, sender_id) VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7, $8) RETURNING id`,
+        [userId, type, message, relatedId, link, pushTitle, pushBody, extra.sender_id || null]
     );
     const notificationId = inserted.rows[0].id;
 

@@ -21,7 +21,7 @@ async function notifyStoryLike(storyId, likerId) {
       [s.user_id, storyId, message]
     );
     if (dup.rows.length) return;
-    await insertNotification(s.user_id, 'story_like', message, storyId, `/stories?openStoryId=${storyId}`);
+    await insertNotification(s.user_id, 'story_like', message, storyId, `/stories?openStoryId=${storyId}`, null, null, { sender_id: likerId });
   } catch (err) { console.error('Story like notify error:', err); }
 }
 
@@ -40,7 +40,7 @@ async function notifyStoryRepost(storyId, reposterId) {
       [s.user_id, storyId, message]
     );
     if (dup.rows.length) return;
-    await insertNotification(s.user_id, 'story_repost', message, storyId, `/stories?openStoryId=${storyId}`);
+    await insertNotification(s.user_id, 'story_repost', message, storyId, `/stories?openStoryId=${storyId}`, null, null, { sender_id: reposterId });
   } catch (err) { console.error('Story repost notify error:', err); }
 }
 
@@ -57,7 +57,7 @@ async function notifyStoryComment(storyId, commenterId, text, isReply) {
     await insertNotification(
       s.user_id, 'story_comment',
       `${s.actor} ${isReply ? 'replied on' : 'commented on'} your ${what}: "${snippet}"`,
-      storyId, `/stories?openStoryId=${storyId}`
+      storyId, `/stories?openStoryId=${storyId}`, null, null, { sender_id: commenterId }
     );
   } catch (err) { console.error('Story comment notify error:', err); }
 }
@@ -77,7 +77,7 @@ async function notifyCommentLike(storyId, commentId, likerId) {
       [c.user_id, storyId, message]
     );
     if (dup.rows.length) return;
-    await insertNotification(c.user_id, 'comment_like', message, storyId, `/stories?openStoryId=${storyId}`);
+    await insertNotification(c.user_id, 'comment_like', message, storyId, `/stories?openStoryId=${storyId}`, null, null, { sender_id: likerId });
   } catch (err) { console.error('Comment like notify error:', err); }
 }
 
@@ -94,7 +94,7 @@ async function notifyFollowersOfPost(authorId, firstStoryId, kind) {
     const what = kind === 'spotlight' ? 'a new reel' : 'a new status';
     const message = `${a.name} posted ${what}`;
     for (const f of followers) {
-      await insertNotification(f.follower_id, 'follow_post', message, firstStoryId, `/stories?openStoryId=${firstStoryId}`);
+      await insertNotification(f.follower_id, 'follow_post', message, firstStoryId, `/stories?openStoryId=${firstStoryId}`, null, null, { sender_id: authorId });
     }
   } catch (err) { console.error('Follower notify error:', err); }
 }

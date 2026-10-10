@@ -475,7 +475,8 @@ router.post('/', requireAuth, async (req, res) => {
                         'follow_listing',
                         `${sellerName} listed a new ${isServiceListing ? 'service' : 'product'}: "${title}"`,
                         productId,
-                        isServiceListing ? `/service/${productId}` : `/product/${productId}`
+                        isServiceListing ? `/service/${productId}` : `/product/${productId}`,
+                        null, null, { sender_id: req.userId }
                     );
                 }
             } catch (err) {
