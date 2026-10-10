@@ -115,11 +115,12 @@ const topReposter = (storyIdExpr) => `(
   LIMIT 1)`;
 
 // Top 4 reposters (same ranking as topReposter), for the overlapping avatars
-const topReposters = (storyIdExpr) => `(
+const topReposters = (storyIdExpr, viewerExpr) => `(
   SELECT COALESCE(json_agg(t), '[]'::json) FROM (
     SELECT ru.id, ru.name, ru.avatar_url AS avatar FROM story_reposts r
     JOIN users ru ON ru.id = r.user_id
     WHERE r.story_id = ${storyIdExpr}
+      AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${viewerExpr} AND f.following_id = ru.id)
     ORDER BY
       CASE WHEN ru.plan = 'premium' AND ru.plan_expires_at > NOW() THEN 0
            WHEN ru.plan = 'pro' AND ru.plan_expires_at > NOW() THEN 1 ELSE 2 END,
@@ -130,13 +131,13 @@ const topReposters = (storyIdExpr) => `(
       r.created_at DESC
     LIMIT 4) t)`;
 
-async function repostSummary(storyId) {
+async function repostSummary(storyId, viewerId) {
   const { rows: [r] } = await pool.query(
     `SELECT (SELECT COUNT(*)::int FROM story_reposts WHERE story_id = $1) AS repost_count,
             (SELECT MAX(created_at) FROM story_reposts WHERE story_id = $1) AS last_repost_at,
             ${topReposter('$1')} AS reposted_by_name,
-            ${topReposters('$1')} AS top_reposters`,
-    [storyId]
+            ${topReposters('$1', '$2')} AS top_reposters`,
+    [storyId, viewerId]
   );
   return {
     repost_count: r.repost_count,
@@ -202,7 +203,7 @@ router.get('/feed', requireAuth, async (req, res) => {
              ) AS reposted,
              (SELECT MAX(rp.created_at) FROM story_reposts rp WHERE rp.story_id = s.id) AS last_repost_at,
              ${topReposter('s.id')} AS reposted_by_name,
-             ${topReposters('s.id')} AS top_reposters
+             ${topReposters('s.id', '$1')} AS top_reposters
       FROM stories s
       JOIN page_users pu ON pu.user_id = s.user_id
       JOIN users u ON u.id = s.user_id
@@ -508,7 +509,7 @@ router.post('/:id/repost', requireAuth, async (req, res) => {
       [req.params.id, req.userId]
     );
     if (ins.rowCount > 0) notifyStoryRepost(req.params.id, req.userId);
-    res.json(await repostSummary(req.params.id));
+    res.json(await repostSummary(req.params.id, req.userId));
   } catch (err) {
     console.error('Repost error:', err);
     res.status(500).json({ error: 'Failed to repost' });
@@ -526,6 +527,7 @@ router.get('/:id/reposters', requireAuth, async (req, res) => {
        FROM story_reposts r
        JOIN users ru ON ru.id = r.user_id
        WHERE r.story_id = $1
+         AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $2 AND f.following_id = ru.id)
          AND NOT EXISTS (SELECT 1 FROM user_blocks b
                          WHERE (b.blocker_id = $2 AND b.blocked_id = ru.id) OR (b.blocker_id = ru.id AND b.blocked_id = $2))
        ORDER BY r.created_at DESC
@@ -546,7 +548,7 @@ router.delete('/:id/repost', requireAuth, async (req, res) => {
       'DELETE FROM story_reposts WHERE story_id = $1 AND user_id = $2',
       [req.params.id, req.userId]
     );
-    res.json(await repostSummary(req.params.id));
+    res.json(await repostSummary(req.params.id, req.userId));
   } catch (err) {
     console.error('Unrepost error:', err);
     res.status(500).json({ error: 'Failed to remove repost' });

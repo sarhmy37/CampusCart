@@ -54,9 +54,13 @@ async function insertNotification(userId, type, message, relatedId = null, link 
 
     // Fire the push in the background — don't let a failed/slow push
     // delay or break whatever flow called insertNotification.
-    pool.query('SELECT push_token FROM users WHERE id = $1', [userId])
+    pool.query('SELECT push_token, notifications_muted FROM users WHERE id = $1', [userId])
         .then((result) => {
             const pushToken = result.rows[0]?.push_token;
+            if (result.rows[0]?.notifications_muted) {
+                pool.query('UPDATE notifications SET pushed = TRUE WHERE id = $1', [notificationId]).catch(() => {});
+                return;
+            }
             if (pushToken) {
                 sendPushNotification(pushToken, pushTitle || getPushTitle(type), pushBody || message, { link, related_id: relatedId, type, ...extra });
                 pool.query('UPDATE notifications SET pushed = TRUE WHERE id = $1', [notificationId]).catch(() => {});

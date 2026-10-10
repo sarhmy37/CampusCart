@@ -44,6 +44,29 @@ router.get('/', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/notifications/mute
+router.get('/mute', requireAuth, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT notifications_muted FROM users WHERE id = $1', [req.userId]);
+        res.json({ muted: !!r.rows[0]?.notifications_muted });
+    } catch (err) {
+        console.error('Get mute error:', err);
+        res.status(500).json({ error: 'Failed to load mute setting' });
+    }
+});
+
+// PUT /api/notifications/mute
+router.put('/mute', requireAuth, async (req, res) => {
+    try {
+        const muted = !!req.body.muted;
+        await pool.query('UPDATE users SET notifications_muted = $1 WHERE id = $2', [muted, req.userId]);
+        res.json({ muted });
+    } catch (err) {
+        console.error('Update mute error:', err);
+        res.status(500).json({ error: 'Failed to update mute setting' });
+    }
+});
+
 // POST /api/notifications/read
 router.post('/read', requireAuth, async (req, res) => {
     const { id } = req.body;
