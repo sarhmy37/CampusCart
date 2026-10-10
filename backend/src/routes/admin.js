@@ -51,9 +51,14 @@ router.get('/badge-counts', async (req, res) => {
                AND COALESCE(o.flagged_overdue_at, o.overdue_flagged_at) > $1`,
             [parse(req.query.overdue)]
         );
+        const reports = await pool.query(
+            `SELECT COUNT(*) FROM reports WHERE status = 'pending' AND created_at > $1`,
+            [parse(req.query.reports)]
+        );
         res.json({
             support: parseInt(support.rows[0].count, 10),
             overdue: parseInt(overdue.rows[0].count, 10),
+            reports: parseInt(reports.rows[0].count, 10),
         });
     } catch (err) {
         console.error('Admin badge counts error:', err);
