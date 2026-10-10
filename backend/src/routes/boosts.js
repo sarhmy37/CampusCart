@@ -6,6 +6,8 @@ const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
+const BOOST_RATES = { '24h': 0.10, '3d': 0.225, '7d': 0.45 };
+
 const BOOST_TIERS = {
     '24h': { price: 20, hours: 24 },
     '3d': { price: 45, hours: 72 },
@@ -27,7 +29,7 @@ router.post('/', requireAuth, async (req, res) => {
     client.release = () => { if (!released) { released = true; origRelease(); } };
     try {
         const productsResult= await client.query(
-            `SELECT id, title, seller_id FROM products WHERE id = ANY($1::uuid[])`,
+            `SELECT id, title, seller_id, price, price_max FROM products WHERE id = ANY($1::uuid[])`,
             [product_ids]
         );
         const foundProducts = productsResult.rows;
@@ -63,8 +65,12 @@ router.post('/', requireAuth, async (req, res) => {
             });
         }
 
-        const { price: pricePerItem } = BOOST_TIERS[tier];
-        const totalPrice = pricePerItem * product_ids.length;
+        const itemAmounts = product_ids.map((pid) => {
+            const p = foundProducts.find((x) => String(x.id) === String(pid));
+            const base = Math.max(parseFloat(p.price) || 0, parseFloat(p.price_max) || 0);
+            return Math.round(base * BOOST_RATES[tier] * 100) / 100;
+        });
+        const totalPrice = Math.round(itemAmounts.reduce((s, a) => s + a, 0) * 100) / 100;
         const reference = `boost_${Date.now()}_${seller_id}`;
 
         const boostIds = [];
@@ -74,7 +80,7 @@ router.post('/', requireAuth, async (req, res) => {
                 `INSERT INTO boosts (product_id, seller_id, tier, amount, payment_reference, status)
                  VALUES ($1, $2, $3, $4, $5, 'pending_payment')
                  RETURNING id`,
-                [product_ids[i], seller_id, tier, pricePerItem, rowReference]
+                [product_ids[i], seller_id, tier, itemAmounts[i], rowReference]
             );
             boostIds.push(boostResult.rows[0].id);
         }
