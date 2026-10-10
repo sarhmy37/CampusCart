@@ -481,7 +481,9 @@ router.get('/mine', requireAuth, async (req, res) => {
         const dateFilter = periodMap[req.query.period] || '1=1';
 
         const ordersResult = await pool.query(
-            `SELECT * FROM orders WHERE buyer_id = $1 AND ${dateFilter} ORDER BY created_at DESC`,
+            `SELECT orders.*,
+                    (SELECT r.status FROM reports r WHERE r.order_id = orders.id::text ORDER BY r.created_at DESC LIMIT 1) AS report_status
+             FROM orders WHERE buyer_id = $1 AND ${dateFilter} ORDER BY created_at DESC`,
             [req.userId]
         );
         const orders = ordersResult.rows;
@@ -868,6 +870,10 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
         const orderNowCompleted = parseInt(remainingResult.rows[0].count, 10) === 0;
         if (orderNowCompleted) {
             await pool.query(`UPDATE orders SET status = 'completed' WHERE id = $1`, [item.order_id]);
+            await pool.query(
+                `DELETE FROM reports WHERE order_id = $1 AND status = 'pending'`,
+                [String(item.order_id)]
+            ).catch((e) => console.error('Report auto-delete failed:', e));
         }
 
         // ============ ADMIN NET PROFIT CALCULATION ============
@@ -1088,13 +1094,50 @@ router.post('/:id/report', requireAuth, async (req, res) => {
             [req.userId, String(orderId)]
         );
 
-        await insertNotification(
-            req.userId,
-            'order_reported_buyer',
-            `Your report on Order #${orderId} was received. We'll review it and contact you.`,
-            orderId,
-            '/dashboard?tab=orders'
-        );
+        // After 1m30s, send an automatic "under review" message from Tre-X (replies allowed).
+        // Skipped if the report is gone by then (e.g. the buyer confirmed receipt).
+        const buyerId = req.userId;
+        setTimeout(async () => {
+            try {
+                const still = await pool.query(
+                    `SELECT 1 FROM reports WHERE order_id = $1 AND status = 'pending' LIMIT 1`,
+                    [String(orderId)]
+                );
+                if (still.rows.length === 0) return;
+
+                const TREX_ID = '8b4d43dd-9ecb-4bef-83c8-975fd172adae'; // Tre-X Support account
+                const text = `Hi! We've received your report on Order #${orderId}. Our team is reviewing it and will contact you soon. There's nothing you need to do right now.`;
+
+                const convo = await pool.query(
+                    `SELECT id FROM conversations WHERE buyer_id = $1 AND seller_id = $2 AND product_id IS NULL`,
+                    [buyerId, TREX_ID]
+                );
+                let convoId;
+                if (convo.rows.length > 0) {
+                    convoId = convo.rows[0].id;
+                    await pool.query(`UPDATE conversations SET allow_replies = TRUE WHERE id = $1`, [convoId]);
+                } else {
+                    const ins = await pool.query(
+                        `INSERT INTO conversations (buyer_id, seller_id, product_id, allow_replies)
+                         VALUES ($1, $2, NULL, TRUE) RETURNING id`,
+                        [buyerId, TREX_ID]
+                    );
+                    convoId = ins.rows[0].id;
+                }
+
+                await pool.query(
+                    `INSERT INTO messages (conversation_id, sender_id, content, read, media_type)
+                     VALUES ($1, $2, $3, FALSE, NULL)`,
+                    [convoId, TREX_ID, text]
+                );
+                await insertNotification(
+                    buyerId, 'new_message', `Tre-X Support: ${text.slice(0, 100)}`,
+                    convoId, `/chat/${convoId}`, 'Tre-X Support', text.slice(0, 100)
+                );
+            } catch (e) {
+                console.error('Auto review message failed:', e);
+            }
+        }, 90 * 1000);
 
         const sellers = await pool.query(
             `SELECT DISTINCT seller_id FROM order_items WHERE order_id = $1 AND status <> 'cancelled'`,
