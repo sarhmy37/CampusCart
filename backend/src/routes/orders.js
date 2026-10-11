@@ -381,6 +381,17 @@ router.post('/webhook', async (req, res) => {
         return;
     }
 
+    // Mobile data payments use a 'data_' prefixed reference.
+    if (reference.startsWith('data_')) {
+        const { processDataOrderWebhookEvent } = require('./dataOrders');
+        try {
+            await processDataOrderWebhookEvent(event);
+        } catch (err) {
+            console.error('Data order webhook processing error:', err);
+        }
+        return;
+    }
+
     try {
         const orderResult = await pool.query('SELECT * FROM orders WHERE payment_reference = $1', [reference]);
         const order = orderResult.rows[0];
