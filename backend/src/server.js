@@ -99,6 +99,16 @@ app.use('/media', express.static(path.join(__dirname, '..', 'media')));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
+// Paystack redirects here after checkout cancellation or completion.
+// The mobile WebView intercepts this URL before it loads the response.
+app.get('/paystack/callback', (req, res) => {
+    const status = String(req.query.status || 'done').replace(/[^a-z_]/gi, '');
+    const reference = String(req.query.reference || req.query.trxref || '').replace(/[^a-zA-Z0-9_.-]/g, '');
+    const params = new URLSearchParams({ status });
+    if (reference) params.set('reference', reference);
+    res.send(`<html><body><script>window.location.href='app://payment/callback?${params.toString()}';</script></body></html>`);
+});
+
 // Mount routes
 app.use('/api/auth', authRoutes);
 
