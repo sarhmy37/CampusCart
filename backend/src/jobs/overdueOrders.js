@@ -27,29 +27,48 @@ async function checkOverdueOrders() {
         for (const order of result.rows) {
             if (workingDaysSince(order.created_at) < 3) continue;
 
-            await pool.query(`UPDATE orders SET overdue_flagged_at = now() WHERE id = $1`, [order.id]);
+            // Claim the order before sending notifications so overlapping cron
+            // runs cannot notify the buyer and sellers more than once.
+            const claimed = await pool.query(
+                `UPDATE orders
+                 SET overdue_flagged_at = now()
+                 WHERE id = $1
+                   AND status = 'paid'
+                   AND delivery_method = 'delivery'
+                   AND delivered_at IS NULL
+                   AND overdue_flagged_at IS NULL
+                 RETURNING id`,
+                [order.id]
+            );
+            if (claimed.rowCount !== 1) continue;
 
             const itemsResult = await pool.query(
-                `SELECT DISTINCT seller_id FROM order_items WHERE order_id = $1`,
+                `SELECT DISTINCT seller_id
+                 FROM order_items
+                 WHERE order_id = $1 AND status <> 'cancelled'`,
                 [order.id]
             );
 
-            await insertNotification(
-                order.buyer_id,
-                'order_overdue',
-                `Order #${order.id} has passed 3 working days without delivery. Our team has been notified and will review it.`,
-                order.id,
-                `/dashboard?tab=orders`
-            );
-
-            for (const item of itemsResult.rows) {
+            try {
                 await insertNotification(
-                    item.seller_id,
-                    'order_overdue_seller',
-                    `Order #${order.id} is overdue for delivery. Please mark it delivered or contact the buyer — this order has been flagged for admin review.`,
+                    order.buyer_id,
+                    'order_overdue',
+                    `Order #${order.id} has passed 3 working days without delivery. Our team has been notified and will review it.`,
                     order.id,
-                    `/dashboard?tab=deliveries`
+                    `/dashboard?tab=orders`
                 );
+
+                for (const item of itemsResult.rows) {
+                    await insertNotification(
+                        item.seller_id,
+                        'order_overdue_seller',
+                        `Order #${order.id} is overdue for delivery. Please mark it delivered or contact the buyer — this order has been flagged for admin review.`,
+                        order.id,
+                        `/dashboard?tab=deliveries`
+                    );
+                }
+            } catch (notificationError) {
+                console.error(`Overdue notifications failed for order ${order.id}:`, notificationError);
             }
 
             console.log(`[OVERDUE] Order ${order.id} flagged for review`);
