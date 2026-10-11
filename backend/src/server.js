@@ -7,6 +7,7 @@ const cron = require('node-cron');
 const { checkOverdueOrders } = require('./jobs/overdueOrders');
 
 const { startSubscriptionRenewalJobs } = require('./jobs/subscriptionRenewals');
+const { checkBoostWaitlist } = require('./routes/boosts');
 
 const authRoutes = require('./routes/auth');
 
@@ -184,4 +185,5 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 cron.schedule('0 8 * * *', checkOverdueOrders); // daily at 8am
+cron.schedule('* * * * *', checkBoostWaitlist); // activate paid boosts as slots open
 startSubscriptionRenewalJobs();

@@ -4,6 +4,7 @@ const { sendPushNotification } = require('./pushService');
 const NOTIFICATION_TITLES = {
     new_message: 'New message',
     boost_confirmed: 'Boost confirmed',
+    boost_waiting_slot: 'Boost payment received',
     payment_received_seller: 'New order',
     order_delivered_buyer: 'Order marked as delivered',
     funds_available: 'Funds available',

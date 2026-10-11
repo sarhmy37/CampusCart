@@ -195,7 +195,7 @@ router.get('/boosted', async (req, res) => {
     }
 });
 
-// GET /api/products/showcase — up to 6 products for the homepage grid.
+// GET /api/products/showcase — up to 8 products for the homepage grid.
 // Priority: active boosts, then premium sellers (earliest-listed first),
 // then pro sellers, then a random free-seller product.
 router.get('/showcase', async (req, res) => {
@@ -212,7 +212,7 @@ router.get('/showcase', async (req, res) => {
              WHERE p.boosted_until IS NOT NULL AND p.boosted_until > now()
                AND (c.name IS NULL OR c.name != 'Services')
              ORDER BY p.boosted_until ASC
-             LIMIT 6`
+             LIMIT 8`
         );
         slots.push(...boostedResult.rows.map((r) => ({ ...r, boosted: true })));
         excludeIds.push(...slots.map((s) => s.id));
@@ -228,8 +228,8 @@ router.get('/showcase', async (req, res) => {
               AND p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
         `;
 
-        if (slots.length < 6) {
-            const needed = 6 - slots.length;
+        if (slots.length < 8) {
+            const needed = 8 - slots.length;
             const excludeClause = excludeIds.length ? `AND p.id <> ALL($2::uuid[])` : '';
             const params = excludeIds.length ? [needed, excludeIds] : [needed];
             const premiumResult = await pool.query(
@@ -241,8 +241,8 @@ router.get('/showcase', async (req, res) => {
             excludeIds.push(...premiumResult.rows.map((r) => r.id));
         }
 
-        if (slots.length < 6) {
-            const needed = 6 - slots.length;
+        if (slots.length < 8) {
+            const needed = 8 - slots.length;
             const excludeClause = excludeIds.length ? `AND p.id <> ALL($2::uuid[])` : '';
             const params = excludeIds.length ? [needed, excludeIds] : [needed];
             const proResult = await pool.query(
@@ -254,8 +254,8 @@ router.get('/showcase', async (req, res) => {
             excludeIds.push(...proResult.rows.map((r) => r.id));
         }
 
-        if (slots.length < 6) {
-            const needed = 6 - slots.length;
+        if (slots.length < 8) {
+            const needed = 8 - slots.length;
             const excludeClause = excludeIds.length ? `AND p.id <> ALL($2::uuid[])` : '';
             const params = excludeIds.length ? [needed, excludeIds] : [needed];
             const freeResult = await pool.query(

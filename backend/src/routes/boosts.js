@@ -47,24 +47,6 @@ router.post('/', requireAuth, async (req, res) => {
 
         await client.query('BEGIN');
 
-        // Advisory lock serializes every concurrent boost-creation request through
-        // this single check, so two sellers can't both slip past a full cap at once.
-        // Released automatically at COMMIT/ROLLBACK (end of this transaction).
-        await client.query(`SELECT pg_advisory_xact_lock(hashtext('boost_slot_check'))`);
-
-        const activeBoostsResult = await client.query(
-            `SELECT COUNT(*) FROM products WHERE boosted_until IS NOT NULL AND boosted_until > now()`
-        );
-        const activeBoostCount = parseInt(activeBoostsResult.rows[0].count, 10);
-        const MAX_ACTIVE_BOOSTS = 6;
-        if (activeBoostCount + product_ids.length > MAX_ACTIVE_BOOSTS) {
-            await client.query('ROLLBACK');
-            client.release();
-            return res.status(409).json({
-                error: `Not enough boost slots available (${MAX_ACTIVE_BOOSTS - activeBoostCount} left). Please try again once one expires.`,
-            });
-        }
-
         const itemAmounts = product_ids.map((pid) => {
             const p = foundProducts.find((x) => String(x.id) === String(pid));
             const base = Math.max(parseFloat(p.price) || 0, parseFloat(p.price_max) || 0);
@@ -149,7 +131,8 @@ async function processBoostWebhookEvent(event) {
 
     try {
         const boostsResult = await pool.query(
-            `SELECT * FROM boosts WHERE payment_reference LIKE $1 AND status = 'pending_payment'`,
+            `SELECT * FROM boosts
+             WHERE payment_reference LIKE $1 AND status = 'pending_payment'`,
             [`${reference}_%`]
         );
         const boosts = boostsResult.rows;
@@ -163,38 +146,106 @@ async function processBoostWebhookEvent(event) {
 
         const seller_id = boosts[0].seller_id;
         const tier = boosts[0].tier;
-        const { hours } = BOOST_TIERS[tier];
-        const boostedUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
         const boostIds = boosts.map((b) => b.id);
         const productIds = boosts.map((b) => b.product_id);
 
-        await pool.query(
+        const activated = await activateBoostsIfSlotAvailable(boosts);
+        if (!activated) {
+            await pool.query(
+                `UPDATE boosts SET status = 'paid_waiting_slot' WHERE id = ANY($1::int[])`,
+                [boostIds]
+            );
+            await insertNotification(
+                seller_id,
+                'boost_waiting_slot',
+                'Your boost payment was received. All boost slots are currently occupied, so your listings are queued and will be activated automatically when a slot becomes available.',
+                productIds[0],
+                '/browse'
+            );
+        }
+    } catch (err) {
+        console.error('Boost webhook processing error:', err);
+    }
+}
+
+const MAX_ACTIVE_BOOSTS = 8;
+
+async function activateBoostsIfSlotAvailable(boosts) {
+    const productIds = boosts.map((boost) => boost.product_id);
+    const boostIds = boosts.map((boost) => boost.id);
+    const tier = boosts[0].tier;
+    const sellerId = boosts[0].seller_id;
+    const { hours } = BOOST_TIERS[tier];
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+        await client.query(`SELECT pg_advisory_xact_lock(hashtext('boost_slot_check'))`);
+        const activeResult = await client.query(
+            `SELECT COUNT(*) FROM products WHERE boosted_until IS NOT NULL AND boosted_until > now()`
+        );
+        const activeCount = parseInt(activeResult.rows[0].count, 10);
+        if (activeCount + productIds.length > MAX_ACTIVE_BOOSTS) {
+            await client.query('ROLLBACK');
+            return false;
+        }
+
+        const boostedUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
+        await client.query(
             `UPDATE boosts SET status = 'confirmed', boosted_until = $1 WHERE id = ANY($2::int[])`,
             [boostedUntil, boostIds]
         );
-
-        await pool.query(
+        await client.query(
             `UPDATE products SET boosted_until = $1, boost_tier = $2 WHERE id = ANY($3::uuid[])`,
             [boostedUntil, tier, productIds]
         );
+        await client.query('COMMIT');
 
-        const productsResult = await pool.query(`SELECT title FROM products WHERE id = ANY($1::uuid[])`, [productIds]);
-        const titles = productsResult.rows.map((r) => r.title);
+        const productsResult = await pool.query(
+            `SELECT title FROM products WHERE id = ANY($1::uuid[])`,
+            [productIds]
+        );
+        const titles = productsResult.rows.map((row) => row.title);
         const summary = titles.length === 1 ? `"${titles[0]}"` : `${titles.length} listings`;
-
         await insertNotification(
-            seller_id,
+            sellerId,
             'boost_confirmed',
             `🚀 ${summary} boosted! They'll stay at the top of search and browse results, and in the Feed on the Stories page, for the next ${tier === '24h' ? '24 hours' : tier === '3d' ? '3 days' : '7 days'}.`,
             productIds[0],
-            `/browse`
+            '/browse'
         );
+        return true;
     } catch (err) {
-        console.error('Boost webhook processing error:', err);
+        try { await client.query('ROLLBACK'); } catch {}
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+async function checkBoostWaitlist() {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM boosts
+             WHERE status = 'paid_waiting_slot'
+             ORDER BY id`
+        );
+        const groups = new Map();
+        for (const boost of result.rows) {
+            const reference = boost.payment_reference.replace(/_\d+$/, '');
+            if (!groups.has(reference)) groups.set(reference, []);
+            groups.get(reference).push(boost);
+        }
+        for (const boosts of groups.values()) {
+            await activateBoostsIfSlotAvailable(boosts);
+        }
+    } catch (err) {
+        console.error('Boost waitlist processing error:', err);
     }
 }
 
 module.exports = {
     router,
     processBoostWebhookEvent,
+    checkBoostWaitlist,
 };
