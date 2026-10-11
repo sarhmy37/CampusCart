@@ -1,12 +1,18 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { initializeTransaction } = require('../utils/paystack');
+const { chargeMobileMoney } = require('../utils/paystack');
 
 const router = express.Router();
 
 // Helper: insert a notification (mirrors the pattern in orders.js)
 const { insertNotification } = require('../utils/notifications');
+
+const NETWORK_PATTERNS = {
+    MTN: /^(024|025|053|054|055|059)\d{7}$/,
+    Telecel: /^(020|050)\d{7}$/,
+    AirtelTigo: /^(026|027|056|057)\d{7}$/,
+};
 
 // POST /api/data-orders — buyer places a data order
 router.post('/', requireAuth, async (req, res) => {
@@ -27,6 +33,10 @@ router.post('/', requireAuth, async (req, res) => {
         if (!bundle || !bundle.is_data_seller) {
             return res.status(404).json({ error: 'This bundle is no longer available' });
         }
+        const normalizedNumber = String(momo_number).replace(/\D/g, '');
+        if (!NETWORK_PATTERNS[bundle.network]?.test(normalizedNumber)) {
+            return res.status(400).json({ error: `Enter a valid ${bundle.network} mobile money number` });
+        }
 
         const buyerResult = await pool.query(
             `SELECT personal_email, university_email FROM users WHERE id = $1`,
@@ -41,25 +51,37 @@ router.post('/', requireAuth, async (req, res) => {
             `INSERT INTO data_orders (buyer_id, seller_id, bundle_id, network, gb_amount, price, buyer_momo_number, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 'awaiting_payment')
              RETURNING *`,
-            [req.userId, bundle.seller_id, bundle.id, bundle.network, bundle.gb_amount, bundle.price, momo_number]
+            [req.userId, bundle.seller_id, bundle.id, bundle.network, bundle.gb_amount, bundle.price, normalizedNumber]
         );
         const order = result.rows[0];
 
+        const providerByNetwork = {
+            MTN: 'mtn',
+            Telecel: 'vod',
+            AirtelTigo: 'atl',
+        };
+        const provider = providerByNetwork[bundle.network];
+        if (!provider) {
+            await pool.query(`DELETE FROM data_orders WHERE id = $1 AND status = 'awaiting_payment'`, [order.id]);
+            return res.status(400).json({ error: 'This network is not supported for mobile-money payments' });
+        }
+
         const reference = `data_${order.id}`;
         try {
-            const paystackRes = await initializeTransaction({
+            const paystackRes = await chargeMobileMoney({
                 email: buyerEmail,
                 amountGHS: parseFloat(bundle.price),
+                phone: normalizedNumber,
+                provider,
                 reference,
-                callback_url: `https://campuscart-tdfn.onrender.com/paystack/callback?data_ref=${reference}`,
-                cancel_action: 'https://campuscart-tdfn.onrender.com/paystack/callback?status=cancel',
                 metadata: { data_order_id: order.id, buyer_id: req.userId, bundle_id: bundle.id },
             });
 
             res.status(201).json({
                 id: order.id,
                 amount: parseFloat(bundle.price),
-                authorization_url: paystackRes.data.authorization_url,
+                status: paystackRes.data.status,
+                message: paystackRes.data.display_text || 'Approve the payment prompt sent to your phone.',
             });
         } catch (paymentError) {
             await pool.query(`DELETE FROM data_orders WHERE id = $1 AND status = 'awaiting_payment'`, [order.id]);

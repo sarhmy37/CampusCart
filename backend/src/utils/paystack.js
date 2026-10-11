@@ -36,6 +36,20 @@ function initializeTransaction({ email, amountGHS, reference, callback_url, canc
     });
 }
 
+function chargeMobileMoney({ email, amountGHS, phone, provider, reference, metadata }) {
+    return paystackRequest('/charge', {
+        method: 'POST',
+        body: JSON.stringify({
+            email,
+            amount: Math.round(amountGHS * 100),
+            currency: 'GHS',
+            mobile_money: { phone, provider },
+            reference,
+            metadata,
+        }),
+    });
+}
+
 function verifyWebhookSignature(rawBody, signatureHeader) {
     const hash = crypto.createHmac('sha512', SECRET_KEY).update(rawBody).digest('hex');
     return hash === signatureHeader;
@@ -116,6 +130,7 @@ async function resolvePayoutName(bank_code, account_number) {
 module.exports = {
     paystackRequest,
     initializeTransaction,
+    chargeMobileMoney,
     verifyWebhookSignature,
     createTransferRecipient,
     initiateTransfer,
