@@ -358,7 +358,7 @@ export default function EditServiceModal({
     paddingVertical: 11,
     color: colors.text,
     backgroundColor: colors.inputBg,
-    fontSize: 13,
+    fontSize: 14,
   };
 
   return (
@@ -375,7 +375,7 @@ export default function EditServiceModal({
           }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Edit service</Text>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Edit service</Text>
             <Pressable onPress={onClose} style={{ padding: 6 }}>
               <X size={18} color={colors.textFaint} />
             </Pressable>
@@ -383,7 +383,7 @@ export default function EditServiceModal({
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
             {/* Title */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Service title</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Service title</Text>
             <TextInput
               value={form.title}
               onChangeText={(v) => setForm({ ...form, title: v })}
@@ -391,7 +391,7 @@ export default function EditServiceModal({
             />
 
             {/* Description */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 14, marginBottom: 4 }}>Description</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginTop: 14, marginBottom: 4 }}>Description</Text>
             <TextInput
               value={form.description}
               onChangeText={(v) => setForm({ ...form, description: v })}
@@ -403,7 +403,7 @@ export default function EditServiceModal({
             <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 16 }}>
               {/* Photos */}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Photos</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Photos</Text>
 
                 <ScrollView
                   horizontal
@@ -442,7 +442,7 @@ export default function EditServiceModal({
                       )}
                       {i === 0 && (
                         <View style={{ position: 'absolute', bottom: 2, left: 2, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
-                          <Text style={{ fontSize: 8, fontWeight: '700' }}>Cover</Text>
+                          <Text style={{ fontSize: 9, fontWeight: '700' }}>Cover</Text>
                         </View>
                       )}
                     </Pressable>
@@ -454,7 +454,7 @@ export default function EditServiceModal({
                   )}
                 </ScrollView>
 
-                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
                   {photoMode === 'selecting-replace' ? 'Tap a photo to replace it.' : `Up to ${MAX_IMAGES}. First is cover.`}
                 </Text>
 
@@ -469,7 +469,7 @@ export default function EditServiceModal({
                     }}
                   >
                     <RefreshCw size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
                   </Pressable>
                   <Pressable
                     onPress={handleAddPhotos}
@@ -481,14 +481,14 @@ export default function EditServiceModal({
                     }}
                   >
                     <ImagePlus size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
                   </Pressable>
                 </View>
               </View>
 
               {/* Video */}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Video</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Video</Text>
 
                 <View style={{ height: 84 }}>
                   {videoUploading ? (
@@ -500,12 +500,12 @@ export default function EditServiceModal({
                   ) : (
                     <View style={{ width: '100%', height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
                       <VideoIcon size={16} color={colors.textFaint} />
-                      <Text style={{ fontSize: 9, color: colors.textFaint, marginTop: 4 }}>No video</Text>
+                      <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 4 }}>No video</Text>
                     </View>
                   )}
                 </View>
 
-                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
                   Optional. Max 20MB.
                 </Text>
 
@@ -520,7 +520,7 @@ export default function EditServiceModal({
                     }}
                   >
                     <RefreshCw size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
                   </Pressable>
                   <Pressable
                     onPress={handleVideoPick}
@@ -532,14 +532,14 @@ export default function EditServiceModal({
                     }}
                   >
                     <VideoIcon size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
                   </Pressable>
                 </View>
               </View>
             </View>
 
             {/* Price range */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 16, marginBottom: 4 }}>Price range (GHS)</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginTop: 16, marginBottom: 4 }}>Price range (GHS)</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TextInput
                 value={form.price}
@@ -563,7 +563,7 @@ export default function EditServiceModal({
             <View style={{ height: 1, backgroundColor: colors.borderMuted, marginTop: 16, marginBottom: 16 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <Clock size={15} color={colors.textMuted} />
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Working hours</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Working hours</Text>
             </View>
 
             {!is247 && (
@@ -580,7 +580,7 @@ export default function EditServiceModal({
                             backgroundColor: d.enabled ? colors.brand : colors.card,
                           }}
                         >
-                          <Text style={{ fontSize: 12, fontWeight: '600', color: d.enabled ? colors.textOnGold : colors.textFaint }}>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: d.enabled ? colors.textOnGold : colors.textFaint }}>
                             {d.day}
                           </Text>
                         </Pressable>
@@ -600,7 +600,7 @@ export default function EditServiceModal({
                             />
                           </View>
                         ) : (
-                          <Text style={{ flex: 1, fontSize: 12, color: colors.textFaint }}>Closed</Text>
+                          <Text style={{ flex: 1, fontSize: 13, color: colors.textFaint }}>Closed</Text>
                         )}
                       </View>
                     ))}
@@ -623,14 +623,14 @@ export default function EditServiceModal({
               >
                 {is247 && <Check size={11} color={colors.textOnGold} />}
               </View>
-              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>Working 24/7</Text>
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: '500' }}>Working 24/7</Text>
             </Pressable>
 
             {/* Location */}
             <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted, paddingTop: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <MapPin size={15} color={colors.textMuted} />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
                   Service location <Text style={{ color: colors.error }}>*</Text>
                 </Text>
               </View>
@@ -652,7 +652,7 @@ export default function EditServiceModal({
                   }}
                 >
                   <MapIcon size={15} color={locationSource === 'map' ? colors.brand : colors.textMuted} />
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: locationSource === 'map' ? colors.brand : colors.textSecondary }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: locationSource === 'map' ? colors.brand : colors.textSecondary }}>
                     Set on map
                   </Text>
                 </Pressable>
@@ -678,14 +678,14 @@ export default function EditServiceModal({
                   ) : (
                     <MapPin size={15} color={locationSource === 'gps' ? colors.brand : colors.textMuted} />
                   )}
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: locationSource === 'gps' ? colors.brand : colors.textSecondary }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: locationSource === 'gps' ? colors.brand : colors.textSecondary }}>
                     {locating ? 'Getting…' : 'Current'}
                   </Text>
                 </Pressable>
               </View>
 
               {location && (
-                <Text style={{ fontSize: 12, color: colors.success, marginTop: 8, fontWeight: '600' }}>
+                <Text style={{ fontSize: 13, color: colors.success, marginTop: 8, fontWeight: '600' }}>
                   ✓ Location set — tap either button to update it.
                 </Text>
               )}
@@ -700,7 +700,7 @@ export default function EditServiceModal({
                   borderWidth: 1, borderColor: colors.border, alignItems: 'center',
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={handleSave}
@@ -711,7 +711,7 @@ export default function EditServiceModal({
                   opacity: saving || uploading || videoUploading ? 0.5 : 1,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textOnGold }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
                   {saving ? 'Saving…' : (uploading || videoUploading) ? 'Uploading…' : 'Save changes'}
                 </Text>
               </Pressable>
@@ -774,7 +774,7 @@ function TinySelect({
           paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8,
         }}
       >
-        <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: selected ? colors.text : colors.textFaint }}>
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: selected ? colors.text : colors.textFaint }}>
           {selected?.label ?? 'Select'}
         </Text>
         <ChevronDown size={11} color={colors.textFaint} />
@@ -802,7 +802,7 @@ function TinySelect({
                       borderBottomWidth: 1, borderBottomColor: colors.borderMuted,
                     }}
                   >
-                    <Text style={{ fontSize: 14, color: active ? colors.brand : colors.text, fontWeight: active ? '700' : '400' }}>
+                    <Text style={{ fontSize: 15, color: active ? colors.brand : colors.text, fontWeight: active ? '700' : '400' }}>
                       {item.label}
                     </Text>
                     {active && <Check size={16} color={colors.brand} />}

@@ -40,7 +40,7 @@ export default function SellerRequiredModal({
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 28 }}>
             <Store size={20} color={colors.brand} />
-            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text, flexShrink: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, flexShrink: 1 }}>
               Seller account required
             </Text>
           </View>
@@ -53,7 +53,7 @@ export default function SellerRequiredModal({
             <X size={18} color={colors.textMuted} />
           </Pressable>
 
-          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 10, lineHeight: 20 }}>
+          <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 10, lineHeight: 20 }}>
             Your account is set up for buying. To list and sell items, you'll need a seller account.
           </Text>
 
@@ -69,7 +69,7 @@ export default function SellerRequiredModal({
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>
                 Cancel
               </Text>
             </Pressable>
@@ -83,7 +83,7 @@ export default function SellerRequiredModal({
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textOnGold }}>
                 Sign up as Seller
               </Text>
             </Pressable>

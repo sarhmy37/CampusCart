@@ -142,10 +142,10 @@ export default function PostPurchaseReviewModal() {
             <X size={18} color={colors.textMuted} />
           </Pressable>
 
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+          <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
             How was it?
           </Text>
-          <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
             Rate the items you received.
           </Text>
 
@@ -191,16 +191,16 @@ export default function PostPurchaseReviewModal() {
                           alignItems: 'center', justifyContent: 'center',
                         }}
                       >
-                        <Text style={{ fontWeight: '800', color: colors.brand, fontSize: 13 }}>
+                        <Text style={{ fontWeight: '800', color: colors.brand, fontSize: 14 }}>
                           {group.seller_name?.charAt(0)?.toUpperCase() || '?'}
                         </Text>
                       </View>
                     )}
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                         {group.seller_name}
                       </Text>
-                      <Text style={{ fontSize: 11, color: colors.textFaint }}>
+                      <Text style={{ fontSize: 12, color: colors.textFaint }}>
                         {group.products.length} item{group.products.length > 1 ? 's' : ''}
                       </Text>
                     </View>
@@ -226,7 +226,7 @@ export default function PostPurchaseReviewModal() {
                         const entry = entries[product.product_id] || { rating: 5, comment: '', imageFile: null, imagePreview: null };
                         return (
                           <View key={product.product_id}>
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
                               {product.title}
                             </Text>
 
@@ -264,7 +264,7 @@ export default function PostPurchaseReviewModal() {
                                 borderColor: colors.border,
                                 backgroundColor: colors.inputBg,
                                 color: colors.text,
-                                fontSize: 12,
+                                fontSize: 13,
                                 minHeight: 44,
                                 textAlignVertical: 'top',
                               }}
@@ -304,7 +304,7 @@ export default function PostPurchaseReviewModal() {
                                 }}
                               >
                                 <ImagePlus size={14} color={colors.brand} />
-                                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>
                                   Add photo
                                 </Text>
                               </Pressable>
@@ -332,7 +332,7 @@ export default function PostPurchaseReviewModal() {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>
                 Skip
               </Text>
             </Pressable>
@@ -351,7 +351,7 @@ export default function PostPurchaseReviewModal() {
               {submitting ? (
                 <ActivityIndicator size="small" color={colors.textOnGold} />
               ) : (
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textOnGold }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
                   Submit reviews
                 </Text>
               )}

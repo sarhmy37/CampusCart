@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, Animated, Linking, ActivityIndicator, useWindowDimensions,
+  View, Text, Pressable, Animated, Linking, ActivityIndicator, useWindowDimensions, TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Toast from 'react-native-toast-message';
+
 import { ArrowLeft, Star, Tag, Sparkles, BadgeCheck, ShoppingBag } from 'lucide-react-native';
 import ProductCard from '@/components/ProductCard';
 import { useColors } from '@/hooks/useColors';
@@ -90,8 +92,17 @@ export default function StorePage({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { height } = useWindowDimensions();
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; fromStory?: string; sellerName?: string }>();
   const id = idProp || params.id;
+
+  useEffect(() => {
+    if (params.fromStory === '1') {
+      const t = setTimeout(() => {
+        Toast.show({ type: 'info', text1: `Viewing ${String(params.sellerName || '').split(' ')[0]}'s store` });
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [params.fromStory]);
 
   const heroHeight = embedded ? 240 : height * 0.38;
 
@@ -109,6 +120,7 @@ export default function StorePage({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [gridWidth, setGridWidth] = useState(0);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -145,8 +157,8 @@ export default function StorePage({
   if (notFound || !seller) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Store not found</Text>
-        <Text style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Store not found</Text>
+        <Text style={{ fontSize: 15, color: colors.textMuted, textAlign: 'center', marginTop: 8 }}>
           This seller doesn't exist or their account is no longer active.
         </Text>
         <Pressable
@@ -159,13 +171,25 @@ export default function StorePage({
             borderRadius: 999, backgroundColor: colors.brand,
           }}
         >
-          <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textOnGold }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>
             Browse listings
           </Text>
         </Pressable>
       </View>
     );
   }
+
+  const isService = (p: any) => (p.category || p.category_name) === 'Services';
+  const q = search.trim().toLowerCase();
+  const visibleListings = q
+    ? listings.filter((p: any) =>
+        String(p.title || '').toLowerCase().includes(q) ||
+        String(p.description || '').toLowerCase().includes(q))
+    : listings;
+  const productItems = visibleListings.filter((p: any) => !isService(p));
+  const serviceItems = visibleListings.filter(isService);
+  const hasBoth = productItems.length > 0 && serviceItems.length > 0;
+  const cardW = gridWidth > 0 ? (gridWidth - GRID_GAP * (COLUMNS - 1)) / COLUMNS : '31%';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -210,7 +234,7 @@ export default function StorePage({
             }}
           >
             <ArrowLeft size={14} color="#fff" />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Back</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Back</Text>
           </Pressable>
         )}
 
@@ -227,7 +251,7 @@ export default function StorePage({
             {seller.avatar_url ? (
               <Image source={{ uri: seller.avatar_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
             ) : (
-              <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff' }}>
+              <Text style={{ fontSize: 30, fontWeight: '800', color: '#fff' }}>
                 {seller.name?.charAt(0)?.toUpperCase() || '?'}
               </Text>
             )}
@@ -235,7 +259,7 @@ export default function StorePage({
 
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Text numberOfLines={1} style={{ fontSize: 20, fontWeight: '900', color: '#fff', flexShrink: 1 }}>
+              <Text numberOfLines={1} style={{ fontSize: 22, fontWeight: '900', color: '#fff', flexShrink: 1 }}>
                 {seller.name}
               </Text>
               {seller.verified && <BadgeCheck size={18} color="#34d399" />}
@@ -254,13 +278,13 @@ export default function StorePage({
                 }}
               >
                 {sellerPlan === 'premium' ? <Sparkles size={11} color="#e9d5ff" fill="#e9d5ff" /> : <Star size={11} color="#bfdbfe" fill="#bfdbfe" />}
-                <Text style={{ fontSize: 10, fontWeight: '800', color: sellerPlan === 'premium' ? '#e9d5ff' : '#bfdbfe' }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: sellerPlan === 'premium' ? '#e9d5ff' : '#bfdbfe' }}>
                   {sellerPlan === 'premium' ? 'Premium Seller' : 'Pro Seller'}
                 </Text>
               </View>
             )}
 
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6 }}>
+            <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 6 }}>
               {[seller.school, seller.location].filter(Boolean).join(' · ')}
             </Text>
           </View>
@@ -269,20 +293,20 @@ export default function StorePage({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 18, flexWrap: 'wrap' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Tag size={14} color="rgba(255,255,255,0.7)" />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{listings.length}</Text>
-            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>listings</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>{listings.length}</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>listings</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <ShoppingBag size={14} color="rgba(255,255,255,0.7)" />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{salesCount}</Text>
-            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>sales</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>{salesCount}</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>sales</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Star size={14} color={rating?.avg_rating ? '#fbbf24' : 'rgba(255,255,255,0.4)'} fill={rating?.avg_rating ? '#fbbf24' : 'transparent'} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
               {rating?.avg_rating ? rating.avg_rating : '—'}
             </Text>
-            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
               {rating?.total ? `(${rating.total} review${rating.total === 1 ? '' : 's'})` : 'No reviews yet'}
             </Text>
           </View>
@@ -314,38 +338,92 @@ export default function StorePage({
             minHeight: embedded ? undefined : height,
           }}
         >
+          {/* Search bar */}
+          <View
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 8,
+               borderWidth: 1, borderColor: colors.border, borderTopRightRadius: 20, borderTopLeftRadius: 20,
+              paddingHorizontal: 14, height: 42, marginBottom: 20,
+            }}
+          >
+            <Search size={16} color={colors.textMuted} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search this store..."
+              placeholderTextColor={colors.textMuted}
+              style={{ flex: 1, color: colors.text, fontSize: 16, paddingVertical: 0 }}
+              returnKeyType="search"
+            />
+            {!!search && (
+              <Pressable onPress={() => setSearch('')} hitSlop={8}>
+                <X size={15} color={colors.textMuted} />
+              </Pressable>
+            )}
+          </View>
+
           {listings.length === 0 ? (
             <View style={{ paddingVertical: 48, alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, color: colors.textMuted }}>
+              <Text style={{ fontSize: 15, color: colors.textMuted }}>
                 {seller.name} hasn't listed anything yet.
               </Text>
             </View>
+          ) : visibleListings.length === 0 ? (
+            <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 15, paddingVertical: 32 }}>
+              No matches for "{search}"
+            </Text>
           ) : (
-            <View
-              onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}
-              style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}
-            >
-              {listings.map((p) => (
-                <View
-                  key={p.id}
-                  style={{
-                    width: gridWidth > 0
-                      ? (gridWidth - GRID_GAP * (COLUMNS - 1)) / COLUMNS
-                      : '31%',
-                  }}
-                >
-                  <ProductCard
-                    product={p}
-                    boostMode={pickMode}
-                    boostSelected={pickMode && String(selectedId) === String(p.id)}
-                    onBoostSelect={onSelect}
-                  />
-                </View>
-              ))}
+            <View onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
+              {productItems.length > 0 && (
+                <>
+                  {hasBoth && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand, letterSpacing: 0.6 }}>PRODUCTS</Text>
+                      <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}>
+                    {productItems.map((p: any) => (
+                      <View key={p.id} style={{ width: cardW }}>
+                        <ProductCard
+                          product={p}
+                          boostMode={pickMode}
+                          boostSelected={pickMode && String(selectedId) === String(p.id)}
+                          onBoostSelect={onSelect}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+              {serviceItems.length > 0 && (
+                <>
+                  {hasBoth && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 24 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand, letterSpacing: 0.6 }}>SERVICES</Text>
+                      <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP, marginTop: productItems.length > 0 ? 20 : 0 }}>
+                    {serviceItems.map((p: any) => (
+                      <View key={p.id} style={{ width: cardW }}>
+                        <ProductCard
+                          product={p}
+                          boostMode={pickMode}
+                          boostSelected={pickMode && String(selectedId) === String(p.id)}
+                          onBoostSelect={onSelect}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
             </View>
           )}
         </View>
       </Animated.ScrollView>
+
+      <Toast position="top" topOffset={insets.top + 8} />
     </View>
   );
 }

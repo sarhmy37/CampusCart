@@ -435,21 +435,21 @@ useEffect(() => {
                       alignItems: 'center', justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontWeight: '700', color: colors.brand, fontSize: 14 }}>
+                    <Text style={{ fontWeight: '700', color: colors.brand, fontSize: 15 }}>
                       {conversation?.otherUserName?.[0]?.toUpperCase() || '?'}
                     </Text>
                   </View>
                 )}
 
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontWeight: '700', color: colors.text, fontSize: 14 }}>
+                  <Text numberOfLines={1} style={{ fontWeight: '700', color: colors.text, fontSize: 15 }}>
                     {conversation?.otherUserName || 'Chat'}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
                     {!loading && formatPresence(otherUserLastActive) === 'Active now' && (
                       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' }} />
                     )}
-                    <Text numberOfLines={1} style={{ color: colors.textMuted, fontSize: 11 }}>
+                    <Text numberOfLines={1} style={{ color: colors.textMuted, fontSize: 12 }}>
                       {loading ? 'Connecting…' : formatPresence(otherUserLastActive)}
                     </Text>
                   </View>
@@ -496,7 +496,7 @@ useEffect(() => {
                   }}
                 >
                   <MenuItem
-                    icon={<ImageIcon size={15} color={colors.text} />}
+                    icon={<PhotoIcon size={15} color={colors.text} />}
                     label="Change wallpaper"
                     colors={colors}
 onPress={() => {
@@ -577,7 +577,7 @@ onPress={() => {
                     <ActivityIndicator color={colors.brand} />
                   </View>
                 ) : messages.length === 0 ? (
-                  <Text style={{ textAlign: 'center', color: colors.textFaint, fontSize: 13, marginTop: 40 }}>
+                  <Text style={{ textAlign: 'center', color: colors.textFaint, fontSize: 14, marginTop: 40 }}>
                     Say hello — ask about condition, price, or when to meet up.
                   </Text>
                 ) : (
@@ -608,7 +608,7 @@ onPress={() => {
                                   borderRadius: 999,
                                 }}
                               >
-                                <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                                <Text style={{ fontSize: 12, color: colors.textMuted }}>
                                   {getDateLabel(m.created_at)}
                                 </Text>
                               </View>
@@ -628,7 +628,7 @@ onPress={() => {
         backgroundColor: isMine ? colors.brandSoft : colors.chipBg,
       }}
     >
-      <Text style={{ fontSize: 12, fontStyle: 'italic', color: isMine ? colors.brand : colors.textFaint }}>
+      <Text style={{ fontSize: 13, fontStyle: 'italic', color: isMine ? colors.brand : colors.textFaint }}>
         This message was deleted
       </Text>
     </View>
@@ -672,7 +672,7 @@ onPress={() => {
                                         paddingTop: 4,
                                       }}
                                     >
-                                      <Text style={{ fontSize: 10, color: isMine ? colors.textOnGold : colors.textMuted }}>
+                                      <Text style={{ fontSize: 11, color: isMine ? colors.textOnGold : colors.textMuted }}>
                                         {formatMessageTime(m.created_at)}
                                       </Text>
                                       {isMine && (
@@ -699,12 +699,12 @@ onPress={() => {
                                     }}
                                   >
                                     <Volume2 size={18} color={isMine ? colors.textOnGold : colors.text} />
-                                    <Text style={{ flex: 1, fontSize: 13, color: isMine ? colors.textOnGold : colors.text }}>
+                                    <Text style={{ flex: 1, fontSize: 14, color: isMine ? colors.textOnGold : colors.text }}>
                                       Voice note
                                     </Text>
                                     <Text
                                       style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: isMine ? colors.textOnGold : colors.textMuted,
                                         opacity: 0.8,
                                       }}
@@ -730,7 +730,7 @@ onPress={() => {
                                     {isVideo
                                       ? <VideoIcon size={20} color={isMine ? colors.textOnGold : colors.text} />
                                       : <FileText size={20} color={isMine ? colors.textOnGold : colors.text} />}
-                                    <Text style={{ fontSize: 13, fontWeight: '600', color: isMine ? colors.textOnGold : colors.text }}>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: isMine ? colors.textOnGold : colors.text }}>
                                       {isVideo ? 'Video (tap to open)' : 'File (tap to open)'}
                                     </Text>
                                   </Pressable>
@@ -758,7 +758,7 @@ onPress={() => {
                                     />
                                     <Text
                                       style={{
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: '600',
                                         color: isMine ? colors.textOnGold : colors.textMuted,
                                         opacity: 0.85,
@@ -813,7 +813,7 @@ onPress={() => {
                                   >
                                     <Text
                                       style={{
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         color: isMine ? colors.textOnGold : colors.textMuted,
                                         opacity: isMine ? 0.75 : 1,
                                       }}
@@ -874,11 +874,11 @@ onPress={() => {
                     contentFit="cover"
                   />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
                       Replying to story
                     </Text>
                     {!!pendingStoryReply.caption && (
-                      <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>
                         {pendingStoryReply.caption}
                       </Text>
                     )}
@@ -900,7 +900,7 @@ onPress={() => {
                 >
                   <Text
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: '600',
                       color: colors.textMuted,
                       textAlign: 'center',
@@ -910,7 +910,7 @@ onPress={() => {
                   </Text>
                   <Text
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       color: colors.textFaint,
                       textAlign: 'center',
                     }}
@@ -939,11 +939,11 @@ onPress={() => {
                     <Trash2 size={16} color={colors.error} />
                   </Pressable>
                   <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.error }} />
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
                     {formatDuration(recordingSeconds)}
                   </Text>
                   <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 12, color: colors.textFaint }}>Tap send to finish</Text>
+                    <Text style={{ fontSize: 13, color: colors.textFaint }}>Tap send to finish</Text>
                   </View>
                   <Pressable
                     onPress={stopRecordingAndSend}
@@ -978,7 +978,7 @@ onPress={() => {
                       borderRadius: 20,
                       backgroundColor: colors.chipBg,
                       color: colors.text,
-                      fontSize: 14,
+                      fontSize: 15,
                     }}
                   />
 
@@ -1081,7 +1081,7 @@ onPress={() => {
               onPress={handlePickFile}
             />
             <MenuItem
-              icon={<ImageIcon size={16} color={colors.text} />}
+              icon={<PhotoIcon size={16} color={colors.text} />}
               label="Picture"
               colors={colors}
               onPress={handlePickPicture}
@@ -1134,10 +1134,10 @@ onPress={() => {
               borderColor: colors.border,
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
               Delete chat
             </Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>
+            <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 6 }}>
               Choose how you'd like to delete this conversation with {conversation?.otherUserName}.
             </Text>
 
@@ -1154,7 +1154,7 @@ onPress={() => {
                 opacity: deleting ? 0.6 : 1,
               }}
             >
-              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>
                 Delete for me
               </Text>
             </Pressable>
@@ -1171,7 +1171,7 @@ onPress={() => {
                 opacity: deleting ? 0.6 : 1,
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>
                 Delete for everyone
               </Text>
             </Pressable>
@@ -1181,7 +1181,7 @@ onPress={() => {
               disabled={deleting}
               style={{ marginTop: 12, alignItems: 'center' }}
             >
-              <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600' }}>
+              <Text style={{ color: colors.textMuted, fontSize: 14, fontWeight: '600' }}>
                 Cancel
               </Text>
             </Pressable>
@@ -1255,7 +1255,7 @@ function MenuItem({
       {icon}
       <Text
         style={{
-          fontSize: 14,
+          fontSize: 15,
           fontWeight: '600',
           color: danger ? colors.error : colors.text,
         }}

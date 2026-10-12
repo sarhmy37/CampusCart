@@ -17,7 +17,7 @@ function Chip({ icon, label, colors }: { icon: React.ReactNode; label: string; c
       }}
     >
       {icon}
-      <Text style={{ fontSize: 11, fontWeight: '600', color: colors.brand }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand }}>{label}</Text>
     </View>
   );
 }
@@ -79,7 +79,7 @@ export default function Saved() {
                 <Chip colors={colors} label={s.school} icon={<MapPin size={11} color={colors.brand} />} />
               )}
             </View>
-            <Text style={{ fontSize: 10.5, color: colors.textFaint, marginTop: 8 }}>
+            <Text style={{ fontSize: 11.5, color: colors.textFaint, marginTop: 8 }}>
               Saved {new Date(s.created_at).toLocaleDateString()}
             </Text>
           </View>

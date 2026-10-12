@@ -27,7 +27,7 @@ export default function DeletedChatsTab() {
 
   return (
     <View>
-      <Text style={{ fontSize: 13, color: colors.textFaint, marginBottom: 10 }}>
+      <Text style={{ fontSize: 15, color: colors.textFaint, marginBottom: 10 }}>
         {chats.length} conversation{chats.length === 1 ? '' : 's'} deleted for everyone
       </Text>
 
@@ -40,19 +40,19 @@ export default function DeletedChatsTab() {
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                   {c.buyer_name} ↔ {c.seller_name}
                 </Text>
                 {c.product_title && (
-                  <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }} numberOfLines={1}>
+                  <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }} numberOfLines={1}>
                     Re: {c.product_title}
                   </Text>
                 )}
-                <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 4 }} numberOfLines={2}>
+                <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 4 }} numberOfLines={2}>
                   Deleted by <Text style={{ fontWeight: '700', color: colors.textSecondary }}>{c.deleted_by_name}</Text> ({c.deleted_by_email})
                 </Text>
               </View>
-              <Text style={{ fontSize: 11, color: colors.textFaint, flexShrink: 0 }}>
+              <Text style={{ fontSize: 13, color: colors.textFaint, flexShrink: 0 }}>
                 {new Date(c.deleted_for_everyone_at).toLocaleString()}
               </Text>
             </View>
@@ -117,13 +117,13 @@ function DeletedChatDetailModal({
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
+            <Text style={{ fontSize: 21, fontWeight: '800', color: colors.text }}>
               Deleted conversation
             </Text>
-            <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }} numberOfLines={2}>
+            <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }} numberOfLines={2}>
               {chat.buyer_name} ({chat.buyer_email})
             </Text>
-            <Text style={{ fontSize: 12, color: colors.textFaint }} numberOfLines={2}>
+            <Text style={{ fontSize: 14, color: colors.textFaint }} numberOfLines={2}>
               ↔ {chat.seller_name} ({chat.seller_email})
             </Text>
           </View>
@@ -133,21 +133,21 @@ function DeletedChatDetailModal({
         </View>
 
         <View style={{ backgroundColor: colors.chipBg, borderRadius: 12, padding: 10, marginTop: 10 }}>
-          <Text style={{ fontSize: 13, color: colors.textMuted }}>
+          <Text style={{ fontSize: 15, color: colors.textMuted }}>
             Deleted by{' '}
             <Text style={{ fontWeight: '700', color: colors.text }}>{chat.deleted_by_name}</Text>
             {' '}on {new Date(chat.deleted_for_everyone_at).toLocaleString()}
           </Text>
         </View>
 
-        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 8 }}>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 8 }}>
           Full message history ({messages.length})
         </Text>
 
         {loading ? (
           <SkeletonList count={3} />
         ) : messages.length === 0 ? (
-          <Text style={{ fontSize: 13, color: colors.textFaint }}>No messages found.</Text>
+          <Text style={{ fontSize: 15, color: colors.textFaint }}>No messages found.</Text>
         ) : (
           <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 8 }}>
             {messages.map((m) => {
@@ -162,16 +162,16 @@ function DeletedChatDetailModal({
                   }}
                 >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textSecondary }}>
                       {isBuyer ? chat.buyer_name : chat.seller_name}
                     </Text>
-                    <Text style={{ fontSize: 11, color: colors.textFaint }}>
+                    <Text style={{ fontSize: 13, color: colors.textFaint }}>
                       {new Date(m.created_at).toLocaleString()}
                     </Text>
                   </View>
 
                   {m.content && (
-                    <Text style={{ fontSize: 14, color: colors.text, marginTop: 6, lineHeight: 18 }}>
+                    <Text style={{ fontSize: 16, color: colors.text, marginTop: 6, lineHeight: 18 }}>
                       {m.content}
                     </Text>
                   )}
@@ -185,7 +185,7 @@ function DeletedChatDetailModal({
                   )}
 
                   {m.media_type === 'audio' && m.media_url && (
-                    <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6, fontStyle: 'italic' }}>
+                    <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6, fontStyle: 'italic' }}>
                       🎤 Voice note (open in web to play)
                     </Text>
                   )}

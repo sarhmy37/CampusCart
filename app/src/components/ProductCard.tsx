@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Platform } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+
 import { Tag, Star, Heart, AlertTriangle, MapPin, Sparkles, Rocket, BadgeCheck } from 'lucide-react-native';
 import { useWishlist } from '@/context/WishlistContext';
 import { useColors } from '@/hooks/useColors';
+
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
+const LINK_PAD = GLASS ? { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 } : {};
 
 export default function ProductCard({
   product,
@@ -64,14 +69,15 @@ export default function ProductCard({
     stockColor = colors.error;
   }
 
+  const Wrapper: any = GLASS ? GlassView : View;
   const CardInner = (
-    <View
+    <Wrapper
+      {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
       style={{
-        backgroundColor: colors.card,
+        ...(GLASS ? {} : { backgroundColor: colors.card }),
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: boostSelected ? colors.brand : isBoosted ? colors.brand : colors.border,
-        borderWidth: boostSelected ? 2 : 1,
+        borderColor: boostSelected || isBoosted ? colors.brand : colors.border,
+        borderWidth: boostSelected ? 2 : GLASS ? (isBoosted ? 1 : 0) : 1,
         overflow: 'hidden',
       }}
     >
@@ -91,37 +97,37 @@ export default function ProductCard({
 
         {/* Condition badge */}
         <View style={{ position: 'absolute', top: 6, left: 6, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
-          <Text style={{ fontSize: 9, fontWeight: '600', color: '#334155', textTransform: 'capitalize' }}>
+          <Text style={{ fontSize: 10, fontWeight: '600', color: '#334155', textTransform: 'capitalize' }}>
             {product.condition}
           </Text>
         </View>
 
         {/* Boosted badge */}
         {isBoosted && (
-          <View style={{ position: 'absolute', top: 6, right: 6, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.brand, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
-            <Rocket size={10} color={colors.textOnGold} />
-            <Text style={{ fontSize: 9, fontWeight: '700', color: colors.textOnGold }}>Boosted</Text>
+          <View style={{ position: 'absolute', top: 6, right: 6, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#38bdf8', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+            <Rocket size={10} color="#fff" />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Product</Text>
           </View>
         )}
 
         {/* Sold out */}
         {stock !== null && stock <= 0 && (
           <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -30 }, { translateY: -12 }], backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 }}>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: '#dc2626' }}>Sold out</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#dc2626' }}>Sold out</Text>
           </View>
         )}
 
         {/* Low stock */}
         {stock !== null && stock > 0 && stock <= 5 && (
           <View style={{ position: 'absolute', bottom: 6, left: 6, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
-            <Text style={{ fontSize: 9, fontWeight: '700', color: '#d97706' }}>{stock} left</Text>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#d97706' }}>{stock} left</Text>
           </View>
         )}
 
         {/* Discount badge */}
         {discountPercent !== null && !isBoosted && (
           <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: 'white' }}>-{discountPercent}%</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: 'white' }}>-{discountPercent}%</Text>
           </View>
         )}
 
@@ -136,7 +142,7 @@ export default function ProductCard({
               borderWidth: 1.5, borderColor: boostSelected ? colors.brand : colors.border,
             }}
           >
-            {boostSelected && <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>✓</Text>}
+            {boostSelected && <Text style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</Text>}
           </View>
         )}
 
@@ -155,17 +161,17 @@ export default function ProductCard({
       </View>
 
       <View style={{ padding: 10 }}>
-        <Text numberOfLines={2} style={{ fontSize: 12, fontWeight: '600', color: colors.text, lineHeight: 15 }}>
+        <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: '600', color: colors.text, lineHeight: 15 }}>
           {product.title}
         </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
           <Star size={11} color="#f59e0b" fill="#f59e0b" />
-          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textSecondary }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
             {rating ? Number(rating).toFixed(1) : 'New'}
           </Text>
           {reviewCount > 0 && (
-            <Text style={{ fontSize: 11, color: colors.textFaint }}>({reviewCount})</Text>
+            <Text style={{ fontSize: 12, color: colors.textFaint }}>({reviewCount})</Text>
           )}
         </View>
 
@@ -173,19 +179,19 @@ export default function ProductCard({
           {discountPercent !== null && oldPrice ? (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 10, color: colors.textFaint, textDecorationLine: 'line-through' }}>
+                <Text style={{ fontSize: 11, color: colors.textFaint, textDecorationLine: 'line-through' }}>
                   GHS {oldPrice.toFixed(2)}
                 </Text>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#ef4444' }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444' }}>
                   -{discountPercent}%
                 </Text>
               </View>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: colors.brand }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.brand }}>
                 GHS {currentPrice.toFixed(2)}
               </Text>
             </>
           ) : (
-            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand }}>
               GHS {currentPrice.toFixed(2)}
             </Text>
           )}
@@ -193,7 +199,7 @@ export default function ProductCard({
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
           <MapPin size={10} color={colors.textFaint} />
-          <Text numberOfLines={1} style={{ flex: 1, fontSize: 11, color: colors.textFaint }}>
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: colors.textFaint }}>
             {product.seller_location || product.seller_meeting_place || 'Location not set'}
           </Text>
           {product.seller_verified && <BadgeCheck size={10} color="#10b981" />}
@@ -203,7 +209,7 @@ export default function ProductCard({
         </View>
 
         {isBoosted && boostCountdown && (
-          <Text style={{ fontSize: 10, fontWeight: '600', color: colors.brand, marginTop: 2 }}>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.brand, marginTop: 2 }}>
             🚀 {boostCountdown}
           </Text>
         )}
@@ -211,11 +217,11 @@ export default function ProductCard({
         {stockLabel && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
             {stock !== null && stock <= 5 && stock > 0 && <AlertTriangle size={11} color="#f59e0b" />}
-            <Text style={{ fontSize: 11, fontWeight: '500', color: stockColor }}>{stockLabel}</Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: stockColor }}>{stockLabel}</Text>
           </View>
         )}
       </View>
-    </View>
+    </Wrapper>
   );
 
   if (boostMode) {

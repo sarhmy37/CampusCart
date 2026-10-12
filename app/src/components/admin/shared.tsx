@@ -26,7 +26,7 @@ export function Tag({ children, color = 'slate' }: { children: any; color?: stri
     >
       <Text
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '700',
           color: s.text,
           textTransform: 'capitalize',
@@ -113,10 +113,10 @@ export function StatCard({
       }}
     >
       <Icon size={16} color="rgba(255,255,255,0.85)" />
-      <Text style={{ fontSize: 19, fontWeight: '800', color: 'white', marginTop: 4 }}>
+      <Text style={{ fontSize: 20, fontWeight: '800', color: 'white', marginTop: 4 }}>
         {value}
       </Text>
-      <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+      <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
         {label}
       </Text>
     </View>
@@ -129,7 +129,7 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   return (
     <View style={{ paddingVertical: 40, alignItems: 'center', gap: 8 }}>
       <ActivityIndicator color={colors.brand} />
-      <Text style={{ fontSize: 13, color: colors.textFaint }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: colors.textFaint }}>{label}</Text>
     </View>
   );
 }
@@ -142,7 +142,7 @@ export function EmptyState({
   return (
     <View style={{ paddingVertical: 60, alignItems: 'center', gap: 10 }}>
       <Icon size={28} color={colors.textFaint} />
-      <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center', paddingHorizontal: 20 }}>
+      <Text style={{ fontSize: 15, color: colors.textFaint, textAlign: 'center', paddingHorizontal: 20 }}>
         {text}
       </Text>
     </View>
@@ -177,5 +177,5 @@ export const inputStyle = (colors: any) => ({
   borderRadius: 12,
   paddingHorizontal: 14,
   paddingVertical: 11,
-  fontSize: 15,
+  fontSize: 16,
 });

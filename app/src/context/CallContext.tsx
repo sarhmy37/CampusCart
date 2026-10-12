@@ -3,6 +3,11 @@ import { View, Text, Pressable, Modal, AppState, Platform, Animated, Easing } fr
 // ── DEV BUILD STEP 1/3: add PermissionsAndroid to the import above:
 // import { View, Text, Pressable, Modal, AppState, PermissionsAndroid, Platform, Animated, Easing } from 'react-native';
 import { Image } from 'expo-image';
+
+
+// ── DEV BUILD STEP 1/3: add PermissionsAndroid to the import above:
+// import { View, Text, Pressable, Modal, AppState, PermissionsAndroid, Platform, Animated, Easing } from 'react-native';
+
 import { Phone, PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import api from '../api/client';
@@ -71,7 +76,7 @@ function CallButton({ onPress, bg, label, children, size = 68 }: { onPress: () =
       >
         {children}
       </Pressable>
-      <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{label}</Text>
     </View>
   );
 }
@@ -274,10 +279,10 @@ const handleNoAnswer = useCallback((c: Call) => {
 
           {/* Name + status */}
           <View style={{ alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff' }}>{call?.name}</Text>
+            <Text style={{ fontSize: 29, fontWeight: '800', color: '#fff' }}>{call?.name}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               {call?.connected && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' }} />}
-              <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.7)' }}>{statusText}</Text>
+              <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>{statusText}</Text>
             </View>
           </View>
 
@@ -293,7 +298,7 @@ const handleNoAnswer = useCallback((c: Call) => {
               {call?.avatar ? (
                 <Image source={{ uri: call.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
               ) : (
-                <Text style={{ fontSize: 52, fontWeight: '800', color: '#fff' }}>
+                <Text style={{ fontSize: 53, fontWeight: '800', color: '#fff' }}>
                   {call?.name?.[0]?.toUpperCase() || '?'}
                 </Text>
               )}

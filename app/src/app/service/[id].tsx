@@ -19,9 +19,12 @@ import {
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import ReviewsSection from '@/components/ReviewsSection';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 // Same coordinates used on the browse page / web Register screen.
 const SCHOOL_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -82,6 +85,7 @@ export default function ServiceDetail() {
   const [service, setService] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
+  const [reviews, setReviews] = useState<any>(null);
 
   // Scroll-driven fade for Back button + hero title/price
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -117,6 +121,13 @@ export default function ServiceDetail() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!service?.id) return;
+    api.get(`/reviews/product/${service.id}`)
+      .then((res) => setReviews(res.data))
+      .catch(() => {});
+  }, [service]);
 
   const findMyLocation = async () => {
     setLocatingBuyer(true);
@@ -275,7 +286,7 @@ export default function ServiceDetail() {
     }
   };
 
-  const goBack = () => router.replace({ pathname: '/browse', params: { category: 'Services' } });
+  const goBack = () => router.replace({ pathname: '/(browse)/all', params: { category: 'Services' } });
 
   const card = {
     backgroundColor: colors.card,
@@ -285,7 +296,7 @@ export default function ServiceDetail() {
   } as const;
 
   const sectionLabel = {
-    fontSize: 11, fontWeight: '700' as const, color: colors.textFaint,
+    fontSize: 13, fontWeight: '700' as const, color: colors.textFaint,
     textTransform: 'uppercase' as const, letterSpacing: 0.8,
   };
 
@@ -326,14 +337,14 @@ export default function ServiceDetail() {
             {hasRating && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
                 <Star size={12} color="#fcd34d" fill="#fcd34d" />
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
                   {parseFloat(service.rating).toFixed(1)}{service.review_count ? ` (${service.review_count})` : ''}
                 </Text>
               </View>
             )}
             {!!service.video_url && (
               <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>🎥 Video</Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>🎥 Video</Text>
               </View>
             )}
           </View>
@@ -347,10 +358,10 @@ export default function ServiceDetail() {
               />
             )}
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={2} style={{ fontSize: 24, fontWeight: '800', color: '#fff' }}>
+              <Text numberOfLines={2} style={{ fontSize: 26, fontWeight: '800', color: '#fff' }}>
                 {service.title || service.name}
               </Text>
-              <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 4 }}>{priceLabel}</Text>
+              <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 4 }}>{priceLabel}</Text>
             </View>
           </View>
         </Animated.View>
@@ -375,7 +386,7 @@ export default function ServiceDetail() {
             <View style={{ padding: 16, paddingBottom: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={sectionLabel}>Track service</Text>
-                <Text numberOfLines={2} style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 4 }}>
+                <Text numberOfLines={2} style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 4 }}>
                   {service.seller_meeting_place
                     ? `${service.seller_meeting_place}, ${service.seller_school}`
                     : service.seller_school || 'Location not specified'}
@@ -392,7 +403,7 @@ export default function ServiceDetail() {
                   }}
                 >
                   {locatingBuyer ? <ActivityIndicator size="small" color={colors.brand} /> : <MapPin size={13} color={colors.brand} />}
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>
                     {locatingBuyer ? 'Locating…' : buyerLocation ? 'Update my location' : 'Show me'}
                   </Text>
                 </Pressable>
@@ -424,19 +435,19 @@ export default function ServiceDetail() {
             ) : (
               <View style={{ marginTop: 12, height: 140, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
                 <MapPin size={28} color={colors.textFaint} />
-                <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 8, textAlign: 'center' }}>
+                <Text style={{ fontSize: 15, color: colors.textFaint, marginTop: 8, textAlign: 'center' }}>
                   This provider hasn't set an exact location yet.
                 </Text>
               </View>
             )}
 
             {!!buyerLocationError && (
-              <Text style={{ fontSize: 12, color: colors.error, paddingHorizontal: 16, paddingTop: 8 }}>{buyerLocationError}</Text>
+              <Text style={{ fontSize: 14, color: colors.error, paddingHorizontal: 16, paddingTop: 8 }}>{buyerLocationError}</Text>
             )}
 
             {hasServiceLocation && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10 }}>
-                <Text style={{ flex: 1, fontSize: 11, color: colors.textFaint }}>
+                <Text style={{ flex: 1, fontSize: 13, color: colors.textFaint }}>
                   {buyerLocation
                     ? `Showing directions to ${service.seller_meeting_place || service.seller_school || 'the service location'}`
                     : hasExactLocation
@@ -464,14 +475,14 @@ export default function ServiceDetail() {
                 <Image source={{ uri: service.seller_avatar }} style={{ width: 48, height: 48, borderRadius: 24 }} contentFit="cover" />
               ) : (
                 <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: colors.brand, fontWeight: '700', fontSize: 16 }}>
+                  <Text style={{ color: colors.brand, fontWeight: '700', fontSize: 18 }}>
                     {service.seller_name?.[0]?.toUpperCase() || '?'}
                   </Text>
                 </View>
               )}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                  <Text numberOfLines={1} style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>
                     {service.seller_name || 'Unknown'}
                   </Text>
                   {service.seller_verified && <ShieldCheck size={15} color="#10b981" />}
@@ -484,13 +495,13 @@ export default function ServiceDetail() {
                       }}
                     >
                       {sellerPlan === 'premium' ? <Sparkles size={11} color="#7c3aed" /> : <Star size={11} color="#2563eb" />}
-                      <Text style={{ fontSize: 10, fontWeight: '600', color: sellerPlan === 'premium' ? '#7c3aed' : '#2563eb' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: sellerPlan === 'premium' ? '#7c3aed' : '#2563eb' }}>
                         {sellerPlan === 'premium' ? 'Premium Seller' : 'Pro Seller'}
                       </Text>
                     </View>
                   )}
                 </View>
-                <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
                   {service.seller_school || 'Location not specified'}
                 </Text>
               </View>
@@ -500,7 +511,7 @@ export default function ServiceDetail() {
           {/* DESCRIPTION */}
           <View style={{ ...card, padding: 20 }}>
             <Text style={{ ...sectionLabel, marginBottom: 8 }}>About this service</Text>
-            <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 21 }}>
+            <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 21 }}>
               {service.description}
             </Text>
           </View>
@@ -511,8 +522,8 @@ export default function ServiceDetail() {
               <Clock size={16} color={colors.brand} />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontSize: 10, color: colors.textFaint, fontWeight: '600', textTransform: 'uppercase' }}>Availability</Text>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 }}>{availabilitySummary}</Text>
+              <Text style={{ fontSize: 12, color: colors.textFaint, fontWeight: '600', textTransform: 'uppercase' }}>Availability</Text>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 2 }}>{availabilitySummary}</Text>
             </View>
           </View>
 
@@ -522,12 +533,12 @@ export default function ServiceDetail() {
               <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Calendar size={16} color={colors.success} />
               </View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Book this service</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Book this service</Text>
             </View>
 
             {isOwner ? (
               <View style={{ marginTop: 16, padding: 12, borderRadius: 12, backgroundColor: colors.warningSoft }}>
-                <Text style={{ fontSize: 13, color: colors.warning }}>
+                <Text style={{ fontSize: 15, color: colors.warning }}>
                   You're the provider — you can't book your own service.
                 </Text>
               </View>
@@ -557,7 +568,7 @@ export default function ServiceDetail() {
                 </View>
 
                 {hasScheduledHours && (
-                  <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: -6 }}>
+                  <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: -6 }}>
                     {allSameHours
                       ? `Available ${availability.days.map((d: any) => d.day).join(', ')} · ${formatTime12(availability.days[0].open)}–${formatTime12(availability.days[0].close)}`
                       : 'Hours vary by day — check the details above'}
@@ -576,7 +587,7 @@ export default function ServiceDetail() {
                     style={{
                       borderWidth: 1, borderColor: colors.border, borderRadius: 12,
                       paddingHorizontal: 14, paddingVertical: 10, minHeight: 80,
-                      color: colors.text, backgroundColor: colors.card, fontSize: 14, textAlignVertical: 'top',
+                      color: colors.text, backgroundColor: colors.card, fontSize: 16, textAlignVertical: 'top',
                     }}
                   />
                 </View>
@@ -593,26 +604,29 @@ export default function ServiceDetail() {
                   {submitting ? (
                     <>
                       <ActivityIndicator size="small" color={colors.textFaint} />
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textFaint }}>Processing…</Text>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textFaint }}>Processing…</Text>
                     </>
                   ) : !user ? (
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textFaint }}>Log in to book</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textFaint }}>Log in to book</Text>
                   ) : bookingBlocked ? (
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textFaint }}>Pick another time</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textFaint }}>Pick another time</Text>
                   ) : (
                     <>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textOnGold }}>Pay (GHS 2) & Book</Text>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textOnGold }}>Pay (GHS 2) & Book</Text>
                       <ArrowRight size={15} color={colors.textOnGold} />
                     </>
                   )}
                 </Pressable>
 
-                <Text style={{ fontSize: 11, textAlign: 'center', color: colors.textFaint }}>
+                <Text style={{ fontSize: 13, textAlign: 'center', color: colors.textFaint }}>
                   Secure checkout via Paystack
                 </Text>
               </View>
             )}
           </View>
+
+          {/* REVIEWS */}
+          <ReviewsSection reviewsData={reviews} productId={service.id} />
         </View>
       </ScrollView>
 
@@ -653,14 +667,32 @@ export default function ServiceDetail() {
         hitSlop={10}
         style={{
           opacity: backOpacity,
-          position: 'absolute', top: insets.top + 12, left: 16, zIndex: 20,
-          flexDirection: 'row', alignItems: 'center', gap: 4,
-          paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
-          backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+          position: 'absolute', top: 12, left: 16, zIndex: 20,
+          ...(GLASS ? {} : {
+            flexDirection: 'row', alignItems: 'center', gap: 4,
+            paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+            backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+          }),
         }}
       >
-        <ChevronLeft size={12} color="#fff" />
-        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Browse</Text>
+        {GLASS ? (
+          <GlassView
+            glassEffectStyle="regular"
+            isInteractive
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, overflow: 'hidden',
+            }}
+          >
+            <ChevronLeft size={12} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Browse</Text>
+          </GlassView>
+        ) : (
+          <>
+            <ChevronLeft size={12} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Browse</Text>
+          </>
+        )}
       </AnimatedPressable>
 
       {/* FULLSCREEN MAP */}
@@ -704,7 +736,7 @@ export default function ServiceDetail() {
             }}
           >
             <X size={14} color="#0f172a" />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#0f172a' }}>Minimize</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#0f172a' }}>Minimize</Text>
           </Pressable>
         </View>
       </Modal>
@@ -717,7 +749,7 @@ function FieldLabel({ colors, icon, label }: { colors: any; icon: React.ReactNod
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
       {icon}
-      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>{label}</Text>
     </View>
   );
 }
@@ -755,7 +787,7 @@ function DateTimeField({
       <View
         style={{
           height: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 12,
-          backgroundColor: colors.card, alignItems: 'flex-start', justifyContent: 'center', paddingHorizontal: 6,
+          backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center',
         }}
       >
         <DateTimePicker
@@ -778,7 +810,7 @@ function DateTimeField({
           backgroundColor: colors.card, justifyContent: 'center', paddingHorizontal: 14,
         }}
       >
-        <Text style={{ fontSize: 14, color: colors.text }}>{display}</Text>
+        <Text style={{ fontSize: 16, color: colors.text }}>{display}</Text>
       </Pressable>
       {show && (
         <DateTimePicker

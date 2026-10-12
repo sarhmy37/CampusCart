@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
-import api from '../api/client';
+import api from '../api/client'
 import { useWishlist } from './WishlistContext';
 import { useAuth } from './AuthContext';
 
@@ -21,6 +20,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [productNotifs, setProductNotifs] = useState<any[]>([]);
   const [backendNotifs, setBackendNotifs] = useState<any[]>([]);
   const initialized = useRef(false);
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setMuted(false); return; }
+    api.get('/notifications/mute').then((r) => setMuted(!!r.data.muted)).catch(() => {});
+  }, [user]);
+
+  const toggleMute = async () => {
+    const next = !muted;
+    setMuted(next);
+    try {
+      await api.put('/notifications/mute', { muted: next });
+    } catch {
+      setMuted(!next);
+    }
+  };
 
   const getSeenIds = async () => {
     try {
@@ -72,28 +87,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             id: `price-${p.id}-${Date.now()}`,
             productId: p.id,
             type: 'price_drop',
+            link: (p.category || p.category_name) === 'Services' ? `/service/${p.id}` : `/product/${p.id}`,
             title: p.title,
             message: `Price dropped: GHS ${prevPrice.toFixed(2)} → GHS ${currentPrice.toFixed(2)}`,
             primary_image: p.primary_image,
             read: false,
             created_at: new Date().toISOString(),
           });
-          Toast.show({ type: 'success', text1: `💰 ${p.title} dropped to GHS ${currentPrice.toFixed(2)}` });
-        }
+        };
         storedPrices[p.id] = currentPrice;
 
-        if (p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD && !lowStockNotified.has(p.id)) {
+        const isServiceItem = (p.category || p.category_name) === 'Services';
+        if (!isServiceItem && p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD && !lowStockNotified.has(p.id)) {
           newNotifs.push({
             id: `stock-${p.id}-${Date.now()}`,
             productId: p.id,
             type: 'low_stock',
+            link: (p.category || p.category_name) === 'Services' ? `/service/${p.id}` : `/product/${p.id}`,
             title: p.title,
             message: `Only ${p.stock} left — almost sold out!`,
             primary_image: p.primary_image,
             read: false,
             created_at: new Date().toISOString(),
-          });
-          Toast.show({ type: 'info', text1: `⚡ ${p.title} is almost sold out` });
+          })
           lowStockNotified.add(p.id);
         } else if (p.stock > LOW_STOCK_THRESHOLD) {
           lowStockNotified.delete(p.id);
@@ -131,8 +147,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           read: false,
           created_at: new Date().toISOString(),
         });
-        Toast.show({ type: 'info', text1: `📦 ${p.title} is now out of stock` });
-      }
+      };
     });
 
     if (newNotifs.length > 0) setProductNotifs((prev) => [...newNotifs, ...prev].slice(0, 50));
@@ -176,16 +191,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         });
         setProductNotifs((prev) => [...newNotifs, ...prev].slice(0, 50));
 
-        if (newOnes.length === 1) {
-          const isService = newOnes[0].category === 'Services';
-          Toast.show({ type: 'info', text1: `New ${isService ? 'service' : 'listing'}: ${newOnes[0].title}` });
-        } else {
-          const allServices = newOnes.every((p: any) => p.category === 'Services');
-          const noServices = newOnes.every((p: any) => p.category !== 'Services');
-          const word = allServices ? 'services' : noServices ? 'listings' : 'listings and services';
-          Toast.show({ type: 'info', text1: `${newOnes.length} new ${word} just posted` });
-        }
-        newOnes.forEach((p: any) => seenIds.add(p.id));
+        newOnes.forEach((p: any) => seenIds.add(p.id))
         await saveSeenIds(seenIds);
       } else if (newOnes.length > 0) {
         newOnes.forEach((p: any) => seenIds.add(p.id));
@@ -285,7 +291,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   return (
     <NotificationContext.Provider
-      value={{ notifications: allNotifs, unreadCount, markAllRead, clearAllNotifications, removeNotification }}
+      value={{ notifications: allNotifs, unreadCount, markAllRead, clearAllNotifications, removeNotification, muted, toggleMute }}
     >
       {children}
     </NotificationContext.Provider>
@@ -294,4 +300,4 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
 export function useNotifications() {
   return useContext(NotificationContext);
-}
+};

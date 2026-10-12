@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated, Modal, TextInput, Linking, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, Animated, Modal, TextInput, Linking, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Toast from 'react-native-toast-message';
+
 import {
   Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck,
   Loader2, Send, X, MessageCircle,
@@ -21,6 +23,7 @@ import { useColors } from '@/hooks/useColors';
 import PaystackCheckout from '@/components/PaystackCheckout';
 
 const FALLBACK_DELIVERY_FEE = 15;
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 function formatWhatsAppNumber(raw: string | null | undefined) {
   if (!raw) return null;
@@ -55,6 +58,30 @@ function buildWhatsAppMessage(sellerName: string | null | undefined, sellerItems
     'Please confirm if this is still available. Thank you!',
   ];
   return lines.join('\n');
+}
+
+function ContinueBrowsingButton({ onPress, colors }: { onPress: () => void; colors: any }) {
+  const Wrapper: any = GLASS ? GlassView : View;
+  return (
+    <Pressable onPress={onPress} style={{ alignSelf: 'flex-start' }}>
+      <Wrapper
+        {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: 6,
+          ...(GLASS
+            ? { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 }
+            : {
+                backgroundColor: colors.headerPill,
+                borderWidth: 1, borderColor: colors.headerPillBorder,
+                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+              }),
+        }}
+      >
+        <ArrowLeft size={14} color="white" />
+        <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Continue browsing</Text>
+      </Wrapper>
+    </Pressable>
+  );
 }
 
 export default function CartScreen() {
@@ -214,15 +241,15 @@ export default function CartScreen() {
           <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
             <ShoppingBag size={28} color={colors.brand} />
           </View>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Your cart is empty</Text>
-          <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6, textAlign: 'center', maxWidth: 260 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>Your cart is empty</Text>
+          <Text style={{ fontSize: 16, color: colors.textFaint, marginTop: 6, textAlign: 'center', maxWidth: 260 }}>
             Browse listings from students on your campus and add something you like.
           </Text>
           <Pressable
             onPress={() => router.push('/browse')}
             style={{ marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}
           >
-            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>Browse listings →</Text>
+            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>Browse listings →</Text>
           </Pressable>
         </View>
       </View>
@@ -310,7 +337,7 @@ export default function CartScreen() {
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.headerOverlay }} />
         <LinearGradient
           colors={['transparent', '#000']}
-          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 50 }}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 20 }}
         />
       </View>
 
@@ -324,8 +351,8 @@ export default function CartScreen() {
         }}
       >
         <View style={{ height: 30 }} />
-        <Text style={{ fontSize: 26, fontWeight: '800', color: 'white', marginTop: 40 }}>Your Cart</Text>
-        <Text style={{ fontSize: 14, color: colors.headerMuted, marginTop: 4 }}>
+        <Text style={{ fontSize: 28, fontWeight: '800', color: 'white', marginTop: 40 }}>Your Cart</Text>
+        <Text style={{ fontSize: 16, color: colors.headerMuted, marginTop: 4 }}>
           {itemCount > 0 ? `${itemCount} item${itemCount > 1 ? 's' : ''} ready for checkout` : 'Nothing here yet'}
         </Text>
       </Animated.View>
@@ -335,13 +362,7 @@ export default function CartScreen() {
         pointerEvents="box-none"
         style={{ position: 'absolute', top: 16, left: 16, zIndex: 20, opacity: backButtonOpacity }}
       >
-        <Pressable
-          onPress={() => router.push('/browse')}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.headerPill, borderWidth: 1, borderColor: colors.headerPillBorder, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' }}
-        >
-          <ArrowLeft size={14} color="white" />
-          <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>Continue browsing</Text>
-        </Pressable>
+        <ContinueBrowsingButton onPress={() => router.push('/browse')} colors={colors} />
       </Animated.View>
 
       {/* SCROLLABLE BODY (scrolls over the video) */}
@@ -389,8 +410,8 @@ export default function CartScreen() {
                         {item.image && <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} cachePolicy="disk" />}
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>{item.title}</Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand, marginTop: 2 }}>
+              <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{item.title}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.brand, marginTop: 2 }}>
                 GHS {parseFloat(item.price).toFixed(2)}
               </Text>
             </View>
@@ -398,7 +419,7 @@ export default function CartScreen() {
               <Pressable onPress={() => updateQuantity(item.product_id, item.quantity - 1)} style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
                 <Minus size={12} color={colors.textSecondary} />
               </Pressable>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, minWidth: 16, textAlign: 'center' }}>{item.quantity}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, minWidth: 16, textAlign: 'center' }}>{item.quantity}</Text>
               <Pressable onPress={() => updateQuantity(item.product_id, item.quantity + 1)} style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
                 <Plus size={12} color={colors.textSecondary} />
               </Pressable>
@@ -412,7 +433,7 @@ export default function CartScreen() {
         {/* SELLER CONTACT — only for pickup */}
         {deliveryMethod === 'pickup' && (
           <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginTop: 8 }}>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
               Chat with sellers
             </Text>
             <View style={{ gap: 8 }}>
@@ -439,7 +460,7 @@ export default function CartScreen() {
                       }}
                       style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.brandSoft }}
                     >
-                      <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>
+                      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>
                         Message {group.sellerName} in-app
                       </Text>
                     </Pressable>
@@ -463,7 +484,7 @@ export default function CartScreen() {
 
         {/* SUMMARY */}
         <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginTop: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 16 }}>Order summary</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 }}>Order summary</Text>
 
           {/* Delivery method toggle */}
           <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, alignSelf: 'center', marginBottom: 16, gap: 4 }}>
@@ -474,7 +495,7 @@ export default function CartScreen() {
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: deliveryMethod === m ? colors.card : 'transparent' }}
               >
                 {m === 'pickup' ? <MapPin size={13} color={deliveryMethod === m ? colors.brand : colors.textMuted} /> : <Truck size={13} color={deliveryMethod === m ? colors.brand : colors.textMuted} />}
-                <Text style={{ fontSize: 12, fontWeight: '600', color: deliveryMethod === m ? colors.brand : colors.textMuted }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: deliveryMethod === m ? colors.brand : colors.textMuted }}>
                   {m === 'pickup' ? 'Meet on campus' : 'Delivery'}
                 </Text>
               </Pressable>
@@ -486,24 +507,24 @@ export default function CartScreen() {
             <View style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardAlt, marginBottom: 12 }}>
               <Pressable onPress={handleOnCampusToggle} disabled={verifyingCampus} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View style={{ width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: onCampusChecked ? colors.brand : colors.textFaint, backgroundColor: onCampusChecked ? colors.brand : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                  {onCampusChecked && <Text style={{ color: colors.textOnGold, fontSize: 12, fontWeight: '900' }}>✓</Text>}
+                  {onCampusChecked && <Text style={{ color: colors.textOnGold, fontSize: 14, fontWeight: '900' }}>✓</Text>}
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>Are you on campus?</Text>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: colors.text }}>Are you on campus?</Text>
               </Pressable>
 
               {verifyingCampus && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
                   <ActivityIndicator size="small" color={colors.textFaint} />
-                  <Text style={{ fontSize: 12, color: colors.textFaint }}>Checking your location…</Text>
+                  <Text style={{ fontSize: 14, color: colors.textFaint }}>Checking your location…</Text>
                 </View>
               )}
               {!verifyingCampus && confirmedOnCampus === true && (
-                <Text style={{ fontSize: 12, color: colors.success, marginTop: 8 }}>
+                <Text style={{ fontSize: 14, color: colors.success, marginTop: 8 }}>
                   ✓ You're on campus — delivery fee applied.
                 </Text>
               )}
               {!verifyingCampus && confirmedOnCampus === false && (
-                <Text style={{ fontSize: 12, color: colors.error, marginTop: 8 }}>
+                <Text style={{ fontSize: 14, color: colors.error, marginTop: 8 }}>
                   You are not on campus. Standard delivery rates apply based on your distance.
                 </Text>
               )}
@@ -511,20 +532,20 @@ export default function CartScreen() {
           )}
 
           {deliveryMethod === 'delivery' && confirmedOnCampus !== true && (
-            <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 8 }}>Delivered within 1–3 working days.</Text>
+            <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>Delivered within 1–3 working days.</Text>
           )}
 
           {/* Subtotal */}
           <View style={{ borderTopWidth: 1, borderTopColor: colors.borderMuted, paddingTop: 12, gap: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 14, color: colors.textMuted }}>Subtotal ({itemCount} item{itemCount > 1 ? 's' : ''})</Text>
-              <Text style={{ fontSize: 14, color: colors.textMuted }}>GHS {subtotal.toFixed(2)}</Text>
+              <Text style={{ fontSize: 16, color: colors.textMuted }}>Subtotal ({itemCount} item{itemCount > 1 ? 's' : ''})</Text>
+              <Text style={{ fontSize: 16, color: colors.textMuted }}>GHS {subtotal.toFixed(2)}</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 14, color: colors.textMuted }}>Delivery</Text>
+                <Text style={{ fontSize: 16, color: colors.textMuted }}>Delivery</Text>
                 {deliveryDiscountRate > 0 && deliveryFee > 0 && (
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: colors.success }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.success }}>
                     -{Math.round(deliveryDiscountRate * 100)}%
                   </Text>
                 )}
@@ -532,28 +553,28 @@ export default function CartScreen() {
               {deliveryFee > 0 ? (
                 deliveryDiscountRate > 0 ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontSize: 12, color: colors.textFaint, textDecorationLine: 'line-through' }}>
+                    <Text style={{ fontSize: 14, color: colors.textFaint, textDecorationLine: 'line-through' }}>
                       GHS {deliveryFee.toFixed(2)}
                     </Text>
-                    <Text style={{ fontSize: 14, color: colors.textMuted }}>GHS {discountedDeliveryFee.toFixed(2)}</Text>
+                    <Text style={{ fontSize: 16, color: colors.textMuted }}>GHS {discountedDeliveryFee.toFixed(2)}</Text>
                   </View>
                 ) : (
-                  <Text style={{ fontSize: 14, color: colors.textMuted }}>GHS {deliveryFee.toFixed(2)}</Text>
+                  <Text style={{ fontSize: 16, color: colors.textMuted }}>GHS {deliveryFee.toFixed(2)}</Text>
                 )
               ) : (
-                <Text style={{ fontSize: 14, color: colors.textMuted }}>Free</Text>
+                <Text style={{ fontSize: 16, color: colors.textMuted }}>Free</Text>
               )}
             </View>
           </View>
 
           {/* Total */}
           <View style={{ borderTopWidth: 1, borderTopColor: colors.borderMuted, marginTop: 16, paddingTop: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Total</Text>
-            <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>GHS {grandTotal.toFixed(2)}</Text>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text }}>Total</Text>
+            <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }}>GHS {grandTotal.toFixed(2)}</Text>
           </View>
 
           {deliveryMethod === 'delivery' && (
-            <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6 }}>
+            <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>
               A 2% payment processing fee is added at checkout.
             </Text>
           )}
@@ -567,7 +588,7 @@ export default function CartScreen() {
             {deliveryMethod === 'delivery' && locating && !paying && (
               <ActivityIndicator size="small" color={colors.textOnGold} />
             )}
-            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
               {paying
                 ? 'Redirecting to payment…'
                 : deliveryMethod === 'delivery' && locating
@@ -579,7 +600,7 @@ export default function CartScreen() {
           </Pressable>
 
           {!user && (
-            <Text style={{ fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 12 }}>
+            <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center', marginTop: 12 }}>
               You'll need to log in first
             </Text>
           )}
@@ -617,20 +638,20 @@ export default function CartScreen() {
                 <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                   <MessageCircle size={17} color={colors.brand} />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Message all sellers</Text>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Message all sellers</Text>
               </View>
               <Pressable onPress={() => !sendingBroadcast && setShowBroadcastModal(false)} style={{ padding: 6 }}>
                 <X size={18} color={colors.textFaint} />
               </Pressable>
             </View>
-            <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 16 }}>
+            <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
               This will start (or continue) a chat with each of the {sellersForChat.length} sellers below and send them the same message.
             </Text>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {sellersForChat.map((s: any) => (
                 <View key={s.sellerId} style={{ backgroundColor: colors.chipBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>{s.sellerName}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>{s.sellerName}</Text>
                 </View>
               ))}
             </View>
@@ -645,7 +666,7 @@ export default function CartScreen() {
               style={{
                 paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12,
                 borderWidth: 1, borderColor: colors.border,
-                backgroundColor: colors.inputBg, color: colors.text, fontSize: 14,
+                backgroundColor: colors.inputBg, color: colors.text, fontSize: 16,
                 minHeight: 90, textAlignVertical: 'top',
               }}
             />
@@ -658,12 +679,12 @@ export default function CartScreen() {
               {sendingBroadcast ? (
                 <>
                   <ActivityIndicator size="small" color={colors.textOnGold} />
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>Sending…</Text>
+                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>Sending…</Text>
                 </>
               ) : (
                 <>
                   <Send size={16} color={colors.textOnGold} />
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
                     Send to {sellersForChat.length} sellers
                   </Text>
                 </>
@@ -683,15 +704,9 @@ function CartHeader({ count, colors, onBack }: { count: number; colors: any; onB
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.headerOverlay }} />
 
       <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-        <Pressable
-          onPress={onBack}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.headerPill, borderWidth: 1, borderColor: colors.headerPillBorder, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' }}
-        >
-          <ArrowLeft size={14} color="white" />
-          <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>Continue browsing</Text>
-        </Pressable>
-        <Text style={{ fontSize: 26, fontWeight: '800', color: 'white', marginTop: 36 }}>Your Cart</Text>
-        <Text style={{ fontSize: 14, color: colors.headerMuted, marginTop: 4 }}>
+        <ContinueBrowsingButton onPress={onBack} colors={colors} />
+        <Text style={{ fontSize: 28, fontWeight: '800', color: 'white', marginTop: 36 }}>Your Cart</Text>
+        <Text style={{ fontSize: 16, color: colors.headerMuted, marginTop: 4 }}>
           {count > 0 ? `${count} item${count > 1 ? 's' : ''} ready for checkout` : 'Nothing here yet'}
         </Text>
       </View>

@@ -28,11 +28,11 @@ export default function WishlistPanel({ visible, onClose }: { visible: boolean; 
           }}
         >
           <View style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderMuted }}>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Wishlist</Text>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Wishlist</Text>
           </View>
 
           {items.length === 0 ? (
-            <Text style={{ paddingHorizontal: 16, paddingVertical: 32, textAlign: 'center', fontSize: 14, color: colors.textFaint }}>
+            <Text style={{ paddingHorizontal: 16, paddingVertical: 32, textAlign: 'center', fontSize: 15, color: colors.textFaint }}>
               Nothing saved yet. Tap the heart on any listing to add it here.
             </Text>
           ) : (
@@ -52,13 +52,13 @@ export default function WishlistPanel({ visible, onClose }: { visible: boolean; 
                       <Image source={{ uri: p.primary_image }} style={{ width: 48, height: 48, borderRadius: 12 }} />
                     ) : null}
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
                         {p.title}
                       </Text>
-                      <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
                         GHS {parseFloat(p.price).toFixed(2)} · {p.condition}
                       </Text>
-                      <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
                         {p.seller_name}
                       </Text>
                     </View>

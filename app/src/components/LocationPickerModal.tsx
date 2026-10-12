@@ -56,8 +56,8 @@ export default function LocationPickerModal({ colors, initial, onCancel, onConfi
           onPress={Keyboard.dismiss}
           style={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 12, zIndex: 10 }}
         >
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Set service location</Text>
-          <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Set service location</Text>
+          <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
             Search for your place, or tap anywhere on the map to drop a pin precisely.
           </Text>
           <View style={{ marginTop: 12 }}>
@@ -68,7 +68,7 @@ export default function LocationPickerModal({ colors, initial, onCancel, onConfi
               placeholderTextColor={colors.textFaint}
               style={{
                 borderWidth: 1, borderColor: colors.border, borderRadius: 12,
-                paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontSize: 13,
+                paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontSize: 14,
               }}
             />
             {searching && (
@@ -95,7 +95,7 @@ export default function LocationPickerModal({ colors, initial, onCancel, onConfi
                         borderBottomWidth: 1, borderBottomColor: colors.borderMuted,
                       }}
                     >
-                      <Text style={{ fontSize: 12, color: colors.text }}>{r.display_name}</Text>
+                      <Text style={{ fontSize: 13, color: colors.text }}>{r.display_name}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -129,7 +129,7 @@ export default function LocationPickerModal({ colors, initial, onCancel, onConfi
               borderWidth: 1, borderColor: colors.border, alignItems: 'center',
             }}
           >
-            <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 14 }}>Cancel</Text>
+            <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 15 }}>Cancel</Text>
           </Pressable>
           <Pressable
             onPress={() => onConfirm(pos)}
@@ -138,7 +138,7 @@ export default function LocationPickerModal({ colors, initial, onCancel, onConfi
               backgroundColor: colors.brand, alignItems: 'center',
             }}
           >
-            <Text style={{ color: colors.textOnGold, fontWeight: '600', fontSize: 14 }}>Confirm pin</Text>
+            <Text style={{ color: colors.textOnGold, fontWeight: '600', fontSize: 15 }}>Confirm pin</Text>
           </Pressable>
         </View>
       </View>

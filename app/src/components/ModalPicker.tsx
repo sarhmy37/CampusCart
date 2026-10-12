@@ -50,7 +50,7 @@ export default function ModalPicker({
         <Text
           numberOfLines={1}
           style={{
-            fontSize: 14,
+            fontSize: 15,
             color: selected ? colors.text : colors.textFaint,
             flex: 1,
           }}
@@ -70,7 +70,7 @@ export default function ModalPicker({
             style={{ backgroundColor: colors.card, borderRadius: 20, maxHeight: 460, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}
           >
             <View style={{ paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.borderMuted }}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{placeholder}</Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>{placeholder}</Text>
             </View>
             <ScrollView>
               {options.map((opt) => {
@@ -93,7 +93,7 @@ export default function ModalPicker({
                   >
                     <Text
                       style={{
-                        fontSize: 14,
+                        fontSize: 15,
                         color: isSelected ? colors.brand : colors.textSecondary,
                         fontWeight: isSelected ? '700' : '500',
                         flex: 1,

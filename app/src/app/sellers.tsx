@@ -82,8 +82,8 @@ export default function SellersScreen() {
           opacity: headerTextOpacity,
         }}
       >
-        <Text style={{ fontSize: 26, fontWeight: '900', color: '#fff' }}>Top Sellers</Text>
-        <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>
+        <Text style={{ fontSize: 28, fontWeight: '900', color: '#fff' }}>Top Sellers</Text>
+        <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>
           Ranked by sales and rating
         </Text>
       </Animated.View>
@@ -121,7 +121,7 @@ export default function SellersScreen() {
             onPress={() => setVisibleCount(visibleCount < STEP_2 ? STEP_2 : sellers.length)}
             style={{ alignItems: 'center', paddingVertical: 14 }}
           >
-            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.brand }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand }}>
               {visibleCount < STEP_2 ? 'View more' : 'View all'}
             </Text>
           </Pressable>
@@ -160,7 +160,7 @@ function SellerRow({
       }}
     >
       <View style={{ width: 28, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 16, fontWeight: '900', color: isTop ? accent! : colors.textFaint }}>
+        <Text style={{ fontSize: 18, fontWeight: '900', color: isTop ? accent! : colors.textFaint }}>
           {rank}
         </Text>
       </View>
@@ -179,7 +179,7 @@ function SellerRow({
             <Image source={{ uri: seller.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.brand }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.brand }}>
                 {seller.name?.[0]?.toUpperCase() || '?'}
               </Text>
             </View>
@@ -189,22 +189,22 @@ function SellerRow({
 
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
+          <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>
             {seller.name}
           </Text>
           {rank === 1 && (
             <View style={{ backgroundColor: colors.brandSoft, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
-              <Text style={{ fontSize: 9, fontWeight: '900', color: colors.brand, letterSpacing: 0.4 }}>#1</Text>
+              <Text style={{ fontSize: 11, fontWeight: '900', color: colors.brand, letterSpacing: 0.4 }}>#1</Text>
             </View>
           )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
-          <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textMuted }}>
+          <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted }}>
             {seller.shop_name || `${seller.sales} sales`}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <Star size={11} color={colors.brand} fill={colors.brand} />
-            <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
               {seller.rating.toFixed(1)}
             </Text>
           </View>
@@ -212,14 +212,14 @@ function SellerRow({
       </View>
 
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 13, fontWeight: '900', color: colors.text }}>{seller.sales}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '900', color: colors.text }}>{seller.sales}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
           <TrendingUp
             size={11}
             color={trendUp ? '#16a34a' : '#dc2626'}
             style={{ transform: [{ scaleY: trendUp ? 1 : -1 }] }}
           />
-          <Text style={{ fontSize: 11, fontWeight: '700', color: trendUp ? '#16a34a' : '#dc2626' }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: trendUp ? '#16a34a' : '#dc2626' }}>
             {Math.abs(seller.trend_pct)}%
           </Text>
         </View>

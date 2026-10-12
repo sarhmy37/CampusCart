@@ -75,11 +75,9 @@ export const TOUR_IMAGES: Record<string, { light: any; dark?: any }> = {
   dashboard: { light: require('../../assets/tour/dashboard.png') },
   list:      { light: require('../../assets/tour/list.png') },
   services:  { light: require('../../assets/tour/services.png') },
-
-  // Still to come — uncomment as you drop the PNGs into assets/tour/.
-   pay:    { light: require('../../assets/tour/pay.png') }
-  // refer:  { light: require('../../assets/tour/refer.png') },
-  // payout: { light: require('../../assets/tour/payout.png') },
+   pay:    { light: require('../../assets/tour/pay.png') },
+   refer:  { light: require('../../assets/tour/refer.png') },
+   payout: { light: require('../../assets/tour/payout.png') },
 };
 
 // ---- Sanity (remote) ----

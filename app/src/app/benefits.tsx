@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, Pressable, Animated, ActivityIndicator, Modal, useWindowDimensions,
+  View, Text, Pressable, Animated, ActivityIndicator, Modal, useWindowDimensions, Platform,
 } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
   ArrowLeft, Sparkles, Star, Zap, Eye, TrendingUp, Store, Bookmark,
   Award, ChevronDown, ArrowRight, Gauge, MessageCircle, Percent,
@@ -18,6 +20,7 @@ import { useColors } from '@/hooks/useColors';
 import { BENEFITS_IMAGE } from '@/data/media';
 import Reveal from '@/components/Reveal';
 
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 const LISTING_LIMITS: Record<string, number> = { free: 10, pro: 30, premium: Infinity };
 
 const TIER_META: Record<string, { label: string; icon: any }> = {
@@ -47,8 +50,8 @@ const SELLER_BENEFITS = [
   {
     category: 'Support & visibility',
     items: [
-      { icon: MessageCircle, title: '24-hour priority support', desc: 'Jump the queue — your questions get answered within 24 hours.', tiers: ['pro'] },
-      { icon: Zap, title: 'Same-day dedicated support', desc: 'A dedicated line that responds the same day, every day.', tiers: ['premium'] },
+      { icon: MessageCircle, title: 'Support replies within 2 days', desc: 'Jump the queue — check your email within 2 days for our reply.', tiers: ['pro'] },
+      { icon: Zap, title: 'Support replies within a few hours', desc: 'Check your email within a few hours for our reply.', tiers: ['premium'] },
       { icon: Bookmark, title: 'Saved searches', desc: 'Save a search and get notified the moment a matching listing appears.', tiers: ['pro', 'premium'] },
       { icon: Gauge, title: 'See new listings first', desc: 'New listings matching your interests reach you before anyone else.', tiers: ['pro', 'premium'] },
     ],
@@ -199,22 +202,19 @@ export default function Benefits() {
           <BenefitsVideo />
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.7)' }} />
           <View style={{ padding: 20, paddingTop: insets.top + 16 }}>
-            <Pressable
-              onPress={() => router.back()}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}
-            >
-              <ArrowLeft size={14} color="rgba(255,255,255,0.7)" />
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' }}>Back</Text>
-            </Pressable>
+            <GlassPill onPress={() => router.back()}>
+              <ArrowLeft size={14} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Back</Text>
+            </GlassPill>
           </View>
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
             <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Sparkles size={20} color="#fff" />
             </View>
-            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', textAlign: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', textAlign: 'center' }}>
               You're on the Free plan
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', marginTop: 10, lineHeight: 19, maxWidth: 320 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, textAlign: 'center', marginTop: 10, lineHeight: 19, maxWidth: 320 }}>
               Upgrade to unlock 0% platform fees, priority placement, more listings, and dedicated support.
             </Text>
             <Pressable
@@ -225,7 +225,7 @@ export default function Benefits() {
                 paddingHorizontal: 20, paddingVertical: 11, borderRadius: 999,
               }}
             >
-              <Text style={{ color: '#0f172a', fontWeight: '800', fontSize: 13 }}>View plans</Text>
+              <Text style={{ color: '#0f172a', fontWeight: '800', fontSize: 15 }}>View plans</Text>
               <ArrowRight size={14} color="#0f172a" />
             </Pressable>
           </View>
@@ -264,22 +264,22 @@ export default function Benefits() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
             <Icon size={12} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{meta!.label}</Text>
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{meta!.label}</Text>
           </View>
         </View>
 
         <View style={{ marginTop: 30 }}>
-          <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>{user?.name}</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>{user?.school}</Text>
+          <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{user?.name}</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 2 }}>{user?.school}</Text>
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 20 }}>
-          <Text style={{ color: '#fff', fontSize: 56, fontWeight: '900', lineHeight: 56 }}>{daysLeft}</Text>
+          <Text style={{ color: '#fff', fontSize: 58, fontWeight: '900', lineHeight: 56 }}>{daysLeft}</Text>
           <View style={{ paddingBottom: 6 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' }}>
               {daysLeft === 1 ? 'day' : 'days'} left
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>
               {isPendingDowngrade ? `${pendingLabel} starts` : isPendingCancel ? 'Ends' : 'Renews'} {new Date(user!.plan_expires_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
             </Text>
           </View>
@@ -303,19 +303,10 @@ export default function Benefits() {
         }}
         pointerEvents="box-none"
       >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={{
-            flexDirection: 'row', alignItems: 'center', gap: 4,
-            paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
-            backgroundColor: 'rgba(255,255,255,0.12)',
-            borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
-          }}
-        >
+        <GlassPill onPress={() => router.back()}>
           <ArrowLeft size={12} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Back</Text>
-        </Pressable>
+          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Back</Text>
+        </GlassPill>
       </Animated.View>
 
       {/* ─── SCROLLABLE BODY (scrolls over video) ─── */}
@@ -326,7 +317,7 @@ export default function Benefits() {
         )}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: heroHeight * 0.62, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ paddingTop: heroHeight * 0.62 }}
       >
         <View
           style={{
@@ -342,8 +333,8 @@ export default function Benefits() {
             <Reveal>
               <View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase' }}>Listing usage</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>{listingCount} / {listingLimit}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase' }}>Listing usage</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{listingCount} / {listingLimit}</Text>
                 </View>
                 <View style={{ height: 6, borderRadius: 999, backgroundColor: colors.chipBg, overflow: 'hidden' }}>
                   <View style={{ height: '100%', width: `${listingUsagePct}%`, backgroundColor: colors.brand, borderRadius: 999 }} />
@@ -355,7 +346,7 @@ export default function Benefits() {
           {isSeller && (
             <Reveal>
               <View style={{ paddingTop: 28 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>
                   Since joining {meta!.label}
                 </Text>
                 <StatementLine label="Gross sales" value={loading ? '···' : `GHS ${grossSales.toFixed(2)}`} colors={colors} />
@@ -367,7 +358,7 @@ export default function Benefits() {
 
           <Reveal delay={60}>
             <View style={{ paddingTop: 36 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>Manage</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>Manage</Text>
 
               {isSeller && (
                 <ActionRow icon={Store} title="View my store" desc="See your public storefront" colors={colors} onPress={() => router.push(`/store/${user!.id}` as any)} />
@@ -379,8 +370,8 @@ export default function Benefits() {
                     <Bookmark size={15} color={colors.textMuted} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Saved searches</Text>
-                    <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Saved searches</Text>
+                    <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
                       {savedSearches.length > 0 ? `${savedSearches.length} saved` : 'Get notified when new listings match'}
                     </Text>
                   </View>
@@ -393,11 +384,11 @@ export default function Benefits() {
                       <ActivityIndicator color={colors.brand} />
                     ) : savedSearches.length === 0 ? (
                       <View>
-                        <Text style={{ fontSize: 12, color: colors.textFaint, lineHeight: 18, marginBottom: 8 }}>
+                        <Text style={{ fontSize: 14, color: colors.textFaint, lineHeight: 18, marginBottom: 8 }}>
                           No saved searches yet. Save a search from the Browse page to get notified the moment a matching listing appears.
                         </Text>
                         <Pressable onPress={() => router.push('/(browse)/all' as any)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Browse listings</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>Browse listings</Text>
                           <ArrowRight size={12} color={colors.brand} />
                         </Pressable>
                       </View>
@@ -439,8 +430,8 @@ export default function Benefits() {
                     <Layers size={15} color={colors.textMuted} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{pendingLabel} starts {new Date(user!.plan_expires_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>You keep {meta!.label} until then</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>{pendingLabel} starts {new Date(user!.plan_expires_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                    <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>You keep {meta!.label} until then</Text>
                   </View>
                 </View>
               ) : isPendingCancel ? (
@@ -453,8 +444,8 @@ export default function Benefits() {
 
           <View style={{ paddingTop: 36 }}>
             <Reveal>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 4 }}>What's included</Text>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Everything in your plan</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 4 }}>What's included</Text>
+              <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Everything in your plan</Text>
             </Reveal>
 
             <View style={{ marginTop: 20, gap: 24 }}>
@@ -469,7 +460,7 @@ export default function Benefits() {
                         onPress={() => setCollapsedCategories((prev) => ({ ...prev, [group.category]: !isOpen }))}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: colors.text }}>{group.category}</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>{group.category}</Text>
                         <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                         <ChevronDown size={15} color={isOpen ? colors.brand : colors.textFaint} style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }} />
                       </Pressable>
@@ -496,12 +487,12 @@ export default function Benefits() {
                       <Sparkles size={15} color={colors.textOnGold} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>Go further with Premium</Text>
-                      <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 18 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Go further with Premium</Text>
+                      <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, lineHeight: 18 }}>
                         Everything you have on Pro, plus no listing cap at all and your store shown first, every time.
                       </Text>
                       <Pressable onPress={() => router.push('/')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: colors.brand }}>Upgrade to Premium</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand }}>Upgrade to Premium</Text>
                         <ArrowRight size={12} color={colors.brand} />
                       </Pressable>
                     </View>
@@ -511,12 +502,17 @@ export default function Benefits() {
             </Reveal>
           )}
 
-          <View style={{ paddingTop: 44, alignItems: 'center' }}>
-            <Pressable onPress={() => setShowFaq((v) => !v)}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand, textDecorationLine: 'underline' }}>
+          <View style={{ paddingTop: 36, alignItems: 'center' }}>
+            <GlassPill onPress={() => setShowFaq((v) => !v)} bg={colors.card} center>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.brand }}>
                 Frequently Asked Questions
               </Text>
-            </Pressable>
+              <ChevronDown
+                size={14}
+                color={colors.brand}
+                style={{ transform: [{ rotate: showFaq ? '180deg' : '0deg' }] }}
+              />
+            </GlassPill>
             {showFaq && (
               <View style={{ marginTop: 20, width: '100%' }}>
                 {FAQ_ITEMS.map((faq, i) => (
@@ -541,8 +537,8 @@ export default function Benefits() {
               <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#fee2e2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <X size={24} color="#ef4444" />
               </View>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, textAlign: 'center' }}>Cancel subscription?</Text>
-              <Text style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
+              <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text, textAlign: 'center' }}>Cancel subscription?</Text>
+              <Text style={{ fontSize: 15, color: colors.textMuted, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
                 You'll keep {meta!.label} access until {new Date(user!.plan_expires_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, then your account moves to Free. No refund for time already paid.
               </Text>
             </View>
@@ -551,14 +547,14 @@ export default function Benefits() {
                 onPress={() => setShowCancelModal(false)}
                 style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>Keep plan</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textMuted }}>Keep plan</Text>
               </Pressable>
               <Pressable
                 onPress={handleConfirmCancel}
                 disabled={cancelling}
                 style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#dc2626', alignItems: 'center', opacity: cancelling ? 0.6 : 1 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>
                   {cancelling ? 'Cancelling…' : 'Cancel plan'}
                 </Text>
               </Pressable>
@@ -570,11 +566,37 @@ export default function Benefits() {
   );
 }
 
+function GlassPill({
+  onPress, children, bg, center,
+}: { onPress: () => void; children: React.ReactNode; bg?: string; center?: boolean }) {
+  const Wrapper: any = GLASS ? GlassView : View;
+  return (
+    <Pressable onPress={onPress} hitSlop={10} style={{ alignSelf: center ? 'center' : 'flex-start' }}>
+      <Wrapper
+        {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: 6,
+          paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+          ...(GLASS
+            ? {}
+            : {
+                backgroundColor: bg ?? 'rgba(255,255,255,0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.3)',
+              }),
+        }}
+      >
+        {children}
+      </Wrapper>
+    </Pressable>
+  );
+}
+
 function HeaderStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, paddingVertical: 12, alignItems: 'center' }}>
-      <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{value}</Text>
-      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, marginTop: 4, letterSpacing: 1, textTransform: 'uppercase', fontWeight: '600' }}>{label}</Text>
+      <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800' }}>{value}</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 4, letterSpacing: 1, textTransform: 'uppercase', fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }
@@ -582,8 +604,8 @@ function HeaderStat({ label, value }: { label: string; value: string }) {
 function StatementLine({ label, value, highlight, colors }: any) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, borderStyle: 'dashed' }}>
-      <Text style={{ fontSize: 12, color: colors.textMuted, flex: 1 }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: '800', color: highlight ? '#10b981' : colors.text }}>{value}</Text>
+      <Text style={{ fontSize: 14, color: colors.textMuted, flex: 1 }}>{label}</Text>
+      <Text style={{ fontSize: 16, fontWeight: '800', color: highlight ? '#10b981' : colors.text }}>{value}</Text>
     </View>
   );
 }
@@ -596,8 +618,8 @@ function BenefitRow({ item, colors }: any) {
         <Icon size={14} color={colors.brand} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, lineHeight: 19 }}>{item.title}</Text>
-        <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 18 }}>{item.desc}</Text>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, lineHeight: 19 }}>{item.title}</Text>
+        <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, lineHeight: 18 }}>{item.desc}</Text>
       </View>
     </View>
   );
@@ -610,8 +632,8 @@ function ActionRow({ icon: Icon, title, desc, colors, onPress, danger }: any) {
         <Icon size={15} color={danger ? '#ef4444' : colors.textMuted} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: danger ? '#ef4444' : colors.text }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>{desc}</Text>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: danger ? '#ef4444' : colors.text }}>{title}</Text>
+        <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>{desc}</Text>
       </View>
       <ArrowRight size={15} color={danger ? '#fca5a5' : colors.textFaint} />
     </Pressable>
@@ -622,11 +644,11 @@ function FaqItem({ faq, open, onToggle, colors }: any) {
   return (
     <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
       <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 16 }}>
-        <Text style={{ flex: 1, fontSize: 14, fontWeight: open ? '800' : '500', color: colors.text }}>{faq.q}</Text>
+        <Text style={{ flex: 1, fontSize: 16, fontWeight: open ? '800' : '500', color: colors.text }}>{faq.q}</Text>
         <ChevronDown size={16} color={open ? colors.brand : colors.textFaint} style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }} />
       </Pressable>
       {open && (
-        <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18, paddingBottom: 16, paddingRight: 24 }}>
+        <Text style={{ fontSize: 14, color: colors.textMuted, lineHeight: 18, paddingBottom: 16, paddingRight: 24 }}>
           {faq.a}
         </Text>
       )}
@@ -637,7 +659,7 @@ function FaqItem({ faq, open, onToggle, colors }: any) {
 function Chip({ label, colors, accent }: any) {
   return (
     <View style={{ backgroundColor: accent ? '#d1fae5' : colors.card, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: accent ? '#a7f3d0' : colors.border }}>
-      <Text style={{ fontSize: 11, fontWeight: '600', color: accent ? '#047857' : colors.text }}>{label}</Text>
+      <Text style={{ fontSize: 13, fontWeight: '600', color: accent ? '#047857' : colors.text }}>{label}</Text>
     </View>
   );
 }

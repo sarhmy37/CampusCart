@@ -117,7 +117,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                 {/* Title + subtitle */}
                 <Text
                   style={{
-                    fontSize: 18,
+                    fontSize: 19,
                     fontWeight: '800',
                     color: colors.text,
                   }}
@@ -126,7 +126,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                 </Text>
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     color: colors.textMuted,
                     marginTop: 6,
                     lineHeight: 19,
@@ -140,7 +140,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                   <View>
                     <Text
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: '700',
                         color: colors.textMuted,
                         marginBottom: 6,
@@ -162,7 +162,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                         borderColor: colors.border,
                         backgroundColor: colors.background,
                         color: colors.text,
-                        fontSize: 14,
+                        fontSize: 15,
                       }}
                       returnKeyType="next"
                     />
@@ -171,7 +171,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                   <View>
                     <Text
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: '700',
                         color: colors.textMuted,
                         marginBottom: 6,
@@ -196,7 +196,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                         borderColor: colors.border,
                         backgroundColor: colors.background,
                         color: colors.text,
-                        fontSize: 14,
+                        fontSize: 15,
                         minHeight: 88,
                       }}
                     />
@@ -218,7 +218,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                       backgroundColor: colors.card,
                     }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>
                       Cancel
                     </Text>
                   </Pressable>
@@ -239,7 +239,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                     {submitting ? (
                       <ActivityIndicator color={colors.textOnGold} size="small" />
                     ) : (
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textOnGold }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.textOnGold }}>
                         Send request
                       </Text>
                     )}

@@ -50,6 +50,10 @@ To learn more about developing your project with Expo, look at the following res
 
 ## Join the community
 
+## Pending reminder
+
+- Pay for the iStock video used on the Sell screen to remove its watermark.
+
 Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.

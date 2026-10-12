@@ -309,7 +309,7 @@ export default function EditListingModal({
     paddingVertical: 11,
     color: colors.text,
     backgroundColor: colors.inputBg,
-    fontSize: 13,
+    fontSize: 14,
   };
 
   return (
@@ -326,7 +326,7 @@ export default function EditListingModal({
           }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Edit listing</Text>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Edit listing</Text>
             <Pressable onPress={onClose} style={{ padding: 6 }}>
               <X size={18} color={colors.textFaint} />
             </Pressable>
@@ -334,7 +334,7 @@ export default function EditListingModal({
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
             {/* Title */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Title</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Title</Text>
             <TextInput
               value={form.title}
               onChangeText={(v) => setForm({ ...form, title: v })}
@@ -342,7 +342,7 @@ export default function EditListingModal({
             />
 
             {/* Description */}
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 14, marginBottom: 4 }}>Description</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginTop: 14, marginBottom: 4 }}>Description</Text>
             <TextInput
               value={form.description}
               onChangeText={(v) => setForm({ ...form, description: v })}
@@ -352,11 +352,11 @@ export default function EditListingModal({
 
             {/* Price section */}
             <View style={{ backgroundColor: colors.chipBg, borderRadius: 14, padding: 12, marginTop: 14, borderWidth: 1, borderColor: colors.borderMuted }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, marginBottom: 8 }}>Price</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 8 }}>Price</Text>
 
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10, color: colors.textFaint }}>Current (read-only)</Text>
+                  <Text style={{ fontSize: 11, color: colors.textFaint }}>Current (read-only)</Text>
                   <TextInput
                     value={currentSavedPrice ? String(currentSavedPrice) : ''}
                     editable={false}
@@ -364,7 +364,7 @@ export default function EditListingModal({
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10, color: colors.textFaint }}>New price</Text>
+                  <Text style={{ fontSize: 11, color: colors.textFaint }}>New price</Text>
                   <TextInput
                     value={form.price}
                     onChangeText={(v) => setForm({ ...form, price: v })}
@@ -374,16 +374,16 @@ export default function EditListingModal({
                 </View>
               </View>
 
-              <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6 }}>
+              <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6 }}>
                 Lowering below the current price shows as a sale to buyers.
               </Text>
 
               {discount !== null && (
                 <View style={{ marginTop: 8, padding: 8, borderRadius: 10, backgroundColor: colors.successSoft, borderWidth: 1, borderColor: colors.success }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.success }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.success }}>
                     🎉 This will show as -{discount}% off
                   </Text>
-                  <Text style={{ fontSize: 10, color: colors.success, marginTop: 2 }}>               
+                  <Text style={{ fontSize: 11, color: colors.success, marginTop: 2 }}>               
                          GHS {currentSavedPrice!.toFixed(2)} → GHS {newPrice.toFixed(2)}
                   </Text>
                 </View>
@@ -394,7 +394,7 @@ export default function EditListingModal({
             <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginTop: 16 }}>
               {/* Photos */}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Photos</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Photos</Text>
 
                 <ScrollView
                   horizontal
@@ -433,7 +433,7 @@ export default function EditListingModal({
                       )}
                       {i === 0 && (
                         <View style={{ position: 'absolute', bottom: 2, left: 2, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
-                          <Text style={{ fontSize: 8, fontWeight: '700' }}>Cover</Text>
+                          <Text style={{ fontSize: 9, fontWeight: '700' }}>Cover</Text>
                         </View>
                       )}
                     </Pressable>
@@ -445,7 +445,7 @@ export default function EditListingModal({
                   )}
                 </ScrollView>
 
-                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
                   {photoMode === 'selecting-replace' ? 'Tap a photo to replace it.' : `Up to ${MAX_IMAGES}. First is cover.`}
                 </Text>
 
@@ -460,7 +460,7 @@ export default function EditListingModal({
                     }}
                   >
                     <RefreshCw size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
                   </Pressable>
                   <Pressable
                     onPress={handleAddPhotos}
@@ -472,14 +472,14 @@ export default function EditListingModal({
                     }}
                   >
                     <ImagePlus size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
                   </Pressable>
                 </View>
               </View>
 
               {/* Video */}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Video</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 6 }}>Video</Text>
 
                 <View style={{ height: 84 }}>
                   {videoUploading ? (
@@ -491,12 +491,12 @@ export default function EditListingModal({
                   ) : (
                     <View style={{ width: '100%', height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
                       <VideoIcon size={16} color={colors.textFaint} />
-                      <Text style={{ fontSize: 9, color: colors.textFaint, marginTop: 4 }}>No video</Text>
+                      <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 4 }}>No video</Text>
                     </View>
                   )}
                 </View>
 
-                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
+                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6, height: 14 }} numberOfLines={1}>
                   Optional. Max 20MB.
                 </Text>
 
@@ -511,7 +511,7 @@ export default function EditListingModal({
                     }}
                   >
                     <RefreshCw size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Replace</Text>
                   </Pressable>
                   <Pressable
                     onPress={handleVideoButtonClick}
@@ -523,7 +523,7 @@ export default function EditListingModal({
                     }}
                   >
                     <VideoIcon size={11} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Add</Text>
                   </Pressable>
                 </View>
               </View>
@@ -531,10 +531,10 @@ export default function EditListingModal({
 
             {/* Delivery fees */}
             <View style={{ backgroundColor: colors.chipBg, borderRadius: 14, padding: 12, marginTop: 16, borderWidth: 1, borderColor: colors.borderMuted }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, marginBottom: 8 }}>Delivery fees</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 8 }}>Delivery fees</Text>
               <View style={{ flexDirection: 'row', gap: 6 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10, color: colors.textFaint }}>On campus</Text>
+                  <Text style={{ fontSize: 11, color: colors.textFaint }}>On campus</Text>
                   <TextInput
                     value={form.delivery_fee_on_campus}
                     onChangeText={(v) => setForm({ ...form, delivery_fee_on_campus: v })}
@@ -543,7 +543,7 @@ export default function EditListingModal({
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10, color: colors.textFaint }}>Near</Text>
+                  <Text style={{ fontSize: 11, color: colors.textFaint }}>Near</Text>
                   <TextInput
                     value={form.delivery_fee_near_campus}
                     onChangeText={(v) => setForm({ ...form, delivery_fee_near_campus: v })}
@@ -552,7 +552,7 @@ export default function EditListingModal({
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 10, color: colors.textFaint }}>Far</Text>
+                  <Text style={{ fontSize: 11, color: colors.textFaint }}>Far</Text>
                   <TextInput
                     value={form.delivery_fee_far_campus}
                     onChangeText={(v) => setForm({ ...form, delivery_fee_far_campus: v })}
@@ -566,7 +566,7 @@ export default function EditListingModal({
             {/* Stock + Condition */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Stock</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Stock</Text>
                 <TextInput
                   value={form.stock}
                   onChangeText={(v) => setForm({ ...form, stock: v })}
@@ -575,7 +575,7 @@ export default function EditListingModal({
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Condition</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Condition</Text>
                 <ModalPicker
                   value={form.condition}
                   onSelect={(v) => setForm({ ...form, condition: v })}
@@ -587,7 +587,7 @@ export default function EditListingModal({
             {/* Category + Subcategory */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Category</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Category</Text>
                 <ModalPicker
                   value={form.category}
                   onSelect={(v) => setForm({ ...form, category: v, subcategory: '' })}
@@ -597,7 +597,7 @@ export default function EditListingModal({
               </View>
               {subOptions.length > 0 && (
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Subcategory</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 4 }}>Subcategory</Text>
                   <ModalPicker
                     value={form.subcategory}
                     onSelect={(v) => setForm({ ...form, subcategory: v })}
@@ -617,7 +617,7 @@ export default function EditListingModal({
                   borderWidth: 1, borderColor: colors.border, alignItems: 'center',
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={handleSave}
@@ -628,7 +628,7 @@ export default function EditListingModal({
                   opacity: saving || uploading || videoUploading ? 0.5 : 1,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textOnGold }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
                   {saving ? 'Saving…' : (uploading || videoUploading) ? 'Uploading…' : 'Save changes'}
                 </Text>
               </Pressable>

@@ -211,11 +211,11 @@ export default function SearchScreen() {
           </Pressable>
 
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text, flexShrink: 1 }}>
+            <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, flexShrink: 1 }}>
               {greeting}{firstName ? `, ${firstName}` : ''} 👋
             </Text>
             {!isTyping && (
-              <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+              <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>
                 {subtitle}
               </Text>
             )}
@@ -239,7 +239,7 @@ export default function SearchScreen() {
                 paddingRight: 36,
                 borderRadius: 999,
                 color: colors.text,
-                fontSize: 14,
+                fontSize: 16,
               }}
             />
             {value.length > 0 ? (
@@ -265,7 +265,7 @@ export default function SearchScreen() {
         </View>
       ) : results.length === 0 && userResults.length === 0 ? (
         <View style={{ alignItems: 'center', paddingTop: 32, paddingHorizontal: 24 }}>
-          <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center' }}>
+          <Text style={{ color: colors.textMuted, fontSize: 15, textAlign: 'center' }}>
             No results for "{value.trim()}"
           </Text>
         </View>
@@ -300,7 +300,7 @@ export default function SearchScreen() {
                           const Icon = TAB_ICONS[t][active ? 'solid' : 'outline'];
                           return <Icon size={14} color={active ? colors.textOnGold : colors.textMuted} />;
                         })()}
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: active ? colors.textOnGold : colors.textMuted }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: active ? colors.textOnGold : colors.textMuted }}>
                           {t === 'product' ? 'Product' : t === 'service' ? 'Service' : 'User'}
                         </Text>
                       </View>
@@ -312,14 +312,14 @@ export default function SearchScreen() {
           }
           ListFooterComponent={
             <Pressable onPress={handleSubmit} style={{ paddingTop: 16, alignItems: 'center' }}>
-              <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>
+              <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>
                 See all results for "{value.trim()}"
               </Text>
             </Pressable>
           }
           ListEmptyComponent={
             <View style={{ alignItems: 'center', paddingTop: 24 }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+              <Text style={{ color: colors.textMuted, fontSize: 15 }}>
                 No {typeFilter === 'service' ? 'services' : typeFilter === 'user' ? 'users' : 'products'} found
               </Text>
             </View>
@@ -363,20 +363,20 @@ export default function SearchScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.brand }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.brand }}>
                     {item.title?.[0]?.toUpperCase() || '?'}
                   </Text>
                 </View>
               )}
 
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
                   {item.title}
                 </Text>
                 {!!(item.seller_location || item.seller_meeting_place) && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
                     <MapPin size={11} color={colors.textFaint} />
-                    <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textMuted }}>
+                    <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted }}>
                       {item.seller_location || item.seller_meeting_place}
                     </Text>
                   </View>
@@ -413,16 +413,16 @@ function UserRow({
         {item.avatar_url ? (
           <Image source={{ uri: item.avatar_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
         ) : (
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.brand }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.brand }}>
             {item.name?.[0]?.toUpperCase() || '?'}
           </Text>
         )}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+        <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
           {item.name}
         </Text>
-        <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+        <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}>
           {[item.username ? `@${item.username}` : null, item.school].filter(Boolean).join(' · ')}
         </Text>
       </View>
@@ -440,7 +440,7 @@ function UserRow({
               borderTopRightRadius: 0, borderBottomRightRadius: 0,
             }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: following ? colors.text : colors.textOnGold }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: following ? colors.text : colors.textOnGold }}>
               {following ? 'Following' : 'Follow'}
             </Text>
           </Pressable>
@@ -454,7 +454,7 @@ function UserRow({
               borderTopRightRadius: 10, borderBottomRightRadius: 10,
             }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Chat</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>Chat</Text>
           </Pressable>
         </View>
       )}

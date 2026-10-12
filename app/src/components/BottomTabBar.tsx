@@ -1,8 +1,8 @@
 import { View, Text, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
-import { UserIcon as UserOutline, HomeModernIcon as HomeOutline, ChatBubbleLeftRightIcon as ChatOutline, ShoppingCartIcon as CartOutline, GlobeAltIcon as StoriesOutline } from 'react-native-heroicons/outline';
-import { UserIcon as UserSolid, HomeModernIcon as HomeSolid, ChatBubbleLeftRightIcon as ChatSolid, ShoppingCartIcon as CartSolid, GlobeAltIcon as StoriesSolid } from 'react-native-heroicons/solid';
+import { UserIcon as UserOutline, HomeModernIcon as HomeOutline, ChatBubbleLeftRightIcon as ChatOutline, ShoppingCartIcon as CartOutline, GlobeEuropeAfricaIcon as StoriesOutline } from 'react-native-heroicons/outline';
+import { UserIcon as UserSolid, HomeModernIcon as HomeSolid, ChatBubbleLeftRightIcon as ChatSolid, ShoppingCartIcon as CartSolid, GlobeEuropeAfricaIcon as StoriesSolid } from 'react-native-heroicons/solid';
 import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
 import { useCart } from '@/context/CartContext';
@@ -69,7 +69,7 @@ export default function BottomTabBar() {
       paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center',
     }}
   >
-    <Text style={{ color: colors.textOnGold, fontSize: 10, fontWeight: '700' }}>
+    <Text style={{ color: colors.textOnGold, fontSize: 11, fontWeight: '700' }}>
       {badge > 9 ? '9+' : badge}
     </Text>
   </View>
@@ -77,7 +77,7 @@ export default function BottomTabBar() {
             </View>
             <Text
               style={{
-                fontSize: 9.5,
+                fontSize: 10.5,
                 fontWeight: active ? '700' : '500',
                 color: active ? colors.brand : colors.textFaint,
               }}

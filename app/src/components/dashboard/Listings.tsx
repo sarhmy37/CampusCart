@@ -56,7 +56,7 @@ export default function Listings() {
     return (
       <View style={{ maxWidth: 640, alignSelf: 'center', width: '100%' }}>
         <SearchBar value={search} onChange={setSearch} colors={colors} />
-        <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center', paddingVertical: 24 }}>
+        <Text style={{ fontSize: 15, color: colors.textFaint, textAlign: 'center', paddingVertical: 24 }}>
           No listings match "{search}"
         </Text>
       </View>
@@ -135,7 +135,7 @@ function SearchBar({ value, onChange, colors }: { value: string; onChange: (v: s
       style={{
         paddingHorizontal: 16, paddingVertical: 12,
         borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-        backgroundColor: colors.inputBg, fontSize: 14, color: colors.text,
+        backgroundColor: colors.inputBg, fontSize: 15, color: colors.text,
       }}
     />
   );
@@ -144,7 +144,7 @@ function SearchBar({ value, onChange, colors }: { value: string; onChange: (v: s
 function SectionDivider({ label, color, colors }: { label: string; color?: string; colors: any }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
-      <Text style={{ fontSize: 11, fontWeight: '700', color: color || colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: color || colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
     </View>
   );
@@ -190,42 +190,42 @@ function ListingItem({
 
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: colors.text, flexShrink: 1 }}>
+          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 1 }}>
             {product.title}
           </Text>
           {isBoosted && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.brand, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
               <Rocket size={9} color={colors.textOnGold} />
-              <Text style={{ fontSize: 9, fontWeight: '700', color: colors.textOnGold }}>Boosted</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: colors.textOnGold }}>Boosted</Text>
             </View>
           )}
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: product.status === 'available' ? colors.success : colors.textFaint }} />
-          <Text style={{ fontSize: 11, color: colors.textFaint, textTransform: 'capitalize' }}>
+          <Text style={{ fontSize: 12, color: colors.textFaint, textTransform: 'capitalize' }}>
             {product.status} · GHS {parseFloat(product.price).toFixed(2)}
           </Text>
           {isService && (
             <View style={{ backgroundColor: colors.successSoft, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
-              <Text style={{ fontSize: 9, fontWeight: '600', color: colors.success }}>Service</Text>
+              <Text style={{ fontSize: 10, fontWeight: '600', color: colors.success }}>Service</Text>
             </View>
           )}
         </View>
 
         {isBoosted && boostCountdown ? (
-          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.brand, marginTop: 2 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand, marginTop: 2 }}>
             🚀 {boostCountdown}
           </Text>
         ) : isPlanActive ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
             <Eye size={11} color={colors.textFaint} />
-            <Text style={{ fontSize: 11, color: colors.textFaint }}>
+            <Text style={{ fontSize: 12, color: colors.textFaint }}>
               {product.views_count ?? 0} views · {product.sold_count ?? 0} sold
             </Text>
           </View>
         ) : (
-          <Text onPress={() => router.push('/')} style={{ fontSize: 11, color: colors.brandDark, marginTop: 4, textDecorationLine: 'underline' }}>
+          <Text onPress={() => router.push('/')} style={{ fontSize: 12, color: colors.brandDark, marginTop: 4, textDecorationLine: 'underline' }}>
             Upgrade to Pro to see views & sales stats
           </Text>
         )}

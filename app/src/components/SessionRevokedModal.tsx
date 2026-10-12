@@ -80,10 +80,10 @@ export default function SessionRevokedModal() {
           <ShieldAlert size={26} color={colors.error} />
         </View>
 
-        <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
+        <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
           Signed out — new login detected
         </Text>
-        <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 8, textAlign: 'center', lineHeight: 19 }}>
+        <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, textAlign: 'center', lineHeight: 19 }}>
           Your account was accessed on another device, so this session was signed out.
           If this wasn't you, report it immediately.
         </Text>
@@ -99,7 +99,7 @@ export default function SessionRevokedModal() {
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
             Report this — it wasn't me
           </Text>
         </Pressable>
@@ -121,7 +121,7 @@ export default function SessionRevokedModal() {
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '600' }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600' }}>
             Okay, take me to login
           </Text>
         </Pressable>

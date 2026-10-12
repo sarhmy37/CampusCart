@@ -40,7 +40,7 @@ function Badge({ count, colors }: { count: number; colors: any }) {
       <Text
         style={{
           color: colors.textOnGold,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: '700',
           lineHeight: 16,
           textAlign: 'center',
@@ -61,7 +61,7 @@ export default function Header() {
   const isSearchScreen = pathname === '/search';
   const { user, logout } = useAuth();
   const { count: wishlistCount } = useWishlist();
-  const { unreadCount: notifUnread, markAllRead } = useNotifications();
+  const { unreadCount: notifUnread, markAllRead, muted } = useNotifications();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showWishlist, setShowWishlist] = useState(false);
@@ -154,9 +154,9 @@ export default function Header() {
               cachePolicy="disk"
             />
           )}
-          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>Tre</Text>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text, marginHorizontal: 1, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>-</Text>
-          <Text style={{ fontSize: 24, fontWeight: '900', fontStyle: 'italic', color: colors.brand, marginLeft: 1, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>X</Text>
+          <Text style={{ fontSize: 19, fontWeight: '900', color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>Tre</Text>
+          <Text style={{ fontSize: 19, fontWeight: '900', color: colors.text, marginHorizontal: 1, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>-</Text>
+          <Text style={{ fontSize: 25, fontWeight: '900', fontStyle: 'italic', color: colors.brand, marginLeft: 1, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>X</Text>
         </Pressable>
 
         {/* Search bar — hidden on /search screen */}
@@ -175,7 +175,7 @@ export default function Header() {
               backgroundColor: colors.chipBg,
             }}
           >
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, color: colors.textFaint }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, color: colors.textFaint }}>
               Search textbooks, electronics...
             </Text>
             <Search size={16} color={colors.textFaint} strokeWidth={2} />
@@ -193,8 +193,10 @@ export default function Header() {
 
           {user && (
             <Pressable onPress={toggleNotifications} style={{ padding: 6, position: 'relative' }}>
-              <Bell size={16} color={colors.textSecondary} strokeWidth={2} />
-              <Badge count={notifUnread} colors={colors} />
+              {muted
+                ? <BellOff size={16} color={colors.textFaint} strokeWidth={2} />
+                : <Bell size={16} color={colors.textSecondary} strokeWidth={2} />}
+              <Badge count={muted ? 0 : notifUnread} colors={colors} />
             </Pressable>
           )}
 

@@ -1,10 +1,14 @@
 import { useMemo } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Platform } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+
 import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight, Check, Rocket } from 'lucide-react-native';
 import { useColors } from '@/hooks/useColors';
+
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 function parseAvailability(raw: any) {
   if (!raw) return null;
@@ -63,14 +67,17 @@ export default function ServiceCard({
     service.seller_plan_expires_at && new Date(service.seller_plan_expires_at) > new Date();
   const planTier = isPlanActive ? service.seller_plan.toLowerCase() : null;
 
-  return (
-    <Pressable
-      onPress={() => (boostMode && onBoostSelect ? onBoostSelect(service) : router.push(`/service/${service.id}`))}
+  const isBoosted = service.boosted_until && new Date(service.boosted_until) > new Date();
+
+  const Wrapper: any = GLASS ? GlassView : View;
+
+  const CardInner = (
+    <Wrapper
+      {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
       style={{
-        width: '100%',
-        backgroundColor: colors.card,
+        ...(GLASS ? {} : { backgroundColor: colors.card }),
         borderRadius: 14,
-        borderWidth: boostSelected ? 2 : 1,
+        borderWidth: boostSelected ? 2 : GLASS ? (isBoosted ? 1 : 0) : 1,
         borderColor: boostSelected ? colors.brand : colors.border,
         overflow: 'hidden',
       }}
@@ -107,16 +114,16 @@ export default function ServiceCard({
             {boostSelected && <Check size={12} color="#fff" />}
           </View>
         )}
-        {!boostMode && service.boosted_until && new Date(service.boosted_until) > new Date() && (
+        {!boostMode && isBoosted && (
           <View
             style={{
               position: 'absolute', top: 6, left: 6,
               flexDirection: 'row', alignItems: 'center', gap: 3,
-              backgroundColor: colors.brand, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+              backgroundColor: '#22c55e', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
             }}
           >
-            <Rocket size={9} color={colors.textOnGold} />
-            <Text style={{ fontSize: 9, fontWeight: '800', color: colors.textOnGold }}>Boosted</Text>
+            <Rocket size={9} color="#fff" />
+            <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>Service</Text>
           </View>
         )}
       </View>
@@ -127,7 +134,7 @@ export default function ServiceCard({
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 3 }}>
           <Text
             numberOfLines={2}
-            style={{ flex: 1, fontSize: 11, fontWeight: '700', color: colors.text, lineHeight: 14 }}
+            style={{ flex: 1, fontSize: 12, fontWeight: '700', color: colors.text, lineHeight: 14 }}
           >
             {service.title || service.name}
           </Text>
@@ -139,7 +146,7 @@ export default function ServiceCard({
         </View>
 
         {!!service.description && (
-          <Text numberOfLines={2} style={{ fontSize: 9, color: colors.textFaint, marginTop: 2, lineHeight: 12 }}>
+          <Text numberOfLines={2} style={{ fontSize: 10, color: colors.textFaint, marginTop: 2, lineHeight: 12 }}>
             {service.description}
           </Text>
         )}
@@ -149,11 +156,11 @@ export default function ServiceCard({
           {hasRating && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               <Star size={9} color="#f59e0b" fill="#f59e0b" />
-              <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textSecondary }}>
+              <Text style={{ fontSize: 10, fontWeight: '600', color: colors.textSecondary }}>
                 {parseFloat(service.rating).toFixed(1)}
               </Text>
               {service.review_count > 0 && (
-                <Text style={{ fontSize: 9, color: colors.textFaint }}>({service.review_count})</Text>
+                <Text style={{ fontSize: 10, color: colors.textFaint }}>({service.review_count})</Text>
               )}
             </View>
           )}
@@ -161,7 +168,7 @@ export default function ServiceCard({
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 4 }}>
             <MapPin size={9} color={colors.textFaint} style={{ marginTop: 1 }} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text numberOfLines={1} style={{ fontSize: 9, color: colors.textMuted }}>
+              <Text numberOfLines={1} style={{ fontSize: 10, color: colors.textMuted }}>
                 {service.seller_school || 'Location not specified'}
               </Text>
             </View>
@@ -181,10 +188,19 @@ export default function ServiceCard({
             backgroundColor: colors.brand,
           }}
         >
-          <Text style={{ fontSize: 10, fontWeight: '700', color: colors.textOnGold }}>Book now</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Book now</Text>
           <ArrowRight size={10} color={colors.textOnGold} />
         </View>
       </View>
+    </Wrapper>
+  );
+
+  return (
+    <Pressable
+      onPress={() => (boostMode && onBoostSelect ? onBoostSelect(service) : router.push(`/service/${service.id}`))}
+      style={{ width: '100%' }}
+    >
+      {CardInner}
     </Pressable>
   );
 }

@@ -33,7 +33,7 @@ export default function SupportTab() {
       return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(168,85,247,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
           <Sparkles size={9} color="#a855f7" />
-          <Text style={{ fontSize: 100, fontWeight: '700', color: '#a855f7' }}>PREMIUM</Text>
+          <Text style={{ fontSize: 101, fontWeight: '700', color: '#a855f7' }}>PREMIUM</Text>
         </View>
       );
     }
@@ -41,7 +41,7 @@ export default function SupportTab() {
       return (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
           <Star size={9} color="#3b82f6" />
-          <Text style={{ fontSize: 100, fontWeight: '700', color: '#3b82f6' }}>PRO</Text>
+          <Text style={{ fontSize: 101, fontWeight: '700', color: '#3b82f6' }}>PRO</Text>
         </View>
       );
     }
@@ -69,7 +69,7 @@ export default function SupportTab() {
             >
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: active ? '700' : '500',
                   color: active ? colors.brand : colors.textMuted,
                   textTransform: 'capitalize',
@@ -91,18 +91,18 @@ export default function SupportTab() {
           {filtered.map((r) => (
             <View key={r.id} style={cardStyle(colors)}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{r.user_name}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{r.user_name}</Text>
                 {planBadge(r)}
               </View>
-              <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>{r.user_email}</Text>
+              <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>{r.user_email}</Text>
 
               <View style={{ backgroundColor: colors.chipBg, borderRadius: 10, padding: 10, marginTop: 8 }}>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 18 }}>
                   {r.message}
                 </Text>
               </View>
 
-              <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 6 }}>
+              <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6 }}>
                 {new Date(r.created_at).toLocaleString()}
               </Text>
 
@@ -121,7 +121,7 @@ export default function SupportTab() {
                     }}
                   >
                     <Send size={13} color={colors.textOnGold} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textOnGold }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
                       Reply
                     </Text>
                   </Pressable>
@@ -197,7 +197,7 @@ function ReplyModal({
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text, flex: 1 }}>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text, flex: 1 }}>
             Reply to {request.user_name}
           </Text>
           <Pressable onPress={onClose} style={{ padding: 6 }} disabled={sending}>
@@ -206,7 +206,7 @@ function ReplyModal({
         </View>
 
         <View style={{ backgroundColor: colors.chipBg, borderRadius: 10, padding: 10, marginTop: 10 }}>
-          <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>
+          <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 18 }}>
             {request.message}
           </Text>
         </View>
@@ -228,12 +228,12 @@ function ReplyModal({
             borderColor: colors.border,
             backgroundColor: colors.inputBg,
             color: colors.text,
-            fontSize: 15,
+            fontSize: 16,
             textAlignVertical: 'top',
           }}
         />
 
-        <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6 }}>
+        <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>
           This will be emailed to the user and mark the request as resolved.
         </Text>
 
@@ -250,7 +250,7 @@ function ReplyModal({
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Cancel</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textMuted }}>Cancel</Text>
           </Pressable>
           <Pressable
             onPress={handleSend}
@@ -264,7 +264,7 @@ function ReplyModal({
               opacity: sending || !reply.trim() ? 0.5 : 1,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textOnGold }}>
               {sending ? 'Sending…' : 'Send reply'}
             </Text>
           </Pressable>

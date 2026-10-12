@@ -190,29 +190,33 @@ export default function Payouts({ period, active }: { period: string; active?: b
   const [form, setForm] = useState({ bank_code: '', account_number: '', account_name: '' });
   const [saving, setSaving] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [resolveFailed, setResolveFailed] = useState(false);
   const [accountTaken, setAccountTaken] = useState(false);
 
   useEffect(() => {
-    if (!form.bank_code || form.account_number.length < 9) return;
+    setResolveFailed(false);
+    if (!form.bank_code || form.account_number.length < 9) { setResolving(false); return; }
+    let cancelled = false;
     setResolving(true);
     const t = setTimeout(() => {
       api.post('/payouts/resolve-account', { bank_code: form.bank_code, account_number: form.account_number })
-        .then((res) => setForm((f) => ({ ...f, account_name: res.data.account_name })))
-        .catch(() => setForm((f) => ({ ...f, account_name: '' })))
-        .finally(() => setResolving(false));
+        .then((res) => { if (!cancelled) setForm((f) => ({ ...f, account_name: res.data.account_name })); })
+        .catch(() => { if (!cancelled) { setForm((f) => ({ ...f, account_name: '' })); setResolveFailed(true); } })
+        .finally(() => { if (!cancelled) setResolving(false); });
     }, 500);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); setResolving(false); };
   }, [form.bank_code, form.account_number]);
 
   useEffect(() => {
     setAccountTaken(false);
     if (!form.bank_code || form.account_number.length < 9) return;
+    let cancelled = false;
     const t = setTimeout(() => {
       api.get('/payouts/check-account', { params: { bank_code: form.bank_code, account_number: form.account_number } })
-        .then((res) => setAccountTaken(!!res.data.taken))
+        .then((res) => { if (!cancelled) setAccountTaken(!!res.data.taken); })
         .catch(() => {});
     }, 500);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [form.bank_code, form.account_number]);
 
   const handleAddAccount = async () => {
@@ -270,7 +274,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
 
   const inputStyle = {
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
-    borderWidth: 1, borderColor: colors.border, fontSize: 14, color: colors.text,
+    borderWidth: 1, borderColor: colors.border, fontSize: 15, color: colors.text,
     backgroundColor: colors.inputBg,
   };
   const primaryBtn = {
@@ -290,27 +294,27 @@ export default function Payouts({ period, active }: { period: string; active?: b
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Available Balance</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Available Balance</Text>
                 <Pressable onPress={handleToggleBalance}>
                   {balanceRevealed ? <EyeOff size={14} color="rgba(255,255,255,0.8)" /> : <Eye size={14} color="rgba(255,255,255,0.8)" />}
                 </Pressable>
               </View>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: 'white', marginTop: 6 }}>
+              <Text style={{ fontSize: 29, fontWeight: '800', color: 'white', marginTop: 6 }}>
                 {balanceRevealed ? `GHS ${money(balance)}` : 'GHS ••••••'}
               </Text>
-              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
                 {isPlanActive ? '100% of your completed sales' : '98.5% of your completed sales'}
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: 0.5 }}>USD</Text>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: 'white', marginTop: 6 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: 0.5 }}>USD</Text>
+              <Text style={{ fontSize: 29, fontWeight: '800', color: 'white', marginTop: 6 }}>
                 {!balanceRevealed ? '$••.••' : ghsToUsdRate !== null ? `$${money(balance * ghsToUsdRate)}` : '—'}
               </Text>
               {changePct !== null && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
                   {changePct >= 0 ? <ChevronUp size={12} color="#6ee7b7" /> : <ChevronDown size={12} color="#fca5a5" />}
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: changePct >= 0 ? '#6ee7b7' : '#fca5a5' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: changePct >= 0 ? '#6ee7b7' : '#fca5a5' }}>
                     {Math.abs(changePct).toFixed(1)}%
                   </Text>
                 </View>
@@ -326,10 +330,10 @@ export default function Payouts({ period, active }: { period: string; active?: b
           <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Wallet size={16} color={colors.brand} />
           </View>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Withdraw Funds</Text>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Withdraw Funds</Text>
         </View>
 
-        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>Select Payout Account</Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>Select Payout Account</Text>
         <ModalPicker
           value={selectedAccountId}
           onSelect={setSelectedAccountId}
@@ -340,7 +344,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
           }))}
         />
 
-        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 12, marginBottom: 4 }}>Amount (GHS)</Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginTop: 12, marginBottom: 4 }}>Amount (GHS)</Text>
         <TextInput
           value={withdrawAmount}
           onChangeText={setWithdrawAmount}
@@ -355,13 +359,13 @@ export default function Payouts({ period, active }: { period: string; active?: b
           disabled={withdrawing || balance <= 0 || !selectedAccountId}
           style={[primaryBtn, { marginTop: 16, opacity: withdrawing || balance <= 0 || !selectedAccountId ? 0.5 : 1 }]}
         >
-          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>
             {withdrawing ? 'Processing...' : 'Withdraw Funds'}
           </Text>
         </Pressable>
 
         {!user?.verified && (
-          <Text style={{ fontSize: 12, color: colors.error, textAlign: 'center', marginTop: 8 }}>
+          <Text style={{ fontSize: 13, color: colors.error, textAlign: 'center', marginTop: 8 }}>
             ⚠️ Verify your account to enable withdrawals.
           </Text>
         )}
@@ -373,17 +377,17 @@ export default function Payouts({ period, active }: { period: string; active?: b
           <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Landmark size={16} color={colors.brand} />
           </View>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Saved Payout Accounts</Text>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Saved Payout Accounts</Text>
         </View>
-        <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 16 }}>
+        <Text style={{ fontSize: 13, color: colors.textFaint, marginBottom: 16 }}>
           These are the accounts you can withdraw your earnings to.
         </Text>
 
         {accounts.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-            <Text style={{ fontSize: 14, color: colors.textFaint }}>No payout account set up yet.</Text>
+            <Text style={{ fontSize: 15, color: colors.textFaint }}>No payout account set up yet.</Text>
             <Pressable onPress={() => setShowAddModal(true)} style={{ marginTop: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>+ Add payout account</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.brand }}>+ Add payout account</Text>
             </Pressable>
           </View>
         ) : (
@@ -391,16 +395,16 @@ export default function Payouts({ period, active }: { period: string; active?: b
             {accounts.map((acc) => (
               <View key={acc.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: acc.is_default ? colors.brand : colors.border, backgroundColor: acc.is_default ? colors.brandSoft : colors.card }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{acc.account_name}</Text>
-                  <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                  <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{acc.account_name}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
                     {acc.bank_name || acc.method} · •••• {acc.account_number.slice(-4)}
                   </Text>
-                  {acc.is_default && <Text style={{ fontSize: 10, fontWeight: '700', color: colors.brand, marginTop: 2 }}>Default</Text>}
+                  {acc.is_default && <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand, marginTop: 2 }}>Default</Text>}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   {!acc.is_default && (
                     <Pressable onPress={() => handleSetDefault(acc.id)} disabled={settingDefault === acc.id}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>
                         {settingDefault === acc.id ? 'Setting…' : 'Set as default'}
                       </Text>
                     </Pressable>
@@ -412,7 +416,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
               </View>
             ))}
             <Pressable onPress={() => setShowAddModal(true)} style={{ marginTop: 4, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textFaint, alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>+ Add another account</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>+ Add another account</Text>
             </Pressable>
           </View>
         )}
@@ -427,7 +431,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
               onPress={() => setWithdrawalsTab(t)}
               style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: withdrawalsTab === t ? colors.card : 'transparent' }}
             >
-              <Text style={{ fontSize: 12, fontWeight: '600', color: withdrawalsTab === t ? colors.brand : colors.textMuted }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: withdrawalsTab === t ? colors.brand : colors.textMuted }}>
                 {t === 'requests' ? 'Withdrawal requests' : 'Completed'}
               </Text>
             </Pressable>
@@ -438,7 +442,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
           <ActivityIndicator color={colors.brand} />
         ) : withdrawalsTab === 'requests' ? (
           requestWithdrawals.length === 0 ? (
-            <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center', paddingVertical: 20 }}>
+            <Text style={{ fontSize: 15, color: colors.textFaint, textAlign: 'center', paddingVertical: 20 }}>
               No pending withdrawal requests.
             </Text>
           ) : (
@@ -446,20 +450,20 @@ export default function Payouts({ period, active }: { period: string; active?: b
               {requestWithdrawals.map((w) => (
                 <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>GHS {money(w.amount)}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>GHS {money(w.amount)}</Text>
+                    <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
                       {w.account_name} · {new Date(w.created_at).toLocaleDateString()}
                     </Text>
                   </View>
                   <View style={{ backgroundColor: colors.warningSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: colors.warning, textTransform: 'uppercase' }}>{w.status}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.warning, textTransform: 'uppercase' }}>{w.status}</Text>
                   </View>
                 </View>
               ))}
             </View>
           )
         ) : completedWithdrawals.length === 0 ? (
-          <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center', paddingVertical: 20 }}>
+          <Text style={{ fontSize: 15, color: colors.textFaint, textAlign: 'center', paddingVertical: 20 }}>
             No completed withdrawals yet.
           </Text>
         ) : (
@@ -468,18 +472,18 @@ export default function Payouts({ period, active }: { period: string; active?: b
               <View key={w.id} style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>GHS {parseFloat(w.amount).toFixed(2)}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>GHS {parseFloat(w.amount).toFixed(2)}</Text>
+                    <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
                       {w.account_name} · {new Date(w.created_at).toLocaleDateString()}
                     </Text>
                   </View>
                   <View style={{ backgroundColor: colors.successSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: colors.success, textTransform: 'uppercase' }}>Completed</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success, textTransform: 'uppercase' }}>Completed</Text>
                   </View>
                 </View>
 
                 {w.reported_at ? (
-                  <Text style={{ fontSize: 12, color: colors.error, marginTop: 8 }}>
+                  <Text style={{ fontSize: 13, color: colors.error, marginTop: 8 }}>
                     ⚠️ Reported not received on {new Date(w.reported_at).toLocaleDateString()}
                   </Text>
                 ) : reportingId === w.id ? (
@@ -490,20 +494,20 @@ export default function Payouts({ period, active }: { period: string; active?: b
                       placeholder="Describe the issue…"
                       placeholderTextColor={colors.textFaint}
                       multiline
-                      style={{ padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, fontSize: 12, color: colors.text, backgroundColor: colors.inputBg, minHeight: 60, textAlignVertical: 'top' }}
+                      style={{ padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, fontSize: 13, color: colors.text, backgroundColor: colors.inputBg, minHeight: 60, textAlignVertical: 'top' }}
                     />
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <Pressable onPress={() => { setReportingId(null); setReportMessage(''); }} style={{ flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
                       </Pressable>
                       <Pressable onPress={() => handleSubmitReport(w.id)} disabled={submittingReport} style={{ flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.error, alignItems: 'center', opacity: submittingReport ? 0.6 : 1 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: 'white' }}>{submittingReport ? 'Submitting…' : 'Submit'}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: 'white' }}>{submittingReport ? 'Submitting…' : 'Submit'}</Text>
                       </Pressable>
                     </View>
                   </View>
                 ) : (
                   <Pressable onPress={() => setReportingId(w.id)} style={{ marginTop: 8 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.error, textDecorationLine: 'underline' }}>Not received?</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.error, textDecorationLine: 'underline' }}>Not received?</Text>
                   </Pressable>
                 )}
               </View>
@@ -519,8 +523,8 @@ export default function Payouts({ period, active }: { period: string; active?: b
             <Pressable onPress={() => setShowPasswordModal(false)} style={{ position: 'absolute', top: 16, right: 16 }}>
               <X size={18} color={colors.textFaint} />
             </Pressable>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Confirm it's you</Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>Enter your password to view your available balance.</Text>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Confirm it's you</Text>
+            <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>Enter your password to view your available balance.</Text>
             <TextInput
               value={balancePassword}
               onChangeText={setBalancePassword}
@@ -530,7 +534,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
               style={[inputStyle, { marginTop: 16 }]}
             />
             <Pressable onPress={handleVerifyPassword} disabled={verifyingPassword} style={[primaryBtn, { marginTop: 16, opacity: verifyingPassword ? 0.6 : 1 }]}>
-              <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>{verifyingPassword ? 'Verifying…' : 'Show balance'}</Text>
+              <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{verifyingPassword ? 'Verifying…' : 'Show balance'}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -543,8 +547,8 @@ export default function Payouts({ period, active }: { period: string; active?: b
             <Pressable onPress={() => setShowWithdrawConfirm(false)} style={{ position: 'absolute', top: 16, right: 16 }}>
               <X size={18} color={colors.textFaint} />
             </Pressable>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Confirm withdrawal</Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Confirm withdrawal</Text>
+            <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>
               Enter your password to confirm withdrawing GHS {money(withdrawAmount || '0')}.
             </Text>
             <TextInput
@@ -556,7 +560,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
               style={[inputStyle, { marginTop: 16 }]}
             />
             <Pressable onPress={handleConfirmWithdraw} disabled={withdrawing} style={[primaryBtn, { marginTop: 16, opacity: withdrawing ? 0.6 : 1 }]}>
-              <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>{withdrawing ? 'Processing…' : 'Confirm withdrawal'}</Text>
+              <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{withdrawing ? 'Processing…' : 'Confirm withdrawal'}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -570,20 +574,20 @@ export default function Payouts({ period, active }: { period: string; active?: b
               <Pressable onPress={() => setShowAddModal(false)} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
                 <X size={18} color={colors.textFaint} />
               </Pressable>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Add payout account</Text>
-              <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>Your earnings will be sent here.</Text>
+              <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Add payout account</Text>
+              <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>Your earnings will be sent here.</Text>
 
               <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, alignSelf: 'flex-start', marginTop: 16, gap: 4 }}>
                 {(['bank', 'mobile_money'] as const).map((m) => (
                   <Pressable key={m} onPress={() => { setMethod(m); setForm({ bank_code: '', account_number: '', account_name: '' }); }} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: method === m ? colors.card : 'transparent' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: method === m ? colors.brand : colors.textMuted }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: method === m ? colors.brand : colors.textMuted }}>
                       {m === 'bank' ? 'Bank' : 'Mobile Money'}
                     </Text>
                   </Pressable>
                 ))}
               </View>
 
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 16, marginBottom: 4 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginTop: 16, marginBottom: 4 }}>
                 {method === 'bank' ? 'Bank' : 'Network'}
               </Text>
               <ModalPicker
@@ -597,7 +601,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
                 }
               />
 
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 12, marginBottom: 4 }}>Account number</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginTop: 12, marginBottom: 4 }}>Account number</Text>
               <TextInput
                 value={form.account_number}
                 onChangeText={(v) => setForm({ ...form, account_number: v.replace(/\D/g, ''), account_name: '' })}
@@ -605,26 +609,29 @@ export default function Payouts({ period, active }: { period: string; active?: b
                 placeholderTextColor={colors.textFaint}
                 keyboardType="number-pad"
                 style={inputStyle}
+                maxLength={16}
               />
 
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 12, marginBottom: 4 }}>Account name</Text>
-              <TextInput
-                value={form.account_name}
-                onChangeText={(v) => setForm({ ...form, account_name: v.toUpperCase() })}
-                placeholder="KWAME ASANTE"
-                placeholderTextColor={colors.textFaint}
-                autoCapitalize="characters"
-                style={inputStyle}
-              />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginTop: 12, marginBottom: 4 }}>Account name</Text>
+              <View style={[inputStyle, { opacity: form.account_name ? 1 : 0.7 }]}>
+                <Text style={{ fontSize: 15, color: form.account_name ? colors.text : colors.textFaint }}>
+                  {form.account_name || 'Appears automatically'}
+                </Text>
+              </View>
+              {resolveFailed && (
+                <Text style={{ fontSize: 13, color: colors.error, marginTop: 6 }}>
+                  We couldn't find an account with these details. Check the number and network.
+                </Text>
+              )}
                {accountTaken && (
-                <Text style={{ fontSize: 12, color: colors.error, marginTop: 6 }}>
+                <Text style={{ fontSize: 13, color: colors.error, marginTop: 6 }}>
                   An account with this number already exists. Use a different account.
                 </Text>
               )}
-              {resolving && <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6 }}>Resolving account name…</Text>}
+              {resolving && <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>Resolving account name…</Text>}
 
               <Pressable onPress={handleAddAccount} disabled={saving || !form.account_name || resolving || accountTaken} style={[primaryBtn, { marginTop: 20, opacity: saving || !form.account_name || resolving || accountTaken ? 0.5 : 1 }]}>
-                <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>{saving ? 'Adding…' : 'Add account'}</Text>
+                <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{saving ? 'Adding…' : 'Add account'}</Text>
               </Pressable>
             </Pressable>
           </ScrollView>

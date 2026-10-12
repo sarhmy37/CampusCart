@@ -70,22 +70,22 @@ export default function ExclusiveOffers({ active = false, onHasOffers }: { activ
     ];
     return (
       <View style={{ paddingHorizontal: 16, paddingVertical: 24, backgroundColor: colors.card }}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand, letterSpacing: 0.7, textTransform: 'uppercase' }}>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.brand, letterSpacing: 0.7, textTransform: 'uppercase' }}>
           How it works
         </Text>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, marginTop: 4 }}>
+        <Text style={{ fontSize: 25, fontWeight: '800', color: colors.text, marginTop: 4 }}>
           From listing to handshake, in three steps
         </Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
           {steps.map((s, i) => (
             <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontSize: 30, fontWeight: '900', color: colors.textFaint, lineHeight: 30, marginBottom: 4 }}>
+              <Text style={{ fontSize: 31, fontWeight: '900', color: colors.textFaint, lineHeight: 30, marginBottom: 4 }}>
                 {i + 1}
               </Text>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text, marginTop: 4, textAlign: 'center' }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 4, textAlign: 'center' }}>
                 {s.title}
               </Text>
-              <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4, lineHeight: 14, textAlign: 'center', maxWidth: 110 }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4, lineHeight: 14, textAlign: 'center', maxWidth: 110 }}>
                 {s.desc}
               </Text>
             </View>
@@ -100,10 +100,10 @@ export default function ExclusiveOffers({ active = false, onHasOffers }: { activ
       <View style={{ paddingHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Flame size={40} color={colors.brand} fill={colors.brand} />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
             Exclusive offers
           </Text>
-          <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
+          <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
             {DESCRIPTION.slice(0, typedCount)}
             <Text style={{ color: 'transparent' }}>{DESCRIPTION.slice(typedCount)}</Text>
           </Text>
@@ -141,19 +141,19 @@ export default function ExclusiveOffers({ active = false, onHasOffers }: { activ
                   paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
                 }}
               >
-                <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>
                   {discountPct}% OFF
                 </Text>
               </View>
             </View>
             <View style={{ padding: 8 }}>
-              <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>
+              <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
                 {product.title}
               </Text>
-              <Text style={{ fontSize: 13, fontWeight: '900', color: colors.brand, marginTop: 3 }}>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: colors.brand, marginTop: 3 }}>
                 GHS {parseFloat(product.price).toFixed(2)}
               </Text>
-              <Text style={{ fontSize: 10, color: colors.textMuted, textDecorationLine: 'line-through' }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted, textDecorationLine: 'line-through' }}>
                 GHS {marketPrice.toFixed(2)}
               </Text>
             </View>

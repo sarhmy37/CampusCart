@@ -25,13 +25,13 @@ export default function Terms() {
         <Pressable onPress={() => router.replace('/profile')} style={{ padding: 6 }}>
           <ArrowLeft size={20} color={colors.text} />
         </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>
           Terms of Service
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-        <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 20 }}>
+        <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 20 }}>
           Last updated: 2026
         </Text>
 
@@ -72,10 +72,10 @@ export default function Terms() {
 function Section({ title, children, colors }: any) {
   return (
     <View style={{ marginBottom: 20 }}>
-      <Text style={{ fontWeight: '700', color: colors.text, fontSize: 15, marginBottom: 6 }}>
+      <Text style={{ fontWeight: '700', color: colors.text, fontSize: 17, marginBottom: 6 }}>
         {title}
       </Text>
-      <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 21 }}>
+      <Text style={{ color: colors.textMuted, fontSize: 15, lineHeight: 21 }}>
         {children}
       </Text>
     </View>

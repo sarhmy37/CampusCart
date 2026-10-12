@@ -57,7 +57,7 @@ export default function OverdueTab() {
 
   return (
     <View>
-      <Text style={{ fontSize: 13, color: colors.textFaint, marginBottom: 10 }}>
+      <Text style={{ fontSize: 15, color: colors.textFaint, marginBottom: 10 }}>
         {orders.length} order{orders.length === 1 ? '' : 's'} need your review
       </Text>
 
@@ -73,28 +73,28 @@ export default function OverdueTab() {
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, fontFamily: 'monospace' }} numberOfLines={1}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, fontFamily: 'monospace' }} numberOfLines={1}>
                   #{String(o.id).slice(0, 8)}
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }} numberOfLines={1}>
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }} numberOfLines={1}>
                   {o.buyer_name} · {o.buyer_email}
                 </Text>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: o.overdue_reason === 'reported' ? colors.error : colors.warning, marginTop: 4 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: o.overdue_reason === 'reported' ? colors.error : colors.warning, marginTop: 4 }}>
                   {REASON_LABELS[o.overdue_reason] || 'Overdue'}
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.warning }}>
+                <Text style={{ fontSize: 14, color: colors.warning }}>
                   Flagged {new Date(o.flagged_at).toLocaleString()}
                 </Text>
                 {o.buyer_whatsapp && (
-                  <Text style={{ fontSize: 12, color: colors.textMuted }}>WhatsApp: {o.buyer_whatsapp}</Text>
+                  <Text style={{ fontSize: 14, color: colors.textMuted }}>WhatsApp: {o.buyer_whatsapp}</Text>
                 )}
-                <Text style={{ fontSize: 11, color: colors.textFaint }}>
+                <Text style={{ fontSize: 13, color: colors.textFaint }}>
                   Placed {new Date(o.created_at).toLocaleDateString()}
                 </Text>
               </View>
 
               <View style={{ alignItems: 'flex-end', gap: 8 }}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
                   GHS {parseFloat(o.total_amount).toFixed(2)}
                 </Text>
                 <Pressable
@@ -106,14 +106,14 @@ export default function OverdueTab() {
                     backgroundColor: colors.error,
                   }}
                 >
-                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Refund</Text>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Refund</Text>
                 </Pressable>
                 {o.delivered_at && (
                   <Pressable
                     onPress={() => handleRelease(o)}
                     style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.success }}
                   >
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Release to seller</Text>
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Release to seller</Text>
                   </Pressable>
                 )}
               </View>
@@ -134,7 +134,7 @@ export default function OverdueTab() {
 }
 
 // ─── REFUND MODAL ────────────────────────────────────────────────────
-function RefundModal({
+export function RefundModal({
   order, onClose, onSuccess,
 }: { order: any; onClose: () => void; onSuccess: () => void }) {
   const colors = useColors();
@@ -189,10 +189,10 @@ function RefundModal({
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
+            <Text style={{ fontSize: 21, fontWeight: '800', color: colors.text }}>
               Refund order #{String(order.id).slice(0, 8)}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+            <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>
               {order.buyer_name} · GHS {parseFloat(order.total_amount).toFixed(2)} total
             </Text>
           </View>
@@ -201,7 +201,7 @@ function RefundModal({
           </Pressable>
         </View>
 
-        <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 8 }}>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 8 }}>
           Refund amount
         </Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -221,7 +221,7 @@ function RefundModal({
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: active ? colors.textOnGold : colors.textMuted }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: active ? colors.textOnGold : colors.textMuted }}>
                   {p}%
                 </Text>
               </Pressable>
@@ -244,10 +244,10 @@ function RefundModal({
             }}
           >
             {noItemsReceived && (
-              <Text style={{ color: colors.textOnGold, fontSize: 13, fontWeight: '900' }}>✓</Text>
+              <Text style={{ color: colors.textOnGold, fontSize: 15, fontWeight: '900' }}>✓</Text>
             )}
           </View>
-          <Text style={{ flex: 1, fontSize: 14, color: colors.text, lineHeight: 19 }}>
+          <Text style={{ flex: 1, fontSize: 16, color: colors.text, lineHeight: 19 }}>
             Buyer received no items at all — also refund the delivery fee
           </Text>
         </Pressable>
@@ -265,7 +265,7 @@ function RefundModal({
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Cancel</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textMuted }}>Cancel</Text>
           </Pressable>
           <Pressable
             onPress={handleRefund}
@@ -279,7 +279,7 @@ function RefundModal({
               opacity: refunding ? 0.6 : 1,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>
               {refunding ? 'Refunding…' : 'Confirm refund'}
             </Text>
           </Pressable>

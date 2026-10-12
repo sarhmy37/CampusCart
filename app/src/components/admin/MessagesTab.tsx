@@ -10,6 +10,45 @@ import { useColors } from '@/hooks/useColors';
 
 type Group = 'all' | 'sellers' | 'buyers';
 
+const DRAFTS: { label: string; text: string }[] = [
+  {
+    label: 'Looking into it',
+    text: "Hi, thanks for letting us know your order hasn't reached you. We're checking with the seller right now and I'll update you as soon as I hear back. Sorry for the stress, we'll get it sorted.",
+  },
+  {
+    label: 'Need more info',
+    text: "Hi, quick question about your report on Order [order #]. Did the seller give you a time or place to meet? Anything you can tell us will help us track it down faster.",
+  },
+  {
+    label: 'Refund approved',
+    text: "Good news, we've approved your refund for Order [order #]. It's been added as credit to your Tre-X account, so you can use it on your next order. Sorry again for the hassle.",
+  },
+  {
+    label: 'Payment released',
+    text: "Hi, we've checked Order [order #] and released the payment to the seller. If something still doesn't look right, just reply here and we'll take another look.",
+  },
+  {
+    label: 'Report dismissed',
+    text: "Hi, we looked into your report and couldn't find anything we can act on. If you think we missed something, reply here with the details and we'll check again.",
+  },
+  {
+    label: 'Ask seller',
+    text: "Hi, the buyer says Order [order #] hasn't reached them. Can you tell us when and where you handed it over? Please reply here as soon as you can so we can sort this out.",
+  },
+  {
+    label: 'Account warning',
+    text: "Hi, we've had a report about your account and wanted to reach out first. Please keep things respectful and honest on Tre-X. If it happens again, we may have to restrict your account.",
+  },
+  {
+    label: 'Ban lifted',
+    text: "Hi, we've gone through your ban review and we're lifting the ban. You can log back in now. Please keep to the community rules so we don't end up here again.",
+  },
+  {
+    label: 'Ban stays',
+    text: "Hi, we've gone through your ban review and, after checking everything, the ban is staying in place. If you have anything new to share, reply here and we'll read it.",
+  },
+];
+
 export default function MessagesTab() {
   const colors = useColors();
 
@@ -109,10 +148,10 @@ export default function MessagesTab() {
           contentFit="cover"
         />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>
             Send as Tre-X
           </Text>
-          <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}>
             Messages appear from the official Tre-X account
           </Text>
         </View>
@@ -134,7 +173,7 @@ export default function MessagesTab() {
         >
           <Text
             style={{
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: '700',
               color: mode === 'group' ? colors.brand : colors.textMuted,
             }}
@@ -156,7 +195,7 @@ export default function MessagesTab() {
         >
           <Text
             style={{
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: '700',
               color: mode === 'individual' ? colors.brand : colors.textMuted,
             }}
@@ -197,7 +236,7 @@ export default function MessagesTab() {
                   <Icon size={18} color={active ? colors.brand : colors.textMuted} />
                   <Text
                     style={{
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: '700',
                       color: active ? colors.brand : colors.textMuted,
                     }}
@@ -256,10 +295,10 @@ export default function MessagesTab() {
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                 {selected.name}
               </Text>
-              <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+              <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 1 }}>
                 {selected.account_type === 'seller' ? 'Seller' : 'Buyer'} · {selected.university_email}
               </Text>
             </View>
@@ -294,12 +333,12 @@ export default function MessagesTab() {
               }}
             >
               {allowReplies && (
-                <Text style={{ color: colors.textOnGold, fontSize: 13, fontWeight: '900', lineHeight: 15 }}>
+                <Text style={{ color: colors.textOnGold, fontSize: 15, fontWeight: '900', lineHeight: 15 }}>
                   ✓
                 </Text>
               )}
             </View>
-            <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: colors.text }}>
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text }}>
               Allow this user to reply
             </Text>
           </Pressable>
@@ -310,6 +349,7 @@ export default function MessagesTab() {
             colors={colors}
             sending={sending}
             onSend={sendIndividual}
+            showDrafts
             placeholder={`Message ${selected.name}…`}
           />
         </>
@@ -334,7 +374,7 @@ export default function MessagesTab() {
               onChangeText={setSearch}
               placeholder="Find a specific account…"
               placeholderTextColor={colors.textFaint}
-              style={{ flex: 1, paddingVertical: 11, color: colors.text, fontSize: 14 }}
+              style={{ flex: 1, paddingVertical: 11, color: colors.text, fontSize: 16 }}
             />
             {search.length > 0 && (
               <Pressable onPress={() => setSearch('')} hitSlop={8}>
@@ -346,7 +386,7 @@ export default function MessagesTab() {
           {loading ? (
             <ActivityIndicator color={colors.brand} style={{ marginTop: 12 }} />
           ) : accounts.length === 0 ? (
-            <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 13, marginTop: 8 }}>
+            <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 15, marginTop: 8 }}>
               {search ? `No results for "${search}"` : 'No accounts'}
             </Text>
           ) : (
@@ -388,10 +428,10 @@ export default function MessagesTab() {
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
                     {acct.name}
                   </Text>
-                  <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 1 }}>
                     {acct.account_type === 'seller' ? 'Seller' : 'Buyer'} · {acct.university_email}
                   </Text>
                 </View>
@@ -405,7 +445,7 @@ export default function MessagesTab() {
 }
 
 function Composer({
-  draft, setDraft, colors, sending, onSend, placeholder,
+  draft, setDraft, colors, sending, onSend, placeholder, showDrafts,
 }: {
   draft: string;
   setDraft: (v: string) => void;
@@ -413,6 +453,7 @@ function Composer({
   sending: boolean;
   onSend: () => void;
   placeholder: string;
+  showDrafts?: boolean;
 }) {
   const disabled = sending || !draft.trim();
   return (
@@ -426,6 +467,28 @@ function Composer({
         gap: 10,
       }}
     >
+      {showDrafts && (
+        <View>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+            Quick drafts
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {DRAFTS.map((d) => (
+              <Pressable
+                key={d.label}
+                onPress={() => setDraft(d.text)}
+                disabled={sending}
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+                  borderWidth: 1, borderColor: colors.border, backgroundColor: colors.chipBg,
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>{d.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
       <TextInput
         value={draft}
         onChangeText={setDraft}
@@ -439,7 +502,7 @@ function Composer({
           borderRadius: 12,
           backgroundColor: colors.chipBg,
           color: colors.text,
-          fontSize: 14,
+          fontSize: 16,
           textAlignVertical: 'top',
         }}
       />
@@ -461,7 +524,7 @@ function Composer({
         ) : (
           <>
             <Send size={16} color={colors.textOnGold} />
-            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
               Send
             </Text>
           </>

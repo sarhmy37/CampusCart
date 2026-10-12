@@ -22,8 +22,10 @@ import {
   Plus, Trash2, Wifi, Briefcase, Package, Clock, MapPin, Check, Map as MapIcon,
 } from 'lucide-react-native';
 import LocationPickerModal from '@/components/LocationPickerModal';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 const NETWORKS = ['MTN', 'Telecel', 'AirtelTigo'];
 const WORKING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -81,7 +83,7 @@ async function uploadToBackend(file: { uri: string; name: string; type: string }
 export default function CreateListing() {
   const colors = useColors();
   const router = useRouter();
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  const { from, type } = useLocalSearchParams<{ from?: string; type?: string }>();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const { user } = useAuth();
@@ -95,13 +97,20 @@ const backOpacity = scrollY.interpolate({
   extrapolate: 'clamp',
 });
 
-  const [activeTab, setActiveTab] = useState<'product' | 'service'>('product');
+  const [activeTab, setActiveTab] = useState<'product' | 'service' | 'data'>(type === 'service' ? 'service' : 'product');
+
+  // if this screen is already mounted and gets opened again with a different type
+  useEffect(() => {
+    if (type === 'service') setActiveTab('service');
+    else if (type === 'product') setActiveTab('product');
+  }, [type]);
 
   // Data bundles
   const [bundles, setBundles] = useState<any[]>([]);
   const [bundlesLoading, setBundlesLoading] = useState(false);
   const [newBundle, setNewBundle] = useState({ network: 'MTN', gb_amount: '', price: '' });
   const [savingBundle, setSavingBundle] = useState(false);
+  const [dataBundlesOpen, setDataBundlesOpen] = useState(true);
 
   // Product form
   const [categories, setCategories] = useState<any[]>([]);
@@ -464,107 +473,8 @@ onScroll={(e) => {
             elevation: 4,
           }}
         >
-          <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>New Listing</Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>Add the details buyers will see.</Text>
-
-          {/* Data seller section */}
-          {isDataSeller && (
-            <View style={{ marginTop: 20, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Wifi size={16} color={colors.brand} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: '700', color: colors.text }}>Mobile Data Bundles</Text>
-                  <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
-                    Manage the GB packages buyers can purchase per network.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-                <View style={{ flex: 1.2 }}>
-                  <MiniLabel colors={colors} label="Network" />
-                  <SelectField
-                    colors={colors}
-                    compact
-                    value={newBundle.network}
-                    options={NETWORKS.map((n) => ({ label: n, value: n }))}
-                    onChange={(v) => setNewBundle({ ...newBundle, network: v })}
-                  />
-                </View>
-                <View style={{ flex: 0.8 }}>
-                  <MiniLabel colors={colors} label="GB" />
-                  <TextInput
-                    value={newBundle.gb_amount}
-                    onChangeText={(v) => setNewBundle({ ...newBundle, gb_amount: v })}
-                    keyboardType="decimal-pad"
-                    placeholder="1"
-                    placeholderTextColor={colors.textFaint}
-                    style={[inputStyle(colors), { paddingVertical: 9, marginBottom: 0, fontSize: 13 }]}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <MiniLabel colors={colors} label="Price (GHS)" />
-                  <TextInput
-                    value={newBundle.price}
-                    onChangeText={(v) => setNewBundle({ ...newBundle, price: v })}
-                    keyboardType="decimal-pad"
-                    placeholder="5.00"
-                    placeholderTextColor={colors.textFaint}
-                    style={[inputStyle(colors), { paddingVertical: 9, marginBottom: 0, fontSize: 13 }]}
-                  />
-                </View>
-              </View>
-
-              <Pressable
-                onPress={addBundle}
-                disabled={savingBundle}
-                style={{
-                  marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  backgroundColor: colors.brand, paddingVertical: 10, borderRadius: 10, opacity: savingBundle ? 0.6 : 1,
-                }}
-              >
-                <Plus size={15} color={colors.textOnGold} />
-                <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 13 }}>
-                  {savingBundle ? 'Adding…' : 'Add bundle'}
-                </Text>
-              </Pressable>
-
-              <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.borderMuted, gap: 8 }}>
-                {bundlesLoading ? (
-                  <View style={{ height: 40, borderRadius: 10, backgroundColor: colors.chipBg }} />
-                ) : bundles.length === 0 ? (
-                  <Text style={{ fontSize: 12, color: colors.textFaint, textAlign: 'center', paddingVertical: 8 }}>
-                    No bundles yet. Add one above.
-                  </Text>
-                ) : (
-                  bundles.map((b) => (
-                    <View
-                      key={b.id}
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-                        borderWidth: 1, borderColor: colors.border, opacity: b.active ? 1 : 0.5,
-                      }}
-                    >
-                      <Text style={{ flex: 1, fontSize: 13, color: colors.text }}>
-                        <Text style={{ fontWeight: '700' }}>{b.network}</Text> · {parseFloat(b.gb_amount)}GB · GHS {parseFloat(b.price).toFixed(2)}
-                      </Text>
-                      <Pressable onPress={() => toggleBundleActive(b)} style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand }}>
-                          {b.active ? 'Deactivate' : 'Activate'}
-                        </Text>
-                      </Pressable>
-                      <Pressable onPress={() => deleteBundle(b.id)} style={{ padding: 4 }}>
-                        <Trash2 size={14} color={colors.textFaint} />
-                      </Pressable>
-                    </View>
-                  ))
-                )}
-              </View>
-            </View>
-          )}
+          <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }}>New Listing</Text>
+          <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 4 }}>Add the details buyers will see.</Text>
 
           {/* Tab toggle */}
           <View
@@ -576,6 +486,7 @@ onScroll={(e) => {
             {([
               { key: 'product', label: 'Product listing', Icon: Package },
               { key: 'service', label: 'Service listing', Icon: Briefcase },
+              ...(isDataSeller ? [{ key: 'data' as const, label: 'Mobile Data', Icon: Wifi }] : []),
             ] as const).map(({ key, label, Icon }) => {
               const active = activeTab === key;
               return (
@@ -589,13 +500,117 @@ onScroll={(e) => {
                   }}
                 >
                   <Icon size={13} color={active ? colors.brand : colors.textMuted} />
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: active ? colors.brand : colors.textMuted }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: active ? colors.brand : colors.textMuted }}>
                     {label}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
+
+          {/* MOBILE DATA */}
+          {activeTab === 'data' && isDataSeller && (
+            <View style={{ marginTop: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14 }}>
+              <Pressable
+                onPress={() => setDataBundlesOpen((open) => !open)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Wifi size={16} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '700', color: colors.text }}>Mobile Data Bundles</Text>
+                  <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
+                    Manage the GB packages buyers can purchase per network.
+                  </Text>
+                </View>
+                <ChevronDown
+                  size={18}
+                  color={colors.textFaint}
+                  style={{ transform: [{ rotate: dataBundlesOpen ? '180deg' : '0deg' }] }}
+                />
+              </Pressable>
+
+              {dataBundlesOpen && (
+                <View>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                    <View style={{ flex: 1.2 }}>
+                      <MiniLabel colors={colors} label="Network" />
+                      <SelectField
+                        colors={colors}
+                        compact
+                        value={newBundle.network}
+                        options={NETWORKS.map((n) => ({ label: n, value: n }))}
+                        onChange={(v) => setNewBundle({ ...newBundle, network: v })}
+                      />
+                    </View>
+                    <View style={{ flex: 0.8 }}>
+                      <MiniLabel colors={colors} label="GB" />
+                      <TextInput
+                        value={newBundle.gb_amount}
+                        onChangeText={(v) => setNewBundle({ ...newBundle, gb_amount: v })}
+                        keyboardType="decimal-pad"
+                        placeholder="1"
+                        placeholderTextColor={colors.textFaint}
+                        style={[inputStyle(colors), { paddingVertical: 9, marginBottom: 0, fontSize: 15 }]}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <MiniLabel colors={colors} label="Price (GHS)" />
+                      <TextInput
+                        value={newBundle.price}
+                        onChangeText={(v) => setNewBundle({ ...newBundle, price: v })}
+                        keyboardType="decimal-pad"
+                        placeholder="5.00"
+                        placeholderTextColor={colors.textFaint}
+                        style={[inputStyle(colors), { paddingVertical: 9, marginBottom: 0, fontSize: 15 }]}
+                      />
+                    </View>
+                  </View>
+
+                  <SubmitButton
+                    colors={colors}
+                    onPress={addBundle}
+                    disabled={savingBundle}
+                    label={savingBundle ? 'Adding…' : 'Add bundle'}
+                  />
+
+                  <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.borderMuted, gap: 8 }}>
+                    {bundlesLoading ? (
+                      <View style={{ height: 40, borderRadius: 10, backgroundColor: colors.chipBg }} />
+                    ) : bundles.length === 0 ? (
+                      <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center', paddingVertical: 8 }}>
+                        No bundles yet. Add one above.
+                      </Text>
+                    ) : (
+                      bundles.map((b) => (
+                        <View
+                          key={b.id}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                            paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+                            borderWidth: 1, borderColor: colors.border, opacity: b.active ? 1 : 0.5,
+                          }}
+                        >
+                          <Text style={{ flex: 1, fontSize: 15, color: colors.text }}>
+                            <Text style={{ fontWeight: '700' }}>{b.network}</Text> · {parseFloat(b.gb_amount)}GB · GHS {parseFloat(b.price).toFixed(2)}
+                          </Text>
+                          <Pressable onPress={() => toggleBundleActive(b)} style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>
+                              {b.active ? 'Deactivate' : 'Activate'}
+                            </Text>
+                          </Pressable>
+                          <Pressable onPress={() => deleteBundle(b.id)} style={{ padding: 4 }}>
+                            <Trash2 size={14} color={colors.textFaint} />
+                          </Pressable>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* PRODUCT */}
           {activeTab === 'product' && (
@@ -719,9 +734,9 @@ onScroll={(e) => {
               <Divider colors={colors} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Truck size={15} color={colors.textMuted} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Delivery pricing</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Delivery pricing</Text>
               </View>
-              <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 12 }}>
+              <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 12 }}>
                 Optional. Leave at 0 for free delivery. Max GHS {MAX_DELIVERY_FEE} per tier.
               </Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -800,7 +815,7 @@ onScroll={(e) => {
               </View>
 
               <FieldLabel colors={colors} label="Price range (GHS)" />
-              <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 6 }}>
+              <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 6 }}>
                 What your service typically costs, from cheapest to priciest option.
               </Text>
               <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -826,9 +841,9 @@ onScroll={(e) => {
               <Divider colors={colors} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Clock size={15} color={colors.textMuted} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Time per booking</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Time per booking</Text>
               </View>
-              <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 8 }}>
+              <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>
                 How long one booking takes you. We use this to stop buyers from booking a time you're still busy with someone else.
               </Text>
               <SelectField
@@ -842,7 +857,7 @@ onScroll={(e) => {
               <Divider colors={colors} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Clock size={15} color={colors.textMuted} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Working hours</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Working hours</Text>
               </View>
 
               {!is247 && (
@@ -859,7 +874,7 @@ onScroll={(e) => {
                               backgroundColor: d.enabled ? colors.brand : colors.card,
                             }}
                           >
-                            <Text style={{ fontSize: 12, fontWeight: '600', color: d.enabled ? colors.textOnGold : colors.textFaint }}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: d.enabled ? colors.textOnGold : colors.textFaint }}>
                               {d.day}
                             </Text>
                           </Pressable>
@@ -881,7 +896,7 @@ onScroll={(e) => {
                               />
                             </View>
                           ) : (
-                            <Text style={{ flex: 1, fontSize: 12, color: colors.textFaint }}>Closed</Text>
+                            <Text style={{ flex: 1, fontSize: 14, color: colors.textFaint }}>Closed</Text>
                           )}
                         </View>
                       ))}
@@ -904,18 +919,18 @@ onScroll={(e) => {
                 >
                   {is247 && <Check size={11} color={colors.textOnGold} />}
                 </View>
-                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>Working 24/7</Text>
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '500' }}>Working 24/7</Text>
               </Pressable>
 
               {/* Location */}
               <Divider colors={colors} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <MapPin size={15} color={colors.textMuted} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>
                   Service location <Text style={{ color: '#ef4444' }}>*</Text>
                 </Text>
               </View>
-              <Text style={{ fontSize: 12, color: colors.textFaint, marginBottom: 8 }}>
+              <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>
                 Buyers will see this pinned on a map so they know where to find you. Required.
               </Text>
 <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -944,13 +959,13 @@ onScroll={(e) => {
         ) : (
           <MapPin size={15} color={c} />
         )}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: c }}>{b.label}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: c }}>{b.label}</Text>
       </Pressable>
     );
   })}
 </View>
               {serviceLocation && (
-                <Text style={{ fontSize: 12, color: '#059669', marginTop: 8, fontWeight: '500' }}>
+                <Text style={{ fontSize: 14, color: '#059669', marginTop: 8, fontWeight: '500' }}>
                   ✓ Location set — tap the button above to update it.
                 </Text>
               )}
@@ -972,14 +987,32 @@ onScroll={(e) => {
         hitSlop={10}
         style={{
           opacity: backOpacity,
-          position: 'absolute', top: insets.top + 12, left: 16, zIndex: 20,
-          flexDirection: 'row', alignItems: 'center', gap: 4,
-          paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
-          backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+          position: 'absolute', top: 12, left: 16, zIndex: 20,
+          ...(GLASS ? {} : {
+            flexDirection: 'row', alignItems: 'center', gap: 4,
+            paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+            backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+          }),
         }}
       >
-        <ArrowLeft size={12} color="#fff" />
-<Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Back</Text>
+        {GLASS ? (
+          <GlassView
+            glassEffectStyle="regular"
+            isInteractive
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, overflow: 'hidden',
+            }}
+          >
+            <ArrowLeft size={12} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Back</Text>
+          </GlassView>
+        ) : (
+          <>
+            <ArrowLeft size={12} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Back</Text>
+          </>
+        )}
       </AnimatedPressable>
 
       {showLocationPicker && (
@@ -1012,8 +1045,8 @@ onScroll={(e) => {
             <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(245,158,11,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
               <AlertTriangle size={18} color="#d97706" />
             </View>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Delivery fees can affect sales</Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Delivery fees can affect sales</Text>
+            <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 8, lineHeight: 20 }}>
               Even if your item is priced low, a delivery fee may make buyers hesitate to purchase.
               Do you want to post this listing with the delivery prices you've set, or go back and edit them?
             </Text>
@@ -1022,7 +1055,7 @@ onScroll={(e) => {
               disabled={loading}
               style={{ marginTop: 20, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center', opacity: loading ? 0.6 : 1 }}
             >
-              <Text style={{ color: colors.textOnGold, fontWeight: '600', fontSize: 14 }}>
+              <Text style={{ color: colors.textOnGold, fontWeight: '600', fontSize: 16 }}>
                 {loading ? 'Publishing…' : 'Continue to post listing'}
               </Text>
             </Pressable>
@@ -1031,7 +1064,7 @@ onScroll={(e) => {
               disabled={loading}
               style={{ marginTop: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
             >
-              <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 14 }}>Edit delivery prices</Text>
+              <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 16 }}>Edit delivery prices</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -1051,14 +1084,14 @@ function inputStyle(colors: any) {
     paddingVertical: 11,
     color: colors.text,
     backgroundColor: colors.card,
-    fontSize: 14,
+    fontSize: 16,
     marginBottom: 12,
   } as const;
 }
 
 function FieldLabel({ label, colors }: { label: string; colors: any }) {
   return (
-    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4, marginTop: 4 }}>
+    <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4, marginTop: 4 }}>
       {label}
     </Text>
   );
@@ -1066,7 +1099,7 @@ function FieldLabel({ label, colors }: { label: string; colors: any }) {
 
 function MiniLabel({ label, colors }: { label: string; colors: any }) {
   return (
-    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>{label}</Text>
+    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>{label}</Text>
   );
 }
 
@@ -1075,6 +1108,20 @@ function Divider({ colors }: { colors: any }) {
 }
 
 function SubmitButton({ colors, onPress, disabled, label }: any) {
+  if (GLASS) {
+    return (
+      <Pressable onPress={onPress} disabled={disabled} style={{ marginTop: 20, opacity: disabled ? 0.6 : 1 }}>
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          tintColor={colors.brand}
+          style={{ paddingVertical: 12, borderRadius: 12, alignItems: 'center', overflow: 'hidden' }}
+        >
+          <Text style={{ color: colors.textOnGold, fontWeight: '600', fontSize: 16 }}>{label}</Text>
+        </GlassView>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
@@ -1084,7 +1131,7 @@ function SubmitButton({ colors, onPress, disabled, label }: any) {
         alignItems: 'center', opacity: disabled ? 0.6 : 1,
       }}
     >
-      <Text style={{ color: colors.textOnGold, fontWeight: '600', fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: colors.textOnGold, fontWeight: '600', fontSize: 16 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -1151,7 +1198,7 @@ function SelectField({
                       borderBottomWidth: 1, borderBottomColor: colors.borderMuted,
                     }}
                   >
-                    <Text style={{ fontSize: 14, color: active ? colors.brand : colors.text, fontWeight: active ? '700' : '400' }}>
+                    <Text style={{ fontSize: 16, color: active ? colors.brand : colors.text, fontWeight: active ? '700' : '400' }}>
                       {item.label}
                     </Text>
                     {active && <Check size={16} color={colors.brand} />}
@@ -1170,7 +1217,7 @@ function SelectField({
 function MediaGrid({ colors, label, previews, uploading, maxReached, onAdd, onRemove }: any) {
   return (
     <View style={{ marginBottom: 12 }}>
-      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>{label}</Text>
+      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>{label}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         {previews.map((uri: string, i: number) => (
           <View
@@ -1189,7 +1236,7 @@ function MediaGrid({ colors, label, previews, uploading, maxReached, onAdd, onRe
             </Pressable>
             {i === 0 && (
               <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: '#0f172a' }}>Cover</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#0f172a' }}>Cover</Text>
               </View>
             )}
           </View>
@@ -1208,11 +1255,11 @@ function MediaGrid({ colors, label, previews, uploading, maxReached, onAdd, onRe
             }}
           >
             <ImagePlus size={20} color={colors.textFaint} />
-            <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textFaint }}>Add</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textFaint }}>Add</Text>
           </Pressable>
         )}
       </View>
-      <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6 }}>Up to {MAX_IMAGES}. First is cover.</Text>
+      <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>Up to {MAX_IMAGES}. First is cover.</Text>
     </View>
   );
 }
@@ -1220,7 +1267,7 @@ function MediaGrid({ colors, label, previews, uploading, maxReached, onAdd, onRe
 function VideoTile({ colors, label, preview, uploading, onAdd, onRemove }: any) {
   return (
     <View style={{ flex: 1, marginBottom: 12, alignItems: 'flex-start' }}>
-      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 }}>{label}</Text>
+      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 4 }}>{label}</Text>
       <View style={{ width: 64, height: 64 }}>
         {preview ? (
           <View style={{ flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: '#000' }}>
@@ -1250,11 +1297,11 @@ function VideoTile({ colors, label, preview, uploading, onAdd, onRemove }: any) 
             }}
           >
             <VideoIcon size={20} color={colors.textFaint} />
-            <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textFaint }}>Add</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textFaint }}>Add</Text>
           </Pressable>
         )}
       </View>
-      <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6 }}>Optional. Max 20MB.</Text>
+      <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>Optional. Max 20MB.</Text>
     </View>
   );
 }

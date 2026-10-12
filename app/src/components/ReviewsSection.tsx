@@ -57,24 +57,24 @@ export default function ReviewsSection({ reviewsData, productId }: { reviewsData
     <View style={{ marginTop: 24, backgroundColor: colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Reviews</Text>
+          <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Reviews</Text>
           {data?.avg_rating && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Star size={14} color="#f59e0b" fill="#f59e0b" />
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>{data.avg_rating}</Text>
-              <Text style={{ fontSize: 14, color: colors.textFaint }}>({data.total})</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>{data.avg_rating}</Text>
+              <Text style={{ fontSize: 15, color: colors.textFaint }}>({data.total})</Text>
             </View>
           )}
         </View>
         {canReview && (
           <Pressable onPress={() => setShowReviewModal(true)}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand }}>+ Add review</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>+ Add review</Text>
           </Pressable>
         )}
       </View>
 
       {!data?.reviews?.length ? (
-        <Text style={{ fontSize: 14, color: colors.textFaint }}>No reviews yet for this product.</Text>
+        <Text style={{ fontSize: 15, color: colors.textFaint }}>No reviews yet.</Text>
       ) : (
         <View style={{ gap: 16 }}>
           {data.reviews.map((r: any) => (
@@ -128,7 +128,7 @@ function ReviewCard({ review, onChanged }: { review: any; onChanged: () => void 
   return (
     <View style={{ paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{review.reviewer_name || 'Anonymous'}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{review.reviewer_name || 'Anonymous'}</Text>
         <View style={{ flexDirection: 'row' }}>
           {Array.from({ length: 5 }).map((_, s) => (
             <Star key={s} size={12} color={s < review.rating ? '#f59e0b' : colors.border} fill={s < review.rating ? '#f59e0b' : 'transparent'} />
@@ -136,7 +136,7 @@ function ReviewCard({ review, onChanged }: { review: any; onChanged: () => void 
         </View>
       </View>
 
-      {review.comment && <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>{review.comment}</Text>}
+      {review.comment && <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>{review.comment}</Text>}
       {review.image_url && (
         <Image source={{ uri: review.image_url }} style={{ width: 80, height: 80, borderRadius: 8, marginTop: 8 }} cachePolicy="disk" />
       )}
@@ -144,13 +144,13 @@ function ReviewCard({ review, onChanged }: { review: any; onChanged: () => void 
       <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
         <Pressable onPress={handleLike} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <ThumbsUp size={13} color={review.liked_by_me ? colors.brand : colors.textFaint} fill={review.liked_by_me ? colors.brand : 'transparent'} />
-          <Text style={{ fontSize: 12, fontWeight: '600', color: review.liked_by_me ? colors.brand : colors.textFaint }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: review.liked_by_me ? colors.brand : colors.textFaint }}>
             {review.like_count || 0}
           </Text>
         </Pressable>
         <Pressable onPress={() => setShowComments((s) => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <MessageSquare size={13} color={colors.textFaint} />
-          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textFaint }}>{review.comments?.length || 0}</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textFaint }}>{review.comments?.length || 0}</Text>
         </Pressable>
       </View>
 
@@ -158,8 +158,8 @@ function ReviewCard({ review, onChanged }: { review: any; onChanged: () => void 
         <View style={{ marginTop: 12, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: colors.borderMuted, gap: 10 }}>
           {review.comments?.map((c: any) => (
             <View key={c.id}>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>{c.commenter_name}</Text>
-              <Text style={{ fontSize: 12, color: colors.textMuted }}>{c.content}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>{c.commenter_name}</Text>
+              <Text style={{ fontSize: 13, color: colors.textMuted }}>{c.content}</Text>
             </View>
           ))}
           {user && (
@@ -169,7 +169,7 @@ function ReviewCard({ review, onChanged }: { review: any; onChanged: () => void 
                 onChangeText={setCommentText}
                 placeholder="Write a comment…"
                 placeholderTextColor={colors.textFaint}
-                style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border, fontSize: 12, backgroundColor: colors.inputBg, color: colors.text }}
+                style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border, fontSize: 13, backgroundColor: colors.inputBg, color: colors.text }}
               />
               <Pressable onPress={handleComment} disabled={submitting || !commentText.trim()}>
                 <Send size={15} color={commentText.trim() ? colors.brand : colors.textFaint} />
@@ -239,8 +239,8 @@ function ReviewModal({
             <X size={18} color={colors.textFaint} />
           </Pressable>
 
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Rate this product</Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>Based on your completed purchase.</Text>
+          <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Leave a review</Text>
+          <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>Based on your completed purchase or booking.</Text>
 
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 16 }}>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -253,12 +253,12 @@ function ReviewModal({
           <TextInput
             value={comment}
             onChangeText={setComment}
-            placeholder="Optional — share your experience with the product."
+            placeholder="Optional — share your experience."
             placeholderTextColor={colors.textFaint}
             multiline
             style={{
               marginTop: 16, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12,
-              borderWidth: 1, borderColor: colors.border, fontSize: 14, minHeight: 80, textAlignVertical: 'top',
+              borderWidth: 1, borderColor: colors.border, fontSize: 15, minHeight: 80, textAlignVertical: 'top',
               color: colors.text, backgroundColor: colors.inputBg,
             }}
           />
@@ -273,7 +273,7 @@ function ReviewModal({
           ) : (
             <Pressable onPress={handleImagePick} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
               <ImagePlus size={14} color={colors.brand} />
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand }}>Add photo of the item</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>Add a photo</Text>
             </Pressable>
           )}
 
@@ -282,7 +282,7 @@ function ReviewModal({
             disabled={submitting}
             style={{ marginTop: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center', opacity: submitting ? 0.6 : 1 }}
           >
-            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>
               {submitting ? 'Submitting…' : 'Submit review'}
             </Text>
           </Pressable>

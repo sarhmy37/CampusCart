@@ -125,14 +125,14 @@ export default function FullPageLoader({
   if (status === 'error') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background, paddingHorizontal: 16 }}>
-        <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16, textAlign: 'center' }}>
+        <Text style={{ fontSize: 15, color: colors.textFaint, marginBottom: 16, textAlign: 'center' }}>
           Couldn't load this page right now.
         </Text>
         <Pressable
           onPress={onRetry}
           style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}
         >
-          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>Try again</Text>
+          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>Try again</Text>
         </Pressable>
       </View>
     );

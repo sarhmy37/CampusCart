@@ -70,7 +70,7 @@ export default function Help() {
           }}
         >
           <ArrowLeft size={16} color="white" />
-          <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>Back</Text>
+          <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Back</Text>
         </Pressable>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
@@ -84,10 +84,10 @@ export default function Help() {
             <LifeBuoy size={20} color="white" />
           </View>
           <View>
-            <Text style={{ fontSize: 24, fontWeight: '800', color: 'white' }}>
+            <Text style={{ fontSize: 26, fontWeight: '800', color: 'white' }}>
               Help Center
             </Text>
-            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+            <Text style={{ fontSize: 15, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
               Answers to common questions
             </Text>
           </View>
@@ -123,7 +123,7 @@ export default function Help() {
                   paddingVertical: 16,
                 }}
               >
-                <Text style={{ flex: 1, fontWeight: '600', fontSize: 14, color: colors.text }}>
+                <Text style={{ flex: 1, fontWeight: '600', fontSize: 16, color: colors.text }}>
                   {faq.q}
                 </Text>
                 <ChevronDown
@@ -137,7 +137,7 @@ export default function Help() {
               {openIndex === i && (
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 15,
                     color: colors.textMuted,
                     lineHeight: 20,
                     paddingBottom: 16,
@@ -162,7 +162,7 @@ export default function Help() {
             alignItems: 'center',
           }}
         >
-          <Text style={{ fontSize: 13, color: colors.textMuted }}>
+          <Text style={{ fontSize: 15, color: colors.textMuted }}>
             Still need help?
           </Text>
           <Pressable
@@ -179,7 +179,7 @@ export default function Help() {
             }}
           >
             <MessageCircle size={16} color={colors.textOnGold} />
-            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+            <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
               Contact support
             </Text>
           </Pressable>

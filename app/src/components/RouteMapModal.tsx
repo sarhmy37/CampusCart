@@ -84,14 +84,14 @@ export default function RouteMapModal({
           }}
         >
           <X size={14} color="#0f172a" />
-          <Text style={{ fontSize: 12, fontWeight: '600', color: '#0f172a' }}>Minimize</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: '#0f172a' }}>Minimize</Text>
         </Pressable>
 
         <View style={{ position: 'absolute', left: 16, right: 16, bottom: insets.bottom + 16, gap: 8 }}>
           {(busy || !!error) && (
             <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {busy && <ActivityIndicator size="small" color={colors.brand} />}
-              <Text style={{ flex: 1, fontSize: 12, color: '#0f172a' }}>{busy ? 'Finding your route…' : error}</Text>
+              <Text style={{ flex: 1, fontSize: 13, color: '#0f172a' }}>{busy ? 'Finding your route…' : error}</Text>
             </View>
           )}
           <Pressable
@@ -99,7 +99,7 @@ export default function RouteMapModal({
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand }}
           >
             <Navigation size={15} color={colors.textOnGold} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textOnGold }}>Open in Google Maps</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>Open in Google Maps</Text>
           </Pressable>
         </View>
       </View>

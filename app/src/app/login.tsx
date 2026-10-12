@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Pressable, Animated, Easing, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, Animated, Easing, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 
 const AnimatedImage = Animated.createAnimatedComponent(ExpoImage);
@@ -11,6 +11,22 @@ import { LOGO_DARK, LOGO_LIGHT } from '@/data/media';
 import { SCREEN_PADDING_X } from '@/constants/theme';
 import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+
+function GlassButton({ onPress, style, tint, children, disabled }: any) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
+    const { backgroundColor, borderWidth, borderColor, flex, position, top, bottom, left, right, zIndex, ...rest } = StyleSheet.flatten(style) as any;
+    const wrapper: any = { flex, position, top, bottom, left, right, zIndex };
+    return (
+      <Pressable onPress={onPress} disabled={disabled} style={wrapper}>
+        <GlassView glassEffectStyle="regular" isInteractive tintColor={tint} style={rest}>
+          {children}
+        </GlassView>
+      </Pressable>
+    );
+  }
+  return <Pressable onPress={onPress} disabled={disabled} style={style}>{children}</Pressable>;
+}
 
 const LOGO_FULL = 'Tre-X';
 const TAGLINE_FULL = 'Redefining Campus Shopping';
@@ -102,7 +118,7 @@ export default function LoginScreen() {
   const inputStyle = {
     height: 46, paddingLeft: 40, paddingRight: 16, paddingVertical: 0,
     borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.inputBg, color: colors.text, fontSize: 14,
+    backgroundColor: colors.inputBg, color: colors.text, fontSize: 16,
   };
 
   return (
@@ -127,20 +143,20 @@ export default function LoginScreen() {
 
                 <View style={{ marginLeft: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>
+                    <Text style={{ fontSize: 26, fontWeight: '900', color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>
                       {logoText.slice(0, 3)}
                     </Text>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginHorizontal: 2, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>
+                    <Text style={{ fontSize: 26, fontWeight: '900', color: colors.text, marginHorizontal: 2, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>
                       {logoText.slice(3, 4)}
                     </Text>
-                    <Text style={{ fontSize: 30, fontWeight: '900', fontStyle: 'italic', color: colors.brand, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>
+                    <Text style={{ fontSize: 32, fontWeight: '900', fontStyle: 'italic', color: colors.brand, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>
                       {logoText.slice(4, 5)}
                     </Text>
                     {phase === 'typing-logo' && (
                       <View style={{ width: 2, height: 20, backgroundColor: colors.text, marginLeft: 4 }} />
                     )}
                   </View>
-                  <Text style={{ marginTop: 4, fontSize: 12, color: colors.textMuted, minHeight: 16 }}>
+                  <Text style={{ marginTop: 4, fontSize: 14, color: colors.textMuted, minHeight: 16 }}>
                     {taglineText}
                     {phase === 'typing-tagline' && <Text style={{ color: colors.textMuted }}>|</Text>}
                   </Text>
@@ -154,13 +170,13 @@ export default function LoginScreen() {
               borderWidth: 1, borderColor: colors.border,
               borderRadius: 24, padding: 24,
             }}>
-              <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, textAlign: 'center' }}>Welcome back</Text>
-              <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>
+              <Text style={{ fontSize: 26, fontWeight: '900', color: colors.text, textAlign: 'center' }}>Welcome back</Text>
+              <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>
                 Log in with your email or username.
               </Text>
 
               {/* Identifier */}
-              <Text style={{ marginTop: 24, fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Email or Username</Text>
+              <Text style={{ marginTop: 24, fontSize: 16, fontWeight: '600', color: colors.textSecondary }}>Email or Username</Text>
               <View style={{ position: 'relative', marginTop: 4 }}>
                 <View style={{ position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center', zIndex: 1 }}>
                   <Mail size={16} color={colors.textFaint} />
@@ -176,7 +192,7 @@ export default function LoginScreen() {
               </View>
 
               {/* Password */}
-              <Text style={{ marginTop: 16, fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Password</Text>
+              <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600', color: colors.textSecondary }}>Password</Text>
               <View style={{ position: 'relative', marginTop: 4 }}>
                 <View style={{ position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center', zIndex: 1 }}>
                   <Lock size={16} color={colors.textFaint} />
@@ -198,13 +214,14 @@ export default function LoginScreen() {
               <View style={{ alignItems: 'flex-end', marginTop: 8 }}>
                 <Link href="/forgot-password" asChild>
                   <Pressable>
-                    <Text style={{ fontSize: 12, color: colors.brand, fontWeight: '600' }}>Forgot password?</Text>
+                    <Text style={{ fontSize: 14, color: colors.brand, fontWeight: '600' }}>Forgot password?</Text>
                   </Pressable>
                 </Link>
               </View>
 
-              <Pressable
+              <GlassButton
                 onPress={onSubmit}
+                tint={colors.brand}
                 disabled={loading}
                 style={{
                   marginTop: 16, paddingVertical: 12, borderRadius: 12,
@@ -212,13 +229,13 @@ export default function LoginScreen() {
                   opacity: loading ? 0.6 : 1,
                 }}
               >
-                <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+                <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
                   {loading ? 'Logging in…' : 'Log in'}
                 </Text>
-              </Pressable>
+              </GlassButton>
 
               <View style={{ marginTop: 24, alignItems: 'center' }}>
-                <Text style={{ fontSize: 14, color: colors.textMuted }}>
+                <Text style={{ fontSize: 16, color: colors.textMuted }}>
                   Don't have an account?{' '}
                   <Text
                     onPress={() => router.push('/register')}
@@ -234,8 +251,9 @@ export default function LoginScreen() {
         </ScrollView>
 
         {/* Floating back button — outside ScrollView so it doesn't move */}
-        <Pressable
+        <GlassButton
           onPress={() => router.replace('/')}
+          tint={colors.brand}
           style={{
             position: 'absolute',
             bottom: 40,
@@ -255,7 +273,7 @@ export default function LoginScreen() {
           }}
         >
           <ArrowLeft size={16} color={colors.textOnGold} />
-        </Pressable>
+        </GlassButton>
       </KeyboardAvoidingView>
     </View>
   );

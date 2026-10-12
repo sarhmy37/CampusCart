@@ -183,18 +183,18 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
             )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Order #{d.order_id}</Text>
-                <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Buyer: {d.buyer_name}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Order #{d.order_id}</Text>
+                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>Buyer: {d.buyer_name}</Text>
               </View>
               {d.delivered_at ? (
                 <View style={{ backgroundColor: colors.infoSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: colors.info }}>Awaiting buyer confirmation</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.info }}>Awaiting buyer confirmation</Text>
                 </View>
               ) : (
                 <View style={{ backgroundColor: urgencyBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: urgencyColor }}>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: urgencyColor }}>
                     {d.delivery_method === 'delivery'
-                      ? (totalSecLeft > 0 ? 'Time left' : 'Overdue')
+                      ? (totalSecLeft > 0 ? null : 'Overdue')
                       : 'Awaiting pickup'}
                   </Text>
                 </View>
@@ -209,14 +209,14 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                       {item.image && <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} />}
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textSecondary }}>
+                      <Text numberOfLines={1} style={{ fontSize: 13, color: colors.textSecondary }}>
                         {item.title} × {item.quantity}
                       </Text>
-                      <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 2, textTransform: 'capitalize' }}>
+                      <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2, textTransform: 'capitalize' }}>
                         Method: {d.delivery_method === 'delivery' ? 'Delivery' : 'Campus pickup'}
                       </Text>
                       {d.delivery_method === 'delivery' && !d.delivered_at && (
-                        <Text style={{ fontSize: 11, color: urgencyColor, marginTop: 2, fontWeight: '700' }}>
+                        <Text style={{ fontSize: 12, color: urgencyColor, marginTop: 2, fontWeight: '700' }}>
                           {totalSecLeft > 0
                             ? `${hh}h ${mm}m ${ss}s left`
                             : 'Overdue'}
@@ -232,7 +232,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 6, width: '100%' }}>
                   <Text
                     onPress={d.buyer_location ? () => trackBuyer(d.order_id, d.buyer_location) : undefined}
-                    style={{ flexShrink: 1, fontSize: 11, color: d.buyer_location ? colors.brand : colors.textMuted, textAlign: 'right', textDecorationLine: d.buyer_location ? 'underline' : 'none' }}
+                    style={{ flexShrink: 1, fontSize: 12, color: d.buyer_location ? colors.brand : colors.textMuted, textAlign: 'right', textDecorationLine: d.buyer_location ? 'underline' : 'none' }}
                   >
                     {d.buyer_location || 'No location provided'}
                   </Text>
@@ -241,7 +241,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
 
                 {d.buyer_whatsapp && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, width: '100%' }}>
-                    <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'right' }}>{d.buyer_whatsapp}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'right' }}>{d.buyer_whatsapp}</Text>
                     <MessageCircle size={12} color={colors.textFaint} />
                   </View>
                 )}
@@ -251,7 +251,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                   hitSlop={8}
                   style={{ marginTop: 2 }}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand }}>Message buyer</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Message buyer</Text>
                 </Pressable>
               </View>
             </View>
@@ -263,7 +263,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                   disabled={marking === d.order_id}
                   style={{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.success, opacity: marking === d.order_id ? 0.6 : 1 }}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: 'white' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>
                     {marking === d.order_id ? 'Marking…' : '✅ Mark as Delivered'}
                   </Text>
                 </Pressable>
@@ -272,7 +272,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                   disabled={cancelling === d.order_id}
                   style={{ paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.errorSoft, opacity: cancelling === d.order_id ? 0.6 : 1 }}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.error }}>✕ Cancel Order</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.error }}>✕ Cancel Order</Text>
                 </Pressable>
               </View>
             )}
@@ -283,7 +283,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
       {dataOrders.length > 0 && (
         <>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Data Orders
             </Text>
             <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
@@ -292,15 +292,15 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
             <View key={d.id} style={cardStyle}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
                     {parseFloat(d.gb_amount)}GB {d.network}
                   </Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Buyer: {d.buyer_name}</Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Number: {d.buyer_momo_number}</Text>
-                  <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>GHS {parseFloat(d.price).toFixed(2)}</Text>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>Buyer: {d.buyer_name}</Text>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>Number: {d.buyer_momo_number}</Text>
+                  <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>GHS {parseFloat(d.price).toFixed(2)}</Text>
                 </View>
                 <View style={{ backgroundColor: colors.warningSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: colors.warning }}>Pending</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.warning }}>Pending</Text>
                 </View>
               </View>
               <Pressable
@@ -308,7 +308,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                 disabled={markingDataOrder === d.id}
                 style={{ marginTop: 12, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.success, opacity: markingDataOrder === d.id ? 0.6 : 1 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: '700', color: 'white' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>
                   {markingDataOrder === d.id ? 'Marking…' : '✅ Mark as Delivered'}
                 </Text>
               </Pressable>
@@ -326,16 +326,16 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
             <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <AlertTriangle size={20} color={colors.error} />
             </View>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Cancel this order?</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Cancel this order?</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
               The buyer will be refunded for your items in this order, including your delivery fee share. You won't be paid for them. Other sellers' items in the order are not affected. This cannot be undone.
             </Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
               <Pressable onPress={() => setCancelTarget(null)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Keep order</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Keep order</Text>
               </Pressable>
               <Pressable onPress={handleCancelOrder} disabled={!!cancelling} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.error, alignItems: 'center', opacity: cancelling ? 0.6 : 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: 'white' }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: 'white' }}>
                   {cancelling ? 'Cancelling…' : 'Yes, cancel order'}
                 </Text>
               </Pressable>
@@ -351,16 +351,16 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
             <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.warningSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <AlertTriangle size={20} color={colors.warning} />
             </View>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Confirm delivery</Text>
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Confirm delivery</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
               Only mark this as delivered if the buyer has genuinely received the item. Falsely marking an order as delivered can result in an account ban and loss of your funds. Are you sure you've delivered this order?
             </Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
               <Pressable onPress={() => setConfirmTarget(null)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
               </Pressable>
               <Pressable onPress={handleMarkDelivered} disabled={!!marking} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.success, alignItems: 'center', opacity: marking ? 0.6 : 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: 'white' }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: 'white' }}>
                   {marking ? 'Marking…' : "Yes, I've delivered it"}
                 </Text>
               </Pressable>

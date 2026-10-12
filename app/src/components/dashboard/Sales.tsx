@@ -37,41 +37,41 @@ export default function Sales() {
           <View key={s.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{s.title}</Text>
-                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 4 }}>
+                <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{s.title}</Text>
+                <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 4 }}>
                   Buyer: {s.buyer_name} · Qty {s.quantity} · {new Date(s.created_at).toLocaleDateString()}
                 </Text>
               </View>
               <View style={{ backgroundColor: sStyle.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: sStyle.text, textTransform: 'capitalize' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: sStyle.text, textTransform: 'capitalize' }}>
                   {s.status}
                 </Text>
               </View>
             </View>
 
             {s.status === 'cancelled' ? (
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.error, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.error, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
                 ✕ Cancelled · GHS {saleAmount.toFixed(2)} refunded to buyer, no earnings
               </Text>
             ) : (
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: colors.textFaint }}>Sale amount</Text>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 2 }}>
+                <Text style={{ fontSize: 12, color: colors.textFaint }}>Sale amount</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 }}>
                   GHS {saleAmount.toFixed(2)}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: colors.textFaint }}>
+                <Text style={{ fontSize: 12, color: colors.textFaint }}>
                   Platform fee{feePct ? ` (${feePct}%)` : ''}
                 </Text>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 2 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 }}>
                   GHS {parseFloat(s.platform_fee).toFixed(2)}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, color: colors.textFaint }}>Your earnings</Text>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand, marginTop: 2 }}>
+                <Text style={{ fontSize: 12, color: colors.textFaint }}>Your earnings</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand, marginTop: 2 }}>
                   GHS {parseFloat(s.seller_earnings).toFixed(2)}
                 </Text>
               </View>
@@ -79,7 +79,7 @@ export default function Sales() {
             )}
 
             {s.reward_contributed && (
-              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.warning, marginTop: 10 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.warning, marginTop: 10 }}>
                 🏆 Counted toward a reward milestone
               </Text>
             )}

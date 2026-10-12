@@ -48,7 +48,7 @@ export default function AdminLogin() {
     borderColor: colors.border,
     backgroundColor: colors.inputBg,
     color: colors.text,
-    fontSize: 14,
+    fontSize: 16,
   };
 
   return (
@@ -88,10 +88,10 @@ export default function AdminLogin() {
             <ShieldCheck size={20} color={colors.card} />
           </View>
 
-          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text }}>
+          <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text }}>
             Admin Login
           </Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
+          <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 4 }}>
             Restricted access.
           </Text>
 
@@ -129,7 +129,7 @@ export default function AdminLogin() {
               {loading ? (
                 <ActivityIndicator size="small" color={colors.card} />
               ) : (
-                <Text style={{ color: colors.card, fontWeight: '700', fontSize: 14 }}>
+                <Text style={{ color: colors.card, fontWeight: '700', fontSize: 16 }}>
                   Log in
                 </Text>
               )}

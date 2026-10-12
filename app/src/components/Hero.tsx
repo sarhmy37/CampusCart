@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, Platform, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+
 import { Sparkles, ArrowRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
@@ -10,6 +11,8 @@ import { SCREEN_PADDING_X } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { HERO_IMAGES } from '@/data/media';
 import { useColors } from '@/hooks/useColors';
+import { useTheme } from '@/context/ThemeContext';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 const CTA_HOLD_MS = 6000;
 const CTA_VIBRATE_MS = 700;
@@ -24,8 +27,30 @@ const SELL_LABEL_ALT = 'Offer Services';
 const BROWSE_LABEL_DEFAULT = 'Browse Products';
 const BROWSE_LABEL_ALT = 'Browse Services';
 
+function GlassButton({ onPress, style, tint, children }: any) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
+    const { backgroundColor, borderWidth, borderColor, ...rest } = StyleSheet.flatten(style) as any;
+    return (
+      <Pressable onPress={onPress}>
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          tintColor={tint}
+          style={{ ...rest, paddingVertical: (rest.paddingVertical || 0) + (borderWidth || 0) }}
+        >
+          {children}
+        </GlassView>
+      </Pressable>
+    );
+  }
+  return <Pressable onPress={onPress} style={style}>{children}</Pressable>;
+}
+
 export default function Hero() {
   const colors = useColors();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const sellFg = isDark ? '#0D0C0A' : colors.brandDark;
   const { user } = useAuth();
   const router = useRouter();
 
@@ -166,13 +191,17 @@ export default function Hero() {
       });
       return;
     }
-    router.push('/sell');
+    router.push(sellIsAlt ? { pathname: '/sell', params: { type: 'service' } } : '/sell');
   };
   const handleBrowseClick = () => {
-    if (user) {
-      router.push('/browse');
-    } else {
+    if (!user) {
       router.push('/register');
+      return;
+    }
+    if (browseIsAltRef.current) {
+      router.push({ pathname: '/(browse)/all', params: { category: 'Services' } });
+    } else {
+      router.push('/browse');
     }
   };
 
@@ -191,31 +220,32 @@ export default function Hero() {
         <Reveal>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
             <Sparkles size={13} color="white" />
-            <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>Students sell. Everyone buys.</Text>
+            <Text style={{ color: 'white', fontSize: 14, fontWeight: '700' }}>Students sell. Everyone buys.</Text>
           </View>
         </Reveal>
 
         <Reveal delay={100}>
-          <Text style={{ marginTop: 20, fontSize: 44, fontWeight: '800', lineHeight: 48, color: 'white' }}>
+          <Text style={{ marginTop: 20, fontSize: 45, fontWeight: '800', lineHeight: 48, color: 'white' }}>
             Buy and Sell within your campus,Safely.
           </Text>
         </Reveal>
 
         <Reveal delay={200}>
-          <Text style={{ marginTop: 20, color: 'rgba(255,255,255,0.85)', fontSize: 18, fontWeight: '500' }}>
+          <Text style={{ marginTop: 20, color: 'rgba(255,255,255,0.85)', fontSize: 19, fontWeight: '500' }}>
             Verified university students only. Textbooks, gadgets, furniture and more — right on campus, no middlemen, no scams.
           </Text>
         </Reveal>
 
         <Reveal delay={300}>
           <View style={{ marginTop: 32, flexDirection: 'row', gap: 8 }}>
-            <Pressable
+            <GlassButton
               onPress={handleStartSellingClick}
+              tint={isDark ? colors.brand : 'rgba(255,255,255,0.85)'}
               style={{
                 position: 'relative',
                 overflow: 'hidden',
                 width: 130,
-                backgroundColor: 'white',
+                backgroundColor: isDark ? colors.brand : 'white',
                 alignItems: 'center',
                 justifyContent: 'center',
                 paddingHorizontal: 16,
@@ -237,9 +267,9 @@ export default function Hero() {
                   transform: [{ translateX: oldTranslate }],
                 }}
               >
-                <Text style={{ color: colors.brandDark, fontWeight: '700', fontSize: 13 }}>{sellCurrentLabel}</Text>
+                <Text style={{ color: sellFg, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
                 <Animated.View style={{ transform: [{ scale: arrowScale }, { rotate: rotateInterpolate }] }}>
-                  <ArrowRight size={16} color={colors.brandDark} />
+                  <ArrowRight size={16} color={sellFg} />
                 </Animated.View>
               </Animated.View>
 
@@ -257,14 +287,14 @@ export default function Hero() {
                   transform: [{ translateX: newTranslate }],
                 }}
               >
-                <Text style={{ color: colors.brandDark, fontWeight: '700', fontSize: 13 }}>{sellNextLabel}</Text>
-                <ArrowRight size={16} color={colors.brandDark} />
+                <Text style={{ color: sellFg, fontWeight: '700', fontSize: 14 }}>{sellNextLabel}</Text>
+                <ArrowRight size={16} color={sellFg} />
               </Animated.View>
 
-              <Text style={{ opacity: 0, fontWeight: '700', fontSize: 13 }}>{sellCurrentLabel}</Text>
-            </Pressable>
+              <Text style={{ opacity: 0, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
+            </GlassButton>
 
-            <Pressable
+            <GlassButton
               onPress={handleBrowseClick}
               style={{
                 width: 130,
@@ -278,8 +308,8 @@ export default function Hero() {
                 borderRadius: 999,
               }}
             >
-              <Text style={{ color: 'white', fontWeight: '600', fontSize: 13 }}>{browseDisplay}</Text>
-            </Pressable>
+              <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>{browseDisplay}</Text>
+            </GlassButton>
           </View>
         </Reveal>
       </View>

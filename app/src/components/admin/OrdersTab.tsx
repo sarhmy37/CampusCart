@@ -77,7 +77,7 @@ export default function OrdersTab() {
             placeholder="Order ID, buyer, email, item…"
             placeholderTextColor={colors.textFaint}
             returnKeyType="search"
-            style={{ flex: 1, paddingVertical: 10, paddingLeft: 8, color: colors.text, fontSize: 15 }}
+            style={{ flex: 1, paddingVertical: 10, paddingLeft: 8, color: colors.text, fontSize: 17 }}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} style={{ padding: 4 }}>
@@ -95,7 +95,7 @@ export default function OrdersTab() {
             justifyContent: 'center',
           }}
         >
-          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>Search</Text>
+          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>Search</Text>
         </Pressable>
       </View>
 
@@ -120,15 +120,15 @@ export default function OrdersTab() {
               }}
             >
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, fontFamily: 'monospace' }} numberOfLines={1}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, fontFamily: 'monospace' }} numberOfLines={1}>
                   #{String(o.id).slice(0, 8)}
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }} numberOfLines={1}>
+                <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }} numberOfLines={1}>
                   {o.buyer_name} · {o.delivery_method} · {new Date(o.created_at).toLocaleDateString()}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+                <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>
                   GHS {parseFloat(o.total_amount).toFixed(2)}
                 </Text>
                 <Tag color={o.status === 'completed' ? 'emerald' : o.status === 'paid' ? 'blue' : 'amber'}>
@@ -193,10 +193,10 @@ function OrderDetailModal({
           <ScrollView>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 12, fontFamily: 'monospace', color: colors.textFaint }}>
+                <Text style={{ fontSize: 14, fontFamily: 'monospace', color: colors.textFaint }}>
                   #{String(order.id).slice(0, 12)}
                 </Text>
-                <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text, marginTop: 4 }}>
+                <Text style={{ fontSize: 21, fontWeight: '800', color: colors.text, marginTop: 4 }}>
                   Order details
                 </Text>
               </View>
@@ -214,77 +214,77 @@ function OrderDetailModal({
 
             {/* Buyer */}
             <View style={{ backgroundColor: colors.chipBg, borderRadius: 14, padding: 12, marginTop: 14 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Buyer
               </Text>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{order.buyer_name}</Text>
-              <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>{order.buyer_email}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{order.buyer_name}</Text>
+              <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 2 }}>{order.buyer_email}</Text>
               {order.buyer_whatsapp && (
-                <Text style={{ fontSize: 13, color: colors.textMuted }}>WhatsApp: {order.buyer_whatsapp}</Text>
+                <Text style={{ fontSize: 15, color: colors.textMuted }}>WhatsApp: {order.buyer_whatsapp}</Text>
               )}
               {order.buyer_location && (
-                <Text style={{ fontSize: 13, color: colors.textMuted }}>Location: {order.buyer_location}</Text>
+                <Text style={{ fontSize: 15, color: colors.textMuted }}>Location: {order.buyer_location}</Text>
               )}
             </View>
 
             {/* Timing */}
             <View style={{ backgroundColor: colors.chipBg, borderRadius: 14, padding: 12, marginTop: 8 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Timing
               </Text>
-              <Text style={{ fontSize: 13, color: colors.textMuted }}>
+              <Text style={{ fontSize: 15, color: colors.textMuted }}>
                 Placed: {new Date(order.created_at).toLocaleString()}
               </Text>
               {order.completed_at && (
-                <Text style={{ fontSize: 13, color: colors.textMuted }}>
+                <Text style={{ fontSize: 15, color: colors.textMuted }}>
                   Completed: {new Date(order.completed_at).toLocaleString()}
                 </Text>
               )}
               {order.payment_reference && (
-                <Text style={{ fontSize: 12, fontFamily: 'monospace', color: colors.textFaint, marginTop: 4 }}>
+                <Text style={{ fontSize: 14, fontFamily: 'monospace', color: colors.textFaint, marginTop: 4 }}>
                   Ref: {order.payment_reference}
                 </Text>
               )}
             </View>
 
             {/* Items */}
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 8 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 8 }}>
               Items ({order.items?.length || 0})
             </Text>
             <View style={{ gap: 8 }}>
               {order.items?.map((item: any) => (
                 <View key={item.id} style={{ backgroundColor: colors.chipBg, borderRadius: 14, padding: 12 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={2}>
+                    <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={2}>
                       {item.title}
                     </Text>
                     <Tag color={item.status === 'completed' ? 'emerald' : item.status === 'refunded' ? 'red' : 'slate'}>
                       {item.status}
                     </Tag>
                   </View>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+                  <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
                     Qty {item.quantity} · GHS {parseFloat(item.price_at_purchase).toFixed(2)} each
                   </Text>
 
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 11, color: colors.textFaint }}>Seller</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }} numberOfLines={1}>
+                      <Text style={{ fontSize: 13, color: colors.textFaint }}>Seller</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }} numberOfLines={1}>
                         {item.seller_name}
                       </Text>
-                      <Text style={{ fontSize: 11, color: colors.textFaint }} numberOfLines={1}>
+                      <Text style={{ fontSize: 13, color: colors.textFaint }} numberOfLines={1}>
                         {item.seller_email}
                       </Text>
                     </View>
                     <View>
-                      <Text style={{ fontSize: 11, color: colors.textFaint }}>Fee</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>
+                      <Text style={{ fontSize: 13, color: colors.textFaint }}>Fee</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
                         GHS {parseFloat(item.platform_fee).toFixed(2)}
                       </Text>
                     </View>
                     <View>
-                      <Text style={{ fontSize: 11, color: colors.textFaint }}>Earnings</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand }}>
+                      <Text style={{ fontSize: 13, color: colors.textFaint }}>Earnings</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>
                         GHS {parseFloat(item.seller_earnings).toFixed(2)}
                       </Text>
                     </View>
@@ -301,8 +301,8 @@ function OrderDetailModal({
                 <Row label="Credit applied" value={`−GHS ${parseFloat(order.credit_applied).toFixed(2)}`} colors={colors} highlight />
               )}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.borderMuted, marginTop: 6 }}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>Total paid</Text>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Total paid</Text>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
                   GHS {parseFloat(order.total_amount).toFixed(2)}
                 </Text>
               </View>
@@ -319,7 +319,7 @@ function OrderDetailModal({
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Close</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textMuted }}>Close</Text>
             </Pressable>
           </ScrollView>
         )}
@@ -331,8 +331,8 @@ function OrderDetailModal({
 function Row({ label, value, colors, highlight }: { label: string; value: string; colors: any; highlight?: boolean }) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={{ fontSize: 13, color: colors.textMuted }}>{label}</Text>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: highlight ? colors.success : colors.text }}>
+      <Text style={{ fontSize: 15, color: colors.textMuted }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: highlight ? colors.success : colors.text }}>
         {value}
       </Text>
     </View>

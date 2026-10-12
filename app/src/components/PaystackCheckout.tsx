@@ -54,7 +54,7 @@ export default function PaystackCheckout({ visible, authorizationUrl, callbackUr
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 }}>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>Secure payment</Text>
+          <Text style={{ fontSize: 19, fontWeight: '900', color: colors.text }}>Secure payment</Text>
           <Pressable onPress={onClose} hitSlop={8}>
             <X size={22} color={colors.text} />
           </Pressable>

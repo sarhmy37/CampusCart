@@ -29,7 +29,7 @@ export default function StorySettings() {
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <DevicePhoneMobileIcon size={18} color={colors.text} />
-        <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Story settings</Text>
+        <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>Story settings</Text>
       </View>
     </View>
   );

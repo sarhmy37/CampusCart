@@ -3,14 +3,16 @@ import { useNavigation } from 'expo-router';
 import {
   View, Text, Pressable, Image, FlatList, Modal, ActivityIndicator,
   ScrollView, TextInput, Platform, useColorScheme, Animated, Easing, Linking,
-  PanResponder, Dimensions,
+  PanResponder, Dimensions, StyleSheet,
 } from 'react-native';
 import InsetShadow from '@/components/InsetShadow';
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+
+
 import {
   X, Check, SlidersHorizontal, ChevronDown, ChevronRight, MapPin, Sparkles, CheckCircle, Search, ArrowLeft, ArrowRight, LayoutGrid, Tag, Rocket, Wifi, Loader2,
 } from 'lucide-react-native';
@@ -43,6 +45,7 @@ import CategoryRequestModal from '@/components/CategoryRequestModal';
 import CustomScrollbar from '@/components/CustomScrollbar';
 import { getScrollbarEnabled } from '@/utils/scrollbarPref';
 import PaystackCheckout from '@/components/PaystackCheckout';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 const ITEM_TYPES = [
   'Mobile Data', 'Services', 'Clothes', 'Sneakers', 'Bags', 'Gadgets', 'Stationery',
@@ -56,6 +59,17 @@ const NETWORKS = [
   { id: 'Telecel', name: 'Telecel', logo: VODAFONE_LOGO },
   { id: 'AirtelTigo', name: 'AirtelTigo', logo: AIRTELTIGO_LOGO },
 ];
+
+const DATA_NETWORK_PATTERNS: Record<string, RegExp> = {
+  MTN: /^(024|025|053|054|055|059)\d{7}$/,
+  Telecel: /^(020|050)\d{7}$/,
+  AirtelTigo: /^(026|027|056|057)\d{7}$/,
+};
+const DATA_NETWORK_CODES: Record<string, string> = {
+  MTN: 'MTN',
+  Telecel: 'VOD',
+  AirtelTigo: 'AT',
+};
 
 const SCHOOLS = [
   { name: 'KNUST', lat: 6.6732, lng: -1.5654 },
@@ -108,9 +122,9 @@ const SERVICE_TYPES = [
 ];
 
 const BOOST_TIERS = [
-  { id: '24h', label: '24 hours', price: 20 },
-  { id: '3d', label: '3 days', price: 45 },
-  { id: '7d', label: '7 days', price: 90 },
+  { id: '24h', label: '24 hours', rate: 0.10 },
+  { id: '3d', label: '3 days', rate: 0.225 },
+  { id: '7d', label: '7 days', rate: 0.45 },
 ];
 
 function getBoostSelectLimit(plan?: string, planExpiresAt?: string) {
@@ -122,6 +136,42 @@ function getBoostSelectLimit(plan?: string, planExpiresAt?: string) {
 }
 
 type Filter = 'all' | 'new' | 'categories' | 'nearby' | 'verified';
+
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
+const LINK_PAD = GLASS ? { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 } : {};
+
+function GlassButton({ onPress, style, children }: any) {
+  if (GLASS) {
+    const { backgroundColor, borderWidth, borderColor, alignSelf, ...rest } = StyleSheet.flatten(style) as any;
+    return (
+      <Pressable onPress={onPress} style={{ alignSelf }}>
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          style={{ ...rest, paddingVertical: (rest.paddingVertical || 0) + (borderWidth || 0) }}
+        >
+          {children}
+        </GlassView>
+      </Pressable>
+    );
+  }
+  return <Pressable onPress={onPress} style={style}>{children}</Pressable>;
+}
+
+function TabsWrap({ colors, children }: any) {
+  if (GLASS) {
+    return (
+      <GlassView glassEffectStyle="regular" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        {children}
+      </GlassView>
+    );
+  }
+  return (
+    <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card }}>
+      {children}
+    </View>
+  );
+}
 
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
@@ -151,6 +201,18 @@ export default function BrowsePage({ filter }: { filter: Filter }) {
 
   const [itemCategory, setItemCategory] = useState(params.category || '');
   const [subCategory, setSubCategory] = useState('');
+
+  // Apply a category passed in when Browse is already mounted (e.g. from the hero's "Browse Services")
+  useEffect(() => {
+    if (!params.category) return;
+    setItemCategory(params.category);
+    setSubCategory('');
+    setNewOnly(false);
+    setVerifiedOnly(false);
+    setSchool('');
+    // clear it so tapping the same button again re-triggers this effect
+    router.setParams({ category: undefined } as any);
+  }, [params.category]);
   const [school, setSchool] = useState('');
   const [serviceType, setServiceType] = useState('');
   const [newOnly, setNewOnly] = useState(filter === 'new');
@@ -165,6 +227,7 @@ export default function BrowsePage({ filter }: { filter: Filter }) {
   const [selectedBoostIds, setSelectedBoostIds] = useState<string[]>([]);
   const [boostConfirmOpen, setBoostConfirmOpen] = useState(false);
   const [selectedBoostTier, setSelectedBoostTier] = useState<string | null>(null);
+  const [boostBasePrices, setBoostBasePrices] = useState<Record<string, number>>({});
   const [boostSubmitting, setBoostSubmitting] = useState(false);
   const [boostCheckoutUrl, setBoostCheckoutUrl] = useState<string | null>(null);
   const [boostBtnFaded, setBoostBtnFaded] = useState(false);
@@ -189,12 +252,59 @@ export default function BrowsePage({ filter }: { filter: Filter }) {
 
   const boostSelectLimit = getBoostSelectLimit(user?.plan, user?.plan_expires_at);
 
+  const boostPriceFor = (rate: number) =>
+    Math.round(
+      selectedBoostIds.reduce(
+        (sum, id) => sum + Math.round((boostBasePrices[id] || 0) * rate * 100) / 100,
+        0
+      ) * 100
+    ) / 100;
+
   const [dataNetwork, setDataNetwork] = useState('');
 const [dataBundles, setDataBundles] = useState<any[]>([]);
 const [dataBundlesLoading, setDataBundlesLoading] = useState(false);
 const [confirmBundle, setConfirmBundle] = useState<any>(null);
 const [momoNumber, setMomoNumber] = useState('');
 const [placingOrder, setPlacingOrder] = useState(false);
+const [momoAccountName, setMomoAccountName] = useState('');
+const [resolvingMomo, setResolvingMomo] = useState(false);
+const [momoResolveFailed, setMomoResolveFailed] = useState(false);
+const dataNumberPattern = DATA_NETWORK_PATTERNS[confirmBundle?.network || ''];
+const dataNumberValid = !!dataNumberPattern?.test(momoNumber);
+const dataNumberVerified = dataNumberValid && !!momoAccountName && !resolvingMomo;
+
+useEffect(() => {
+  setMomoAccountName('');
+  setMomoResolveFailed(false);
+  if (!confirmBundle || !dataNumberValid) {
+    setResolvingMomo(false);
+    return;
+  }
+
+  let cancelled = false;
+  setResolvingMomo(true);
+  const timer = setTimeout(() => {
+    api.post('/auth/resolve-payout-account', {
+      bank_code: DATA_NETWORK_CODES[confirmBundle.network],
+      account_number: momoNumber,
+    })
+      .then((res) => {
+        if (!cancelled) setMomoAccountName(res.data.account_name || '');
+      })
+      .catch(() => {
+        if (!cancelled) setMomoResolveFailed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setResolvingMomo(false);
+      });
+  }, 500);
+
+  return () => {
+    cancelled = true;
+    clearTimeout(timer);
+    setResolvingMomo(false);
+  };
+}, [confirmBundle, momoNumber, dataNumberValid]);
 
   const enterBoostMode = () => {
     setBoostMode(true);
@@ -230,6 +340,10 @@ const [placingOrder, setPlacingOrder] = useState(false);
       Toast.show({ type: 'error', text1: 'This listing is already boosted.' });
       return;
     }
+    setBoostBasePrices((prev) => ({
+      ...prev,
+      [product.id]: Math.max(parseFloat(product.price) || 0, parseFloat(product.price_max) || 0),
+    }));
     setSelectedBoostIds((prev) => {
       if (prev.includes(product.id)) return prev.filter((id) => id !== product.id);
       if (prev.length >= boostSelectLimit) {
@@ -289,16 +403,37 @@ const [placingOrder, setPlacingOrder] = useState(false);
 
     const handlePlaceDataOrder = async () => {
   const digits = momoNumber.replace(/\D/g, '');
-  if (digits.length < 9) {
-    Toast.show({ type: 'error', text1: 'Enter a valid mobile money number' });
-    return;
-  }
+    if (!dataNumberVerified) {
+      Toast.show({
+        type: 'error',
+        text1: resolvingMomo ? 'Still verifying the mobile money number' : `Could not verify the ${confirmBundle?.network || 'mobile money'} number`,
+        text2: 'Check the number and network, then try again.',
+      });
+      return;
+    }
   setPlacingOrder(true);
   try {
-    await api.post('/data-orders', { bundle_id: confirmBundle.id, momo_number: digits });
-    Toast.show({ type: 'success', text1: 'Order placed! You will receive your data once confirmed.' });
+    const res = await api.post('/data-orders', { bundle_id: confirmBundle.id, momo_number: digits });
     setConfirmBundle(null);
     setMomoNumber('');
+    Toast.show({
+      type: 'info',
+      text1: 'Approve the payment prompt',
+      text2: res.data.message || 'Check your mobile money phone and approve the payment.',
+    });
+    for (let i = 0; i < 12; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      const statusRes = await api.get(`/data-orders/status/${res.data.id}`);
+      if (statusRes.data.status === 'pending' || statusRes.data.status === 'delivered') {
+        Toast.show({
+          type: 'success',
+          text1: 'Payment confirmed',
+          text2: statusRes.data.status === 'delivered' ? 'Your data has been delivered.' : 'Your data order is being processed.',
+        });
+        return;
+      }
+    }
+    Toast.show({ type: 'info', text1: 'Still confirming…', text2: 'Your order will update after Paystack confirms the payment.' });
   } catch (err: any) {
     Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to place order' });
   } finally {
@@ -550,9 +685,7 @@ useEffect(() => {
   };
   const isBoosted = (p: any) => p.boosted_until && new Date(p.boosted_until) > new Date();
   const isServices = itemCategory === 'Services';
-  const showBand = isTabActive('all') && (!itemCategory || isServices) && !search && !boostMode;
-  const boostedBand = useMemo(() => (showBand ? inStock.filter(isBoosted) : []), [showBand, inStock]);
-  const gridData = useMemo(() => (showBand ? inStock.filter((p) => !isBoosted(p)) : inStock), [showBand, inStock]);
+  const gridData = inStock;
 
   const headerTitle =
     itemCategory === 'Services' ? 'Browse Services'
@@ -572,7 +705,7 @@ useEffect(() => {
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.55)' }} />
 
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-          <Pressable
+          <GlassButton
             onPress={() => router.replace('/')}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -583,15 +716,16 @@ useEffect(() => {
             }}
           >
             <ArrowLeft size={12} color="white" />
-            <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>Home</Text>
-          </Pressable>
+            <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>Home</Text>
+          </GlassButton>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 40, marginBottom: 10 }}>
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 20, fontWeight: '800', color: 'white' }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontSize: 21, fontWeight: '800', color: 'white' }}>
               {headerTitle}
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, width: 120 }}>
+              <Wallet size={12} color="rgba(255,255,255,0.7)" style={{ marginRight: 6 }} />
               <TextInput
                 value={budgetInput}
                 onChangeText={setBudgetInput}
@@ -600,7 +734,7 @@ useEffect(() => {
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 keyboardType="number-pad"
                 returnKeyType="search"
-                style={{ flex: 1, color: 'white', fontSize: 12, padding: 0, fontWeight: '500' }}
+                style={{ flex: 1, color: 'white', fontSize: 13, padding: 0, fontWeight: '500' }}
               />
               <Pressable onPress={applyBudgetValue} hitSlop={6}>
                 <Search size={12} color="white" />
@@ -611,13 +745,13 @@ useEffect(() => {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: isPlanActive ? 'space-between' : 'flex-end', marginTop: -2 }}>
             {isPlanActive && (
               <Pressable onPress={handleSaveSearch} disabled={savingSearch}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.9)', textDecorationLine: 'underline' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.9)', textDecorationLine: 'underline' }}>
                   {savingSearch ? 'Saving…' : '🔖 Save search'}
                 </Text>
               </Pressable>
             )}
             <Pressable onPress={() => setFeatureModalOpen(true)}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textDecorationLine: 'underline' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textDecorationLine: 'underline' }}>
                 Suggest a feature
               </Text>
             </Pressable>
@@ -646,7 +780,7 @@ useEffect(() => {
                 <Icon size={14} color={active ? colors.brand : colors.textFaint} />
                 <Text
                   style={{
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: active ? '700' : '500',
                     color: active ? colors.brand : colors.textFaint,
                   }}
@@ -671,7 +805,7 @@ useEffect(() => {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12 }}>
         {subCategory ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.brandSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.brand }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>
               Type: {subCategory}
             </Text>
             <Pressable onPress={() => setSubCategory('')} hitSlop={6}>
@@ -690,7 +824,7 @@ useEffect(() => {
               }}
             >
               <SlidersHorizontal size={12} color={serviceType ? colors.brand : colors.textMuted} />
-              <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '600', color: serviceType ? colors.brand : colors.textMuted, flexShrink: 1 }}>
+              <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: serviceType ? colors.brand : colors.textMuted, flexShrink: 1 }}>
                 {serviceType || 'All services'}
               </Text>
               <ChevronDown size={12} color={serviceType ? colors.brand : colors.textMuted} />
@@ -699,20 +833,20 @@ useEffect(() => {
         )}
 
         {boostMode ? (
-          <Pressable onPress={exitBoostMode} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <GlassButton onPress={exitBoostMode} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, ...LINK_PAD }}>
             <X size={14} color={colors.textMuted} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Cancel boost</Text>
-          </Pressable>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>Cancel boost</Text>
+          </GlassButton>
         ) : itemCategory === 'Services' ? (
-          <Pressable onPress={() => setItemCategory('')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <GlassButton onPress={() => setItemCategory('')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, ...LINK_PAD }}>
             <ArrowLeft size={14} color={colors.brand} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>Browse listings</Text>
-          </Pressable>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>Browse listings</Text>
+          </GlassButton>
         ) : (
-          <Pressable onPress={() => setItemCategory('Services')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>Browse services</Text>
+          <GlassButton onPress={() => setItemCategory('Services')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, ...LINK_PAD }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>Browse services</Text>
             <ArrowRight size={14} color={colors.brand} />
-          </Pressable>
+          </GlassButton>
         )}
       </View>
 
@@ -720,7 +854,7 @@ useEffect(() => {
 {/* Listings */}
 {itemCategory === 'Mobile Data' ? (
   <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>
+    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>
       Choose a network
     </Text>
     <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
@@ -745,7 +879,7 @@ useEffect(() => {
   <Image source={n.logo} style={{ width: 24, height: 24, borderRadius: 6 }} contentFit="cover" />
   <Text
     numberOfLines={1}
-    style={{ flex: 1, fontSize: 12, fontWeight: active ? '700' : '600', color: active ? colors.brand : colors.text }}
+    style={{ flex: 1, fontSize: 13, fontWeight: active ? '700' : '600', color: active ? colors.brand : colors.text }}
   >
     {n.name}
   </Text>
@@ -757,7 +891,7 @@ useEffect(() => {
     {!dataNetwork ? (
       <View style={{ alignItems: 'center', paddingVertical: 60 }}>
         <Wifi size={32} color={colors.textFaint} />
-        <Text style={{ marginTop: 12, fontSize: 14, color: colors.textFaint, textAlign: 'center' }}>
+        <Text style={{ marginTop: 12, fontSize: 15, color: colors.textFaint, textAlign: 'center' }}>
           Pick a network to see available data bundles.
         </Text>
       </View>
@@ -769,7 +903,7 @@ useEffect(() => {
       </View>
     ) : dataBundles.length === 0 ? (
       <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-        <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center' }}>
+        <Text style={{ fontSize: 15, color: colors.textFaint, textAlign: 'center' }}>
           No {dataNetwork} bundles available right now.
         </Text>
       </View>
@@ -801,10 +935,10 @@ useEffect(() => {
             <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Wifi size={16} color={colors.brand} />
             </View>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
               {parseFloat(b.gb_amount)}GB
             </Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>
               GHS {parseFloat(b.price).toFixed(2)}
             </Text>
           </Pressable>
@@ -817,7 +951,7 @@ useEffect(() => {
 ) : filtered.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
           <SlidersHorizontal size={28} color={colors.textFaint} />
-          <Text style={{ marginTop: 10, fontSize: 13, color: colors.textFaint, textAlign: 'center' }}>
+          <Text style={{ marginTop: 10, fontSize: 14, color: colors.textFaint, textAlign: 'center' }}>
             No listings found. Try a different filter.
           </Text>
         </View>
@@ -827,45 +961,12 @@ useEffect(() => {
           onContentSizeChange={(_w, h) => { contentH.current = h; }}
           onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
           data={gridData}
-          ListHeaderComponent={
-            boostedBand.length > 0 ? (
-              <View style={{ marginBottom: 4, backgroundColor: isDark ? '#0a0a0a' : '#ececec' }}>
-                <InsetShadow direction="down" />
-                <View style={{ paddingBottom: 4 }}>
-                  <View style={{ paddingHorizontal: 16, marginBottom: 10, marginTop: -12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <RocketLaunch color={colors.brand} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                        {isServices ? 'Boosted services' : 'Boosted'}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
-                        {isServices
-                          ? 'Promoted by providers. Priority placement, just for a while.'
-                          : 'Promoted by sellers. Priority placement, just for a while.'}
-                      </Text>
-                    </View>
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-                    {boostedBand.map((item) => (
-                      <View key={`boost-${item.id}`} style={{ width: 128 }}>
-                        {(item.category || item.category_name) === 'Services'
-                          ? <ServiceCard service={item} />
-                          : <ProductCard product={item} />}
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-                <InsetShadow direction="up" />
-                <View style={{ height: 1, backgroundColor: colors.border }} />
-              </View>
-            ) : null
-          }
           keyExtractor={(p) => String(p.id)}
           ListFooterComponent={
             !boostMode && outOfStock.length > 0 ? (
               <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.textFaint }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.textFaint }}>
                     Out of Stock
                   </Text>
                   <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
@@ -892,23 +993,35 @@ useEffect(() => {
           scrollEventThrottle={16}
           renderItem={({ item }) => (
             <View style={{ width: '31.5%' }}>
-              {(item.category || item.category_name) === 'Services'
-                ? (
-                  <ServiceCard
-                    service={item}
-                    boostMode={boostMode}
-                    boostSelected={selectedBoostIds.includes(item.id)}
-                    onBoostSelect={boostMode ? handleSelectBoostTarget : undefined}
-                  />
-                )
-                : (
-                  <ProductCard
-                    product={item}
-                    boostMode={boostMode}
-                    boostSelected={selectedBoostIds.includes(item.id)}
-                    onBoostSelect={boostMode ? handleSelectBoostTarget : undefined}
+              <Dangle active={!!isBoosted(item)}>
+                {(item.category || item.category_name) === 'Services' && isBoosted(item) && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                      borderRadius: 14, borderWidth: 1, borderColor: colors.brand,
+                      zIndex: 2,
+                    }}
                   />
                 )}
+                {(item.category || item.category_name) === 'Services'
+                  ? (
+                    <ServiceCard
+                      service={item}
+                      boostMode={boostMode}
+                      boostSelected={selectedBoostIds.includes(item.id)}
+                      onBoostSelect={boostMode ? handleSelectBoostTarget : undefined}
+                    />
+                  )
+                  : (
+                    <ProductCard
+                      product={item}
+                      boostMode={boostMode}
+                      boostSelected={selectedBoostIds.includes(item.id)}
+                      onBoostSelect={boostMode ? handleSelectBoostTarget : undefined}
+                    />
+                  )}
+              </Dangle>
             </View>
           )}
         />
@@ -933,7 +1046,7 @@ useEffect(() => {
             elevation: 5,
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>
             Boost {selectedBoostIds.length} {selectedBoostIds.length === 1 ? 'item' : 'items'} ({selectedBoostIds.length}/{boostSelectLimit})
           </Text>
         </Pressable>
@@ -960,11 +1073,11 @@ useEffect(() => {
             </Pressable>
           </View>
 
-          <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, marginTop: 10 }}>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 10 }}>
             Boost {selectedBoostIds.length} {selectedBoostIds.length === 1 ? 'listing' : 'listings'}
           </Text>
-          <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
-            Choose how long these listings should stay at the top of search and browse results. One flat price for all selected items.
+          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
+            Choose how long these listings should stay at the top of search and browse results. The price is based on each selected item's price (a service uses its highest price).
           </Text>
 
           <View style={{ gap: 8, marginTop: 14 }}>
@@ -981,12 +1094,12 @@ useEffect(() => {
                     backgroundColor: active ? colors.brandSoft : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: active ? colors.brand : colors.text }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: active ? colors.brand : colors.text }}>
                     {tier.label}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: active ? colors.brand : colors.text }}>
-                      GHS {tier.price}
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: active ? colors.brand : colors.text }}>
+                      GHS {boostPriceFor(tier.rate).toFixed(2)}
                     </Text>
                     {active && <Check size={16} color={colors.brand} />}
                   </View>
@@ -1006,11 +1119,11 @@ useEffect(() => {
             }}
           >
             {boostSubmitting && <ActivityIndicator size="small" color="#fff" />}
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>
               {boostSubmitting ? 'Processing…' : 'Pay and Boost'}
             </Text>
           </Pressable>
-          <Text style={{ fontSize: 11, color: colors.textFaint, textAlign: 'center', marginTop: 8 }}>
+          <Text style={{ fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 8 }}>
             🔒 Secured by Paystack
           </Text>
         </View>
@@ -1033,53 +1146,96 @@ useEffect(() => {
       <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
         <Wifi size={20} color={colors.brand} />
       </View>
-      <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
+      <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
         {parseFloat(confirmBundle?.gb_amount || '0')}GB {confirmBundle?.network} — GHS {parseFloat(confirmBundle?.price || '0').toFixed(2)}
       </Text>
-      <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
+      <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
         Enter the mobile money number to receive this data. You'll be sent a prompt to approve the payment.
       </Text>
 
-      <TextInput
-        value={momoNumber}
-        onChangeText={(v) => setMomoNumber(v.replace(/\D/g, ''))}
-        placeholder="e.g. 0551234567"
-        placeholderTextColor={colors.textFaint}
-        keyboardType="number-pad"
-        style={{
-          marginTop: 16,
-          paddingHorizontal: 14,
-          paddingVertical: 12,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.inputBg,
-          color: colors.text,
-          fontSize: 14,
-        }}
-      />
+      <View style={{ position: 'relative', marginTop: 16 }}>
+        <TextInput
+          value={momoNumber}
+          onChangeText={(v) => setMomoNumber(v.replace(/\D/g, '').slice(0, 10))}
+          placeholder="e.g. 0551234567"
+          placeholderTextColor={colors.textFaint}
+          keyboardType="number-pad"
+          style={{
+            paddingLeft: 14,
+            paddingRight: dataNumberValid ? 44 : 14,
+            paddingVertical: 12,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: dataNumberVerified ? colors.success : colors.border,
+            backgroundColor: colors.inputBg,
+            color: colors.text,
+            fontSize: 15,
+          }}
+        />
+        {dataNumberVerified && (
+          <View style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}>
+            <CheckCircle size={18} color={colors.success} />
+          </View>
+        )}
+      </View>
+      {momoNumber.length > 0 && !dataNumberValid && (
+        <Text style={{ color: '#dc2626', fontSize: 13, marginTop: 6 }}>
+          Enter a valid {confirmBundle?.network} number.
+        </Text>
+      )}
+      {resolvingMomo && dataNumberValid && (
+        <Text style={{ color: colors.textFaint, fontSize: 13, marginTop: 6 }}>
+          Verifying the mobile money account…
+        </Text>
+      )}
+      {momoAccountName && dataNumberVerified && (
+        <Text style={{ color: colors.success, fontSize: 13, marginTop: 6, fontWeight: '600' }}>
+          Account verified: {momoAccountName}
+        </Text>
+      )}
+      {momoResolveFailed && dataNumberValid && !resolvingMomo && (
+        <Text style={{ color: '#dc2626', fontSize: 13, marginTop: 6 }}>
+          We could not find a mobile money account for this number.
+        </Text>
+      )}
 
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
         <Pressable
           onPress={() => !placingOrder && setConfirmBundle(null)}
           style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
         >
-          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>Cancel</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Cancel</Text>
         </Pressable>
         <Pressable
           onPress={handlePlaceDataOrder}
-          disabled={placingOrder}
-          style={{
-            flex: 1, paddingVertical: 12, borderRadius: 12,
-            backgroundColor: colors.brand, alignItems: 'center',
-            flexDirection: 'row', justifyContent: 'center', gap: 6,
-            opacity: placingOrder ? 0.6 : 1,
-          }}
+          disabled={placingOrder || !dataNumberVerified}
+          style={{ flex: 1, opacity: placingOrder || !dataNumberVerified ? 0.6 : 1 }}
         >
-          {placingOrder && <ActivityIndicator size="small" color={colors.textOnGold} />}
-          <Text style={{ fontSize: 13, fontWeight: '800', color: colors.textOnGold }}>
-            {placingOrder ? 'Placing…' : 'Confirm'}
-          </Text>
+          {GLASS ? (
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={colors.brand}
+              style={{ paddingVertical: 12, borderRadius: 12, alignItems: 'center', overflow: 'hidden' }}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                {placingOrder && <ActivityIndicator size="small" color={colors.textOnGold} />}
+                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.textOnGold }}>
+                  {placingOrder ? 'Placing…' : 'Confirm'}
+                </Text>
+              </View>
+            </GlassView>
+          ) : (
+            <View style={{
+              paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand,
+              alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6,
+            }}>
+              {placingOrder && <ActivityIndicator size="small" color={colors.textOnGold} />}
+              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.textOnGold }}>
+                {placingOrder ? 'Placing…' : 'Confirm'}
+              </Text>
+            </View>
+          )}
         </Pressable>
       </View>
     </Pressable>
@@ -1192,7 +1348,7 @@ function FilterSheet({
                 <ArrowLeft size={18} color={colors.textMuted} />
               </Pressable>
             )}
-            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text, flexShrink: 1 }} numberOfLines={1}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, flexShrink: 1 }} numberOfLines={1}>
               {drillDown ? drillDown.label : title}
             </Text>
           </View>
@@ -1225,7 +1381,7 @@ function FilterSheet({
                     backgroundColor: isSelected ? colors.brandSoft : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 14, color: isSelected ? colors.brand : colors.textSecondary, fontWeight: isSelected ? '700' : '500' }}>
+                  <Text style={{ fontSize: 15, color: isSelected ? colors.brand : colors.textSecondary, fontWeight: isSelected ? '700' : '500' }}>
                     {item.label}
                   </Text>
                   {isSelected && <Check size={16} color={colors.brand} />}
@@ -1249,7 +1405,7 @@ function FilterSheet({
                   }}
                 >
                   <MapPin size={16} color={colors.brand} />
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.brand }}>
                     {autoDetectLabel || 'Auto-detect'}
                   </Text>
                 </Pressable>
@@ -1268,7 +1424,7 @@ function FilterSheet({
                     backgroundColor: isSelected && !hasSubs ? colors.brandSoft : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 14, color: isSelected && !hasSubs ? colors.brand : colors.textSecondary, fontWeight: isSelected && !hasSubs ? '700' : '500' }}>
+                  <Text style={{ fontSize: 15, color: isSelected && !hasSubs ? colors.brand : colors.textSecondary, fontWeight: isSelected && !hasSubs ? '700' : '500' }}>
                     {renderLabel(item)}
                   </Text>
                   {isSelected && !hasSubs && <Check size={16} color={colors.brand} />}
@@ -1313,6 +1469,32 @@ const BOOST_BTN_TOP_BOUND = 222;
 const BOOST_BTN_BOTTOM_GAP = 60; // matches the space already reserved above the bottom tab bar
 const BOOST_BTN_POS_KEY = 'boost_fab_position';
 
+function BoostCircle({ colors, children }: { colors: any; children: React.ReactNode }) {
+  const base = {
+    width: BOOST_BTN_SIZE, height: BOOST_BTN_SIZE, borderRadius: BOOST_BTN_SIZE / 2,
+    alignItems: 'center' as const, justifyContent: 'center' as const,
+  };
+  if (GLASS) {
+    return (
+      <GlassView glassEffectStyle="regular" style={base}>
+        {children}
+      </GlassView>
+    );
+  }
+  return (
+    <View
+      style={{
+        ...base,
+        backgroundColor: colors.card, borderWidth: 3, borderColor: colors.brand,
+        shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+        elevation: 5,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
 function FloatingBoostButton({
   colors, faded, containerHeight, onPress,
 }: {
@@ -1322,6 +1504,11 @@ function FloatingBoostButton({
   onPress: () => void;
 }) {
   const screenWidth = Dimensions.get('window').width;
+  const insets = useSafeAreaInsets();
+  // tab bar = 56px + 1px border + the phone's bottom inset, plus a 12px gap
+  const bottomGap = 12;
+  const limitsRef = useRef({ containerHeight, bottomGap });
+  limitsRef.current = { containerHeight, bottomGap };
 
   const pan = useRef(
     new Animated.ValueXY({
@@ -1374,9 +1561,10 @@ function FloatingBoostButton({
   const [positionLoaded, setPositionLoaded] = useState(false);
 
   const clampY = (y: number) => {
+    const { containerHeight: h, bottomGap: g } = limitsRef.current;
     const maxY = Math.max(
       BOOST_BTN_TOP_BOUND,
-      (containerHeight || Dimensions.get('window').height) - BOOST_BTN_SIZE - BOOST_BTN_BOTTOM_GAP
+      (h || Dimensions.get('window').height) - BOOST_BTN_SIZE - g
     );
     return Math.min(Math.max(y, BOOST_BTN_TOP_BOUND), maxY);
   };
@@ -1408,10 +1596,16 @@ function FloatingBoostButton({
     if (positionLoaded && containerHeight > 0 && !hasCustomPos.current) {
       pan.setValue({
         x: screenWidth - BOOST_BTN_SIZE - BOOST_BTN_MARGIN,
-        y: clampY(containerHeight - BOOST_BTN_SIZE - BOOST_BTN_BOTTOM_GAP),
+        y: clampY(containerHeight - BOOST_BTN_SIZE - bottomGap),
       });
     }
   }, [containerHeight, positionLoaded]);
+
+  // Re-clamp when the real limits are known, so a saved or old spot can't sit under the tab bar.
+  useEffect(() => {
+    if (!positionLoaded || containerHeight <= 0) return;
+    pan.stopAnimation((v) => pan.setValue({ x: v.x, y: clampY(v.y) }));
+  }, [containerHeight, bottomGap, positionLoaded]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -1471,15 +1665,7 @@ function FloatingBoostButton({
         transform: [...pan.getTranslateTransform(), { scale }],
       }}
     >
-      <View
-        style={{
-          width: BOOST_BTN_SIZE, height: BOOST_BTN_SIZE, borderRadius: BOOST_BTN_SIZE / 2,
-          backgroundColor: colors.card, borderWidth: 3, borderColor: colors.brand,
-          alignItems: 'center', justifyContent: 'center',
-          shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
-          elevation: 5,
-        }}
-      >
+      <BoostCircle colors={colors}>
         <View style={{ width: 28, height: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ transform: [{ rotate: '-45deg' }] }}>
             <Animated.View style={{ transform: [{ translateX: rx }, { translateY: rshake }, { scaleX: rsx }] }}>
@@ -1489,7 +1675,46 @@ function FloatingBoostButton({
             </Animated.View>
           </View>
         </View>
-      </View>
+      </BoostCircle>
+    </Animated.View>
+  );
+}
+
+// Swings a boosted card like it's hanging from its top edge, once every 6s.
+function Dangle({ active, children }: { active: boolean; children: React.ReactNode }) {
+  const rot = useRef(new Animated.Value(0)).current;
+  const [h, setH] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    const t = (to: number, duration: number) =>
+      Animated.timing(rot, { toValue: to, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true });
+
+    let anim: Animated.CompositeAnimation | null = null;
+    const swing = () => {
+      rot.setValue(0); // always start centered
+      anim = Animated.sequence([
+        t(-1, 140), t(1, 220), t(-0.7, 200), t(0.5, 180), t(-0.25, 150), t(0, 130),
+      ]);
+      anim.start();
+    };
+
+    swing();
+    const id = setInterval(swing, 6000);
+    return () => { clearInterval(id); anim?.stop(); rot.setValue(0); };
+  }, [active]);
+
+  if (!active) return <>{children}</>;
+
+  const rotate = rot.interpolate({ inputRange: [-1, 1], outputRange: ['-4deg', '4deg'] });
+
+  return (
+    <Animated.View
+      onLayout={(e) => setH(e.nativeEvent.layout.height)}
+      // translate up, rotate, translate back = pivot at the top edge
+      style={{ transform: [{ translateY: -h / 2 }, { rotate }, { translateY: h / 2 }] }}
+    >
+      {children}
     </Animated.View>
   );
 }

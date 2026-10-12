@@ -1,2 +1,24 @@
 
 trex-studio/
+
+# dependencies
+**/node_modules/
+
+# local environment files
+**/.env
+**/.env.*
+!.env.example
+
+# Expo and build output
+**/.expo/
+**/.expo-export-check/
+**/dist/
+**/build/
+**/web-build/
+**/.metro/
+
+# local logs and caches
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/*.tsbuildinfo

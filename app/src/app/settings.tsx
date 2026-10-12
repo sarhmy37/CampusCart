@@ -13,7 +13,7 @@ import {
   ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Shield,
   ChevronDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, Moon, Sun, Gift, Store, Copy, X,
 } from 'lucide-react-native';
-import { BadgeCheck } from 'lucide-react-native';
+import { CheckBadgeIcon as BadgeCheck } from 'react-native-heroicons/outline';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { SETTINGS_VIDEO } from '@/data/media';
 import api from '@/api/client';
@@ -257,7 +257,7 @@ export default function SettingsScreen() {
 
   const inputStyle = {
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
-    borderWidth: 1, borderColor: colors.border, fontSize: 14,
+    borderWidth: 1, borderColor: colors.border, fontSize: 16,
     color: colors.text, backgroundColor: colors.inputBg,
   };
   const primaryBtn = {
@@ -292,8 +292,8 @@ export default function SettingsScreen() {
         }}
       >
         <View style={{ height: 30 }} />
-        <AppText style={{ fontSize: 26, fontWeight: '800', color: 'white', marginTop: 40 }}>Settings</AppText>
-        <AppText style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Manage your account and preferences</AppText>
+        <AppText style={{ fontSize: 28, fontWeight: '800', color: 'white', marginTop: 40 }}>Settings</AppText>
+        <AppText style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Manage your account and preferences</AppText>
       </Animated.View>
 
       {/* BACK BUTTON (fades on scroll) */}
@@ -306,7 +306,7 @@ export default function SettingsScreen() {
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' }}
         >
           <ArrowLeft size={14} color="white" />
-          <AppText style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>Back</AppText>
+          <AppText style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Back</AppText>
         </Pressable>
       </Animated.View>
 
@@ -378,15 +378,15 @@ export default function SettingsScreen() {
                    {user?.avatar_url ? (
                     <Image source={{ uri: user.avatar_url }} style={{ width: '100%', height: '100%' }} cachePolicy="disk" />
                   ) : (
-                    <AppText style={{ fontSize: 22, fontWeight: '800', color: colors.textSecondary }}>{sellerInitial}</AppText>
+                    <AppText style={{ fontSize: 24, fontWeight: '800', color: colors.textSecondary }}>{sellerInitial}</AppText>
                   )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <AppText style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{user?.name}</AppText>
+                    <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{user?.name}</AppText>
                     {user?.verified && <BadgeCheck size={20} color={colors.success} />}
                   </View>
-                  <AppText style={{ fontSize: 14, color: colors.textMuted }}>{user?.school}</AppText>
+                  <AppText style={{ fontSize: 16, color: colors.textMuted }}>{user?.school}</AppText>
                 </View>
                 <Animated.View
                   style={{
@@ -401,16 +401,16 @@ export default function SettingsScreen() {
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
                 <View style={{ alignItems: 'flex-start' }}>
-                  <AppText style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.listingCount ?? 0}</AppText>
-                  <AppText style={{ fontSize: 11, color: colors.textFaint, textTransform: 'uppercase' }}>Listings</AppText>
+                  <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.listingCount ?? 0}</AppText>
+                  <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>Listings</AppText>
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <AppText style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.salesCount ?? 0}</AppText>
-                  <AppText style={{ fontSize: 11, color: colors.textFaint, textTransform: 'uppercase' }}>Sales</AppText>
+                  <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.salesCount ?? 0}</AppText>
+                  <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>Sales</AppText>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <AppText style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '—')}</AppText>
-                  <AppText style={{ fontSize: 11, color: colors.textFaint, textTransform: 'uppercase' }}>{storeStats?.reviewCount ?? 0} reviews</AppText>
+                  <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '—')}</AppText>
+                  <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>{storeStats?.reviewCount ?? 0} reviews</AppText>
                 </View>
               </View>
             </View>
@@ -434,24 +434,24 @@ export default function SettingsScreen() {
                 <Store size={16} color={colors.brand} />
               </View>
               <View style={{ flex: 1 }}>
-                <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Business Profile</AppText>
-                <AppText style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>Your storefront link</AppText>
+                <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Business Profile</AppText>
+                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Your storefront link</AppText>
               </View>
             </View>
 
             <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TextInput value={businessProfileUrl} editable={false} style={[inputStyle, { flex: 1, fontSize: 13, color: colors.textMuted }]} />
+                <TextInput value={businessProfileUrl} editable={false} style={[inputStyle, { flex: 1, fontSize: 15, color: colors.textMuted }]} />
                 <Pressable onPress={copyBusinessLink} style={{ padding: 12, borderRadius: 12, backgroundColor: colors.chipBg }}>
                   <Copy size={16} color={colors.textSecondary} />
                 </Pressable>
               </View>
 
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 }}>
-                <AppText style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>Share on:</AppText>
+                <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>Share on:</AppText>
                 <Pressable onPress={() => setShowStorePreview(true)}>
-                  <AppText style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Preview →</AppText>
+                  <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>Preview →</AppText>
                 </Pressable>
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -472,7 +472,7 @@ export default function SettingsScreen() {
               </View>
 
               <Pressable onPress={() => setShowHandlesModal(true)} style={{ marginTop: 12 }}>
-                <AppText style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>+ Add your social handles</AppText>
+                <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>+ Add your social handles</AppText>
               </Pressable>
             </View>
               </View>
@@ -489,8 +489,8 @@ export default function SettingsScreen() {
                   {theme === 'dark' ? <Moon size={16} color={colors.brand} /> : <Sun size={16} color={colors.brand} />}
                 </View>
                 <View>
-                  <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Appearance</AppText>
-                  <AppText style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                  <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Appearance</AppText>
+                  <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
                     {theme === 'dark' ? 'Dark mode is on' : 'Light mode is on'}
                   </AppText>
                 </View>
@@ -500,8 +500,8 @@ export default function SettingsScreen() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Browse scrollbar</AppText>
-                <AppText style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Browse scrollbar</AppText>
+                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
                   Show the draggable scrollbar on Browse
                 </AppText>
               </View>
@@ -527,8 +527,8 @@ export default function SettingsScreen() {
                   <Shield size={16} color={colors.brand} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Buyer Terms of Service</AppText>
-                  <AppText style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>Your shopping rights and protections</AppText>
+                  <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Buyer Terms of Service</AppText>
+                  <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Your shopping rights and protections</AppText>
                 </View>
               </View>
               {termsOpen ? <ChevronDown size={18} color={colors.textFaint} style={{ transform: [{ rotate: '180deg' }] }} /> : <ChevronDown size={18} color={colors.textFaint} />}
@@ -544,7 +544,7 @@ export default function SettingsScreen() {
                 ].map((t, i) => (
                   <View key={i} style={{ flexDirection: 'row', gap: 8 }}>
                     <AppText style={{ color: colors.brand, fontWeight: '800' }}>•</AppText>
-                    <AppText style={{ flex: 1, fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>{t}</AppText>
+                    <AppText style={{ flex: 1, fontSize: 15, color: colors.textSecondary, lineHeight: 19 }}>{t}</AppText>
                   </View>
                 ))}
               </View>
@@ -562,12 +562,12 @@ export default function SettingsScreen() {
               <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Lock size={16} color={colors.brand} />
               </View>
-              <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Change password</AppText>
+              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Change password</AppText>
             </View>
 
             {pwStep === 1 ? (
               <View style={{ gap: 12 }}>
-                <AppText style={{ fontSize: 12, color: colors.textFaint }}>
+                <AppText style={{ fontSize: 14, color: colors.textFaint }}>
                   Confirm your current password — we'll email a verification code to your university email.
                 </AppText>
                 <TextInput
@@ -580,15 +580,15 @@ export default function SettingsScreen() {
                 />
                 <Pressable onPress={() => setShow((s) => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {show ? <EyeOff size={13} color={colors.textMuted} /> : <Eye size={13} color={colors.textMuted} />}
-                  <AppText style={{ fontSize: 12, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} password</AppText>
+                  <AppText style={{ fontSize: 14, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} password</AppText>
                 </Pressable>
                 <Pressable onPress={requestPasswordCode} disabled={saving} style={[primaryBtn, { opacity: saving ? 0.6 : 1 }]}>
-                  <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>{saving ? 'Sending code…' : 'Send verification code'}</AppText>
+                  <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>{saving ? 'Sending code…' : 'Send verification code'}</AppText>
                 </Pressable>
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                <AppText style={{ fontSize: 12, color: colors.textFaint }}>
+                <AppText style={{ fontSize: 14, color: colors.textFaint }}>
                   Enter the code we emailed you, along with your new password.
                 </AppText>
                 <TextInput value={code} onChangeText={setCode} placeholder="6-digit code" placeholderTextColor={colors.textFaint} maxLength={6} keyboardType="number-pad" style={[inputStyle, { textAlign: 'center', letterSpacing: 6, fontWeight: '600' }]} />
@@ -597,13 +597,13 @@ export default function SettingsScreen() {
                 <TextInput value={confirm} onChangeText={setConfirm} placeholder="Confirm new password" placeholderTextColor={colors.textFaint} secureTextEntry={!show} style={inputStyle} />
                 <Pressable onPress={() => setShow((s) => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {show ? <EyeOff size={13} color={colors.textMuted} /> : <Eye size={13} color={colors.textMuted} />}
-                  <AppText style={{ fontSize: 12, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} passwords</AppText>
+                  <AppText style={{ fontSize: 14, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} passwords</AppText>
                 </Pressable>
                 <Pressable onPress={confirmPasswordChange} disabled={saving} style={[primaryBtn, { opacity: saving ? 0.6 : 1 }]}>
-                  <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>{saving ? 'Updating…' : 'Confirm & update password'}</AppText>
+                  <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>{saving ? 'Updating…' : 'Confirm & update password'}</AppText>
                 </Pressable>
                 <Pressable onPress={() => setPwStep(1)}>
-                  <AppText style={{ fontSize: 12, color: colors.textFaint, textAlign: 'center' }}>← Start over</AppText>
+                  <AppText style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center' }}>← Start over</AppText>
                 </Pressable>
               </View>
             )}
@@ -617,21 +617,21 @@ export default function SettingsScreen() {
               <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Bell size={16} color={colors.brand} />
               </View>
-              <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Notifications</AppText>
+              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Notifications</AppText>
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>New listings</AppText>
-                <AppText style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>Get notified when new items match your interests</AppText>
+                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>New listings</AppText>
+                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Get notified when new items match your interests</AppText>
               </View>
               <Toggle value={notifyListings} onToggle={() => setNotifyListings((v) => !v)} colors={colors} />
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Messages</AppText>
-                <AppText style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>Get notified when a buyer or seller messages you</AppText>
+                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Messages</AppText>
+                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Get notified when a buyer or seller messages you</AppText>
               </View>
               <Toggle value={notifyMessages} onToggle={() => setNotifyMessages((v) => !v)} colors={colors} />
             </View>
@@ -645,37 +645,37 @@ export default function SettingsScreen() {
               <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Gift size={16} color={colors.brand} />
               </View>
-              <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Refer a friend</AppText>
+              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Refer a friend</AppText>
             </View>
-            <AppText style={{ fontSize: 12, color: colors.textFaint, marginBottom: 16 }}>
+            <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
               When a friend signs up with your link, you get 25% off Pro and Premium for 24 hours. Every extra friend adds 12 more hours.
             </AppText>
 
             {discountActive && (
               <View style={{ backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, borderRadius: 12, padding: 12, marginBottom: 16 }}>
-                <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.warning }}>25% off Pro and Premium is active</AppText>
-                <AppText style={{ fontSize: 12, color: colors.warning, marginTop: 2 }}>
+                <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.warning }}>25% off Pro and Premium is active</AppText>
+                <AppText style={{ fontSize: 14, color: colors.warning, marginTop: 2 }}>
                   Ends in {formatCountdown(discountExpiry - nowTs)}. Each new friend adds 12 hours.
                 </AppText>
               </View>
             )}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput value={referralLink} editable={false} style={[inputStyle, { flex: 1, fontSize: 13, color: colors.textMuted }]} />
+              <TextInput value={referralLink} editable={false} style={[inputStyle, { flex: 1, fontSize: 15, color: colors.textMuted }]} />
               <Pressable onPress={copyReferralLink} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
-                <AppText style={{ color: colors.textOnGold, fontSize: 13, fontWeight: '600' }}>Copy</AppText>
+                <AppText style={{ color: colors.textOnGold, fontSize: 15, fontWeight: '600' }}>Copy</AppText>
               </Pressable>
             </View>
 
             {referrals.length > 0 && (
               <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted, gap: 8 }}>
-                <AppText style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <AppText style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Friends you referred ({referrals.length})
                 </AppText>
                 {referrals.map((r, i) => (
                   <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <AppText style={{ fontSize: 14, fontWeight: '500', color: colors.textSecondary }}>{r.name}</AppText>
-                    <AppText style={{ fontSize: 12, color: colors.textFaint }}>
+                    <AppText style={{ fontSize: 16, fontWeight: '500', color: colors.textSecondary }}>{r.name}</AppText>
+                    <AppText style={{ fontSize: 14, color: colors.textFaint }}>
                       Joined {new Date(r.joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     </AppText>
                   </View>
@@ -692,14 +692,14 @@ export default function SettingsScreen() {
               <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <AlertTriangle size={16} color={colors.error} />
               </View>
-              <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Danger zone</AppText>
+              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Danger zone</AppText>
             </View>
-            <AppText style={{ fontSize: 12, color: colors.textFaint, marginBottom: 16 }}>
+            <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
               Deleting your account is permanent — your listings, orders, and messages will be removed and cannot be recovered.
             </AppText>
             <Pressable onPress={() => setDeleteOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.error, alignSelf: 'flex-start' }}>
               <Trash2 size={15} color={colors.error} />
-              <AppText style={{ color: colors.error, fontSize: 14, fontWeight: '600' }}>Delete my account</AppText>
+              <AppText style={{ color: colors.error, fontSize: 16, fontWeight: '600' }}>Delete my account</AppText>
             </Pressable>
           </View>
         </Card>
@@ -713,8 +713,8 @@ export default function SettingsScreen() {
             <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <AlertTriangle size={20} color={colors.error} />
             </View>
-            <AppText style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Delete your account?</AppText>
-            <AppText style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>This can't be undone. Enter your password to confirm.</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Delete your account?</AppText>
+            <AppText style={{ fontSize: 16, color: colors.textMuted, marginTop: 6 }}>This can't be undone. Enter your password to confirm.</AppText>
 
             <TextInput
               value={deletePassword}
@@ -727,10 +727,10 @@ export default function SettingsScreen() {
 
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
               <Pressable onPress={() => { setDeleteOpen(false); setDeletePassword(''); }} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-                <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Cancel</AppText>
+                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary }}>Cancel</AppText>
               </Pressable>
               <Pressable onPress={handleDeleteAccount} disabled={deleting || !deletePassword} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.error, alignItems: 'center', opacity: deleting || !deletePassword ? 0.6 : 1 }}>
-                <AppText style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>{deleting ? 'Deleting…' : 'Delete account'}</AppText>
+                <AppText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>{deleting ? 'Deleting…' : 'Delete account'}</AppText>
               </Pressable>
             </View>
           </Pressable>
@@ -744,8 +744,8 @@ export default function SettingsScreen() {
             <Pressable onPress={() => setShowHandlesModal(false)} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
               <X size={18} color={colors.textFaint} />
             </Pressable>
-            <AppText style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Add your social handles</AppText>
-            <AppText style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>All optional — shown on your store page.</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Add your social handles</AppText>
+            <AppText style={{ fontSize: 16, color: colors.textMuted, marginTop: 4 }}>All optional — shown on your store page.</AppText>
 
             <ScrollView style={{ marginTop: 16 }}>
               {[
@@ -758,7 +758,7 @@ export default function SettingsScreen() {
                 { key: 'social_telegram', label: 'Telegram', placeholder: '@yourhandle' },
               ].map(({ key, label, placeholder }) => (
                 <View key={key} style={{ marginBottom: 12 }}>
-                  <AppText style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>{label}</AppText>
+                  <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>{label}</AppText>
                   <TextInput
                     value={(handles as any)[key]}
                     onChangeText={(v) => setHandles((h) => ({ ...h, [key]: v }))}
@@ -771,7 +771,7 @@ export default function SettingsScreen() {
             </ScrollView>
 
             <Pressable onPress={handleSaveHandles} disabled={savingHandles} style={[primaryBtn, { marginTop: 12, opacity: savingHandles ? 0.6 : 1 }]}>
-              <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>{savingHandles ? 'Updating…' : 'Update'}</AppText>
+              <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>{savingHandles ? 'Updating…' : 'Update'}</AppText>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -815,7 +815,7 @@ export default function SettingsScreen() {
                 backgroundColor: colors.card,
               }}
             >
-              <AppText style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>Store preview</AppText>
+              <AppText style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Store preview</AppText>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Pressable
                   onPress={() => {
@@ -823,7 +823,7 @@ export default function SettingsScreen() {
                     router.push(`/seller/${user?.id}` as any);
                   }}
                 >
-                  <AppText style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>Open →</AppText>
+                  <AppText style={{ fontSize: 15, fontWeight: '700', color: colors.brand }}>Open →</AppText>
                 </Pressable>
                 <Pressable onPress={() => setShowStorePreview(false)} hitSlop={10}>
                   <X size={20} color={colors.textMuted} />
@@ -932,16 +932,16 @@ function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: an
           <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
             <MapPin size={16} color={colors.brand} />
           </View>
-          <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Delivery Locations</AppText>
+          <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Delivery Locations</AppText>
         </View>
-        <AppText style={{ fontSize: 12, color: colors.textFaint, marginBottom: 16 }}>
+        <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
           Your first saved location is used by default at checkout.
         </AppText>
 
         {loading ? (
           <View style={{ height: 60, borderRadius: 12, backgroundColor: colors.cardAlt }} />
         ) : locations.length === 0 ? (
-          <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>No saved locations yet.</AppText>
+          <AppText style={{ fontSize: 16, color: colors.textFaint, marginBottom: 16 }}>No saved locations yet.</AppText>
         ) : (
           <View style={{ gap: 8, marginBottom: 16 }}>
             {locations.map((loc) => (
@@ -951,8 +951,8 @@ function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: an
                     {loc.is_default && <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.brand }} />}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <AppText numberOfLines={1} style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>{loc.location}</AppText>
-                    {loc.is_default && <AppText style={{ fontSize: 10, fontWeight: '700', color: colors.brand }}>Default</AppText>}
+                    <AppText numberOfLines={1} style={{ fontSize: 16, fontWeight: '500', color: colors.text }}>{loc.location}</AppText>
+                    {loc.is_default && <AppText style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Default</AppText>}
                   </View>
                 </Pressable>
                 <Pressable onPress={() => handleDeleteClick(loc.id)} disabled={deletingId === loc.id} style={{ padding: 6, borderRadius: 8, backgroundColor: pendingDeleteId === loc.id ? colors.errorSoft : 'transparent' }}>
@@ -972,7 +972,7 @@ function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: an
             style={[inputStyle, { flex: 1 }]}
           />
           <Pressable onPress={handleAdd} disabled={adding} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand, opacity: adding ? 0.6 : 1 }}>
-            <AppText style={{ color: colors.textOnGold, fontSize: 14, fontWeight: '600' }}>{adding ? 'Adding…' : 'Add'}</AppText>
+            <AppText style={{ color: colors.textOnGold, fontSize: 16, fontWeight: '600' }}>{adding ? 'Adding…' : 'Add'}</AppText>
           </Pressable>
         </View>
       </View>
@@ -1011,7 +1011,7 @@ function Toggle({ value, onToggle, colors }: { value: boolean; onToggle: () => v
 function SocialBtn({ bg, label, onPress, textColor = 'white' }: { bg: string; label: string; onPress: () => void; textColor?: string }) {
   return (
     <Pressable onPress={onPress} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      <AppText style={{ color: textColor, fontSize: 12, fontWeight: '700' }}>{label}</AppText>
+      <AppText style={{ color: textColor, fontSize: 14, fontWeight: '700' }}>{label}</AppText>
     </Pressable>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  View, Text, Pressable, ScrollView, TextInput,
-  ActivityIndicator, Alert, Dimensions, Animated,
+  View, Text, Pressable, ScrollView, TextInput, Modal, KeyboardAvoidingView,
+  ActivityIndicator, Alert, Dimensions, Animated, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,13 +14,16 @@ import { SCHOOL_COORDS } from '@/data/schoolCoords';
 import LocationPickerModal from '@/components/LocationPickerModal';
 import VerifyModal from '@/components/VerifyModal';
 import Toast from 'react-native-toast-message';
+import PaystackCheckout from '@/components/PaystackCheckout';
+
 import {
   X, BadgeCheck, ShieldAlert, Mail, Phone,
   MapPin, Map as MapIcon, FileText, Settings, LogOut, LayoutDashboard, Store, ShoppingBag, Clock,
-  ChevronDown, ChevronUp, ChevronRight, Film , Info, Shield, Star, Sparkles, User,
+  ChevronDown, ChevronUp, ChevronRight, Film , Info, Shield, Star, Sparkles, User, Gift,
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 const COOLDOWN_MS = 60 * 60 * 1000;
 const APP_VERSION = '1.0.0';
@@ -44,6 +47,10 @@ export default function ProfileScreen() {
   const [showLocPicker, setShowLocPicker] = useState(false);
   const [locBusy, setLocBusy] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
+  const [donationAmount, setDonationAmount] = useState('');
+  const [donationUrl, setDonationUrl] = useState<string | null>(null);
+  const [donating, setDonating] = useState(false);
   const [form, setForm] = useState({
     about: user?.about || '',
     personal_email: user?.personal_email || '',
@@ -54,6 +61,24 @@ export default function ProfileScreen() {
 
   const slideX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeIn = useRef(new Animated.Value(0)).current;
+
+  const startDonation = async () => {
+    const amount = Number(donationAmount);
+    if (!Number.isFinite(amount) || amount < 5) {
+      Toast.show({ type: 'error', text1: 'Minimum donation is GHS 5' });
+      return;
+    }
+    setDonating(true);
+    try {
+      const res = await api.post('/donations/initiate', { amountGHS: amount });
+      setDonateOpen(false);
+      setDonationUrl(res.data.authorization_url);
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not start donation' });
+    } finally {
+      setDonating(false);
+    }
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -302,7 +327,7 @@ const guardLocationEdit = async () => {
               >
                 <X size={18} color="white" />
               </Pressable>
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>
                 My Profile
               </Text>
             </View>
@@ -344,12 +369,12 @@ const guardLocationEdit = async () => {
 
             <View style={{ marginTop: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{user.name}</Text>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{user.name}</Text>
                 {planTier === 'premium' && <Sparkles size={16} color="#a855f7" fill="#a855f7" />}
                 {planTier === 'pro' && <Star size={16} color="#3b82f6" fill="#3b82f6" />}
               </View>
-              <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}>{user.university_email}</Text>
-              {user.school && <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>{user.school}</Text>}
+              <Text numberOfLines={1} style={{ fontSize: 16, color: colors.textMuted, marginTop: 2 }}>{user.university_email}</Text>
+              {user.school && <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>{user.school}</Text>}
 
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                 <Pressable
@@ -362,7 +387,7 @@ const guardLocationEdit = async () => {
                   }}
                 >
                   {user.verified ? <BadgeCheck size={13} color={colors.success} /> : <ShieldAlert size={13} color={colors.error} />}
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: user.verified ? colors.success : colors.error }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: user.verified ? colors.success : colors.error }}>
                     {user.verified ? 'Verified student' : 'Tap to verify'}
                   </Text>
                 </Pressable>
@@ -373,7 +398,7 @@ const guardLocationEdit = async () => {
                   paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
                 }}>
                   {user.account_type === 'seller' ? <Store size={13} color={colors.error} /> : <ShoppingBag size={13} color={colors.success} />}
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: user.account_type === 'seller' ? colors.error : colors.success }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: user.account_type === 'seller' ? colors.error : colors.success }}>
                     {user.account_type === 'seller' ? 'Status: Seller' : 'Status: Buyer'}
                   </Text>
                 </View>
@@ -391,7 +416,7 @@ const guardLocationEdit = async () => {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <FileText size={17} color={colors.textSecondary} />
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Personal details</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Personal details</Text>
                 </View>
                 {personalOpen ? <ChevronUp size={16} color={colors.textMuted} /> : <ChevronDown size={16} color={colors.textMuted} />}
               </Pressable>
@@ -401,7 +426,7 @@ const guardLocationEdit = async () => {
                   {onCooldown && !editing && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Clock size={12} color={colors.warning} />
-                      <Text style={{ fontSize: 12, color: colors.warning }}>
+                      <Text style={{ fontSize: 14, color: colors.warning }}>
                         You can edit again in {cooldownMinutes} minute{cooldownMinutes === 1 ? '' : 's'}
                       </Text>
                     </View>
@@ -416,7 +441,7 @@ const guardLocationEdit = async () => {
                           placeholder="About — a short bio..."
                           placeholderTextColor={colors.textFaint}
                           multiline
-                          style={{ paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card }}
+                          style={{ paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card }}
                         />
                         {(['personal_email', 'whatsapp', 'sms_number'] as const).map((field) => (
                           <TextInput
@@ -430,7 +455,7 @@ const guardLocationEdit = async () => {
                               : 'Location — hostel, hall, or area'
                             }
                             placeholderTextColor={colors.textFaint}
-                            style={{ paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: colors.text, backgroundColor: colors.card, borderBottomWidth: field === 'location' ? 0 : 1, borderBottomColor: colors.border }}
+                            style={{ paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, backgroundColor: colors.card, borderBottomWidth: field === 'location' ? 0 : 1, borderBottomColor: colors.border }}
                           />
                         ))}
                       </View>
@@ -439,7 +464,7 @@ const guardLocationEdit = async () => {
                         <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, gap: 10 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
                             <MapPin size={15} color={colors.textFaint} style={{ marginTop: 2 }} />
-                            <Text style={{ flex: 1, fontSize: 14, color: form.location ? colors.text : colors.textFaint }}>
+                            <Text style={{ flex: 1, fontSize: 16, color: form.location ? colors.text : colors.textFaint }}>
                               {form.location || 'No location set'}
                             </Text>
                           </View>
@@ -464,7 +489,7 @@ const guardLocationEdit = async () => {
                                   }}
                                 >
                                   {b.busy ? <ActivityIndicator size="small" color={colors.brand} /> : b.key === 'map' ? <MapIcon size={13} color={c} /> : <MapPin size={13} color={c} />}
-                                  <Text style={{ fontSize: 12, fontWeight: '600', color: c }}>{b.label}</Text>
+                                  <Text style={{ fontSize: 14, fontWeight: '600', color: c }}>{b.label}</Text>
                                 </Pressable>
                               );
                             })}
@@ -478,7 +503,7 @@ const guardLocationEdit = async () => {
                           disabled={saving}
                           style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center', opacity: saving ? 0.6 : 1 }}
                         >
-                          <Text style={{ color: colors.textOnGold, fontSize: 14, fontWeight: '600' }}>
+                          <Text style={{ color: colors.textOnGold, fontSize: 16, fontWeight: '600' }}>
                             {saving ? 'Saving…' : 'Save changes'}
                           </Text>
                         </Pressable>
@@ -491,7 +516,7 @@ const guardLocationEdit = async () => {
                           }}
                           style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
                         >
-                          <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
+                          <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: '600' }}>Cancel</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -506,7 +531,7 @@ const guardLocationEdit = async () => {
                       ].map((row, i, arr) => (
                         <View key={i} style={[infoRowStyle, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
                           {row.icon}
-                          <Text style={{ fontSize: 14, color: row.value ? colors.text : colors.textFaint, fontWeight: row.value ? '500' : '400' }}>
+                          <Text style={{ fontSize: 16, color: row.value ? colors.text : colors.textFaint, fontWeight: row.value ? '500' : '400' }}>
                             {row.value || row.label}
                           </Text>
                         </View>
@@ -517,7 +542,7 @@ const guardLocationEdit = async () => {
                   {!editing && (
                     <View style={{ alignItems: 'flex-end' }}>
                       <Pressable onPress={() => !onCooldown && setEditing(true)} disabled={onCooldown}>
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: onCooldown ? colors.textFaint : colors.brand }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: onCooldown ? colors.textFaint : colors.brand }}>
                           Edit
                         </Text>
                       </Pressable>
@@ -534,23 +559,35 @@ const guardLocationEdit = async () => {
               onPress={() => router.replace('/dashboard')}
             />
 
-            {planTier !== 'free' && (
-              <DrawerButton
-                icon={<Sparkles size={17} color={planTier === 'premium' ? '#7c3aed' : '#2563eb'} />}
-                label={planTier === 'premium' ? 'Premium Benefits' : 'Pro Benefits'}
-                bg={planTier === 'premium' ? '#f5f3ff' : '#eff6ff'}
-                textColor={planTier === 'premium' ? '#6d28d9' : '#1d4ed8'}
-                colors={colors}
-                onPress={() => router.replace('/benefits')}
-              />
-            )}
-
-            <DrawerButton
+                        <DrawerButton
               icon={<Film size={17} color={colors.text} />}
               label="Spotlight Profile"
               colors={colors}
               onPress={() => router.replace('/SpotlightProfile')}
             />
+
+            {planTier !== 'free' && (
+              <DrawerButton
+                icon={<Sparkles size={17} color={
+                  colors.card === '#161411'
+                    ? (planTier === 'premium' ? '#f5f3ff' : '#eff6ff')
+                    : (planTier === 'premium' ? '#7c3aed' : '#2563eb')
+                } />}
+                label={planTier === 'premium' ? 'Premium Benefits' : 'Pro Benefits'}
+                bg={
+                  colors.card === '#161411'
+                    ? (planTier === 'premium' ? '#7e22ce' : '#1d4ed8')
+                    : (planTier === 'premium' ? '#f5f3ff' : '#eff6ff')
+                }
+                textColor={
+                  colors.card === '#161411'
+                    ? (planTier === 'premium' ? '#f5f3ff' : '#eff6ff')
+                    : (planTier === 'premium' ? '#6d28d9' : '#1d4ed8')
+                }
+                colors={colors}
+                onPress={() => router.replace('/benefits')}
+              />
+            )}
 
             <DrawerButton
               icon={<Settings size={17} color={colors.text} />}
@@ -559,14 +596,14 @@ const guardLocationEdit = async () => {
               onPress={() => router.replace('/settings')}
             />
 
-            <View style={{ borderRadius: 12, backgroundColor: colors.chipBg, overflow: 'hidden' }}>
+            <SupportWrap colors={colors}>
               <Pressable
                 onPress={() => setSupportOpen((v) => !v)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <Info size={17} color={colors.text} />
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Support & About</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Support & About</Text>
                 </View>
                 {supportOpen ? <ChevronUp size={16} color={colors.textMuted} /> : <ChevronDown size={16} color={colors.textMuted} />}
               </Pressable>
@@ -574,11 +611,12 @@ const guardLocationEdit = async () => {
               {supportOpen && (
                 <View style={{ paddingHorizontal: 8, paddingBottom: 8, gap: 2 }}>
                   <SupportLink icon={<Mail size={15} color={colors.textFaint} />} label="Contact support" colors={colors} onPress={() => router.replace('/contact')} />
+                  <SupportLink icon={<Gift size={15} color={colors.textFaint} />} label="Donate to Tre-X" colors={colors} onPress={() => { setDonationAmount(''); setDonateOpen(true); }} />
                   <SupportLink icon={<FileText size={15} color={colors.textFaint} />} label="Terms of Service" colors={colors} onPress={() => router.replace('/terms')} />
                   <SupportLink icon={<Shield size={15} color={colors.textFaint} />} label="Privacy Policy" colors={colors} onPress={() => router.replace('/privacy')} />
                 </View>
               )}
-            </View>
+            </SupportWrap>
 
             <View style={{ paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 }}>
               <Pressable
@@ -586,7 +624,7 @@ const guardLocationEdit = async () => {
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12 }}
               >
                 <LogOut size={17} color={colors.error} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.error }}>Log out</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.error }}>Log out</Text>
               </Pressable>
             </View>
 
@@ -597,7 +635,7 @@ const guardLocationEdit = async () => {
         {/* Footer */}
         <View style={{ backgroundColor: colors.card, paddingBottom: 5, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
           <View style={{ paddingVertical: 14, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: colors.textFaint }}>App version v{APP_VERSION}</Text>
+            <Text style={{ fontSize: 14, color: colors.textFaint }}>App version v{APP_VERSION}</Text>
           </View>
         </View>
       </Animated.View>
@@ -615,6 +653,44 @@ const guardLocationEdit = async () => {
 
       {/* Verify modal */}
       <VerifyModal open={showVerify} onClose={() => setShowVerify(false)} />
+      <Modal visible={donateOpen} transparent animationType="slide" onRequestClose={() => setDonateOpen(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
+          <Pressable onPress={() => setDonateOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }} />
+          <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: insets.bottom + 20 }}>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Donate to Tre-X</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>Support the continued growth of our campus marketplace.</Text>
+            <TextInput
+              value={donationAmount}
+              onChangeText={setDonationAmount}
+              keyboardType="decimal-pad"
+              placeholder="Amount in GHS"
+              placeholderTextColor={colors.textMuted}
+              style={{ marginTop: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 13, color: colors.text, fontSize: 17 }}
+            />
+            <Pressable onPress={startDonation} disabled={donating} style={{ marginTop: 14, paddingVertical: 13, borderRadius: 12, alignItems: 'center', backgroundColor: colors.brand, opacity: donating ? 0.6 : 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: colors.textOnGold }}>{donating ? 'Starting payment…' : 'Continue to Paystack'}</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+      <PaystackCheckout
+        key={donationUrl ?? 'donation-none'}
+        visible={!!donationUrl}
+        authorizationUrl={donationUrl}
+        callbackUrl="https://campuscart-tdfn.onrender.com/donation/callback"
+        onSuccess={async (reference) => {
+          setDonationUrl(null);
+          try {
+            await api.post('/donations/verify', { reference });
+          } catch (err: any) {
+            Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not verify donation' });
+          }
+        }}
+        onClose={() => setDonationUrl(null)}
+      />
       <Toast />
 
       {showLocPicker && (
@@ -638,23 +714,54 @@ function DrawerButton({
   icon: React.ReactNode; label: string; onPress: () => void; badge?: number;
   bg?: string; textColor?: string; colors: any;
 }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        flexDirection: 'row', alignItems: 'center', gap: 12,
-        paddingHorizontal: 12, paddingVertical: 12,
-        borderRadius: 12, backgroundColor: bg || colors.chipBg,
-      }}
-    >
+  const glass = Platform.OS === 'ios' && isLiquidGlassAvailable();
+
+  const content = (
+    <>
       {icon}
-      <Text style={{ fontSize: 14, fontWeight: '600', color: textColor || colors.text, flex: 1 }}>{label}</Text>
+      <Text style={{ fontSize: 16, fontWeight: '600', color: textColor || colors.text, flex: 1 }}>{label}</Text>
       {badge !== undefined && badge > 0 && (
         <View style={{ backgroundColor: colors.brand, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: colors.textOnGold, fontSize: 11, fontWeight: '700' }}>{badge > 9 ? '9+' : badge}</Text>
+          <Text style={{ color: colors.textOnGold, fontSize: 13, fontWeight: '700' }}>{badge > 9 ? '9+' : badge}</Text>
         </View>
       )}
+    </>
+  );
+
+  const rowStyle = {
+    flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12,
+    paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12,
+  };
+
+  if (glass) {
+    return (
+      <Pressable onPress={onPress}>
+        <GlassView glassEffectStyle="regular" isInteractive tintColor={bg} style={rowStyle}>
+          {content}
+        </GlassView>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable onPress={onPress} style={[rowStyle, { backgroundColor: bg || colors.chipBg }]}>
+      {content}
     </Pressable>
+  );
+}
+
+function SupportWrap({ children, colors }: { children: React.ReactNode; colors: any }) {
+  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
+    return (
+      <GlassView glassEffectStyle="regular" isInteractive style={{ borderRadius: 12, overflow: 'hidden' }}>
+        {children}
+      </GlassView>
+    );
+  }
+  return (
+    <View style={{ borderRadius: 12, backgroundColor: colors.chipBg, overflow: 'hidden' }}>
+      {children}
+    </View>
   );
 }
 
@@ -665,7 +772,7 @@ function SupportLink({ icon, label, onPress, colors }: { icon: React.ReactNode; 
       style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 }}
     >
       {icon}
-      <Text style={{ fontSize: 14, color: colors.textSecondary, flex: 1 }}>{label}</Text>
+      <Text style={{ fontSize: 16, color: colors.textSecondary, flex: 1 }}>{label}</Text>
       <ChevronRight size={15} color={colors.textFaint} />
     </Pressable>
   );

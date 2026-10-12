@@ -543,12 +543,12 @@ export default function StoryViewer({
                     </LinearGradient>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 14, fontWeight: '800', color: '#fff' }}>
+                        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 15, fontWeight: '800', color: '#fff' }}>
                           {group.user_name}
                         </Text>
                         <PlanBadge plan={group.user_plan} size={13} />
                       </View>
-                      <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+                      <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
                         {relativeTime(story.created_at)} ago
                       </Text>
                     </View>
@@ -626,7 +626,7 @@ export default function StoryViewer({
                         borderRadius: 999,
                       }}
                     >
-                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{toastMsg}</Text>
+                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{toastMsg}</Text>
                     </View>
                   </View>
                 )}
@@ -679,7 +679,7 @@ export default function StoryViewer({
                         onBlur={handleReplyBlur}
                         placeholder={`Send message to ${group.user_name.split(' ')[0]}...`}
                         placeholderTextColor="rgba(255,255,255,0.6)"
-                        style={{ flex: 1, color: '#fff', fontSize: 14 }}
+                        style={{ flex: 1, color: '#fff', fontSize: 15 }}
                         returnKeyType="send"
                         onSubmitEditing={handleSendReply}
                         blurOnSubmit={false}
@@ -727,7 +727,7 @@ function EmojiReact({ emoji, onSend }: { emoji: string; onSend: (e: string) => v
   };
   return (
     <Pressable onPress={bounce} hitSlop={6}>
-      <Animated.Text style={{ fontSize: 17, transform: [{ scale }] }}>{emoji}</Animated.Text>
+      <Animated.Text style={{ fontSize: 18, transform: [{ scale }] }}>{emoji}</Animated.Text>
     </Pressable>
   );
 }

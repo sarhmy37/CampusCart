@@ -93,12 +93,12 @@ export default function VerifyModal({
           {step === 'start' ? (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+                <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
                   Verify your account
                 </Text>
                 <CheckCircle size={18} color={colors.success} />
               </View>
-              <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 6, lineHeight: 19 }}>
+              <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6, lineHeight: 19 }}>
                 We'll email a 6-digit code to confirm this is really you.
               </Text>
 
@@ -116,7 +116,7 @@ export default function VerifyModal({
               >
                 <Mail size={16} color={colors.textFaint} />
                 <Text
-                  style={{ flex: 1, fontSize: 13, fontWeight: '500', color: colors.text }}
+                  style={{ flex: 1, fontSize: 14, fontWeight: '500', color: colors.text }}
                   numberOfLines={1}
                 >
                   {user?.university_email}
@@ -138,7 +138,7 @@ export default function VerifyModal({
                 {sending ? (
                   <ActivityIndicator size="small" color={colors.textOnGold} />
                 ) : (
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>
                     Send verification code
                   </Text>
                 )}
@@ -146,10 +146,10 @@ export default function VerifyModal({
             </>
           ) : (
             <>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+              <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
                 Enter your code
               </Text>
-              <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 6, lineHeight: 19 }}>
+              <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6, lineHeight: 19 }}>
                 Check your inbox — the code expires in 10 minutes.
               </Text>
 
@@ -169,7 +169,7 @@ export default function VerifyModal({
                   borderColor: colors.border,
                   backgroundColor: colors.inputBg,
                   color: colors.text,
-                  fontSize: 18,
+                  fontSize: 19,
                   fontWeight: '700',
                   letterSpacing: 6,
                   textAlign: 'center',
@@ -191,7 +191,7 @@ export default function VerifyModal({
                 {verifying ? (
                   <ActivityIndicator size="small" color={colors.textOnGold} />
                 ) : (
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>
                     Verify
                   </Text>
                 )}
@@ -202,7 +202,7 @@ export default function VerifyModal({
                 disabled={sending}
                 style={{ marginTop: 8, paddingVertical: 8, alignItems: 'center' }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textFaint }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textFaint }}>
                   {sending ? 'Sending…' : "Didn't get it? Send again"}
                 </Text>
               </Pressable>

@@ -97,7 +97,7 @@ export default function GlassTabBar({ state, navigation }: BottomTabBarProps) {
               </View>
               <Text
                 style={{
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   fontWeight: isFocused ? '700' : '500',
                   color: isFocused ? '#935814' : '#64748b',
                 }}

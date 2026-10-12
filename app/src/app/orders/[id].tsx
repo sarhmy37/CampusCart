@@ -58,9 +58,9 @@ export default function OrderConfirmation() {
   if (error || !order) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: colors.textMuted, fontSize: 14 }}>We couldn't find that order.</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 16 }}>We couldn't find that order.</Text>
         <Pressable onPress={() => router.replace('/dashboard')} style={{ marginTop: 16 }}>
-          <Text style={{ color: colors.brand, fontWeight: '600', fontSize: 14 }}>
+          <Text style={{ color: colors.brand, fontWeight: '600', fontSize: 16 }}>
             Go to your dashboard →
           </Text>
         </Pressable>
@@ -80,7 +80,7 @@ export default function OrderConfirmation() {
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}
         >
           <ChevronLeft size={16} color={colors.textMuted} />
-          <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600' }}>
+          <Text style={{ color: colors.textMuted, fontSize: 15, fontWeight: '600' }}>
             Back to dashboard
           </Text>
         </Pressable>
@@ -105,10 +105,10 @@ export default function OrderConfirmation() {
           >
             <StatusIcon size={32} color={config.color} />
           </View>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
             {config.label}
           </Text>
-          <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 4 }}>
+          <Text style={{ fontSize: 15, color: colors.textFaint, marginTop: 4 }}>
             Order #{String(order.id).slice(0, 8)}
           </Text>
 
@@ -116,10 +116,10 @@ export default function OrderConfirmation() {
           <View style={{ width: '100%', marginTop: 24, gap: 10 }}>
             {order.items.map((item: any) => (
               <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 13 }}>
+                <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 15 }}>
                   {item.title} × {item.quantity}
                 </Text>
-                <Text style={{ fontWeight: '600', color: colors.text, fontSize: 13 }}>
+                <Text style={{ fontWeight: '600', color: colors.text, fontSize: 15 }}>
                   GHS {(parseFloat(item.price_at_purchase) * item.quantity).toFixed(2)}
                 </Text>
               </View>
@@ -138,14 +138,14 @@ export default function OrderConfirmation() {
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Subtotal</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+              <Text style={{ color: colors.textMuted, fontSize: 15 }}>Subtotal</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
                 GHS {parseFloat(order.subtotal).toFixed(2)}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Delivery</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+              <Text style={{ color: colors.textMuted, fontSize: 15 }}>Delivery</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 15 }}>
                 {parseFloat(order.delivery_fee) > 0 ? `GHS ${parseFloat(order.delivery_fee).toFixed(2)}` : 'Free'}
               </Text>
             </View>
@@ -158,8 +158,8 @@ export default function OrderConfirmation() {
                 borderTopColor: colors.borderMuted,
               }}
             >
-              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>Total</Text>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Total</Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
                 GHS {parseFloat(order.total_amount).toFixed(2)}
               </Text>
             </View>
@@ -179,7 +179,7 @@ export default function OrderConfirmation() {
             ) : (
               <MapPin size={14} color={colors.textFaint} />
             )}
-            <Text style={{ fontSize: 12, color: colors.textFaint }}>
+            <Text style={{ fontSize: 14, color: colors.textFaint }}>
               {order.delivery_method === 'delivery'
                 ? 'Delivery within 1–3 working days'
                 : 'Arrange pickup with the seller on campus'}
@@ -188,7 +188,7 @@ export default function OrderConfirmation() {
         </View>
 
         <Pressable onPress={() => router.replace('/browse')} style={{ marginTop: 24, alignItems: 'center' }}>
-          <Text style={{ color: colors.brand, fontSize: 14, fontWeight: '600' }}>
+          <Text style={{ color: colors.brand, fontSize: 16, fontWeight: '600' }}>
             Continue browsing →
           </Text>
         </Pressable>

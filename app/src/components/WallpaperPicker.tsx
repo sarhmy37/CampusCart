@@ -146,10 +146,10 @@ export default function WallpaperPicker({
             <X size={18} color={colors.textMuted} />
           </Pressable>
 
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+          <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
             Chat wallpaper
           </Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
+          <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>
             This changes how this chat looks for both of you.
           </Text>
 
@@ -217,7 +217,7 @@ export default function WallpaperPicker({
                       </View>
                       <Text
                         style={{
-                          fontSize: 11,
+                          fontSize: 12,
                           color: colors.textMuted,
                           marginTop: 4,
                           textAlign: 'center',
@@ -269,7 +269,7 @@ export default function WallpaperPicker({
                 />
                 <Text
                   style={{
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: '600',
                     color:
                       staged?.kind === 'custom'
@@ -286,7 +286,7 @@ export default function WallpaperPicker({
               {planError && (
                 <Text
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     color: colors.error,
                     marginTop: 8,
                     textAlign: 'center',
@@ -314,7 +314,7 @@ export default function WallpaperPicker({
               {wallpaper?.type === 'custom' && !staged && (
                 <Text
                   style={{
-                    fontSize: 12,
+                    fontSize: 13,
                     color: colors.textFaint,
                     marginTop: 8,
                     textAlign: 'center',
@@ -349,7 +349,7 @@ export default function WallpaperPicker({
                 <Text
                   style={{
                     color: colors.textOnGold,
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: '700',
                   }}
                 >
@@ -360,7 +360,7 @@ export default function WallpaperPicker({
               <Text
                 style={{
                   color: colors.textOnGold,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: '700',
                 }}
               >
@@ -395,7 +395,7 @@ export default function WallpaperPicker({
               <Text
                 style={{
                   color: colors.error,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: '600',
                 }}
               >
@@ -423,7 +423,7 @@ export default function WallpaperPicker({
               <Text
                 style={{
                   color: colors.textSecondary,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: '600',
                 }}
               >

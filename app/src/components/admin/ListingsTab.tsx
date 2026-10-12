@@ -96,7 +96,7 @@ export default function ListingsTab() {
             onChangeText={setSearch}
             placeholder="Search by title or seller…"
             placeholderTextColor={colors.textFaint}
-            style={{ flex: 1, paddingVertical: 10, paddingLeft: 8, color: colors.text, fontSize: 15 }}
+            style={{ flex: 1, paddingVertical: 10, paddingLeft: 8, color: colors.text, fontSize: 17 }}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} style={{ padding: 4 }}>
@@ -122,7 +122,7 @@ export default function ListingsTab() {
         <View style={{ ...cardStyle(colors), marginBottom: 12, gap: 10 }}>
           {categories.length > 0 && (
             <View>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Category
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
@@ -139,7 +139,7 @@ export default function ListingsTab() {
                         backgroundColor: active ? colors.brandSoft : 'transparent',
                       }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: active ? '700' : '500', color: active ? colors.brand : colors.textMuted }}>
+                      <Text style={{ fontSize: 15, fontWeight: active ? '700' : '500', color: active ? colors.brand : colors.textMuted }}>
                         {opt.label}
                       </Text>
                     </Pressable>
@@ -150,7 +150,7 @@ export default function ListingsTab() {
           )}
 
           <View>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
               Sort by
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
@@ -172,7 +172,7 @@ export default function ListingsTab() {
                       backgroundColor: active ? colors.brandSoft : 'transparent',
                     }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: active ? '700' : '500', color: active ? colors.brand : colors.textMuted }}>
+                    <Text style={{ fontSize: 15, fontWeight: active ? '700' : '500', color: active ? colors.brand : colors.textMuted }}>
                       {opt.label}
                     </Text>
                   </Pressable>
@@ -183,13 +183,13 @@ export default function ListingsTab() {
 
           {activeFilterCount > 0 && (
             <Pressable onPress={clearFilters} style={{ alignSelf: 'flex-start', paddingVertical: 4 }}>
-              <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Clear filters</Text>
+              <Text style={{ fontSize: 15, color: colors.error, fontWeight: '600' }}>Clear filters</Text>
             </Pressable>
           )}
         </View>
       )}
 
-      <Text style={{ fontSize: 13, color: colors.textFaint, marginBottom: 8 }}>
+      <Text style={{ fontSize: 15, color: colors.textFaint, marginBottom: 8 }}>
         {filtered.length} listing{filtered.length === 1 ? '' : 's'}
       </Text>
 
@@ -216,20 +216,20 @@ export default function ListingsTab() {
               </View>
 
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+                <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                   {p.title}
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 1 }} numberOfLines={1}>
+                <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 1 }} numberOfLines={1}>
                   {p.seller_name}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>
                     GHS {parseFloat(p.price).toFixed(2)}
                   </Text>
-                  <Text style={{ fontSize: 13, color: colors.textFaint }}>· Stock: {p.stock}</Text>
+                  <Text style={{ fontSize: 15, color: colors.textFaint }}>· Stock: {p.stock}</Text>
                   {p.category && <Tag color="slate">{p.category}</Tag>}
                 </View>
-                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 3 }}>
+                <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 3 }}>
                   {new Date(p.created_at).toLocaleDateString()}
                 </Text>
               </View>

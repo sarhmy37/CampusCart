@@ -34,6 +34,40 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [items, user]);
 
+  // Refresh price/stock/fees from the server once the saved cart loads.
+  // Items whose listing was deleted are removed.
+  useEffect(() => {
+    if (!hydrated || items.length === 0) return;
+    (async () => {
+      const results: any[] = await Promise.all(
+        items.map((i) =>
+          api.get(`/products/${i.product_id}`)
+            .then((res) => ({ id: i.product_id, data: res.data }))
+            .catch((err) => ({ id: i.product_id, gone: err?.response?.status === 404 }))
+        )
+      );
+      setItems((prev) =>
+        prev
+          .filter((i) => !results.find((r) => r.id === i.product_id && r.gone))
+          .map((i) => {
+            const r = results.find((x) => x.id === i.product_id);
+            if (!r?.data) return i;
+            const d = r.data;
+            return {
+              ...i,
+              title: d.title ?? i.title,
+              price: d.price ?? i.price,
+              stock: d.stock ?? i.stock,
+              delivery_fee_on_campus: d.delivery_fee_on_campus ?? i.delivery_fee_on_campus,
+              delivery_fee_near_campus: d.delivery_fee_near_campus ?? i.delivery_fee_near_campus,
+              delivery_fee_far_campus: d.delivery_fee_far_campus ?? i.delivery_fee_far_campus,
+            };
+          })
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
   const addItem = (product: any) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.product_id === product.id);

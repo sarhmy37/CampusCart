@@ -117,14 +117,14 @@ export default function ReportModal({
             <Flag size={20} color={colors.error} />
           </View>
 
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
+          <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
             {title || 'Report this listing'}
           </Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>
+          <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 6 }}>
             {subtitle || "Let us know what's wrong. Our team will review it shortly."}
           </Text>
 
-          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 20 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginTop: 20 }}>
             Reason
           </Text>
           <View style={{ marginTop: 6 }}>
@@ -136,7 +136,7 @@ export default function ReportModal({
             />
           </View>
 
-          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 16 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginTop: 16 }}>
             Details (optional)
           </Text>
           <TextInput
@@ -154,7 +154,7 @@ export default function ReportModal({
               borderWidth: 1,
               borderColor: colors.border,
               backgroundColor: colors.inputBg,
-              fontSize: 14,
+              fontSize: 15,
               color: colors.text,
               minHeight: 80,
               textAlignVertical: 'top',
@@ -173,7 +173,7 @@ export default function ReportModal({
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
             </Pressable>
             <Pressable
               onPress={handleSubmit}
@@ -187,7 +187,7 @@ export default function ReportModal({
                 opacity: submitting ? 0.6 : 1,
               }}
             >
-              <Text style={{ fontSize: 14, fontWeight: '600', color: 'white' }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: 'white' }}>
                 {submitting ? 'Submitting…' : 'Submit report'}
               </Text>
             </Pressable>

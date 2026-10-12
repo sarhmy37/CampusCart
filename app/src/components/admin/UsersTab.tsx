@@ -85,23 +85,6 @@ export default function UsersTab() {
     }
   };
 
-  const setDataSeller = async (id: string, enabled: boolean) => {
-    if (enabled) {
-      const ok = await confirmAsync(
-        'Assign Mobile Data seller?',
-        'This removes access (and bundles) from whoever currently has it. Continue?'
-      );
-      if (!ok) return;
-    }
-    try {
-      await api.post(`/admin/users/${id}/set-data-seller`, { enabled });
-      Toast.show({ type: 'success', text1: enabled ? 'Assigned' : 'Removed' });
-      load();
-    } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed' });
-    }
-  };
-
   const deleteUser = async (id: string) => {
     const ok = await confirmAsync('Delete user?', 'This permanently deletes the user and all related data. Cannot be undone.', 'Delete');
     if (!ok) return;
@@ -153,7 +136,7 @@ export default function UsersTab() {
             onChangeText={setSearchQuery}
             placeholder="Search by name, email, school…"
             placeholderTextColor={colors.textFaint}
-            style={{ flex: 1, paddingVertical: 10, paddingLeft: 8, color: colors.text, fontSize: 15 }}
+            style={{ flex: 1, paddingVertical: 10, paddingLeft: 8, color: colors.text, fontSize: 16 }}
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
@@ -171,7 +154,7 @@ export default function UsersTab() {
             backgroundColor: showFilters || activeFilterCount > 0 ? colors.brandSoft : colors.chipBg,
           }}
         >
-          <Text style={{ fontSize: 13, fontWeight: '700', color: showFilters || activeFilterCount > 0 ? colors.brand : colors.textMuted }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: showFilters || activeFilterCount > 0 ? colors.brand : colors.textMuted }}>
             Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </Text>
         </Pressable>
@@ -230,13 +213,13 @@ export default function UsersTab() {
           </FilterRow>
           {activeFilterCount > 0 && (
             <Pressable onPress={clearFilters} style={{ alignSelf: 'flex-start', paddingVertical: 4 }}>
-              <Text style={{ fontSize: 13, color: colors.error, fontWeight: '600' }}>Clear all filters</Text>
+              <Text style={{ fontSize: 14, color: colors.error, fontWeight: '600' }}>Clear all filters</Text>
             </Pressable>
           )}
         </View>
       )}
 
-      <Text style={{ fontSize: 13, color: colors.textFaint, marginBottom: 8 }}>
+      <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>
         {filteredUsers.length} user{filteredUsers.length === 1 ? '' : 's'}
       </Text>
 
@@ -264,7 +247,7 @@ export default function UsersTab() {
                         alignItems: 'center', justifyContent: 'center',
                       }}
                     >
-                      <Text style={{ fontWeight: '800', color: colors.brand, fontSize: 15 }}>
+                      <Text style={{ fontWeight: '800', color: colors.brand, fontSize: 16 }}>
                         {(u.name || '?').charAt(0).toUpperCase()}
                       </Text>
                     </View>
@@ -274,15 +257,15 @@ export default function UsersTab() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                       {planActive && u.plan === 'premium' && <Sparkles size={12} color="#a855f7" />}
                       {planActive && u.plan === 'pro' && <Star size={12} color="#3b82f6" />}
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                         {u.name}
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 1 }} numberOfLines={1}>
+                    <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 1 }} numberOfLines={1}>
                       {u.university_email}
                     </Text>
                     {u.school && (
-                      <Text style={{ fontSize: 12, color: colors.textFaint }} numberOfLines={1}>
+                      <Text style={{ fontSize: 13, color: colors.textFaint }} numberOfLines={1}>
                         🏫 {u.school}
                       </Text>
                     )}
@@ -323,13 +306,6 @@ export default function UsersTab() {
                     active={u.role === 'admin'}
                   >
                     {(tint: string) => <Crown size={15} color={tint} />}
-                  </IconButton>
-
-                  <IconButton
-                    onPress={() => setDataSeller(u.id, !u.is_data_seller)}
-                    active={u.is_data_seller}
-                  >
-                    {(tint: string) => <Wifi size={15} color={tint} />}
                   </IconButton>
 
                   <IconButton
@@ -374,7 +350,7 @@ export default function UsersTab() {
 function FilterRow({ label, children, colors }: { label: string; children: any; colors: any }) {
   return (
     <View>
-      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
         {label}
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
@@ -406,7 +382,7 @@ function ChipRow({
           >
             <Text
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: active ? '700' : '500',
                 color: active ? colors.brand : colors.textMuted,
               }}
@@ -468,8 +444,8 @@ function InvestigateModal({ user, onClose }: { user: any; onClose: () => void })
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Investigate account</Text>
-            <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>{user.university_email}</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Investigate account</Text>
+            <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>{user.university_email}</Text>
           </View>
           <Pressable onPress={onClose} style={{ padding: 6 }}>
             <X size={18} color={colors.textFaint} />
@@ -485,36 +461,36 @@ function InvestigateModal({ user, onClose }: { user: any; onClose: () => void })
           <InfoRow label="Joined" value={new Date(user.created_at).toLocaleDateString()} colors={colors} />
         </View>
 
-        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 16 }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 16 }}>
           Listings ({listings.length})
         </Text>
         {loading ? (
-          <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>Loading…</Text>
+          <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>Loading…</Text>
         ) : listings.length === 0 ? (
-          <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>No listings.</Text>
+          <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>No listings.</Text>
         ) : (
           <View style={{ marginTop: 8, gap: 6 }}>
             {listings.slice(0, 10).map((p: any) => (
               <View key={p.id} style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.chipBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 }}>
-                <Text style={{ flex: 1, fontSize: 13, color: colors.text }} numberOfLines={1}>{p.title}</Text>
-                <Text style={{ fontSize: 13, color: colors.textFaint }}>GHS {parseFloat(p.price).toFixed(2)}</Text>
+                <Text style={{ flex: 1, fontSize: 14, color: colors.text }} numberOfLines={1}>{p.title}</Text>
+                <Text style={{ fontSize: 14, color: colors.textFaint }}>GHS {parseFloat(p.price).toFixed(2)}</Text>
               </View>
             ))}
           </View>
         )}
 
-        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 16 }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 16 }}>
           Orders ({orders.length})
         </Text>
         {loading ? (
-          <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>Loading…</Text>
+          <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>Loading…</Text>
         ) : orders.length === 0 ? (
-          <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>No orders.</Text>
+          <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>No orders.</Text>
         ) : (
           <View style={{ marginTop: 8, gap: 6 }}>
             {orders.slice(0, 10).map((o: any) => (
               <View key={o.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.chipBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 }}>
-                <Text style={{ flex: 1, fontSize: 13, color: colors.text, fontFamily: 'monospace' }} numberOfLines={1}>
+                <Text style={{ flex: 1, fontSize: 14, color: colors.text, fontFamily: 'monospace' }} numberOfLines={1}>
                   #{String(o.id).slice(0, 8)}
                 </Text>
                 <Tag color={o.status === 'completed' ? 'emerald' : o.status === 'pending' ? 'amber' : 'slate'}>
@@ -532,8 +508,8 @@ function InvestigateModal({ user, onClose }: { user: any; onClose: () => void })
 function InfoRow({ label, value, colors }: { label: string; value: any; colors: any }) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={{ fontSize: 13, color: colors.textFaint }}>{label}</Text>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, textTransform: 'capitalize' }}>
+      <Text style={{ fontSize: 14, color: colors.textFaint }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, textTransform: 'capitalize' }}>
         {value}
       </Text>
     </View>

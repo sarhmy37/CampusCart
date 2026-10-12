@@ -1,4 +1,6 @@
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
+
 export default function BrowseRedirect() {
-  return <Redirect href="/(browse)/all" />;
+  const params = useLocalSearchParams();
+  return <Redirect href={{ pathname: '/(browse)/all', params }} />;
 }

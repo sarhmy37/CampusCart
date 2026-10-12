@@ -48,36 +48,36 @@ export default function Reports() {
           <View key={r.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
                   {REASON_LABELS[r.reason] || r.reason}
                 </Text>
                 {r.product_title && (
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
                     Listing: {r.product_title}
                   </Text>
                 )}
                 {r.reported_user_name && (
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
                     User: {r.reported_user_name}
                   </Text>
                 )}
                 {r.details && (
                   <View style={{ backgroundColor: colors.cardAlt, borderRadius: 10, padding: 10, marginTop: 8 }}>
-                    <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>{r.details}</Text>
+                    <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 18 }}>{r.details}</Text>
                   </View>
                 )}
-                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 8 }}>
+                <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 8 }}>
                   Filed {new Date(r.created_at).toLocaleDateString()}
                 </Text>
               </View>
 
               <View style={{ alignItems: 'flex-end' }}>
                 <View style={{ backgroundColor: sStyle.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: sStyle.text, textTransform: 'capitalize' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: sStyle.text, textTransform: 'capitalize' }}>
                     {r.status}
                   </Text>
                 </View>
-                <Text style={{ fontSize: 10, color: colors.textFaint, marginTop: 4, textAlign: 'right', maxWidth: 110 }}>
+                <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 4, textAlign: 'right', maxWidth: 110 }}>
                   {REPORT_STATUS_DESC[r.status]}
                 </Text>
               </View>

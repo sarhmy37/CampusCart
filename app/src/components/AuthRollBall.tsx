@@ -85,10 +85,10 @@ export default function AuthRollBall({ startIndex = 0 }: { startIndex?: number }
           <View key={i} style={{ width: ITEM_W, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
             {label(i) === 'Sign up' ? (
               <View style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.brand }}>
-                <Text style={{ color: colors.textOnGold, fontSize: 12, fontWeight: '600' }}>Sign up</Text>
+                <Text style={{ color: colors.textOnGold, fontSize: 13, fontWeight: '600' }}>Sign up</Text>
               </View>
             ) : (
-              <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600' }}>Log in</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>Log in</Text>
             )}
           </View>
         ))}

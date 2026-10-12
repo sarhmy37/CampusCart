@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
+
 import { Flag, ShieldAlert, XCircle, Ban, LogOut } from 'lucide-react-native';
 import api from '@/api/client';
 import { useColors } from '@/hooks/useColors';
 import { Tag, IconButton, SkeletonList, EmptyState, confirmAsync, cardStyle } from './shared';
+import { RefundModal } from './OverdueTab';
 
 const STATUS_FILTERS = ['pending', 'reviewed', 'dismissed', 'actioned'] as const;
 type StatusFilter = typeof STATUS_FILTERS[number];
@@ -17,6 +19,7 @@ const REASON_LABELS: Record<string, string> = {
   account_security: 'Suspicious account access',
   ban_review: 'Ban review request',
   other: 'Something else',
+  order_not_received: 'Order not received',
 };
 
 export default function ReportsTab() {
@@ -25,6 +28,29 @@ export default function ReportsTab() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [actingId, setActingId] = useState<string | null>(null);
+  const [refundTarget, setRefundTarget] = useState<any>(null);
+
+  const releaseOrder = (r: any) => {
+    Alert.alert(
+      'Release payment to seller?',
+      `Mark Order #${String(r.order_id).slice(0, 8)} as received and pay the seller. Only do this after you've checked with the buyer.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Release',
+          onPress: async () => {
+            try {
+              await api.post(`/admin/orders/${r.order_id}/release`);
+              Toast.show({ type: 'success', text1: 'Payment released to seller' });
+              load();
+            } catch (err: any) {
+              Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to release' });
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const load = () => {
     setLoading(true);
@@ -102,7 +128,7 @@ export default function ReportsTab() {
             >
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: active ? '700' : '500',
                   color: active ? colors.brand : colors.textMuted,
                   textTransform: 'capitalize',
@@ -125,7 +151,7 @@ export default function ReportsTab() {
             <View key={r.id} style={cardStyle(colors)}>
               <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Tag color="red">{REASON_LABELS[r.reason] || r.reason}</Tag>
-                <Text style={{ fontSize: 11, color: colors.textFaint }}>
+                <Text style={{ fontSize: 12, color: colors.textFaint }}>
                   {new Date(r.created_at).toLocaleDateString()}
                 </Text>
                 {r.status !== 'pending' && (
@@ -134,22 +160,27 @@ export default function ReportsTab() {
               </View>
 
               {r.product_title && (
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 8 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 8 }}>
                   Listing: {r.product_title}
                 </Text>
               )}
+              {r.order_id && (
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 8, fontFamily: 'monospace' }}>
+                  Order #{String(r.order_id).slice(0, 8)}
+                </Text>
+              )}
               {r.reported_user_name && (
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 2 }}>
                   Reported user: {r.reported_user_name}
                 </Text>
               )}
-              <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 4 }}>
+              <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 4 }}>
                 Reported by {r.reporter_name} ({r.reporter_email})
               </Text>
 
               {r.details && (
                 <View style={{ backgroundColor: colors.chipBg, borderRadius: 10, padding: 10, marginTop: 8 }}>
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 18 }}>
                     {r.details}
                   </Text>
                 </View>
@@ -157,6 +188,22 @@ export default function ReportsTab() {
 
               {r.status === 'pending' && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                  {r.order_id && r.order_status === 'paid' && (
+                    <>
+                      <Pressable
+                        onPress={() => setRefundTarget({ id: r.order_id, buyer_name: r.reporter_name, total_amount: r.order_total || 0 })}
+                        style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.error }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Refund</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => releaseOrder(r)}
+                        style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.success }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Release to seller</Text>
+                      </Pressable>
+                    </>
+                  )}
                   {r.reason === 'account_security' && r.reported_user_id && (
                     <>
                       <Pressable
@@ -173,7 +220,7 @@ export default function ReportsTab() {
                         }}
                       >
                         <LogOut size={13} color={colors.warning} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.warning }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.warning }}>
                           Force logout
                         </Text>
                       </Pressable>
@@ -191,7 +238,7 @@ export default function ReportsTab() {
                         }}
                       >
                         <Ban size={13} color={colors.error} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.error }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.error }}>
                           Ban
                         </Text>
                       </Pressable>
@@ -212,7 +259,7 @@ export default function ReportsTab() {
                     }}
                   >
                     <XCircle size={13} color={colors.textMuted} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>
                       Dismiss
                     </Text>
                   </Pressable>
@@ -230,7 +277,7 @@ export default function ReportsTab() {
                     }}
                   >
                     <ShieldAlert size={13} color="#fff" />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
                       Actioned
                     </Text>
                   </Pressable>
@@ -239,6 +286,14 @@ export default function ReportsTab() {
             </View>
           ))}
         </View>
+      )}
+
+      {refundTarget && (
+        <RefundModal
+          order={refundTarget}
+          onClose={() => setRefundTarget(null)}
+          onSuccess={() => { setRefundTarget(null); load(); }}
+        />
       )}
     </View>
   );

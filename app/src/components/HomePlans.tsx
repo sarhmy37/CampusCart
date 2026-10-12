@@ -33,7 +33,8 @@ const PLANS = [
     icon: 'pro',
     buyerBenefits: [
       '10% off delivery fees',
-      '24-hour priority support',
+      'Support replies within 2 days',
+      'Saved searches with new-listing alerts',
       'See new listings first',
     ],
     sellerBenefits: [
@@ -42,6 +43,7 @@ const PLANS = [
       'Listings shown first in search',
       'Pro Seller badge',
       'Upgraded store page with social sharing',
+      'Views & sales statistics',
     ],
   },
   {
@@ -53,7 +55,8 @@ const PLANS = [
     buyerBenefits: [
       'Everything in Pro',
       '18% off delivery fees',
-      'Same-day dedicated support line',
+      'Support replies within a few hours',
+      'Saved searches with new-listing alerts',
       'Export videos with no watermark',
     ],
     sellerBenefits: [
@@ -63,6 +66,7 @@ const PLANS = [
       'Premium Seller badge',
       'Store page shown at the very top of search',
       'Export videos with no watermark',
+      'Views & sales statistics',
     ],
   },
 ];
@@ -192,7 +196,7 @@ export default function HomePlans() {
     if (pendingPlan && plan.name.toLowerCase() === pendingPlan) {
       return (
         <View style={[btnStyle(colors), { backgroundColor: colors.warningSoft }]}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.warning, textAlign: 'center' }} numberOfLines={1}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.warning, textAlign: 'center' }} numberOfLines={1}>
             Starts {pendingDate}
           </Text>
         </View>
@@ -201,7 +205,7 @@ export default function HomePlans() {
     if (isCurrent && pendingPlan) {
       return (
         <View style={[btnStyle(colors), { backgroundColor: colors.chipBg }]}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, textAlign: 'center' }} numberOfLines={1}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textAlign: 'center' }} numberOfLines={1}>
             Active until {pendingDate}
           </Text>
         </View>
@@ -210,7 +214,7 @@ export default function HomePlans() {
     if (isCurrent) {
       return (
         <View style={[btnStyle(colors), { backgroundColor: colors.chipBg }]}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textFaint, textAlign: 'center' }} numberOfLines={1}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textAlign: 'center' }} numberOfLines={1}>
             Current plan
           </Text>
         </View>
@@ -243,7 +247,7 @@ export default function HomePlans() {
         ) : (
           <Text
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: '700',
               color: plan.highlight ? colors.textOnGold : colors.text,
               textAlign: 'center',
@@ -259,13 +263,13 @@ export default function HomePlans() {
 
   return (
     <View style={{ backgroundColor: colors.backgroundAlt, paddingHorizontal: 16, paddingVertical: 40 }}>
-      <Text style={{ fontSize: 11, fontWeight: '800', color: colors.brand, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>
+      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.brand, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>
         Plans
       </Text>
-      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center', marginTop: 6 }}>
+      <Text style={{ fontSize: 23, fontWeight: '800', color: colors.text, textAlign: 'center', marginTop: 6 }}>
         Pick the plan that fits how you trade
       </Text>
-      <Text style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 8, paddingHorizontal: 8 }}>
+      <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center', marginTop: 8, paddingHorizontal: 8 }}>
          {audience === 'seller'
           ? 'Grow your store on campus — upgrade any time as your sales grow.'
           : audience === 'buyer'
@@ -284,7 +288,7 @@ export default function HomePlans() {
           paddingVertical: 10,
           alignSelf: 'center',
         }}>
-          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.warning, textAlign: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.warning, textAlign: 'center' }}>
             🎉 Referral reward: 25% off Pro & Premium, ends in {formatCountdown(discountMsLeft)}
           </Text>
         </View>
@@ -361,7 +365,7 @@ function PlanCard({
             zIndex: 10,
           }}
         >
-          <Text style={{ fontSize: 9, fontWeight: '800', color: colors.textOnGold }}>
+          <Text style={{ fontSize: 10, fontWeight: '800', color: colors.textOnGold }}>
             Most popular
           </Text>
         </View>
@@ -370,19 +374,19 @@ function PlanCard({
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
         {plan.icon === 'premium' && <Sparkles size={12} color="#a855f7" fill="#a855f7" />}
         {plan.icon === 'pro' && <Star size={12} color="#3b82f6" fill="#3b82f6" />}
-        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>{plan.name}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>{plan.name}</Text>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 4, marginTop: 4, flexWrap: 'nowrap' }}>
         {discountActive && plan.price !== '0' && (
-          <Text style={{ fontSize: 9, color: colors.textFaint, textDecorationLine: 'line-through' }}>
+          <Text style={{ fontSize: 10, color: colors.textFaint, textDecorationLine: 'line-through' }}>
             GHS {plan.price}
           </Text>
         )}
-        <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: colors.text }}>
           GHS {discounted}
         </Text>
-        <Text style={{ fontSize: 9, color: colors.textMuted }}>{plan.period}</Text>
+        <Text style={{ fontSize: 10, color: colors.textMuted }}>{plan.period}</Text>
       </View>
 
       <View
@@ -397,26 +401,26 @@ function PlanCard({
       >
         {audience !== 'seller' && (
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 9, fontWeight: '800', color: colors.textFaint, textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text style={{ fontSize: 10, fontWeight: '800', color: colors.textFaint, textTransform: 'uppercase', marginBottom: 4 }}>
               Buyers
             </Text>
             {plan.buyerBenefits.map((b: string) => (
               <View key={b} style={{ flexDirection: 'row', gap: 3, marginBottom: 3 }}>
-                <Text style={{ fontSize: 9, color: colors.brand }}>✓</Text>
-                <Text style={{ flex: 1, fontSize: 9, color: colors.textSecondary, lineHeight: 12 }}>{b}</Text>
+                <Text style={{ fontSize: 10, color: colors.brand }}>✓</Text>
+                <Text style={{ flex: 1, fontSize: 10, color: colors.textSecondary, lineHeight: 12 }}>{b}</Text>
               </View>
             ))}
           </View>
         )}
         {audience !== 'buyer' && (
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 9, fontWeight: '800', color: colors.textFaint, textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text style={{ fontSize: 10, fontWeight: '800', color: colors.textFaint, textTransform: 'uppercase', marginBottom: 4 }}>
               Sellers
             </Text>
             {plan.sellerBenefits.map((b: string) => (
               <View key={b} style={{ flexDirection: 'row', gap: 3, marginBottom: 3 }}>
-                <Text style={{ fontSize: 9, color: colors.brand }}>✓</Text>
-                <Text style={{ flex: 1, fontSize: 9, color: colors.textSecondary, lineHeight: 12 }}>{b}</Text>
+                <Text style={{ fontSize: 10, color: colors.brand }}>✓</Text>
+                <Text style={{ flex: 1, fontSize: 10, color: colors.textSecondary, lineHeight: 12 }}>{b}</Text>
               </View>
             ))}
           </View>

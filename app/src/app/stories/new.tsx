@@ -3,6 +3,7 @@ import {
   View, Text, Pressable, ScrollView, TextInput, Dimensions,
   ActivityIndicator, Modal, Alert, Platform, KeyboardAvoidingView, Keyboard, PanResponder, Animated,
 } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,6 +24,7 @@ import StorePage from '@/app/seller/[id]';
 import api from '@/api/client';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 const MAX_ITEMS = 10;
 
 type PlayerControl = {
@@ -414,7 +416,7 @@ export default function NewStory() {
           <Pressable onPress={() => router.back()} style={{ padding: 6 }}>
             <ArrowLeft size={22} color={colors.text} />
           </Pressable>
-          <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
+          <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
             New story
           </Text>
         </View>
@@ -426,21 +428,21 @@ export default function NewStory() {
         ) : (
           <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}>
             <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 20 }}>
-              {myStories.length === 0 && (
+              {!myStories.some((s) => (s.kind ?? 'story') === 'story') && (
                 <>
                   {[0, 1, 2].map((i) => <SkeletonRow key={i} colors={colors} />)}
-                  <Text style={{ textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: '600', color: colors.textMuted }}>
+                  <Text style={{ textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '600', color: colors.textMuted }}>
                     No stories yet. Tap "Add to Story" to post one.
                   </Text>
                 </>
               )}
-              {(['story', 'spotlight'] as const).map((k) => {
+              {(['story'] as const).map((k) => {
                 const list = myStories.filter((s) => (s.kind ?? 'story') === k);
                 if (list.length === 0) return null;
                 return (
                   <View key={k} style={{ gap: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '800', letterSpacing: 0.6, color: colors.textMuted }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 0.6, color: colors.textMuted }}>
                         {k === 'story' ? 'STORIES' : 'SPOTLIGHT'}
                       </Text>
                       <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
@@ -466,13 +468,13 @@ export default function NewStory() {
 
                   <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }}>
                     <Eye size={14} color={colors.textMuted} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textMuted }}>
                       {s.view_count ?? 0}
                     </Text>
                     {s.kind === 'spotlight' && (
                       <>
                         <Heart size={14} color={colors.textMuted} style={{ marginLeft: 12 }} />
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textMuted }}>
                           {s.like_count ?? 0}
                         </Text>
                       </>
@@ -496,40 +498,28 @@ export default function NewStory() {
             </ScrollView>
 
             <View style={{ flexDirection: 'row', gap: 2, marginBottom: insets.bottom + 12 }}>
-              <Pressable
+              <GlassActionButton
                 onPress={() => pickMedia('story')}
+                colors={colors}
                 style={{
-                  flex: 1,
-                  backgroundColor: colors.brand,
                   borderTopLeftRadius: 999,
                   borderBottomLeftRadius: 999,
                   borderTopRightRadius: 0,
                   borderBottomRightRadius: 0,
-                  paddingVertical: 14,
-                  alignItems: 'center',
                 }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>
-                  Add to Story
-                </Text>
-              </Pressable>
-              <Pressable
+                label="Add to Story"
+              />
+              <GlassActionButton
                 onPress={() => pickMedia('spotlight')}
+                colors={colors}
                 style={{
-                  flex: 1,
-                  backgroundColor: colors.brand,
                   borderTopLeftRadius: 0,
                   borderBottomLeftRadius: 0,
                   borderTopRightRadius: 999,
                   borderBottomRightRadius: 999,
-                  paddingVertical: 14,
-                  alignItems: 'center',
                 }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>
-                  Add to Spotlight
-                </Text>
-              </Pressable>
+                label="Post to Spotlight"
+              />
             </View>
           </View>
         )}
@@ -767,7 +757,7 @@ export default function NewStory() {
                 borderBottomRightRadius: 0,
                 paddingHorizontal: 14,
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 16,
               }}
               maxLength={150}
             />
@@ -791,7 +781,7 @@ export default function NewStory() {
               {posting ? (
                 <ActivityIndicator color={colors.textOnGold} />
               ) : (
-                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.textOnGold }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: colors.textOnGold }}>
                   {items.length > 1 ? `Post (${items.length})` : 'Post'}
                 </Text>
               )}
@@ -862,7 +852,7 @@ export default function NewStory() {
                     >
                       <Icon size={20} color={on ? '#000' : '#fff'} />
                     </View>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{label}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{label}</Text>
                   </Pressable>
                 );
               })}
@@ -905,7 +895,7 @@ export default function NewStory() {
                 padding: 16, paddingBottom: insets.bottom + 16, gap: 6,
               }}
             >
-              <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 6 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', marginBottom: 6 }}>
                 Set content type
               </Text>
               {STORY_TAGS.map((t) => {
@@ -927,7 +917,7 @@ export default function NewStory() {
                       borderColor: selected ? '#f5b301' : 'transparent',
                     }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: selected ? '800' : '600', color: selected ? '#f5b301' : '#fff' }}>
+                    <Text style={{ fontSize: 16, fontWeight: selected ? '800' : '600', color: selected ? '#f5b301' : '#fff' }}>
                       {t.label}
                     </Text>
                   </Pressable>
@@ -989,7 +979,7 @@ function TextOverlay({
 
   const textStyle = {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 22,
     lineHeight: 26,
     fontWeight: '700' as const,
     textAlign: 'center' as const,
@@ -1176,7 +1166,7 @@ function CropOverlay({
           }}
         >
           <Pressable onPress={onCancel} style={{ paddingVertical: 10, paddingHorizontal: 18 }}>
-            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Cancel</Text>
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Cancel</Text>
           </Pressable>
           {!!videoUri && (
             <Pressable
@@ -1196,7 +1186,7 @@ function CropOverlay({
             onPress={save}
             style={{ backgroundColor: '#f5b301', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 22 }}
           >
-            <Text style={{ color: '#000', fontSize: 15, fontWeight: '800' }}>Save</Text>
+            <Text style={{ color: '#000', fontSize: 17, fontWeight: '800' }}>Save</Text>
           </Pressable>
         </View>
       </View>
@@ -1308,6 +1298,34 @@ function StoryPreviewVideo({
         </Animated.View>
       </Pressable>
     </View>
+  );
+}
+
+function GlassActionButton({
+  onPress, colors, style, label,
+}: { onPress: () => void; colors: any; style?: any; label: string }) {
+  const Wrapper: any = GLASS ? GlassView : View;
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={{ flex: 1 }}
+    >
+      <Wrapper
+        {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
+        style={{
+          paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
+          ...(GLASS ? {} : { backgroundColor: colors.brand }),
+          ...style,
+        }}
+      >
+        <Text style={{ fontSize: 17, fontWeight: '800', color: GLASS ? colors.brand : colors.textOnGold }}>
+          {label}
+        </Text>
+      </Wrapper>
+    </Pressable>
   );
 }
 
@@ -1459,7 +1477,7 @@ function TrimBar({
 
   return (
     <View style={{ paddingHorizontal: 16 + HANDLE_W / 2 }}>
-      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>
+      <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>
         {fmt(nowSec * 1000)} / {fmt(end - start)}
       </Text>
       <View
@@ -1622,8 +1640,8 @@ function ProductTagCard({
           )}
         </View>
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: '800', color: '#111' }}>{tag.title}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '800', color: '#b45309', marginTop: 2 }}>
+          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: '#111' }}>{tag.title}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: '#b45309', marginTop: 2 }}>
             GHS {tag.price.toFixed(2)}
           </Text>
         </View>
@@ -1699,7 +1717,7 @@ function StorePicker({
             backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border,
           }}
         >
-          <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center', marginBottom: 8 }}>
+          <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center', marginBottom: 8 }}>
             {chosen ? chosen.title : 'Tap one product to tag'}
           </Text>
           <Pressable
@@ -1710,7 +1728,7 @@ function StorePicker({
               alignItems: 'center', opacity: chosen ? 1 : 0.4,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>Done</Text>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textOnGold }}>Done</Text>
           </Pressable>
         </View>
       </View>

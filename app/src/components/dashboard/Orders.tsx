@@ -150,11 +150,22 @@ export default function Orders({ period, isSeller, highlightOrder, mode = 'activ
     );
   };
 
+  const promptCompleteBooking = (b: any) => {
+    Alert.alert(
+      'Mark this service as completed?',
+      `Only confirm if you have finished "${b.service_title}" for ${b.buyer_name}.\n\nAfter you confirm, the buyer will be notified to leave a review for the completed service. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: "Yes, it's completed", onPress: () => handleConfirmBooking(b.id) },
+      ]
+    );
+  };
+
   const handleConfirmBooking = async (id: any) => {
     setConfirmingBookingId(id);
     try {
       await api.patch(`/bookings/${id}/confirm`);
-      Toast.show({ type: 'success', text1: 'Booking confirmed!' });
+      Toast.show({ type: 'success', text1: 'Service marked as completed. The buyer has been notified to leave a review.' });
       loadServiceOrders();
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Failed to confirm booking' });
@@ -169,7 +180,7 @@ export default function Orders({ period, isSeller, highlightOrder, mode = 'activ
   const isCompletedTab = mode === 'completed';
   const modeOrders = (orders || []).filter((o: any) => (o.status === 'completed') === isCompletedTab);
   const modeDataOrders = dataOrders.filter((d) => (d.status === 'delivered') === isCompletedTab);
-  const modeServiceOrders = isCompletedTab ? [] : serviceOrders;
+  const modeServiceOrders = serviceOrders.filter((b: any) => (b.status === 'completed') === isCompletedTab);
 
   const hasAny = modeOrders.length > 0 || modeDataOrders.length > 0 || modeServiceOrders.length > 0;
   if (!hasAny) {
@@ -214,39 +225,39 @@ const q = search.trim().toLowerCase();
       {/* SERVICE BOOKINGS */}
       {modeServiceOrders.length > 0 && (
         <>
-          <SectionHeader label="Service Bookings" color={colors.success} colors={colors} />
+          <SectionHeader label={isCompletedTab ? 'Completed Services' : 'Service Bookings'} color={colors.success} colors={colors} />
           {modeServiceOrders.map((b) => (
             <View key={b.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{b.service_title}</Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{b.service_title}</Text>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
                     {isSeller ? `Buyer: ${b.buyer_name} · ${b.buyer_email}` : `Seller: ${b.seller_name} · ${b.seller_email}`}
                   </Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
                     📅 {new Date(b.booking_date).toLocaleDateString()} · ⏰ {b.booking_time?.slice(0, 5)}
                   </Text>
                   {b.message && (
-                    <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 4, fontStyle: 'italic' }}>"{b.message}"</Text>
+                    <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 4, fontStyle: 'italic' }}>"{b.message}"</Text>
                   )}
                 </View>
-                <View style={{ backgroundColor: b.status === 'confirmed' ? colors.successSoft : colors.warningSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: b.status === 'confirmed' ? colors.success : colors.warning }}>
-                    {b.status === 'confirmed' ? 'Confirmed ✅' : 'Awaiting payment'}
+                <View style={{ backgroundColor: b.status === 'pending_payment' ? colors.warningSoft : colors.successSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: b.status === 'pending_payment' ? colors.warning : colors.success }}>
+                    {b.status === 'completed' ? 'Completed ✅' : b.status === 'confirmed' ? 'Confirmed ✅' : 'Awaiting payment'}
                   </Text>
                 </View>
               </View>
-              <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 8 }}>
+              <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 8 }}>
                 Platform fee: GHS {parseFloat(b.platform_fee).toFixed(2)}
               </Text>
               {isSeller && b.status === 'confirmed' && (
                 <Pressable
-                  onPress={() => handleConfirmBooking(b.id)}
+                  onPress={() => promptCompleteBooking(b)}
                   disabled={confirmingBookingId === b.id}
                   style={{ marginTop: 10, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.info, opacity: confirmingBookingId === b.id ? 0.6 : 1 }}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: 'white' }}>
-                    {confirmingBookingId === b.id ? '...' : '✅ Confirm Booking'}
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>
+                    {confirmingBookingId === b.id ? '...' : '✅ Mark as Completed'}
                   </Text>
                 </Pressable>
               )}
@@ -263,20 +274,20 @@ const q = search.trim().toLowerCase();
             <View key={d.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
                     {parseFloat(d.gb_amount)}GB {d.network}
                   </Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>GHS {parseFloat(d.price).toFixed(2)}</Text>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>GHS {parseFloat(d.price).toFixed(2)}</Text>
                 </View>
                 <View style={{ backgroundColor: d.status === 'delivered' ? colors.successSoft : colors.warningSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: d.status === 'delivered' ? colors.success : colors.warning }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: d.status === 'delivered' ? colors.success : colors.warning }}>
                     {d.status === 'delivered' ? 'Received' : 'Pending'}
                   </Text>
                 </View>
               </View>
               {d.status === 'pending' && (
                 <Pressable onPress={() => Toast.show({ type: 'info', text1: 'Report coming soon' })} style={{ marginTop: 10 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.error, textDecorationLine: 'underline' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.error, textDecorationLine: 'underline' }}>
                     Report — haven't received this
                   </Text>
                 </Pressable>
@@ -297,15 +308,15 @@ const q = search.trim().toLowerCase();
                 onChangeText={setSearch}
                 placeholder="Search by Order #, Item, Seller, Date..."
                 placeholderTextColor={colors.textFaint}
-                style={{ flex: 1, paddingVertical: 10, fontSize: 13, color: colors.text }}
+                style={{ flex: 1, paddingVertical: 10, fontSize: 14, color: colors.text }}
                 returnKeyType="search"
                 autoCorrect={false}
               />
             </View>
           )}
-          <SectionHeader label={isCompletedTab ? 'Completed' : 'Orders'} color={colors.textFaint} colors={colors} />
+          <SectionHeader label={isCompletedTab ? 'Completed Orders' : 'Orders'} color={colors.textFaint} colors={colors} />
           {filteredOrders.length === 0 && (
-            <Text style={{ fontSize: 12, color: colors.textFaint, textAlign: 'center', paddingVertical: 12 }}>
+            <Text style={{ fontSize: 13, color: colors.textFaint, textAlign: 'center', paddingVertical: 12 }}>
               No orders match your search.
             </Text>
           )}
@@ -328,9 +339,9 @@ const q = search.trim().toLowerCase();
                 <OrderTimeline order={o} colors={colors} />
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Order #{o.id}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Order #{o.id}</Text>
                   <View style={{ backgroundColor: sStyle.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: sStyle.text, textTransform: 'capitalize' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: sStyle.text, textTransform: 'capitalize' }}>
                       {o.status}
                     </Text>
                   </View>
@@ -343,14 +354,14 @@ const q = search.trim().toLowerCase();
                         {item.image && <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} />}
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text numberOfLines={1} style={{ fontSize: 13, color: colors.textSecondary }}>{item.title}</Text>
+                        <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textSecondary }}>{item.title}</Text>
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
-                          <Text style={{ fontSize: 11, color: colors.textFaint }}>Qty: {item.quantity}</Text>
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>GHS {parseFloat(item.price_at_purchase).toFixed(2)}</Text>
+                          <Text style={{ fontSize: 12, color: colors.textFaint }}>Qty: {item.quantity}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>GHS {parseFloat(item.price_at_purchase).toFixed(2)}</Text>
                         </View>
                         {!!item.seller_name && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                            <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textFaint, flexShrink: 1 }}>
+                            <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textFaint, flexShrink: 1 }}>
                               Seller: {item.seller_name}
                             </Text>
                             <PlanIcon plan={item.seller_plan} />
@@ -363,42 +374,50 @@ const q = search.trim().toLowerCase();
                           disabled={confirmingItem === item.id}
                           style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: colors.success, opacity: confirmingItem === item.id ? 0.6 : 1 }}
                         >
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: 'white' }}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: 'white' }}>
                             {confirmingItem === item.id ? '...' : '✅ Confirm'}
                           </Text>
                         </Pressable>
                       )}
                       {item.status === 'cancelled' && (
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.error }}>✕ Cancelled</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.error }}>✕ Cancelled</Text>
                       )}
                       {o.status === 'paid' && item.buyer_confirmed_at && (
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.success }}>✓ Confirmed</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.success }}>✓ Confirmed</Text>
                       )}
                     </View>
                   ))}
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
                     Total: GHS {parseFloat(o.total_amount).toFixed(2)}
                   </Text>
                   {o.status !== 'pending' && (
                     <Pressable onPress={() => messageSeller(o)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <MessageCircle size={14} color={colors.brand} />
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Message seller</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>Message seller</Text>
                     </Pressable>
                   )}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 8 }}>
                   {!!o.created_at ? (
-                    <Text style={{ fontSize: 11, color: colors.textFaint, flexShrink: 1 }}>
+                    <Text style={{ fontSize: 12, color: colors.textFaint, flexShrink: 1 }}>
                       Placed on {formatOrderDate(o.created_at)}
                     </Text>
                   ) : <View />}
                   {o.status === 'paid' && o.delivered_at && !o.reported_at && (
                     <Pressable onPress={() => handleReport(o.id)} hitSlop={8}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.error }}>Report a problem</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.error }}>Report a problem</Text>
                     </Pressable>
+                  )}
+                  {o.reported_at && o.status === 'paid' && (
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: colors.warning }}>
+                      {o.report_status === 'reviewed' ? 'Report: Reviewed'
+                        : o.report_status === 'actioned' ? 'Report: Action taken'
+                        : o.report_status === 'dismissed' ? 'Report: Closed'
+                        : 'Report: Under review'}
+                    </Text>
                   )}
                 </View>
 
@@ -431,7 +450,7 @@ function formatOrderDate(dateStr: string) {
 function SectionHeader({ label, color, colors }: { label: string; color: string; colors: any }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
-      <Text style={{ fontSize: 11, fontWeight: '700', color, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: '700', color, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
     </View>
   );
@@ -462,11 +481,11 @@ function OrderTimeline({ order, colors }: { order: any; colors: any }) {
           <View key={step} style={{ flexDirection: 'row', alignItems: 'center', flex: i < TIMELINE_STEPS.length - 1 ? 1 : 0 }}>
             <View style={{ alignItems: 'center' }}>
               <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: circleBg, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: done || isCancelledStep ? 'white' : colors.textFaint }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: done || isCancelledStep ? 'white' : colors.textFaint }}>
                   {isCancelledStep ? '✕' : done ? '✓' : i + 1}
                 </Text>
               </View>
-              <Text style={{ fontSize: 9, color: labelColor, fontWeight: done || isCancelledStep ? '600' : '400', marginTop: 4 }}>
+              <Text style={{ fontSize: 10, color: labelColor, fontWeight: done || isCancelledStep ? '600' : '400', marginTop: 4 }}>
                 {label}
               </Text>
             </View>

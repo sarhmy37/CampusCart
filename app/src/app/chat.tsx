@@ -13,6 +13,9 @@ import StoryViewer from '@/components/StoryViewer';
 import StoryRing from '@/components/StoryRing';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
+import { parseWallpaper } from '@/data/wallpapers';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Search, ArrowLeft, X, BellOff, Star, Sparkles } from 'lucide-react-native';
 import {
@@ -37,6 +40,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCREEN_PADDING_X } from '@/constants/theme';
+import * as Haptics from 'expo-haptics';
 
 const GREETINGS: { start: number; end: number; options: string[] }[] = [
   { start: 5, end: 12, options: ['Good morning', 'Rise and shine', 'Morning, champ', 'Fresh day, fresh chats'] },
@@ -84,6 +88,33 @@ function formatChatTime(dateString?: string | null) {
   if (dayDiff < 7) return d.toLocaleDateString([], { weekday: 'short' });
   return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
+function formatPresence(lastActiveAt?: string | null) {
+  if (!lastActiveAt) return '';
+  const diffMin = Math.floor((Date.now() - new Date(lastActiveAt).getTime()) / 60000);
+  if (diffMin < 2) return 'Active now';
+  if (diffMin < 60) return `Last active ${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `Last active ${diffHr}h ago`;
+  return `Last active ${Math.floor(diffHr / 24)}d ago`;
+}
+
+function BubbleTail({ isMine, color }: { isMine: boolean; color: string }) {
+  return (
+    <Svg
+      width={8}
+      height={10}
+      viewBox="0 0 8 10"
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        ...(isMine ? { right: -6 } : { left: -6, transform: [{ scaleX: -1 }] }),
+      }}
+    >
+      <Path d="M0 0 L0 10 L8 10 C4 9 1 6 0 0 Z" fill={color} />
+    </Svg>
+  );
+}
+
 type Filter = 'all' | 'unread' | 'buying' | 'selling' | 'muted' | 'reports';
 
 const REPORT_REASONS: Record<string, string> = {
@@ -136,6 +167,7 @@ const { conversations, openConversation, unreadCount, isMuted, openChat, sendQui
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [previewConvo, setPreviewConvo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const headerBg = theme === 'dark' ? colors.card : colors.background;
   const bodyBg = theme === 'dark' ? colors.background : colors.card;
@@ -251,6 +283,41 @@ const markViewed = (s: any) => {
     openConversation(convo);
   };
 
+  const [previewMessages, setPreviewMessages] = useState<any[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewLastActive, setPreviewLastActive] = useState<string | null>(null);
+  const [previewWallpaper, setPreviewWallpaper] = useState<any>(null);
+  const pvParsed = parseWallpaper(previewWallpaper);
+  const pvBg =
+    pvParsed.kind === 'none'
+      ? { backgroundColor: '#EFEAFB' }
+      : pvParsed.kind === 'color'
+      ? { backgroundColor: pvParsed.color }
+      : { backgroundColor: colors.background };
+
+  const openPreview = async (convo: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPreviewConvo(convo);
+    setPreviewMessages([]);
+    setPreviewLastActive(null);
+    setPreviewWallpaper(null);
+    setPreviewLoading(true);
+    api.get(`/chat/presence/${convo.other_user_id}`)
+      .then((r) => setPreviewLastActive(r.data.last_active_at))
+      .catch(() => {});
+    api.get(`/chat/${convo.id}/wallpaper`)
+      .then((r) => setPreviewWallpaper(r.data || { type: 'none', value: null }))
+      .catch(() => setPreviewWallpaper({ type: 'none', value: null }));
+    try {
+      const res = await api.get(`/chat/${convo.id}/messages`);
+      setPreviewMessages((res.data || []).slice(-6));
+    } catch {
+      setPreviewMessages([]);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
 const openStory = (g: any) => {
   const gi = storyGroups.findIndex((x: any) => String(x.user_id) === String(g.user_id));
   if (gi === -1) return;
@@ -290,11 +357,11 @@ const openStory = (g: any) => {
           <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginLeft: -4, padding: 4 }}>
             <ArrowLeft size={22} color={colors.text} />
           </Pressable>
-          <Text style={{ flex: 1, fontSize: 22, fontWeight: '700', color: colors.text }}>
+          <Text style={{ flex: 1, fontSize: 24, fontWeight: '700', color: colors.text }}>
             Messages
           </Text>
           {unreadCount > 0 && (
-            <Text style={{ fontSize: 13, color: colors.brand, fontWeight: '600' }}>
+            <Text style={{ fontSize: 15, color: colors.brand, fontWeight: '600' }}>
               {unreadCount} unread
             </Text>
           )}
@@ -317,7 +384,7 @@ const openStory = (g: any) => {
             onChangeText={setSearch}
             placeholder="Search contacts"
             placeholderTextColor={colors.textFaint}
-            style={{ flex: 1, paddingVertical: 11, color: colors.text, fontSize: 14 }}
+            style={{ flex: 1, paddingVertical: 11, color: colors.text, fontSize: 16 }}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} hitSlop={8}>
@@ -374,7 +441,7 @@ const openStory = (g: any) => {
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 9, fontWeight: '700', color: '#1a1a1a' }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#1a1a1a' }}>
                       {chip.count > 9 ? '9+' : chip.count}
                     </Text>
                   </View>
@@ -383,7 +450,7 @@ const openStory = (g: any) => {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: active ? '800' : '500',
                   color: active ? colors.text : colors.textMuted,
                 }}
@@ -403,7 +470,7 @@ const openStory = (g: any) => {
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingVertical: 80, paddingHorizontal: 24 }}>
-            <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+            <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>
               {search
                 ? `No results for "${search}"`
                 : filter === 'unread'
@@ -435,23 +502,23 @@ const openStory = (g: any) => {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text }}>
+                  <Text numberOfLines={1} style={{ flex: 1, fontSize: 17, fontWeight: '600', color: colors.text }}>
                     {convo.reported_user_name || 'Unknown user'}
                   </Text>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: pending ? colors.warning : colors.success }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: pending ? colors.warning : colors.success }}>
                       {pending ? 'Pending' : 'Completed'}
                     </Text>
-                    <Text style={{ fontSize: 11, color: colors.textFaint, marginTop: 2 }}>
+                    <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
                       {new Date(convo.created_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
                     </Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 3 }}>
+                <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 3 }}>
                   {REPORT_REASONS[convo.reason] || convo.reason}
                 </Text>
                 {!!convo.details && (
-                  <Text numberOfLines={2} style={{ fontSize: 12, color: colors.textFaint, marginTop: 3 }}>
+                  <Text numberOfLines={2} style={{ fontSize: 14, color: colors.textFaint, marginTop: 3 }}>
                     {convo.details}
                   </Text>
                 )}
@@ -463,6 +530,8 @@ const openStory = (g: any) => {
           return (
             <Pressable
               onPress={() => handleOpenChat(convo)}
+              onLongPress={() => openPreview(convo)}
+              delayLongPress={200}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -511,7 +580,7 @@ const openStory = (g: any) => {
                       numberOfLines={1}
                       style={{
                         flexShrink: 1,
-                        fontSize: 15,
+                        fontSize: 17,
                         fontWeight: unread ? '800' : '600',
                         color: colors.text,
                       }}
@@ -527,7 +596,7 @@ const openStory = (g: any) => {
                   {!!convo.last_message_at && (
                     <Text
                       style={{
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: unread ? '700' : '500',
                         color: unread ? colors.brand : colors.textFaint,
                       }}
@@ -550,7 +619,7 @@ const openStory = (g: any) => {
                     numberOfLines={1}
                     style={{
                       flex: 1,
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: unread ? '600' : '400',
                       color: unread ? colors.text : colors.textMuted,
                     }}
@@ -574,7 +643,7 @@ const openStory = (g: any) => {
                         justifyContent: 'center',
                       }}
                     >
-                      <Text style={{ color: '#1a1a1a', fontSize: 11, fontWeight: '700' }}>
+                      <Text style={{ color: '#1a1a1a', fontSize: 13, fontWeight: '700' }}>
                         {convo.unread_count > 9 ? '9+' : convo.unread_count}
                       </Text>
                     </View>
@@ -585,6 +654,155 @@ const openStory = (g: any) => {
           );
         }}
       />
+      <Modal
+        visible={!!previewConvo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewConvo(null)}
+      >
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+          <Pressable
+            onPress={() => setPreviewConvo(null)}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }}
+          />
+          {previewConvo && (
+            <Pressable
+              onPress={() => {
+                const c = previewConvo;
+                setPreviewConvo(null);
+                handleOpenChat(c);
+              }}
+              style={{
+                width: '100%',
+                maxWidth: 380,
+                borderRadius: 20,
+                overflow: 'hidden',
+                backgroundColor: colors.background,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              {/* Header */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  backgroundColor: colors.card,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.borderMuted,
+                }}
+              >
+                {previewConvo.other_user_avatar ? (
+                  <Image
+                    source={{ uri: previewConvo.other_user_avatar }}
+                    style={{ width: 40, height: 40, borderRadius: 20 }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontWeight: '700', color: colors.brand, fontSize: 16 }}>
+                      {previewConvo.other_user_name?.[0]?.toUpperCase() || '?'}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Text numberOfLines={1} style={{ flexShrink: 1, fontWeight: '700', color: colors.text, fontSize: 16 }}>
+                      {previewConvo.other_user_name}
+                    </Text>
+                    <PlanBadge
+                      plan={previewConvo.other_user_plan}
+                      expiresAt={previewConvo.other_user_plan_expires_at}
+                    />
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
+                    {formatPresence(previewLastActive) === 'Active now' && (
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' }} />
+                    )}
+                    <Text numberOfLines={1} style={{ color: colors.textMuted, fontSize: 13 }}>
+                      {formatPresence(previewLastActive)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Latest 6 messages */}
+              <View style={[{ padding: 14, minHeight: 120 }, pvBg]}>
+                {pvParsed.kind === 'gradient' && (
+                  <LinearGradient
+                    colors={pvParsed.colors as any}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  />
+                )}
+                {pvParsed.kind === 'image' && (
+                  <Image
+                    source={{ uri: pvParsed.uri }}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                    contentFit="cover"
+                  />
+                )}
+                {previewLoading ? (
+                  <ActivityIndicator color={colors.brand} style={{ marginVertical: 30 }} />
+                ) : previewMessages.length === 0 ? (
+                  <Text style={{ textAlign: 'center', color: colors.textFaint, fontSize: 15, marginVertical: 30 }}>
+                    No messages yet
+                  </Text>
+                ) : (
+                  previewMessages.map((m: any) => {
+                    const isMine = m.sender_id === user?.id;
+                    const label = m.deleted_for_everyone
+                      ? 'This message was deleted'
+                      : m.content
+                      ? m.content
+                      : m.media_type === 'image'
+                      ? '📷 Photo'
+                      : m.media_type === 'video'
+                      ? '🎥 Video'
+                      : m.media_type === 'audio'
+                      ? '🎤 Voice note'
+                      : m.media_type === 'file'
+                      ? '📎 File'
+                      : '';
+                    return (
+                      <View key={m.id} style={{ alignItems: isMine ? 'flex-end' : 'flex-start', marginBottom: 6, paddingHorizontal: 6 }}>
+                        <View
+                          style={{
+                            maxWidth: '80%',
+                            paddingHorizontal: 12,
+                            paddingVertical: 7,
+                            borderRadius: 14,
+                            borderBottomRightRadius: isMine ? 4 : 14,
+                            borderBottomLeftRadius: isMine ? 14 : 4,
+                            backgroundColor: isMine ? colors.brand : colors.chipBg,
+                          }}
+                        >
+                          <BubbleTail isMine={isMine} color={isMine ? colors.brand : colors.chipBg} />
+                          <Text
+                            numberOfLines={3}
+                            style={{
+                              fontSize: 15,
+                              fontStyle: m.deleted_for_everyone ? 'italic' : 'normal',
+                              color: isMine ? colors.textOnGold : colors.text,
+                            }}
+                          >
+                            {label}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            </Pressable>
+          )}
+        </View>
+      </Modal>
+
       <Modal
         visible={activeGroupIndex !== null}
         transparent

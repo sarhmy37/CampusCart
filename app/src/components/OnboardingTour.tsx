@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import MaskedView from '@react-native-masked-view/masked-view';
+import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { useColors } from '@/hooks/useColors';
 import { emitter } from '@/api/client';
 import { TOUR_IMAGES } from '@/data/media';
@@ -30,9 +31,9 @@ const SHOTS = {
   browse:    shot('browse', '50% 0%'),
   services:  shot('services', '50% 0%'),
   pay:       shot('pay', '50% 0%'),
-  refer:     shot('refer', '50% 0%'),
+  refer:     shot('refer', '50% 80%'),
   list:      shot('list', '50% 0%'),
-  payout:    shot('payout', '50% 0%'),
+  payout:    shot('payout', '50% 70%'),
   dashboard: shot('dashboard', '50% 0%'),
   chat:      shot('chat', '50% 0%'),
 };
@@ -341,10 +342,45 @@ function Stamp({
       }}
     >
       <Icon size={20} color={colors.brand} />
-      <Text style={{ fontSize: 9, fontWeight: '800', color: colors.brand, marginTop: 2 }}>
+      <Text style={{ fontSize: 10, fontWeight: '800', color: colors.brand, marginTop: 2 }}>
         {label}
       </Text>
     </View>
+  );
+}
+
+// ─── GRADIENT EDGE ───────────────────────────────────────────────────
+// Story-ring style gradient outline, inset from the sheet edge and
+// following its rounded top corners. Open at the bottom.
+const EDGE_INSET = 12;
+const EDGE_WIDTH = 4;
+const SHEET_RADIUS = 24;
+
+function GradientEdge({ w, h }: { w: number; h: number }) {
+  if (!w || !h) return null;
+  const i = EDGE_INSET;
+  const r = SHEET_RADIUS - i;
+  const d =
+    `M ${i} ${h} L ${i} ${i + r} A ${r} ${r} 0 0 1 ${i + r} ${i} ` +
+    `L ${w - i - r} ${i} A ${r} ${r} 0 0 1 ${w - i} ${i + r} L ${w - i} ${h}`;
+  return (
+    <Svg
+      width={w}
+      height={h}
+      style={{ position: 'absolute', top: 0, left: 0 }}
+      pointerEvents="none"
+    >
+      <Defs>
+        <SvgGradient id="tourEdge" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={w} y2={h}>
+          <Stop offset="0%" stopColor="#f59e0b" />
+          <Stop offset="25%" stopColor="#ef4444" />
+          <Stop offset="50%" stopColor="#a855f7" />
+          <Stop offset="75%" stopColor="#3b82f6" />
+          <Stop offset="100%" stopColor="#f59e0b" />
+        </SvgGradient>
+      </Defs>
+      <Path d={d} stroke="url(#tourEdge)" strokeWidth={EDGE_WIDTH} strokeLinecap="round" fill="none" />
+    </Svg>
   );
 }
 
@@ -356,6 +392,7 @@ export default function OnboardingTour() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const [sheetSize, setSheetSize] = useState({ w: 0, h: 0 });
 
   const steps = user?.account_type === 'seller' ? SELLER_STEPS : BUYER_STEPS;
   const isLast = step === steps.length - 1;
@@ -430,6 +467,12 @@ export default function OnboardingTour() {
         }}
       >
         <View
+          onLayout={(e) =>
+            setSheetSize({
+              w: e.nativeEvent.layout.width,
+              h: e.nativeEvent.layout.height,
+            })
+          }
           style={{
             width: '100%',
             maxHeight: '92%',
@@ -438,63 +481,33 @@ export default function OnboardingTour() {
             borderTopRightRadius: 24,
           }}
         >
-          {/* Passport header */}
+          <GradientEdge w={sheetSize.w} h={sheetSize.h} />
+
+          {/* Skip tour */}
           <View
             style={{
               flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingHorizontal: 20,
+              justifyContent: 'flex-end',
               paddingTop: 20,
             }}
           >
-            <Text
-              style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, flex: 1 }}
-              numberOfLines={1}
+            <Pressable
+              onPress={() => finish()}
+              style={{
+                paddingLeft: 16,
+                paddingRight: 20,
+                paddingVertical: 8,
+                backgroundColor: colors.brand,
+                borderTopLeftRadius: 16,
+                borderBottomLeftRadius: 16,
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+              }}
             >
-              Campus passport of {name}
-            </Text>
-            <Pressable onPress={() => finish()}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textMuted }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textOnGold }}>
                 Skip tour
               </Text>
             </Pressable>
-          </View>
-
-          {/* Stamp slots */}
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
-              gap: 10,
-              marginTop: 16,
-            }}
-          >
-            {steps.map((s: any, i: number) => {
-              const SlotIcon = s.icon;
-              const stamped = i < step;
-              const active = i === step;
-              return (
-                <View
-                  key={s.stamp + i}
-                  style={{
-                    width: 34, height: 34, borderRadius: 17,
-                    borderWidth: 2,
-                    borderColor: stamped
-                      ? colors.brand
-                      : active
-                        ? colors.brand
-                        : colors.border,
-                    borderStyle: stamped || active ? 'solid' : 'dashed',
-                    backgroundColor: stamped ? colors.brandSoft : 'transparent',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {stamped && <SlotIcon size={14} color={colors.brand} />}
-                </View>
-              );
-            })}
           </View>
 
           <ScrollView
@@ -507,8 +520,8 @@ export default function OnboardingTour() {
               style={{
                 alignItems: 'center',
                 justifyContent: 'flex-end',
-                marginTop: 20,
-                height: PHONE_HEIGHT + 20,
+                marginTop: 10,
+                height: shotSrc ? PHONE_HEIGHT: 130,
               }}
             >
               {shotSrc ? (
@@ -536,7 +549,7 @@ export default function OnboardingTour() {
                       }}
                     />
                     <Icon size={34} color={colors.brand} />
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: colors.brand, marginTop: 4 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.brand, marginTop: 4 }}>
                       {current.stamp}
                     </Text>
                   </View>
@@ -548,7 +561,7 @@ export default function OnboardingTour() {
             <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
               <Text
                 style={{
-                  fontSize: 22,
+                  fontSize: 23,
                   fontWeight: '800',
                   color: colors.text,
                   textAlign: 'center',
@@ -559,7 +572,7 @@ export default function OnboardingTour() {
               </Text>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   color: colors.textMuted,
                   textAlign: 'center',
                   marginTop: 10,
@@ -571,6 +584,30 @@ export default function OnboardingTour() {
               </Text>
             </View>
           </ScrollView>
+
+          {/* Dots navigation */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 6,
+              paddingTop: 10,
+            }}
+          >
+            {steps.map((s: any, i: number) => (
+              <Pressable key={s.stamp + i} onPress={() => setStep(i)} hitSlop={8}>
+                <View
+                  style={{
+                    width: i === step ? 20 : 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: i === step ? colors.brand : colors.border,
+                  }}
+                />
+              </Pressable>
+            ))}
+          </View>
 
           {/* Actions */}
           <View
@@ -593,7 +630,7 @@ export default function OnboardingTour() {
                   borderColor: colors.border,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textSecondary }}>
                   Back
                 </Text>
               </Pressable>
@@ -608,7 +645,7 @@ export default function OnboardingTour() {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textOnGold }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
                 {step === 0
                   ? 'Start the tour'
                   : isLast

@@ -63,7 +63,7 @@ export default function PasswordStrength({ password }: { password: string }) {
 
       <Text
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '600',
           marginBottom: 8,
           color: textColors[score],
@@ -100,7 +100,7 @@ function Rule({ ok, text, colors }: { ok: boolean; text: string; colors: any }) 
       )}
       <Text
         style={{
-          fontSize: 11,
+          fontSize: 12,
           color: ok ? '#10b981' : colors.textFaint,
         }}
       >

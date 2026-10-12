@@ -76,7 +76,7 @@ export default function ForgotPassword() {
     borderColor: colors.border,
     backgroundColor: colors.inputBg,
     color: colors.text,
-    fontSize: 14,
+    fontSize: 16,
   };
 
   return (
@@ -91,21 +91,21 @@ export default function ForgotPassword() {
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginBottom: 24 }}
         >
           <ArrowLeft size={16} color={colors.textMuted} />
-          <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600' }}>Back</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 15, fontWeight: '600' }}>Back</Text>
         </Pressable>
 
         {step === 'request' ? (
           <>
-            <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }}>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: colors.text }}>
               Reset your password
             </Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>
+            <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 6 }}>
               Enter your university email and we'll send you a reset code.
             </Text>
 
             <View style={{ marginTop: 28, gap: 16 }}>
               <View>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
                   University Email
                 </Text>
                 <View style={{ position: 'relative', justifyContent: 'center' }}>
@@ -137,7 +137,7 @@ export default function ForgotPassword() {
                 {loading ? (
                   <ActivityIndicator size="small" color={colors.textOnGold} />
                 ) : (
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
                     Send reset code
                   </Text>
                 )}
@@ -145,11 +145,11 @@ export default function ForgotPassword() {
             </View>
 
             <View style={{ alignItems: 'center', marginTop: 20, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Text style={{ fontSize: 13, color: colors.textMuted }}>
+              <Text style={{ fontSize: 15, color: colors.textMuted }}>
                 Already have your code?{' '}
               </Text>
               <Pressable onPress={() => setStep('reset')}>
-                <Text style={{ color: colors.brand, fontSize: 13, fontWeight: '600' }}>
+                <Text style={{ color: colors.brand, fontSize: 15, fontWeight: '600' }}>
                   Enter it here
                 </Text>
               </Pressable>
@@ -157,16 +157,16 @@ export default function ForgotPassword() {
           </>
         ) : (
           <>
-            <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }}>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: colors.text }}>
               Enter your code
             </Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>
+            <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 6 }}>
               Check your email for the 6-digit reset code, then set a new password.
             </Text>
 
             <View style={{ marginTop: 28, gap: 16 }}>
               <View>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
                   University Email
                 </Text>
                 <View style={{ position: 'relative', justifyContent: 'center' }}>
@@ -185,7 +185,7 @@ export default function ForgotPassword() {
               </View>
 
               <View>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
                   Reset Code
                 </Text>
                 <View style={{ position: 'relative', justifyContent: 'center' }}>
@@ -203,7 +203,7 @@ export default function ForgotPassword() {
               </View>
 
               <View>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
                   New Password
                 </Text>
                 <View style={{ position: 'relative', justifyContent: 'center' }}>
@@ -231,7 +231,7 @@ export default function ForgotPassword() {
               </View>
 
               <View>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 6 }}>
                   Confirm New Password
                 </Text>
                 <View style={{ position: 'relative', justifyContent: 'center' }}>
@@ -261,7 +261,7 @@ export default function ForgotPassword() {
                 {loading ? (
                   <ActivityIndicator size="small" color={colors.textOnGold} />
                 ) : (
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>
+                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
                     Reset password
                   </Text>
                 )}
@@ -269,11 +269,11 @@ export default function ForgotPassword() {
             </View>
 
             <View style={{ alignItems: 'center', marginTop: 20, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Text style={{ fontSize: 13, color: colors.textMuted }}>
+              <Text style={{ fontSize: 15, color: colors.textMuted }}>
                 Didn't get a code?{' '}
               </Text>
               <Pressable onPress={() => setStep('request')}>
-                <Text style={{ color: colors.brand, fontSize: 13, fontWeight: '600' }}>
+                <Text style={{ color: colors.brand, fontSize: 15, fontWeight: '600' }}>
                   Send again
                 </Text>
               </Pressable>
@@ -282,11 +282,11 @@ export default function ForgotPassword() {
         )}
 
         <View style={{ alignItems: 'center', marginTop: 32, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 13, color: colors.textMuted }}>
+          <Text style={{ fontSize: 15, color: colors.textMuted }}>
             Remembered your password?{' '}
           </Text>
           <Pressable onPress={() => router.replace('/login')}>
-            <Text style={{ color: colors.brand, fontSize: 13, fontWeight: '600' }}>
+            <Text style={{ color: colors.brand, fontSize: 15, fontWeight: '600' }}>
               Log in
             </Text>
           </Pressable>

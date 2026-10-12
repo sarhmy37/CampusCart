@@ -51,8 +51,8 @@ export default function HomeFooter() {
               paddingVertical: 6,
             }}
           >
-            <Text style={{ fontSize: 12 }}>🌍</Text>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
+            <Text style={{ fontSize: 13 }}>🌍</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>
               {COUNTRIES[0].label}
             </Text>
           </View>
@@ -71,7 +71,7 @@ export default function HomeFooter() {
             }}
           >
             {theme === 'dark' ? <Moon size={13} color={colors.textSecondary} /> : <Sun size={13} color={colors.textSecondary} />}
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>
               {theme === 'dark' ? 'Dark' : 'Light'}
             </Text>
           </Pressable>
@@ -84,7 +84,7 @@ export default function HomeFooter() {
               onPress={() => router.push(l.route as any)}
               style={{ marginRight: 12 }}
             >
-              <Text style={{ fontSize: 12, color: colors.textMuted }}>{l.label}</Text>
+              <Text style={{ fontSize: 13, color: colors.textMuted }}>{l.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -102,10 +102,10 @@ export default function HomeFooter() {
 
       {/* Row 2: copyright + prices note */}
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 11, color: colors.textFaint }}>
+        <Text style={{ fontSize: 12, color: colors.textFaint }}>
           © {new Date().getFullYear()} Tre-X. Made for university students, across Ghana.
         </Text>
-        <Text style={{ fontSize: 11, color: colors.textFaint }}>
+        <Text style={{ fontSize: 12, color: colors.textFaint }}>
           Prices shown in GHS.
         </Text>
       </View>

@@ -24,9 +24,9 @@ export function ErrorState({
       <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
         <Icon size={24} color={colors.error} />
       </View>
-      <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center' }}>{text}</Text>
+      <Text style={{ fontSize: 15, color: colors.textFaint, textAlign: 'center' }}>{text}</Text>
       <Pressable onPress={onRetry} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
-        <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>Try again</Text>
+        <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>Try again</Text>
       </Pressable>
     </View>
   );
@@ -44,10 +44,10 @@ export function EmptyState({
       <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
         <Icon size={24} color={colors.brand} />
       </View>
-      <Text style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center', maxWidth: 260 }}>{text}</Text>
+      <Text style={{ fontSize: 15, color: colors.textFaint, textAlign: 'center', maxWidth: 260 }}>{text}</Text>
       {cta && ctaLink && (
         <Pressable onPress={() => router.push(ctaLink as any)} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
-          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 14 }}>{cta} →</Text>
+          <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{cta} →</Text>
         </Pressable>
       )}
     </View>
