@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const { checkOverdueOrders } = require('./jobs/overdueOrders');
 
 const { startSubscriptionRenewalJobs } = require('./jobs/subscriptionRenewals');
-const { checkBoostWaitlist } = require('./routes/boosts');
+const { checkBoostWaitlist, checkBoostExpiryNotifications } = require('./routes/boosts');
 
 const authRoutes = require('./routes/auth');
 
@@ -163,6 +163,8 @@ app.use('/api/saved-searches', require('./routes/savedSearches'));
 
 app.use('/api/support', require('./routes/support'));
 
+app.use('/api/donations', require('./routes/donations'));
+
 app.use('/api/spotlight', require('./routes/spotlight'));
 
 // No /api prefix — this needs to be a clean, shareable URL like
@@ -179,11 +181,19 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Tre-X API running on http://localhost:${PORT}`);
-    console.log(`🚀 Tre-X API running on network: http://0.0.0.0:${PORT}`);
-});
+pool.query('ALTER TABLE stories ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ')
+    .then(() => {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Tre-X API running on http://localhost:${PORT}`);
+            console.log(`🚀 Tre-X API running on network: http://0.0.0.0:${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.error('❌ Failed to prepare story archive support:', err);
+        process.exitCode = 1;
+    });
 
 cron.schedule('0 8 * * *', checkOverdueOrders); // daily at 8am
 cron.schedule('* * * * *', checkBoostWaitlist); // activate paid boosts as slots open
+cron.schedule('0 * * * *', checkBoostExpiryNotifications); // remind sellers during the final 24 hours
 startSubscriptionRenewalJobs();

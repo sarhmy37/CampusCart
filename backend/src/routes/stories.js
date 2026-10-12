@@ -166,7 +166,7 @@ router.get('/feed', requireAuth, async (req, res) => {
                ELSE EXTRACT(EPOCH FROM GREATEST(MAX(st.created_at), COALESCE(MAX(rp.created_at), MAX(st.created_at)))) END AS rank_key
         FROM stories st
         LEFT JOIN story_reposts rp ON rp.story_id = st.id
-        WHERE st.expires_at > NOW() AND ($2::text IS NULL OR st.kind = $2)
+        WHERE st.expires_at > NOW() AND st.archived_at IS NULL AND ($2::text IS NULL OR st.kind = $2)
           AND ($5::boolean IS NOT TRUE OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.following_id = st.user_id))
           AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = st.id AND h.user_id = $1)
           AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = st.user_id) OR (b.blocker_id = st.user_id AND b.blocked_id = $1))
@@ -274,6 +274,7 @@ router.get('/feed', requireAuth, async (req, res) => {
 // GET /api/stories/mine — the current user's own active stories, with view counts
 router.get('/mine', requireAuth, async (req, res) => {
   try {
+    const archived = String(req.query.archived || '') === 'true';
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.kind, s.content_type,
              s.trim_start_ms, s.trim_end_ms, s.crop, s.product_tag, s.text_overlay,
@@ -287,13 +288,49 @@ router.get('/mine', requireAuth, async (req, res) => {
              (SELECT MAX(rp.created_at) FROM story_reposts rp WHERE rp.story_id = s.id) AS last_repost_at,
              ${topReposter('s.id')} AS reposted_by
       FROM stories s
-      WHERE s.user_id = $1 AND s.expires_at > NOW()
+      WHERE s.user_id = $1
+        AND ${archived ? 's.archived_at IS NOT NULL' : 's.archived_at IS NULL AND s.expires_at > NOW()'}
       ORDER BY s.created_at ASC
     `, [req.userId]);
     res.json(rows);
   } catch (err) {
     console.error('My stories error:', err);
     res.status(500).json({ error: 'Failed to load your stories' });
+  }
+});
+
+// PATCH /api/stories/:id/archive — owner only
+router.patch('/:id/archive', requireAuth, async (req, res) => {
+  try {
+    const archived = !!req.body.archived;
+    const { rows } = await pool.query(
+      `UPDATE stories
+       SET archived_at = CASE WHEN $3 THEN NOW() ELSE NULL END
+       WHERE id = $1 AND user_id = $2
+       RETURNING id, archived_at`,
+      [req.params.id, req.userId, archived]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Story not found' });
+    res.json({ id: rows[0].id, archived: rows[0].archived_at !== null });
+  } catch (err) {
+    console.error('Archive story error:', err);
+    res.status(500).json({ error: 'Failed to update archive status' });
+  }
+});
+
+// PATCH /api/stories/:id/caption — owner only
+router.patch('/:id/caption', requireAuth, async (req, res) => {
+  try {
+    const caption = req.body.caption == null ? null : String(req.body.caption).trim().slice(0, 500);
+    const { rows } = await pool.query(
+      `UPDATE stories SET caption = $3 WHERE id = $1 AND user_id = $2 RETURNING id, caption`,
+      [req.params.id, req.userId, caption || null]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Story not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Edit story caption error:', err);
+    res.status(500).json({ error: 'Failed to update caption' });
   }
 });
 

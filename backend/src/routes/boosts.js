@@ -244,8 +244,42 @@ async function checkBoostWaitlist() {
     }
 }
 
+async function checkBoostExpiryNotifications() {
+    try {
+        const result = await pool.query(
+            `SELECT b.id, b.seller_id, b.product_id, b.boosted_until, p.title
+             FROM boosts b
+             JOIN products p ON p.id = b.product_id
+             WHERE b.status = 'confirmed'
+               AND b.boosted_until > now()
+               AND b.boosted_until <= now() + INTERVAL '24 hours'
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM notifications n
+                   WHERE n.user_id = b.seller_id
+                     AND n.type = 'boost_ending'
+                     AND n.related_id = b.id
+               )
+             ORDER BY b.boosted_until ASC`
+        );
+
+        for (const boost of result.rows) {
+            await insertNotification(
+                boost.seller_id,
+                'boost_ending',
+                `Your boost for "${boost.title}" will end today or within the next 24 hours. Boost it again whenever you're ready to put your product in front of more buyers.`,
+                boost.id,
+                '/browse'
+            );
+        }
+    } catch (err) {
+        console.error('Boost expiry notification error:', err);
+    }
+}
+
 module.exports = {
     router,
     processBoostWebhookEvent,
     checkBoostWaitlist,
+    checkBoostExpiryNotifications,
 };

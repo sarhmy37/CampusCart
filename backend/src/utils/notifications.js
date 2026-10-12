@@ -5,6 +5,7 @@ const NOTIFICATION_TITLES = {
     new_message: 'New message',
     boost_confirmed: 'Boost confirmed',
     boost_waiting_slot: 'Boost payment received',
+    boost_ending: 'Boost ending soon',
     payment_received_seller: 'New order',
     order_delivered_buyer: 'Order marked as delivered',
     funds_available: 'Funds available',
@@ -29,6 +30,7 @@ const NOTIFICATION_TITLES = {
     story_like: 'Tre-X',
     story_comment: 'Tre-X',
     follow_post: 'New post',
+    donation_received: 'Thank you for your support',
 };
 
 function getPushTitle(type) {
