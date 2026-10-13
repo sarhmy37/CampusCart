@@ -206,7 +206,7 @@ export default function NotificationsPanel({ visible, onClose }: { visible: bool
   const sections = useMemo(() => {
     const fresh: any[] = [];
     const earlier: any[] = [];
-    displayed.forEach((n) => (n.read ? earlier : fresh).push(n));
+    displayed.forEach((n: any) => (n.read ? earlier : fresh).push(n));
     const out: { title: string; data: any[] }[] = [];
     if (fresh.length) out.push({ title: 'New', data: fresh });
     if (earlier.length) out.push({ title: 'Earlier', data: earlier });
@@ -427,7 +427,6 @@ export default function NotificationsPanel({ visible, onClose }: { visible: bool
                         <Image
                           source={LOGO_LIGHT}
                           style={{ width: '100%', height: '100%', borderRadius: 14 }}
-                          contentFit="contain"
                         />
                       ) : (n.type === 'new_message' || n.type === 'story_like' || n.type === 'story_comment' || n.type === 'follow_post' || n.type === 'story_repost' || n.type === 'comment_like' || n.type === 'follow_listing') && n.sender_avatar ? (
                         <Image

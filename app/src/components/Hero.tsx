@@ -27,8 +27,8 @@ const SELL_LABEL_ALT = 'Offer Services';
 const BROWSE_LABEL_DEFAULT = 'Browse Products';
 const BROWSE_LABEL_ALT = 'Browse Services';
 
-function GlassButton({ onPress, style, tint, children }: any) {
-  if (Platform.OS === 'ios' && isLiquidGlassAvailable()) {
+function GlassButton({ onPress, style, tint, children, allowGlass = true }: any) {
+  if (allowGlass && Platform.OS === 'ios' && isLiquidGlassAvailable()) {
     const { backgroundColor, borderWidth, borderColor, ...rest } = StyleSheet.flatten(style) as any;
     return (
       <Pressable onPress={onPress}>
@@ -244,7 +244,7 @@ export default function Hero() {
               style={{
                 position: 'relative',
                 overflow: 'hidden',
-                width: 130,
+                width: 140,
                 backgroundColor: isDark ? colors.brand : 'white',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -296,8 +296,9 @@ export default function Hero() {
 
             <GlassButton
               onPress={handleBrowseClick}
+              allowGlass={isDark}
               style={{
-                width: 130,
+                width: 140,
                 backgroundColor: 'rgba(255,255,255,0.1)',
                 borderWidth: 1,
                 borderColor: 'rgba(255,255,255,0.3)',

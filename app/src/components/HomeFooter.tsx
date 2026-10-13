@@ -33,7 +33,7 @@ export default function HomeFooter() {
         borderTopColor: colors.border,
         paddingHorizontal: 20,
         paddingTop: 28,
-        paddingBottom: insets.bottom + 24,
+        paddingBottom: insets.bottom -10,
       }}
     >
       {/* Row 1: country picker + links */}
@@ -96,14 +96,17 @@ export default function HomeFooter() {
           height: 1,
           backgroundColor: colors.border,
           marginTop: 20,
-          marginBottom: 4,
+          marginBottom: 6,
         }}
       />
 
       {/* Row 2: copyright + prices note */}
       <View style={{ gap: 6 }}>
         <Text style={{ fontSize: 12, color: colors.textFaint }}>
-          © {new Date().getFullYear()} Tre-X. Made for university students, across Ghana.
+          © {new Date().getFullYear()} Tre-X. All rights reserved.
+        </Text>
+        <Text style={{ fontSize: 12, color: colors.textFaint }}>
+          Made for university students, across Ghana.
         </Text>
         <Text style={{ fontSize: 12, color: colors.textFaint }}>
           Prices shown in GHS.

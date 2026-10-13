@@ -14,7 +14,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import Overview from '@/components/dashboard/Overview';
 
 import {
-  ChevronLeft, ChevronDown, Plus, ShoppingBag, TrendingUp, Tag, Wallet,
+  ChevronLeft, ChevronDown, ChevronUp, Plus, ShoppingBag, TrendingUp, Tag, Wallet,
   Store, Package, Truck, Flag, Bookmark, CheckCircle,
 } from 'lucide-react-native';
 import api from '@/api/client';

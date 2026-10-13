@@ -59,7 +59,7 @@ export default function Orders({ period, isSeller, highlightOrder, mode = 'activ
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [activeHighlight, orders]);
+  }, [activeHighlight]);
 
   const { status, data: orders, retry: loadOrders } = usePageReady({
     load: () => api.get('/orders/mine', { params: { period } }).then((res) => res.data),
@@ -248,7 +248,10 @@ const q = search.trim().toLowerCase();
                 </View>
               </View>
               <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 8 }}>
-                Platform fee: GHS {parseFloat(b.platform_fee).toFixed(2)}
+                {b.service_option_name ? `${b.service_option_name} · ` : ''}
+                {isSeller
+                  ? `Service price: GHS ${parseFloat(b.service_amount || 0).toFixed(2)} · Your fee: GHS ${parseFloat(b.seller_fee || 0).toFixed(2)} · You receive: GHS ${parseFloat(b.seller_earnings || 0).toFixed(2)}`
+                  : `Service price: GHS ${parseFloat(b.service_amount || 0).toFixed(2)} · Booking fee: GHS ${parseFloat(b.buyer_fee || 0).toFixed(2)}`}
               </Text>
               {isSeller && b.status === 'confirmed' && (
                 <Pressable
@@ -339,7 +342,10 @@ const q = search.trim().toLowerCase();
                 <OrderTimeline order={o} colors={colors} />
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Order #{o.id}</Text>
+                  <View>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Order</Text>
+                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>#{o.id}</Text>
+                  </View>
                   <View style={{ backgroundColor: sStyle.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
                     <Text style={{ fontSize: 12, fontWeight: '600', color: sStyle.text, textTransform: 'capitalize' }}>
                       {o.status}

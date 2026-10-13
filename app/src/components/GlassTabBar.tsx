@@ -2,7 +2,13 @@ import { View, Text, Pressable, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Compass, Home, ShoppingCart } from 'lucide-react-native';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+type BottomTabBarProps = {
+  state: { index: number; routes: Array<{ key: string; name: string }> };
+  navigation: {
+    emit: (event: { type: string; target: string; canPreventDefault: boolean }) => { defaultPrevented?: boolean };
+    navigate: (name: string) => void;
+  };
+};
 
 const ROUTE_ICONS: Record<string, any> = {
   browse: Compass,

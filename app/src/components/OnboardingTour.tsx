@@ -15,10 +15,14 @@ import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-nati
 import { useColors } from '@/hooks/useColors';
 import { emitter } from '@/api/client';
 import { TOUR_IMAGES } from '@/data/media';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PHONE_WIDTH = Math.min(SCREEN_WIDTH * 0.52, 200);
 const PHONE_HEIGHT = PHONE_WIDTH * 1.24;
+
+// Computed once — native capability check, same pattern as CreateListing.
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 // ─── SCREENSHOT HELPERS ──────────────────────────────────────────────
 const shot = (name: string, pos = '50% 30%', zoom = 1) => ({
@@ -139,13 +143,11 @@ function parsePos(pos: string) {
   const [x, y] = (pos || '50% 50%').split(' ');
   return { left: x, top: y };
 }
+
 // Mirrors the web version: top-rounded-only frame (bottom fades out, so
 // no bottom corners are ever seen), a diagonal 5-stop metallic gradient
 // that differs for iOS (silver) vs Android (dark alloy) — matching real
 // device colors regardless of app theme — and a diagonal glass highlight.
-// The whole thing is wrapped in a bottom-fade mask, same as the web CSS
-// mask-image, so the frame dissolves into the background instead of
-// getting clipped into a hard-edged rectangle.
 function PhoneShot({ shot, colors }: { shot: any; colors: any }) {
   const src = shot.src;
   const isIOS = Platform.OS === 'ios';
@@ -164,10 +166,10 @@ function PhoneShot({ shot, colors }: { shot: any; colors: any }) {
     );
   }
 
-  const frameColors = isIOS
+  const frameColors: [string, string, string, string, string] = isIOS
     ? ['#e6e6e9', '#8d8d93', '#f1f1f3', '#7a7a80', '#d4d4d8']
     : ['#4b4f55', '#15171a', '#5a5e64', '#101113', '#3c4046'];
-  const frameLocations = [0, 0.28, 0.52, 0.78, 1];
+  const frameLocations: [number, number, number, number, number] = [0, 0.28, 0.52, 0.78, 1];
   const btnColor = isIOS ? '#8d8d93' : '#3a3e44';
 
   const outerRadius = 44;
@@ -384,6 +386,82 @@ function GradientEdge({ w, h }: { w: number; h: number }) {
   );
 }
 
+// ─── GLASS BUTTON ────────────────────────────────────────────────────
+// Duplicates the SubmitButton glass treatment from CreateListing.
+// Padding + radius MUST live inside GlassView — the glass shape is
+// derived from the GlassView's own bounds, not the outer Pressable.
+function GlassButton({
+  onPress,
+  disabled,
+  label,
+  colors,
+  tint,
+  textColor,
+  outerStyle,
+  innerStyle,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+  label: string;
+  colors: any;
+  tint?: string;
+  textColor?: string;
+  outerStyle?: any;
+  innerStyle?: any;
+}) {
+  const bg = tint ?? colors.brand;
+  const fg = textColor ?? colors.textOnGold;
+
+  if (GLASS) {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        style={[{ opacity: disabled ? 0.6 : 1 }, outerStyle]}
+      >
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          tintColor={bg}
+          style={[
+            {
+              paddingVertical: 12,
+              borderRadius: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            },
+            innerStyle,
+          ]}
+        >
+          <Text style={{ fontSize: 14, fontWeight: '700', color: fg }}>{label}</Text>
+        </GlassView>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        {
+          paddingVertical: 12,
+          borderRadius: 12,
+          backgroundColor: bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: disabled ? 0.6 : 1,
+        },
+        outerStyle,
+        innerStyle,
+      ]}
+    >
+      <Text style={{ fontSize: 14, fontWeight: '700', color: fg }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 // ─── MAIN ────────────────────────────────────────────────────────────
 export default function OnboardingTour() {
   const colors = useColors();
@@ -457,6 +535,13 @@ export default function OnboardingTour() {
 
   const back = () => setStep((s) => Math.max(0, s - 1));
 
+  const nextLabel =
+    step === 0
+      ? 'Start the tour'
+      : isLast
+        ? (user.account_type === 'seller' ? 'List my first item' : 'Start exploring')
+        : 'Next stamp';
+
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={() => finish()}>
       <View
@@ -483,7 +568,10 @@ export default function OnboardingTour() {
         >
           <GradientEdge w={sheetSize.w} h={sheetSize.h} />
 
-          {/* Skip tour */}
+          {/* Skip tour — keeps the original brand-background tab shape.
+              GlassView only supports uniform borderRadius, so we keep
+              this as a solid button (matches the primary CTA on non-glass
+              devices, and stays visually distinct from the glass Next). */}
           <View
             style={{
               flexDirection: 'row',
@@ -521,7 +609,7 @@ export default function OnboardingTour() {
                 alignItems: 'center',
                 justifyContent: 'flex-end',
                 marginTop: 10,
-                height: shotSrc ? PHONE_HEIGHT: 130,
+                height: shotSrc ? PHONE_HEIGHT : 130,
               }}
             >
               {shotSrc ? (
@@ -620,39 +708,29 @@ export default function OnboardingTour() {
             }}
           >
             {step > 0 && (
-              <Pressable
+              <GlassButton
                 onPress={back}
-                style={{
+                label="Back"
+                colors={colors}
+                tint="rgba(255,255,255,0.10)"
+                textColor={colors.textSecondary}
+                outerStyle={{
+                  borderWidth: GLASS ? 0 : 1,
+                  borderColor: colors.border,
+                  borderRadius: 12,
+                }}
+                innerStyle={{
                   paddingHorizontal: 20,
                   paddingVertical: 12,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: colors.border,
                 }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textSecondary }}>
-                  Back
-                </Text>
-              </Pressable>
+              />
             )}
-            <Pressable
+            <GlassButton
               onPress={next}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 12,
-                backgroundColor: colors.brand,
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textOnGold }}>
-                {step === 0
-                  ? 'Start the tour'
-                  : isLast
-                    ? (user.account_type === 'seller' ? 'List my first item' : 'Start exploring')
-                    : 'Next stamp'}
-              </Text>
-            </Pressable>
+              label={nextLabel}
+              colors={colors}
+              outerStyle={{ flex: 1 }}
+            />
           </View>
         </View>
       </View>

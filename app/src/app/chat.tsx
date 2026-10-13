@@ -8,7 +8,17 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  interpolate,
+  Easing,
+  runOnJS,
+} from 'react-native-reanimated';
 import StoryViewer from '@/components/StoryViewer';
 import StoryRing from '@/components/StoryRing';
 import { Image } from 'expo-image';
@@ -17,7 +27,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { parseWallpaper } from '@/data/wallpapers';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Search, ArrowLeft, X, BellOff, Star, Sparkles } from 'lucide-react-native';
+import { Search, ChevronLeft, X, BellOff, Star, Sparkles } from 'lucide-react-native';
 import {
   InboxIcon as InboxOutline,
   EnvelopeIcon as EnvelopeOutline,
@@ -169,6 +179,54 @@ const { conversations, openConversation, unreadCount, isMuted, openChat, sendQui
   const [filter, setFilter] = useState<Filter>('all');
   const [previewConvo, setPreviewConvo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const SEARCH_H = 40;
+  const SEARCH_GAP = 10;
+  const SLIDE_Y = SEARCH_H + SEARCH_GAP;
+  const { width: winW } = useWindowDimensions();
+  const rowW = winW - SCREEN_PADDING_X * 2;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const slide = useSharedValue(0);
+  const circle = useSharedValue(0);
+  const expand = useSharedValue(0);
+
+  const focusInput = () => inputRef.current?.focus();
+
+  const openSearch = () => {
+    Haptics.selectionAsync();
+    setSearchOpen(true);
+    slide.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+    circle.value = withDelay(260, withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) }));
+    expand.value = withDelay(
+      430,
+      withTiming(1, { duration: 340, easing: Easing.out(Easing.cubic) }, (finished) => {
+        if (finished) runOnJS(focusInput)();
+      })
+    );
+  };
+
+  const closeSearch = () => {
+    inputRef.current?.blur();
+    setSearch('');
+    setSearchOpen(false);
+    expand.value = withTiming(0, { duration: 260, easing: Easing.inOut(Easing.cubic) });
+    circle.value = withDelay(220, withTiming(0, { duration: 160 }));
+    slide.value = withDelay(340, withTiming(0, { duration: 300, easing: Easing.inOut(Easing.cubic) }));
+  };
+
+  const iconSlideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slide.value * SLIDE_Y }],
+  }));
+  const searchRowStyle = useAnimatedStyle(() => ({ height: slide.value * SLIDE_Y }));
+  const pillStyle = useAnimatedStyle(() => ({
+    width: SEARCH_H + expand.value * Math.max(rowW - SEARCH_H, 0),
+    opacity: circle.value,
+    transform: [{ scale: 0.5 + circle.value * 0.5 }],
+  }));
+  const inputFadeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expand.value, [0.6, 1], [0, 1], 'clamp'),
+  }));
   const headerBg = theme === 'dark' ? colors.card : colors.background;
   const bodyBg = theme === 'dark' ? colors.background : colors.card;
 
@@ -343,8 +401,6 @@ const openStory = (g: any) => {
   const chips: { key: Filter; label: string; outline: any; solid: any; count?: number }[] = [
     { key: 'all', label: 'All', outline: InboxOutline, solid: InboxSolid },
     { key: 'unread', label: 'Unread', outline: EnvelopeOutline, solid: EnvelopeSolid, count: counts.unread },
-    { key: 'buying', label: 'Buying', outline: BagOutline, solid: BagSolid },
-    { key: 'selling', label: 'Selling', outline: TagOutline, solid: TagSolid },
     { key: 'muted', label: 'Muted', outline: BellSlashOutline, solid: BellSlashSolid },
     { key: 'reports', label: 'Reports', outline: FlagOutline, solid: FlagSolid },
   ];
@@ -353,45 +409,78 @@ const openStory = (g: any) => {
     <SafeAreaView style={{ flex: 1, backgroundColor: bodyBg }} edges={[]}>
       {/* Header */}
       <View style={{ paddingHorizontal: SCREEN_PADDING_X, paddingTop: 10, paddingBottom: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 2 }}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginLeft: -4, padding: 4 }}>
-            <ArrowLeft size={22} color={colors.text} />
+            <ChevronLeft size={28} color={colors.text} strokeWidth={3} />
           </Pressable>
           <Text style={{ flex: 1, fontSize: 24, fontWeight: '700', color: colors.text }}>
-            Messages
+            Chat
           </Text>
           {unreadCount > 0 && (
             <Text style={{ fontSize: 15, color: colors.brand, fontWeight: '600' }}>
               {unreadCount} unread
             </Text>
           )}
+          <Animated.View style={iconSlideStyle}>
+            <Pressable
+              onPress={searchOpen ? closeSearch : openSearch}
+              hitSlop={6}
+              style={{ width: SEARCH_H, height: SEARCH_H, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Search size={20} color={searchOpen ? colors.brand : colors.text} />
+            </Pressable>
+          </Animated.View>
         </View>
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 10,
-            marginTop: 14,
-            paddingHorizontal: 12,
-            borderRadius: 10,
-            backgroundColor: headerBg,
-          }}
-        >
-          <Search size={16} color={colors.textFaint} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search contacts"
-            placeholderTextColor={colors.textFaint}
-            style={{ flex: 1, paddingVertical: 11, color: colors.text, fontSize: 16 }}
-          />
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <X size={16} color={colors.textFaint} />
-            </Pressable>
-          )}
-        </View>
+        <Animated.View style={[{ overflow: 'hidden', zIndex: 1 }, searchRowStyle]}>
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                right: 0,
+                top: SEARCH_GAP,
+                height: SEARCH_H,
+                borderRadius: SEARCH_H / 2,
+                backgroundColor: headerBg,
+                overflow: 'hidden',
+              },
+              pillStyle,
+            ]}
+          >
+            <Animated.View
+              pointerEvents={searchOpen ? 'auto' : 'none'}
+              style={[
+                {
+                  position: 'absolute',
+                  left: 16,
+                  top: 0,
+                  bottom: 0,
+                  width: Math.max(rowW - 16 - 44 - (search.length > 0 ? 28 : 0), 0),
+                  justifyContent: 'center',
+                },
+                inputFadeStyle,
+              ]}
+            >
+              <TextInput
+                ref={inputRef}
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search contacts"
+                placeholderTextColor={colors.textFaint}
+                style={{ paddingVertical: 0, color: colors.text, fontSize: 16 }}
+              />
+            </Animated.View>
+            {search.length > 0 && (
+              <Pressable
+                onPress={() => setSearch('')}
+                hitSlop={8}
+                style={{ position: 'absolute', right: 44, top: 0, bottom: 0, justifyContent: 'center' }}
+              >
+                <X size={16} color={colors.textFaint} />
+              </Pressable>
+            )}
+          </Animated.View>
+        </Animated.View>
       </View>
 
       {/* Filter tabs */}
@@ -413,19 +502,15 @@ const openStory = (g: any) => {
               onPress={() => setFilter(chip.key)}
               style={{
                 flex: 1,
-                flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 4,
-                paddingTop: 12,
-                paddingBottom: 11,
-                borderBottomWidth: 3,
-                borderBottomColor: active ? colors.brand : 'transparent',
-                marginBottom: -1,
+                gap: 2,
+                height: 44,
+                paddingBottom: active ? 10 : 0,
               }}
             >
               <View>
-                <Icon size={16} color={active ? colors.brand : colors.textFaint} />
+                <Icon size={active ? 18 : 12} color={active ? colors.brand : colors.textFaint} />
                 {!!chip.count && (
                   <View
                     style={{
@@ -450,13 +535,26 @@ const openStory = (g: any) => {
               <Text
                 numberOfLines={1}
                 style={{
-                  fontSize: 13,
+                  fontSize: active ? 13 : 10.5,
                   fontWeight: active ? '800' : '500',
-                  color: active ? colors.text : colors.textMuted,
+                  color: active ? colors.brand : colors.textFaint,
                 }}
               >
                 {chip.label}
               </Text>
+              {active && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: -1,
+                    alignSelf: 'center',
+                    height: 3,
+                    width: 30,
+                    borderRadius: 999,
+                    backgroundColor: colors.brand,
+                  }}
+                />
+              )}
             </Pressable>
           );
         })}
@@ -527,6 +625,7 @@ const openStory = (g: any) => {
           }
           const muted = isMuted(convo.id);
           const unread = convo.unread_count > 0 && !muted;
+          const roleLabel = convo.my_role === 'buying' ? 'Buying' : convo.my_role === 'selling' ? 'Selling' : '';
           return (
             <Pressable
               onPress={() => handleOpenChat(convo)}
@@ -593,17 +692,22 @@ const openStory = (g: any) => {
                       colors={colors}
                     />
                   </View>
-                  {!!convo.last_message_at && (
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: unread ? '700' : '500',
-                        color: unread ? colors.brand : colors.textFaint,
-                      }}
-                    >
-                      {formatChatTime(convo.last_message_at)}
-                    </Text>
-                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {!unread && !!roleLabel && (
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: convo.my_role === 'selling' ? (theme === 'dark' ? '#f87171' : '#dc2626') : (theme === 'dark' ? '#4ade80' : '#16a34a') }}>{roleLabel}</Text>
+                    )}
+                    {!!convo.last_message_at && (
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: unread ? '700' : '500',
+                          color: unread ? colors.brand : colors.textFaint,
+                        }}
+                      >
+                        {formatChatTime(convo.last_message_at)}
+                      </Text>
+                    )}
+                  </View>
                 </View>
 
                 <View
@@ -649,6 +753,11 @@ const openStory = (g: any) => {
                     </View>
                   ) : null}
                 </View>
+                {unread && !!roleLabel && (
+                  <Text style={{ alignSelf: 'flex-end', marginTop: 3, fontSize: 12, fontWeight: '700', color: convo.my_role === 'selling' ? (theme === 'dark' ? '#f87171' : '#dc2626') : (theme === 'dark' ? '#4ade80' : '#16a34a') }}>
+                    {roleLabel}
+                  </Text>
+                )}
               </View>
             </Pressable>
           );

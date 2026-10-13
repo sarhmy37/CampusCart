@@ -49,7 +49,7 @@ export default function Reports() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
-                  {REASON_LABELS[r.reason] || r.reason}
+                  {REASON_LABELS[r.reason] || String(r.reason).replace(/_/g, ' ')}
                 </Text>
                 {r.product_title && (
                   <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>

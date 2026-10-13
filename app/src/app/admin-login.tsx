@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator, type TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShieldCheck } from 'lucide-react-native';
@@ -39,7 +39,7 @@ export default function AdminLogin() {
     }
   };
 
-  const inputStyle = {
+  const inputStyle: TextStyle = {
     width: '100%',
     paddingHorizontal: 16,
     paddingVertical: 12,

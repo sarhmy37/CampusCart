@@ -2,6 +2,8 @@ import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from 'expo
 import * as SplashScreen from 'expo-splash-screen';
 import { Dimensions, Pressable, View } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { Stack } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ChatModal from '@/components/ChatModal';
@@ -34,7 +36,10 @@ function ThemedToast({ ToastComponent, ...props }: any) {
   const isDark = theme === 'dark';
   const colors = Colors[isDark ? 'dark' : 'light'];
   const { hide } = props;
-  const { width, height } = Dimensions.get('window');
+  const { width } = Dimensions.get('window');
+  const toastHeight = 60;
+  const blurTopMargin = 64;
+  const blurBottomMargin = 36;
 
   return (
     <View style={{ width, minHeight: 60, position: 'relative', alignItems: 'center' }}>
@@ -43,18 +48,34 @@ function ThemedToast({ ToastComponent, ...props }: any) {
         style={{
           position: 'absolute',
           width,
-          height,
-          top: -64,
+          height: toastHeight + blurTopMargin + blurBottomMargin,
+          top: -blurTopMargin,
           left: 0,
           zIndex: 0,
           elevation: 0,
         }}
       >
-        <BlurView
-          intensity={24}
-          tint={theme === 'dark' ? 'dark' : 'light'}
+        <MaskedView
           style={{ flex: 1 }}
-        />
+          maskElement={
+            <LinearGradient
+              colors={['transparent', '#000000', '#000000', 'transparent']}
+              locations={[
+                0,
+                blurTopMargin / (toastHeight + blurTopMargin + blurBottomMargin),
+                (blurTopMargin + toastHeight) / (toastHeight + blurTopMargin + blurBottomMargin),
+                1,
+              ]}
+              style={{ flex: 1 }}
+            />
+          }
+        >
+          <BlurView
+            intensity={24}
+            tint={theme === 'dark' ? 'dark' : 'light'}
+            style={{ flex: 1 }}
+          />
+        </MaskedView>
       </Pressable>
       <View style={{ zIndex: 1, elevation: 1 }}>
         <ToastComponent
@@ -71,12 +92,12 @@ function ThemedToast({ ToastComponent, ...props }: any) {
           contentContainerStyle={{ paddingHorizontal: 15 }}
           text1Style={{
             color: isDark ? '#ffffff' : '#000000',
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: '700',
           }}
           text2Style={{
             color: isDark ? colors.brandDark : '#000000',
-            fontSize: 14,
+            fontSize: 12.5,
           }}
         />
       </View>
@@ -155,9 +176,11 @@ function ThemedShell() {
       <AnimatedSplashOverlay />
       <SessionRevokedModal />
 
-      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.card }}>
-        <Header />
-      </SafeAreaView>
+      {!hideTabs && (
+        <SafeAreaView edges={['top']} style={{ backgroundColor: colors.card }}>
+          <Header />
+        </SafeAreaView>
+      )}
 
       <View style={{ flex: 1, paddingBottom: bottomInset }}>
         <Stack screenOptions={{ headerShown: false }}>

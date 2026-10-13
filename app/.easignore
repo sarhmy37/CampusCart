@@ -1,4 +1,15 @@
-﻿frontend/
+# Local dependencies and generated files
+node_modules/
+.expo/
+dist/
+build/
+android/
+ios/
+.git/
+.env*
 **/desktop.ini
-assets/hero/
-assets/campus/
+*.log
+
+# The app does not reference these videos.
+assets/hero/Servicess.mp4
+assets/hero/1,378 Old Salesman Selling Stock Videos and Royalty-Free Footage - iStock.mp4

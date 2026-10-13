@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { CheckBadgeIcon as BadgeCheck } from 'react-native-heroicons/outline';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { SETTINGS_VIDEO } from '@/data/media';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -24,6 +25,7 @@ import PasswordStrength, { isPasswordValid } from '@/components/PasswordStrength
 import StorePage from '@/app/seller/[id]';
 
 const BUYER_SERVICE_FEE_RATE = 2;
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -333,7 +335,7 @@ export default function SettingsScreen() {
           }}
         >
         {/* BUSINESS PROFILE */}
-        {isSeller && isPlanActive && (
+        {isSeller && (
           <Card colors={colors}>
             <View style={{ backgroundColor: colors.cardAlt, padding: 20, borderRadius: 16, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
                {/* Blurred avatar background — radial fade to hide the hard circular edge */}
@@ -415,7 +417,7 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-                 <Animated.View
+            <Animated.View
               style={{
                 height: bodyHeight > 0
                   ? bodyAnim.interpolate({ inputRange: [0, 1], outputRange: [0, bodyHeight] })
@@ -429,52 +431,56 @@ export default function SettingsScreen() {
                   if (bodyHeight === 0) setBodyHeight(e.nativeEvent.layout.height);
                 }}
               >
-            <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Store size={16} color={colors.brand} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Business Profile</AppText>
-                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Your storefront link</AppText>
-              </View>
-            </View>
+                <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Store size={16} color={colors.brand} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Business Profile</AppText>
+                    <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
+                      {isPlanActive ? 'Your storefront link' : 'Your public storefront'}
+                    </AppText>
+                  </View>
+                  <Pressable onPress={() => setShowStorePreview(true)}>
+                    <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>Preview →</AppText>
+                  </Pressable>
+                </View>
 
-            <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+                {isPlanActive && (
+                  <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TextInput value={businessProfileUrl} editable={false} style={[inputStyle, { flex: 1, fontSize: 15, color: colors.textMuted }]} />
-                <Pressable onPress={copyBusinessLink} style={{ padding: 12, borderRadius: 12, backgroundColor: colors.chipBg }}>
-                  <Copy size={16} color={colors.textSecondary} />
-                </Pressable>
-              </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TextInput value={businessProfileUrl} editable={false} style={[inputStyle, { flex: 1, fontSize: 15, color: colors.textMuted }]} />
+                      <Pressable onPress={copyBusinessLink} style={{ padding: 12, borderRadius: 12, backgroundColor: colors.chipBg }}>
+                        <Copy size={16} color={colors.textSecondary} />
+                      </Pressable>
+                    </View>
 
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 }}>
-                <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>Share on:</AppText>
-                <Pressable onPress={() => setShowStorePreview(true)}>
-                  <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>Preview →</AppText>
-                </Pressable>
-              </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <SocialBtn bg="#1877F2" label="f" onPress={() => shareOnSocial('facebook')} />
-                <SocialBtn bg={colors.text} label="X" textColor={colors.card} onPress={() => shareOnSocial('twitter')} />
-                <SocialBtn bg="#25D366" label="W" onPress={() => shareOnSocial('whatsapp')} />
-                <SocialBtn bg="#0A66C2" label="in" onPress={() => shareOnSocial('linkedin')} />
-                {socialsExpanded && (
-                  <>
-                    <SocialBtn bg="#26A5E4" label="Tg" onPress={() => shareOnSocial('telegram')} />
-                    <SocialBtn bg="#d62976" label="Ig" onPress={shareInstagram} />
-                    <SocialBtn bg="#FFFC00" label="Sc" textColor="#000" onPress={shareSnapchat} />
-                  </>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+                      <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>Share on:</AppText>
+                    </View>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      <SocialBtn bg="#1877F2" label="f" onPress={() => shareOnSocial('facebook')} />
+                      <SocialBtn bg={colors.text} label="X" textColor={colors.card} onPress={() => shareOnSocial('twitter')} />
+                      <SocialBtn bg="#25D366" label="W" onPress={() => shareOnSocial('whatsapp')} />
+                      <SocialBtn bg="#0A66C2" label="in" onPress={() => shareOnSocial('linkedin')} />
+                      {socialsExpanded && (
+                        <>
+                          <SocialBtn bg="#26A5E4" label="Tg" onPress={() => shareOnSocial('telegram')} />
+                          <SocialBtn bg="#d62976" label="Ig" onPress={shareInstagram} />
+                          <SocialBtn bg="#FFFC00" label="Sc" textColor="#000" onPress={shareSnapchat} />
+                        </>
+                      )}
+                      <Pressable onPress={() => setSocialsExpanded((v) => !v)} style={{ padding: 10, borderRadius: 8, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
+                        {socialsExpanded ? <ChevronLeft size={16} color={colors.textMuted} /> : <ChevronRight size={16} color={colors.textMuted} />}
+                      </Pressable>
+                    </View>
+
+                    <Pressable onPress={() => setShowHandlesModal(true)} style={{ marginTop: 12 }}>
+                      <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>+ Add your social handles</AppText>
+                    </Pressable>
+                  </View>
                 )}
-                <Pressable onPress={() => setSocialsExpanded((v) => !v)} style={{ padding: 10, borderRadius: 8, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
-                  {socialsExpanded ? <ChevronLeft size={16} color={colors.textMuted} /> : <ChevronRight size={16} color={colors.textMuted} />}
-                </Pressable>
-              </View>
-
-              <Pressable onPress={() => setShowHandlesModal(true)} style={{ marginTop: 12 }}>
-                <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>+ Add your social handles</AppText>
-              </Pressable>
-            </View>
               </View>
             </Animated.View>
           </Card>
@@ -495,7 +501,7 @@ export default function SettingsScreen() {
                   </AppText>
                 </View>
               </View>
-              <Toggle value={theme === 'dark'} onToggle={toggleTheme} colors={colors} />
+              <IOSToggle value={theme === 'dark'} onToggle={toggleTheme} colors={colors} />
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
@@ -505,7 +511,7 @@ export default function SettingsScreen() {
                   Show the draggable scrollbar on Browse
                 </AppText>
               </View>
-              <Toggle
+              <IOSToggle
                 value={scrollbarOn}
                 onToggle={() => {
                   const next = !scrollbarOn;
@@ -625,7 +631,7 @@ export default function SettingsScreen() {
                 <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>New listings</AppText>
                 <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Get notified when new items match your interests</AppText>
               </View>
-              <Toggle value={notifyListings} onToggle={() => setNotifyListings((v) => !v)} colors={colors} />
+              <IOSToggle value={notifyListings} onToggle={() => setNotifyListings((v) => !v)} colors={colors} />
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
@@ -633,7 +639,7 @@ export default function SettingsScreen() {
                 <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Messages</AppText>
                 <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Get notified when a buyer or seller messages you</AppText>
               </View>
-              <Toggle value={notifyMessages} onToggle={() => setNotifyMessages((v) => !v)} colors={colors} />
+              <IOSToggle value={notifyMessages} onToggle={() => setNotifyMessages((v) => !v)} colors={colors} />
             </View>
           </View>
         </Card>
@@ -989,21 +995,117 @@ function Card({ children, borderColor, colors }: { children: React.ReactNode; bo
   );
 }
 
-function Toggle({ value, onToggle, colors }: { value: boolean; onToggle: () => void; colors: any }) {
+// ─── Glassy iOS-style toggle ─────────────────────────────────────────
+// Track uses GlassView (same as SubmitButton / onboarding Next).
+// Knob is a CHILD of the GlassView so it sits inside the frosted
+// surface. Tint uses the app brand color (not iOS green). Falls back
+// to a solid pill on Android and older iOS.
+function IOSToggle({
+  value,
+  onToggle,
+  disabled,
+  colors,
+}: {
+  value: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  colors: any;
+}) {
+  const TRACK_W = 51;
+  const TRACK_H = 31;
+  const PAD = 2;
+  const KNOB = 27;
+  const TRAVEL = TRACK_W - KNOB - PAD * 2; // 20
+  const trackColor = value ? colors.brand : 'rgba(120,120,128,0.32)';
+
+  const trackFill = (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        borderRadius: 999,
+        backgroundColor: trackColor,
+      }}
+    />
+  );
+
+  const knob = (
+    <View
+      style={{
+        width: KNOB,
+        height: KNOB,
+        borderRadius: 999,
+        backgroundColor: '#ffffff',
+        marginLeft: value ? TRAVEL : 0,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.18,
+        shadowRadius: 4,
+        elevation: 3,
+      }}
+    />
+  );
+
   return (
     <Pressable
       onPress={onToggle}
+      disabled={disabled}
+      hitSlop={6}
       style={{
-        width: 44, height: 24, borderRadius: 12,
-        backgroundColor: value ? colors.brand : colors.chipBg,
-        justifyContent: 'center',
+        width: TRACK_W,
+        height: TRACK_H,
+        opacity: disabled ? 0.5 : 1,
+        borderRadius: 999,
+        overflow: 'hidden',
       }}
     >
-      <View style={{
-        width: 20, height: 20, borderRadius: 10, backgroundColor: 'white',
-        marginLeft: value ? 22 : 2,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2, elevation: 2,
-      }} />
+      {GLASS ? (
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          tintColor={trackColor}
+          style={{
+            width: TRACK_W,
+            height: TRACK_H,
+            borderRadius: 999,
+            overflow: 'hidden',
+            justifyContent: 'center',
+          }}
+        >
+          {trackFill}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: PAD,
+            }}
+          >
+            {knob}
+          </View>
+        </GlassView>
+      ) : (
+        <View
+          style={{
+            width: TRACK_W,
+            height: TRACK_H,
+            borderRadius: 999,
+            backgroundColor: trackColor,
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: PAD,
+            }}
+          >
+            {knob}
+          </View>
+        </View>
+      )}
     </Pressable>
   );
 }

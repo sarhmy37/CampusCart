@@ -183,7 +183,8 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
             )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Order #{d.order_id}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Order</Text>
+                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>#{d.order_id}</Text>
                 <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>Buyer: {d.buyer_name}</Text>
               </View>
               {d.delivered_at ? (
@@ -195,7 +196,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                   <Text style={{ fontSize: 11, fontWeight: '600', color: urgencyColor }}>
                     {d.delivery_method === 'delivery'
                       ? (totalSecLeft > 0 ? null : 'Overdue')
-                      : 'Awaiting pickup'}
+                      : 'Awaiting on-campus delivery'}
                   </Text>
                 </View>
               )}
@@ -213,7 +214,7 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                         {item.title} × {item.quantity}
                       </Text>
                       <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2, textTransform: 'capitalize' }}>
-                        Method: {d.delivery_method === 'delivery' ? 'Delivery' : 'Campus pickup'}
+                        Method: {d.delivery_method === 'delivery' ? 'Outside-campus delivery' : 'On-campus delivery'}
                       </Text>
                       {d.delivery_method === 'delivery' && !d.delivered_at && (
                         <Text style={{ fontSize: 12, color: urgencyColor, marginTop: 2, fontWeight: '700' }}>

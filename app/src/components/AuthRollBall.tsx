@@ -1,11 +1,34 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, PanResponder } from 'react-native';
+import { View, Text, PanResponder, Platform } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { useRouter, usePathname } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '@/hooks/useColors';
 
 const ITEM_W = 60;
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
+
+function EdgeFade({ children }: { children: React.ReactNode }) {
+  if (!GLASS) return <>{children}</>;
+  return (
+    <MaskedView
+      style={{ flex: 1 }}
+      maskElement={
+        <LinearGradient
+          colors={['transparent', '#000', '#000', 'transparent']}
+          locations={[0, 0.25, 0.75, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      }
+    >
+      {children}
+    </MaskedView>
+  );
+}
 
 export default function AuthRollBall({ startIndex = 0 }: { startIndex?: number }) {
   const colors = useColors();
@@ -76,10 +99,19 @@ export default function AuthRollBall({ startIndex = 0 }: { startIndex?: number }
         borderRadius: 10,
         borderWidth: 1,
         borderColor: colors.border,
-        backgroundColor: colors.cardAlt,
+        backgroundColor: GLASS ? 'transparent' : colors.cardAlt,
         overflow: 'hidden',
       }}
     >
+      {GLASS && (
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          pointerEvents="none"
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+      )}
+      <EdgeFade>
       <View style={{ flexDirection: 'row', height: '100%', transform: [{ translateX }] }}>
         {visible.map((i) => (
           <View key={i} style={{ width: ITEM_W, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
@@ -93,10 +125,11 @@ export default function AuthRollBall({ startIndex = 0 }: { startIndex?: number }
           </View>
         ))}
       </View>
+      </EdgeFade>
 
       {/* Left gradient + chevron */}
       <LinearGradient
-        colors={[colors.cardAlt, 'rgba(248,250,252,0)']}
+        colors={GLASS ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0)'] : [colors.cardAlt, 'rgba(248,250,252,0)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         pointerEvents="none"
@@ -115,7 +148,7 @@ export default function AuthRollBall({ startIndex = 0 }: { startIndex?: number }
 
       {/* Right gradient + chevron */}
       <LinearGradient
-        colors={['rgba(248,250,252,0)', colors.cardAlt]}
+        colors={GLASS ? ['rgba(0,0,0,0)', 'rgba(0,0,0,0)'] : ['rgba(248,250,252,0)', colors.cardAlt]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         pointerEvents="none"

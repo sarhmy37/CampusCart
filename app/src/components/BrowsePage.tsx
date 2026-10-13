@@ -14,7 +14,7 @@ import * as Location from 'expo-location';
 
 
 import {
-  X, Check, SlidersHorizontal, ChevronDown, ChevronRight, MapPin, Sparkles, CheckCircle, Search, ArrowLeft, ArrowRight, LayoutGrid, Tag, Rocket, Wifi, Loader2,
+  X, Check, SlidersHorizontal, ChevronDown, ChevronRight, MapPin, Sparkles, CheckCircle, Search, ArrowLeft, ArrowRight, LayoutGrid, Tag, Rocket, Wifi, Loader2, Wallet,
 } from 'lucide-react-native';
 import Svg, { Defs, Pattern, Line, Rect } from 'react-native-svg';
 import {
@@ -550,7 +550,7 @@ useEffect(() => {
   // Toggle the category sheet when the Categories tab is pressed again
   useEffect(() => {
     if (filter !== 'categories') return;
-    const unsub = navigation.addListener('tabPress', () => {
+    const unsub = (navigation as any).addListener('tabPress', () => {
       if (navigation.isFocused()) {
         setOpenSheet((prev) => (prev === 'category' ? null : 'category'));
       }
@@ -876,7 +876,7 @@ useEffect(() => {
     backgroundColor: active ? colors.brandSoft : colors.card,
   }}
 >
-  <Image source={n.logo} style={{ width: 24, height: 24, borderRadius: 6 }} contentFit="cover" />
+  <Image source={n.logo} style={{ width: 24, height: 24, borderRadius: 6 }} />
   <Text
     numberOfLines={1}
     style={{ flex: 1, fontSize: 13, fontWeight: active ? '700' : '600', color: active ? colors.brand : colors.text }}

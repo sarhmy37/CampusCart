@@ -496,7 +496,7 @@ useEffect(() => {
                   }}
                 >
                   <MenuItem
-                    icon={<PhotoIcon size={15} color={colors.text} />}
+                    icon={<ImageIcon size={15} color={colors.text} />}
                     label="Change wallpaper"
                     colors={colors}
 onPress={() => {
@@ -1081,7 +1081,7 @@ onPress={() => {
               onPress={handlePickFile}
             />
             <MenuItem
-              icon={<PhotoIcon size={16} color={colors.text} />}
+              icon={<ImageIcon size={16} color={colors.text} />}
               label="Picture"
               colors={colors}
               onPress={handlePickPicture}

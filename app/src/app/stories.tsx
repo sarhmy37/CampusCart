@@ -15,7 +15,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   Plus, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Eye, Sparkles, Star, Flame, Send, Play, Heart,
   MessageCircle, Repeat, Reply, MoreHorizontal, Maximize2, Download, Share2, Check, Pause, Archive,
-  Trash2, EyeOff, Ban, Flag, Pin, Rocket, Pencil,
+  Trash2, EyeOff, Ban, Flag, Pin, Rocket, Pencil, Volume2, VolumeX,
 } from 'lucide-react-native';
 import ProductCard from '@/components/ProductCard';
 import ServiceCard from '@/components/ServiceCard';
@@ -358,8 +358,8 @@ async function runExport(story: Story, kind: 'gallery' | 'share', ui: ExportUi, 
     });
     const res = await dl.downloadAsync();
     if (!res || res.status !== 200) {
-      const body = await FileSystem.readAsStringAsync(res.uri).catch(() => '');
-      throw new Error(`download ${res.status} ${body.slice(0, 120)}`);
+      const body = res ? await FileSystem.readAsStringAsync(res.uri).catch(() => '') : '';
+      throw new Error(`download ${res?.status ?? 'failed'} ${body.slice(0, 120)}`);
     }
     ui.busy(null);
     if (kind === 'gallery') {
@@ -519,11 +519,11 @@ const { openChat, sendQuickMessage } = useChat();
   useEffect(() => {
     if (filterOpen) filterDrag.translateY.setValue(0);
   }, [filterOpen]);
+  const [reelStyleOpen, setReelStyleOpen] = useState(false);
   const reelDrag = useSheetDrag(() => setReelStyleOpen(false));
   useEffect(() => {
     if (reelStyleOpen) reelDrag.translateY.setValue(0);
   }, [reelStyleOpen]);
-  const [reelStyleOpen, setReelStyleOpen] = useState(false);
   const [feedTab, setFeedTab] = useState<'all' | 'following' | 'foryou'>('foryou');
   const [tabsY, setTabsY] = useState(0);
   const tabsYRef = useRef(0);
@@ -624,11 +624,36 @@ const { openChat, sendQuickMessage } = useChat();
     });
   };
 
-  const collapseProgress = scrollY.interpolate({
-    inputRange: [0, COLLAPSE_SCROLL_DISTANCE],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  const collapseProgress = useRef(new Animated.Value(0)).current;
+  const progressRef = useRef(0);
+  const targetRef = useRef(0);
+  const anchorRef = useRef({ p: 0, y: 0 });
+  const settleAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const settlingRef = useRef(false);
+
+  useEffect(() => {
+    const id = collapseProgress.addListener(({ value }) => {
+      progressRef.current = value;
+      setCirclesExpanded(value <= 0.01);
+      setRingOverlayInteractive(value >= 0.98);
+    });
+    return () => collapseProgress.removeListener(id);
+  }, []);
+
+  const animateCollapse = (to: number, duration = 180) => {
+    settleAnimRef.current?.stop();
+    settleAnimRef.current = Animated.timing(collapseProgress, {
+      toValue: to,
+      duration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    settlingRef.current = true;
+    settleAnimRef.current.start(({ finished }) => {
+      settlingRef.current = false;
+      if (finished) anchorRef.current = { p: to, y: lastScrollYRef.current };
+    });
+  };
 
   // How much of the ring row's own horizontal scroll should still nudge the
   // overlay circles — full effect while expanded, fading to none as they
@@ -640,6 +665,7 @@ const { openChat, sendQuickMessage } = useChat();
   });
 
   const [ringOverlayInteractive, setRingOverlayInteractive] = useState(false);
+  const [circlesExpanded, setCirclesExpanded] = useState(true);
 
   // ── Scroll-to-top button ──
   const TOP_BTN_THRESHOLD = 800; // px scrolled before the button is ever allowed to show
@@ -677,6 +703,18 @@ const { openChat, sendQuickMessage } = useChat();
       listener: (e: any) => {
         const y = e.nativeEvent.contentOffset.y;
         lastScrollYRef.current = y;
+        if (settlingRef.current) {
+          settleAnimRef.current?.stop();
+          anchorRef.current = { p: progressRef.current, y };
+        }
+        const D = COLLAPSE_SCROLL_DISTANCE;
+        if (y <= 0) anchorRef.current = { p: 0, y: 0 };
+        else if (y >= D) anchorRef.current = { p: 1, y: D };
+        const a = anchorRef.current;
+        const p = a.p === 1
+          ? (y >= a.y ? 1 : y / a.y)
+          : (y <= a.y ? 0 : (y - a.y) / (D - a.y));
+        collapseProgress.setValue(Math.min(1, Math.max(0, p)));
         const lockY = tabsYRef.current - 14;
         if (reelStyle === 'vertical' && tabsYRef.current > 0) {
           setTabsPinned(y >= lockY);
@@ -685,7 +723,6 @@ const { openChat, sendQuickMessage } = useChat();
         if (Object.keys(pinnedLatestRef.current).length > 0 && Math.abs(y - pinScrollYRef.current) > 600) releasePins();
         const { contentSize, layoutMeasurement } = e.nativeEvent;
         if (y + layoutMeasurement.height >= contentSize.height - 600) loadMoreExplore();
-        setRingOverlayInteractive(y >= COLLAPSE_SCROLL_DISTANCE - 2);
         if (y > TOP_BTN_THRESHOLD) showTopBtn();
         else hideTopBtn();
 
@@ -715,14 +752,9 @@ const { openChat, sendQuickMessage } = useChat();
   const SNAP_EXPAND_AT = 0.4;   // 40% away from fully expanded
 
   const snapHeaderIfNeeded = () => {
-    const y = lastScrollYRef.current;
-    if (y <= 0 || y >= COLLAPSE_SCROLL_DISTANCE) return;
-    const progress = y / COLLAPSE_SCROLL_DISTANCE;
-    const target =
-      progress >= SNAP_COLLAPSE_AT ? COLLAPSE_SCROLL_DISTANCE :
-      progress <= SNAP_EXPAND_AT ? 0 : null;
-    if (target === null) return;
-    mainScrollRef.current?.scrollTo({ y: target, animated: true });
+    const p = progressRef.current;
+    if (p <= 0.001 || p >= 0.999) return;
+    animateCollapse(p >= 0.5 ? 1 : 0);
   };
 
   const scheduleSnapCheck = () => {
@@ -772,6 +804,10 @@ const hasYouSlot = true;
   );
   const [boostedProducts, setBoostedProducts] = useState<any[]>([]);
   const [spotlightSeller, setSpotlightSeller] = useState<any>(null);
+  const sellerDrag = useSheetDrag(() => setSpotlightSeller(null));
+  useEffect(() => {
+    if (spotlightSeller) sellerDrag.translateY.setValue(0);
+  }, [!!spotlightSeller]);
 
   // Picks one of the old badge words as the section title.
   const spotlightWord = useMemo(() => {
@@ -808,11 +844,12 @@ const hasYouSlot = true;
   activeGroupIndexRef.current = activeGroupIndex;
 
   // stop any playing feed video when leaving this screen / switching tabs
-  useFocusEffect(
-    useCallback(() => {
-      return () => { currentFeedStop?.(); releasePins(); };
-    }, [])
-  );
+useFocusEffect(
+  useCallback(() => {
+    setScreenFocused(true);
+    return () => { setScreenFocused(false); currentFeedStop?.(); releasePins(); };
+  }, [])
+);
 
   useEffect(() => {
     if (activeGroupIndex === null) setViewerSource('story');
@@ -1171,6 +1208,8 @@ const hasYouSlot = true;
   totalExploreRef.current = reelStyle === 'vertical' ? feedItems.length : exploreStatusItems.length;
   const tabsLockY = tabsY - 14;
 
+  const [screenFocused, setScreenFocused] = useState(true);
+
   if (loading) {
     return <StoriesSkeleton colors={colors} />;
   }
@@ -1273,12 +1312,12 @@ const hasYouSlot = true;
                   circles that are actually rendered in the header overlay below,
                   so nothing jumps and the real circles are the only instances. */}
               {collapsibleGroups.map((group, index) => (
-                <Animated.View key={group.user_id} style={{ opacity: rowContentOpacity }}>
+                <Animated.View key={`${group.user_id}-${index}`} style={{ opacity: rowContentOpacity }}>
                   <Pressable
                     onPress={() => openGroup(groups.indexOf(group))}
                     style={{ alignItems: 'center', width: RING_SIZE }}
                   >
-                    <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => s.viewed)} colors={colors} segments={group.stories.length} group={group}>
+                    <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group}>
                       {group.user_avatar ? (
                         <Image
                           source={{ uri: group.user_avatar }}
@@ -1312,7 +1351,7 @@ const hasYouSlot = true;
                       onPress={() => openGroup(groups.indexOf(group))}
                       style={{ alignItems: 'center', width: RING_SIZE }}
                     >
-                      <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => s.viewed)} colors={colors} segments={group.stories.length} group={group}>
+                      <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group}>
                         {group.user_avatar ? (
                           <Image
                             source={{ uri: group.user_avatar }}
@@ -1401,7 +1440,7 @@ const hasYouSlot = true;
               >
                 <Animated.View style={{ transform: [{ scale }] }}>
                   <Pressable onPress={() => openGroup(groups.indexOf(group))}>
-                    <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => s.viewed)} colors={colors} segments={group.stories.length} group={group}>
+                    <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group}>
                       {group.user_avatar ? (
                         <Image
                           source={{ uri: group.user_avatar }}
@@ -1465,7 +1504,7 @@ const hasYouSlot = true;
                   )}
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                      {reelStyle === 'vertical' ? 'Feed' : 'Following'}
+                      {reelStyle === 'vertical' ? 'Feed' : (sortedStatusItems.some((i: any) => i.group.is_following) ? 'Following' : 'For You')}
                     </Text>
                     {reelStyle === 'vertical' && (
                       <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
@@ -1518,11 +1557,6 @@ const hasYouSlot = true;
                   />
                 ))}
               </ScrollView>
-              {reelStyle !== 'vertical' && !sortedStatusItems.some((i: any) => i.group.is_following) && (
-                <Text style={{ fontSize: 15, color: colors.textMuted, paddingHorizontal: 16, marginTop: 4 }}>
-                  Follow people to see their stories here
-                </Text>
-              )}
             </View>
           )}
 
@@ -1548,7 +1582,7 @@ const hasYouSlot = true;
                     </Text>
                   </View>
                 </View>
-                <BoostedCarousel items={boostedProducts} onLock={setMainScrollLocked} />
+                <BoostedCarousel items={boostedProducts} onLock={setMainScrollLocked} hapticsOn={circlesExpanded} />
               </View>
               <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
                 <InsetShadow direction="up" />
@@ -1584,7 +1618,7 @@ const hasYouSlot = true;
                   onOpen={(storyIndex) => goToStory(item.groupIndex, storyIndex, 'spotlight')}
                   onLike={(story) => toggleFeedLike(story)}
                   onRepost={(story) => toggleFeedRepost(story)}
-                  viewerOpen={activeGroupIndex !== null}
+                  viewerOpen={activeGroupIndex !== null || !screenFocused}
                   onView={(story) => markViewed(story)}
                   onComments={(story) => story.comments_off && String(story.user_id) !== String(user?.id)
                     ? Toast.show({ type: 'error', text1: 'Comments are turned off' })
@@ -1607,18 +1641,20 @@ const hasYouSlot = true;
           )}
 
           {/* Explore — 2-column grid, 10 rows */}
-          <View style={{ marginTop: 28, paddingHorizontal: 16, display: reelStyle === 'vertical' ? 'none' : 'flex' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                  For You
-                </Text>
+          <View style={{ marginTop: 28, paddingHorizontal: 8, display: reelStyle === 'vertical' ? 'none' : 'flex' }}>
+            {sortedStatusItems.some((i: any) => i.group.is_following) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                    For You
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                             {exploreStatusItems.slice(0, visibleCount).map((item: any) => (
-                <View key={item.id} style={{ width: (SCREEN_WIDTH - 16 * 2 - 12) / 2 }}>
+                <View key={item.id} style={{ width: (SCREEN_WIDTH - 8 * 2 - 8) / 2 }}>
                   <ExploreStoryCard item={item} onPress={() => goToStory(item.groupIndex, 0)} />
                 </View>
               ))}
@@ -1866,6 +1902,7 @@ const hasYouSlot = true;
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
           onPress={() => setSpotlightSeller(null)}
         >
+          <Animated.View style={{ transform: [{ translateY: sellerDrag.translateY }] }}>
           <Pressable
             onPress={() => {}}
             style={{
@@ -1874,7 +1911,9 @@ const hasYouSlot = true;
               paddingTop: 12, paddingBottom: insets.bottom + 16,
             }}
           >
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 14 }} />
+            <View {...sellerDrag.panHandlers} style={{ paddingTop: 12, paddingBottom: 14, marginTop: -12 }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+            </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 12 }}>
               <View style={{ width: 40, height: 40, borderRadius: 20, overflow: 'hidden', backgroundColor: colors.chipBg }}>
@@ -1924,6 +1963,7 @@ const hasYouSlot = true;
               ))}
             </ScrollView>
           </Pressable>
+          </Animated.View>
         </Pressable>
       </Modal>
 
@@ -2331,7 +2371,7 @@ function ExploreStoryCard({ item, onPress }: { item: any; onPress: () => void })
   return (
     <Pressable
       onPress={onPress}
-      style={{ width: '100%', aspectRatio: 0.72, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1f1f23' }}
+      style={{ width: '100%', aspectRatio: 0.62, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1f1f23' }}
     >
       {story.media_type === 'video' ? (
         <ExploreStoryVideoThumb uri={story.media_url} crop={story.crop} />
@@ -2391,12 +2431,13 @@ function StoryGroupPreview({ group }: { group?: StoryGroup }) {
       {cover.media_type === 'video' ? (
         <View style={{ flex: 1, backgroundColor: '#000' }} />
       ) : (
-        <Image source={{ uri: cover.media_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        <Image source={{ uri: cover.media_url }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
       )}
     </View>
   );
 }
 
+// ─── FEED POST (one post per person, swipe sideways through their stories) ───
 // ─── FEED POST (one post per person, swipe sideways through their stories) ───
 function FeedPost({
   item, colors, onOpen, onLike, onChat, isOwn, scrollY, onComments, onExport, onRepost, viewerOpen, onOpenProfile, onFollow, onView,
@@ -2442,7 +2483,9 @@ function FeedPost({
       setRepostersOpen(true);
     });
   };
+  const [inFocus, setInFocus] = useState(false);
   const [scrolledAway, setScrolledAway] = useState(false);
+  const [muted, setMuted] = useState(true);
   const postRef = useRef<View>(null);
   const awayCheckRef = useRef(0);
   const [burst, setBurst] = useState<{ id: number; x: number; y: number } | null>(null);
@@ -2462,18 +2505,30 @@ function FeedPost({
     return () => scrollY.removeListener(id);
   }, [expanded]);
 
-  // stop (and rewind) the playing video once the post is scrolled away
+  // a post is "in focus" when its centre sits in the middle band of the screen,
+  // so only one post can ever qualify at a time
   useEffect(() => {
+    let trailing: any;
+    const measure = () => {
+      postRef.current?.measureInWindow((_x, y, _w, h) => {
+        if (!h) return;
+        const center = y + h / 2;
+        setInFocus(center > SCREEN_HEIGHT * 0.3 && center < SCREEN_HEIGHT * 0.7);
+        setScrolledAway(y + h < -50 || y > SCREEN_HEIGHT + 50);
+      });
+    };
     const id = scrollY.addListener(() => {
       const now = Date.now();
-      if (now - awayCheckRef.current < 120) return;
-      awayCheckRef.current = now;
-      postRef.current?.measureInWindow((_x, y, _w, _h) => {
-        setScrolledAway(y < -100 || y > SCREEN_HEIGHT - 100);
-      });
+      if (now - awayCheckRef.current >= 100) { awayCheckRef.current = now; measure(); }
+      clearTimeout(trailing);
+      trailing = setTimeout(measure, 150); // catches the final resting position
     });
-    return () => scrollY.removeListener(id);
+    const init = setTimeout(measure, 300);   // initial check, no scroll needed
+    return () => { scrollY.removeListener(id); clearTimeout(trailing); clearTimeout(init); };
   }, []);
+
+  // each time a video scrolls away, it starts muted again next time
+  useEffect(() => { if (scrolledAway) setMuted(true); }, [scrolledAway]);
 
   return (
     <View ref={postRef} collapsable={false} style={{ paddingTop: 20 }}>
@@ -2505,7 +2560,7 @@ function FeedPost({
             <PlanBadge plan={group.user_plan} size={14} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ fontSize: 16, color: colors.textMuted }}>·</Text>
-              <ChartBarIcon size={14} color={colors.textMuted} />
+              <Play size={14} color={colors.textMuted} />
               <Text style={{ fontSize: 16, color: colors.textMuted }}>{formatCount(story.view_count ?? 0)}</Text>
             </View>
           </View>
@@ -2515,7 +2570,7 @@ function FeedPost({
               <Text
                 numberOfLines={expanded ? undefined : 1}
                 ellipsizeMode="tail"
-                style={{ fontSize: 16, lineHeight: 20, color: colors.text, marginTop: 2 }}
+                style={{ fontSize: 16, lineHeight: 20, color: colors.textMuted, marginTop: 2 }}
               >
                 {story.caption}
               </Text>
@@ -2542,12 +2597,21 @@ function FeedPost({
           nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / mediaW))}
-          onScrollBeginDrag={() => currentFeedStop?.()}
         >
           {stories.map((s, i) =>
             s.media_type === 'video' ? (
               <View key={s.id} style={{ width: mediaW, height: fullH }}>
-                <FeedVideo uri={s.media_url} crop={s.crop} active={i === activeIdx && !viewerOpen} scrolledAway={i === activeIdx && scrolledAway} onDoubleTap={doubleLike} onPlay={() => onView(s)} />
+                <FeedVideo
+                  uri={s.media_url}
+                  crop={s.crop}
+                  active={i === activeIdx}
+                  shouldPlay={inFocus && !viewerOpen}
+                  muted={muted}
+                  scrolledAway={i === activeIdx && scrolledAway}
+                  onTap={() => onOpen(i)}
+                  onDoubleTap={doubleLike}
+                  onPlay={() => onView(s)}
+                />
               </View>
             ) : (
               <View key={s.id} style={{ width: mediaW, height: fullH }}>
@@ -2558,6 +2622,22 @@ function FeedPost({
         </ScrollView>
 
         <HeartBurst burst={burst} />
+
+        {story.media_type === 'video' && (
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMuted((m) => !m); }}
+            hitSlop={8}
+            style={{
+              position: 'absolute', top: 10, left: 10,
+              backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999,
+              paddingHorizontal: 11, paddingVertical: 7,
+            }}
+          >
+            {muted
+              ? <VolumeX size={14} color="#fff" strokeWidth={2.4} />
+              : <Volume2 size={14} color="#fff" strokeWidth={2.4} />}
+          </Pressable>
+        )}
 
         <View
           style={{
@@ -2634,7 +2714,7 @@ function FeedPost({
                 {group.is_seller && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <Pressable
-                      onPress={() => router.push({ pathname: `/seller/${group.user_id}`, params: { fromStory: '1', sellerName: group.user_name } })}
+                      onPress={() => router.push({ pathname: `/seller/${group.user_id}`, params: { fromStory: '1', sellerName: group.user_name } } as any)}
                       hitSlop={8}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
                     >
@@ -2815,7 +2895,7 @@ function useDoubleTap(onSingle: () => void, onDouble: (x: number, y: number) => 
 
 function HeartBurst({ burst }: { burst: { id: number; x: number; y: number } | null }) {
   const hearts = useRef(
-    Array.from({ length: 9 }, () => ({
+    Array.from({ length: 3 }, () => ({
       v: new Animated.Value(0),
       dx: (Math.random() - 0.5) * 160,
       jitter: (Math.random() - 0.5) * 60,
@@ -2866,76 +2946,75 @@ function FeedImage({ uri, onOpen, onDoubleTap }: { uri: string; onOpen: () => vo
   );
 }
 
-function FeedVideo({ uri, crop, active, scrolledAway, onDoubleTap, onPlay }: { uri: string; crop?: VideoCropT | null; active: boolean; scrolledAway?: boolean; onDoubleTap?: (x: number, y: number) => void; onPlay?: () => void }) {
-  const player = useVideoPlayer({ uri, useCaching: true }, (p) => { p.loop = true; });
-  const [playing, setPlaying] = useState(false);
-  const [showIcon, setShowIcon] = useState(true);
-  const timerRef = useRef<any>(null);
+function FeedVideo({
+  uri, crop, active, shouldPlay, muted, scrolledAway, onTap, onDoubleTap, onPlay,
+}: {
+  uri: string; crop?: VideoCropT | null;
+  active: boolean;          // this is the story currently showing in the post
+  shouldPlay: boolean;      // the post is in the focus zone of the screen
+  muted: boolean;
+  scrolledAway?: boolean;
+  onTap?: () => void;
+  onDoubleTap?: (x: number, y: number) => void;
+  onPlay?: () => void;
+}) {
+  // The player is created as soon as the post mounts, so the video is
+  // already buffering (preloaded) long before it scrolls into view.
+  const player = useVideoPlayer({ uri, useCaching: true }, (p) => {
+    p.loop = true;
+    p.muted = true;
+  });
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+  const playingRef = useRef(false);
+  const countedRef = useRef(false);
 
   const stop = () => {
-    clearTimeout(timerRef.current);
     try { player.pause(); } catch {}
-    setPlaying(false);
-    setShowIcon(true);
+    playingRef.current = false;
   };
   const stopRef = useRef(stop);
   stopRef.current = stop;
   const stable = useRef(() => stopRef.current()).current;
 
-  const toggle = () => {
-    clearTimeout(timerRef.current);
-    if (playing) {
-      stop();
-    } else {
+  useEffect(() => { try { player.muted = muted; } catch {} }, [muted, player]);
+
+  const wantPlay = active && shouldPlay && appActive;
+  useEffect(() => {
+    if (wantPlay) {
       if (currentFeedStop && currentFeedStop !== stable) currentFeedStop();
       currentFeedStop = stable;
-      player.play();
-      onPlay?.();
-      setPlaying(true);
-      setShowIcon(true);
-      timerRef.current = setTimeout(() => setShowIcon(false), 1500);
+      try { player.play(); } catch {}
+      playingRef.current = true;
+      if (!countedRef.current) { countedRef.current = true; onPlay?.(); }
+    } else if (playingRef.current) {
+      stop();
+      if (currentFeedStop === stable) currentFeedStop = null;
     }
-  };
+  }, [wantPlay]);
 
-  const tap = useDoubleTap(toggle, (x, y) => onDoubleTap?.(x, y));
-
-  // pause when swiped to another story or the full-screen viewer opens
-  useEffect(() => {
-    if (!active && playing) stop();
-  }, [active]);
-
-  // pause and rewind when the post is scrolled out of view
+  // fully scrolled out of view: rewind so it starts from the top next time
   useEffect(() => {
     if (!scrolledAway) return;
-    clearTimeout(timerRef.current);
     try { player.pause(); } catch {}
     try { player.currentTime = 0; } catch {}
-    setPlaying(false);
-    setShowIcon(true);
+    playingRef.current = false;
   }, [scrolledAway]);
 
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => setAppActive(s === 'active'));
+    return () => sub.remove();
+  }, []);
+
   useEffect(() => () => {
-    clearTimeout(timerRef.current);
     if (currentFeedStop === stable) currentFeedStop = null;
   }, []);
 
-    useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => {
-      if (s !== 'active') stopRef.current();
-    });
-    return () => sub.remove();
-  }, []);
+  // single tap -> open full screen, double tap -> like
+  const tap = useDoubleTap(() => onTap?.(), (x, y) => onDoubleTap?.(x, y));
 
   return (
     <Pressable onPress={tap} style={{ width: '100%', height: '100%' }}>
       <CroppedVideoView player={player} crop={crop} />
-      {showIcon && (
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
-            {playing ? <Pause size={28} color="#fff" fill="#fff" /> : <Play size={28} color="#fff" fill="#fff" />}
-          </View>
-        </View>
-      )}
     </Pressable>
   );
 }
@@ -3095,7 +3174,9 @@ function BoostCard({ item, onPress }: { item: any; onPress: () => void }) {
   );
 }
 
-function BoostedCarousel({ items, onLock }: { items: any[]; onLock?: (locked: boolean) => void }) {
+function BoostedCarousel({ items, onLock, hapticsOn = true }: { items: any[]; onLock?: (locked: boolean) => void; hapticsOn?: boolean }) {
+  const hapticsOnRef = useRef(hapticsOn);
+  hapticsOnRef.current = hapticsOn;
   useEffect(() => () => onLock?.(false), []);
   const router = useRouter();
   const n = items.length;
@@ -3131,7 +3212,7 @@ function BoostedCarousel({ items, onLock }: { items: any[]; onLock?: (locked: bo
       listener: (e: any) => {
         const i = Math.max(0, Math.min(data.length - 1, Math.round(e.nativeEvent.contentOffset.x / BOOST_STEP)));
         if (i !== activeRef.current) {
-          if (i % n !== activeRef.current % n) Haptics.selectionAsync();
+          if (hapticsOnRef.current && i % n !== activeRef.current % n) Haptics.selectionAsync();
           activeRef.current = i;
           setActive(i);
         }
@@ -3487,6 +3568,14 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
   const [repliesById, setRepliesById] = useState<Record<string, any[]>>({});
   const [repliesLoading, setRepliesLoading] = useState<Record<string, boolean>>({});
   const sheetDrag = useSheetDrag(() => setCommentsOpen(false));
+  const reportDrag = useSheetDrag(() => setReportOpen(false));
+  const editDrag = useSheetDrag(() => setEditOpen(false));
+  useEffect(() => {
+    if (editOpen) editDrag.translateY.setValue(0);
+  }, [editOpen]);
+  useEffect(() => {
+    if (reportOpen && reportStep === 'reasons') reportDrag.translateY.setValue(0);
+  }, [reportOpen, reportStep]);
   useEffect(() => {
     if (commentsOpen) sheetDrag.translateY.setValue(0);
   }, [commentsOpen]);
@@ -3744,25 +3833,25 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
     extrapolate: 'clamp',
   });
 
-    const HALF = SCREEN_WIDTH / 2;
-  const SQ_W = SCREEN_WIDTH * 0.88;
-  const SQ_H = SCREEN_HEIGHT * 0.88;
-  const SQ_R = 32;
-  // current story: full screen -> rounded square
-  const curW = translateX.interpolate({ inputRange: [-HALF, 0, HALF], outputRange: [SQ_W, SCREEN_WIDTH, SQ_W], extrapolate: 'clamp' });
-  const curH = translateX.interpolate({ inputRange: [-HALF, 0, HALF], outputRange: [SQ_H, SCREEN_HEIGHT, SQ_H], extrapolate: 'clamp' });
-  const curR = translateX.interpolate({ inputRange: [-HALF, 0, HALF], outputRange: [SQ_R, 0, SQ_R], extrapolate: 'clamp' });
-  const curOpacity = translateX.interpolate({ inputRange: [-HALF, -HALF * 0.85, 0, HALF * 0.85, HALF], outputRange: [0, 1, 1, 1, 0], extrapolate: 'clamp' });
-  // incoming story: rounded square -> full screen
-  const nextW = translateX.interpolate({ inputRange: [-SCREEN_WIDTH, -HALF], outputRange: [SCREEN_WIDTH, SQ_W], extrapolate: 'clamp' });
-  const nextH = translateX.interpolate({ inputRange: [-SCREEN_WIDTH, -HALF], outputRange: [SCREEN_HEIGHT, SQ_H], extrapolate: 'clamp' });
-  const nextR = translateX.interpolate({ inputRange: [-SCREEN_WIDTH, -HALF], outputRange: [0, SQ_R], extrapolate: 'clamp' });
-  const nextOpacity = translateX.interpolate({ inputRange: [-HALF, -HALF * 0.85], outputRange: [1, 0], extrapolate: 'clamp' });
-  const prevW = translateX.interpolate({ inputRange: [HALF, SCREEN_WIDTH], outputRange: [SQ_W, SCREEN_WIDTH], extrapolate: 'clamp' });
-  const prevH = translateX.interpolate({ inputRange: [HALF, SCREEN_WIDTH], outputRange: [SQ_H, SCREEN_HEIGHT], extrapolate: 'clamp' });
-  const prevR = translateX.interpolate({ inputRange: [HALF, SCREEN_WIDTH], outputRange: [SQ_R, 0], extrapolate: 'clamp' });
-  const prevOpacity = translateX.interpolate({ inputRange: [HALF * 0.85, HALF], outputRange: [0, 1], extrapolate: 'clamp' });
-  useLayoutEffect(() => {
+   const HALF = SCREEN_WIDTH / 2;
+  const SIDE_SCALE = 0.86;
+  const SQ_R = 28;
+  const FULL = SCREEN_WIDTH;
+  // current story: drifts a little, shrinks, rounds, fades
+  const curShiftX = translateX.interpolate({ inputRange: [-FULL, 0, FULL], outputRange: [-FULL * 0.35, 0, FULL * 0.35], extrapolate: 'clamp' });
+  const curScale = translateX.interpolate({ inputRange: [-FULL, 0, FULL], outputRange: [SIDE_SCALE, 1, SIDE_SCALE], extrapolate: 'clamp' });
+  const curR = translateX.interpolate({ inputRange: [-FULL, 0, FULL], outputRange: [SQ_R, 0, SQ_R], extrapolate: 'clamp' });
+  const curOpacity = translateX.interpolate({ inputRange: [-FULL, -HALF, 0, HALF, FULL], outputRange: [0, 0.6, 1, 0.6, 0], extrapolate: 'clamp' });
+  // incoming (next) story: slides in from the right while scaling up
+  const nextShiftX = translateX.interpolate({ inputRange: [-FULL, 0], outputRange: [0, FULL], extrapolate: 'clamp' });
+  const nextScale = translateX.interpolate({ inputRange: [-FULL, 0], outputRange: [1, SIDE_SCALE], extrapolate: 'clamp' });
+  const nextR = translateX.interpolate({ inputRange: [-FULL, 0], outputRange: [0, SQ_R], extrapolate: 'clamp' });
+  const nextOpacity = translateX.interpolate({ inputRange: [-FULL, -HALF, 0], outputRange: [1, 0.7, 0], extrapolate: 'clamp' });
+  // incoming (previous) story: slides in from the left while scaling up
+  const prevShiftX = translateX.interpolate({ inputRange: [0, FULL], outputRange: [-FULL, 0], extrapolate: 'clamp' });
+  const prevScale = translateX.interpolate({ inputRange: [0, FULL], outputRange: [SIDE_SCALE, 1], extrapolate: 'clamp' });
+  const prevR = translateX.interpolate({ inputRange: [0, FULL], outputRange: [SQ_R, 0], extrapolate: 'clamp' });
+  const prevOpacity = translateX.interpolate({ inputRange: [0, HALF, FULL], outputRange: [0, 0.7, 1], extrapolate: 'clamp' });  useLayoutEffect(() => {
     translateX.setValue(0);
   }, [group.user_id]);
 
@@ -4166,8 +4255,9 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
       >
         <Animated.View
           style={{
-            position: 'absolute', width: prevW, height: prevH, borderRadius: prevR,
+            position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: prevR,
             opacity: prevOpacity, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+            transform: [{ translateX: prevShiftX }, { scale: prevScale }],
           }}
         >
           <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
@@ -4176,8 +4266,9 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
         </Animated.View>
         <Animated.View
           style={{
-            position: 'absolute', width: nextW, height: nextH, borderRadius: nextR,
+            position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: nextR,
             opacity: nextOpacity, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+            transform: [{ translateX: nextShiftX }, { scale: nextScale }],
           }}
         >
           <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
@@ -4189,8 +4280,9 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
       <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View
         style={{
-          width: curW, height: curH, borderRadius: curR, opacity: curOpacity,
+          width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: curR, opacity: curOpacity,
           overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+          transform: [{ translateX: curShiftX }, { scale: curScale }],
         }}
       >
       <AnimatedKeyboardAvoidingView
@@ -4232,16 +4324,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
 
           {!!story.text_overlay && <ViewerTextOverlay overlay={story.text_overlay} />}
 
-          {!mediaReady && (
-            <View
-              style={{
-                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <ActivityIndicator color="#fff" size="large" />
-            </View>
-          )}
+          {!mediaReady && <DelayedLoader key={story.id} delay={500} />}
 
           {/* ── Horizontal (stories) mode: top bars + header ── */}
           {!isVertical && (
@@ -4427,10 +4510,10 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
 {keyboardHeight === 0 && (
   <View style={{ position: 'absolute', right: 12, bottom: 16, alignItems: 'center', gap: 20 }}>
     {/* Avatar + follow badge */}
-    <View style={{ marginBottom: 14, width: 48, height: 48 }}>
+    <View style={{ marginBottom: 14, width: 38, height: 38 }}>
       <View
         style={{
-          width: 48, height: 48, borderRadius: 24, overflow: 'hidden',
+          width: 38, height: 38, borderRadius: 19, overflow: 'hidden',
           borderWidth: 2, borderColor: '#fff', backgroundColor: colors.chipBg,
           alignItems: 'center', justifyContent: 'center',
         }}
@@ -4438,7 +4521,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
         {group.user_avatar ? (
           <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
         ) : (
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.brand }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand }}>
             {group.user_name?.[0]?.toUpperCase() || '?'}
           </Text>
         )}
@@ -4508,8 +4591,6 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
   )}
 </View>
 
-                                <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={12} />
-
                 {!!story.caption && (
                   <Text
                     numberOfLines={2}
@@ -4521,6 +4602,8 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
                     {story.caption}
                   </Text>
                 )}
+
+                                <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={12} />
               </View>
 
               {/* Segmented thin progress line */}
@@ -4743,7 +4826,10 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
           onPress={() => setEditOpen(false)}
           style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
         />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: insets.bottom + 20 }}>
+        <Animated.View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingTop: 12, paddingBottom: insets.bottom + 20, transform: [{ translateY: editDrag.translateY }] }}>
+          <View {...editDrag.panHandlers} style={{ paddingTop: 8, paddingBottom: 14 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+          </View>
           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 12 }}>Edit caption</Text>
           <TextInput
             value={captionDraft}
@@ -4764,7 +4850,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
               <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textOnGold }}>{savingCaption ? 'Saving...' : 'Save'}</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
 
@@ -4774,18 +4860,31 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
           onPress={() => setReportOpen(false)}
           style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
         />
-        <View
+        <Animated.View
           style={{
             backgroundColor: colors.card,
             borderTopLeftRadius: 28, borderTopRightRadius: 28,
             paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 20,
+            transform: [{ translateY: reportDrag.translateY }],
           }}
         >
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 16 }} />
-          <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Report this post</Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, marginBottom: 8 }}>
-            Why are you reporting it?
-          </Text>
+          <View {...reportDrag.panHandlers} style={{ paddingTop: 12, paddingBottom: 16, marginTop: -12 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Report this post</Text>
+              <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, marginBottom: 8 }}>
+                Why are you reporting it?
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setReportStep('menu')}
+              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.brand }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>Back</Text>
+            </Pressable>
+          </View>
           {REPORT_REASONS.map((r, i) => (
             <Pressable
               key={r}
@@ -4799,7 +4898,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
               <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text }}>{r}</Text>
             </Pressable>
           ))}
-        </View>
+        </Animated.View>
       </View>
     )}
 
@@ -5034,6 +5133,26 @@ function GapFill({ aspect, render }: { aspect: number | null; render: () => Reac
           </View>
         </>
       )}
+    </View>
+  );
+}
+
+// Spinner that only appears if loading takes longer than a moment
+function DelayedLoader({ delay = 300 }: { delay?: number }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(true), delay);
+    return () => clearTimeout(t);
+  }, []);
+  if (!show) return null;
+  return (
+    <View
+      style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <ActivityIndicator color="#fff" size="large" />
     </View>
   );
 }
@@ -5460,6 +5579,7 @@ function ExportSheet({
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const drag = useSheetDrag(onClose);
   const noWatermark = !!(user?.plan === 'premium' &&
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date());
 
@@ -5474,15 +5594,18 @@ function ExportSheet({
         onPress={onClose}
         style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
       />
-      <View
+      <Animated.View
         style={{
           backgroundColor: colors.card,
           borderTopLeftRadius: 28, borderTopRightRadius: 28,
           paddingHorizontal: 20, paddingTop: 12,
           paddingBottom: insets.bottom + 20,
+          transform: [{ translateY: drag.translateY }],
         }}
       >
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 16 }} />
+        <View {...drag.panHandlers} style={{ paddingTop: 12, paddingBottom: 16, marginTop: -12 }}>
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>{isImage ? 'Export photo' : 'Export video'}</Text>
@@ -5521,7 +5644,7 @@ function ExportSheet({
             </Pressable>
           ))}
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -6017,6 +6140,7 @@ function PostOptionsSheet({
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const drag = useSheetDrag(onClose);
 
   const rows: { key: string; label: string; Icon: any; danger?: boolean; onPress: () => void }[] = isOwn
     ? [
@@ -6037,14 +6161,17 @@ function PostOptionsSheet({
         onPress={onClose}
         style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
       />
-      <View
+      <Animated.View
         style={{
           backgroundColor: colors.card,
           borderTopLeftRadius: 28, borderTopRightRadius: 28,
           paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 20,
+          transform: [{ translateY: drag.translateY }],
         }}
       >
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 }} />
+        <View {...drag.panHandlers} style={{ paddingTop: 12, paddingBottom: 12, marginTop: -12 }}>
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+        </View>
         {rows.map(({ key, label, Icon, danger, onPress }, i) => (
           <Pressable
             key={key}
@@ -6058,7 +6185,7 @@ function PostOptionsSheet({
             <Text style={{ fontSize: 17, fontWeight: '600', color: danger ? '#ef4444' : colors.text }}>{label}</Text>
           </Pressable>
         ))}
-      </View>
+      </Animated.View>
     </View>
   );
 }

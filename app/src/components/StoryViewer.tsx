@@ -37,6 +37,7 @@ export default function StoryViewer({
 }: any) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const isVertical = story?.reel_style === 'vertical';
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimerRef = useRef<any>(null);
   const showToast = (msg: string) => {

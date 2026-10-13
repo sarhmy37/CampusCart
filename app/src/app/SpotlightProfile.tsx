@@ -2,20 +2,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, Dimensions, Modal, Share,
-  TextInput, KeyboardAvoidingView, Platform, Keyboard,
+  TextInput, KeyboardAvoidingView, Platform, Keyboard, Animated, PanResponder,
 } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Stack, useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-
-
-
-
-
 
 import {
   ArrowLeft, Eye, Heart, MessageCircle, Repeat, Send, Play, MoreHorizontal, Archive,
@@ -25,10 +19,16 @@ import {
 import {
   Squares2X2Icon as GridOutline,
   ChartBarSquareIcon as InsightsOutline,
+  UserIcon as UserOutline,
+  ArchiveBoxIcon as ArchiveOutline,
+  ArrowPathRoundedSquareIcon as RepostOutline,
 } from 'react-native-heroicons/outline';
 import {
   Squares2X2Icon as GridSolid,
   ChartBarSquareIcon as InsightsSolid,
+  UserIcon as UserSolid,
+  ArchiveBoxIcon as ArchiveSolid,
+  ArrowPathRoundedSquareIcon as RepostSolid,
 } from 'react-native-heroicons/solid';
 import Toast from 'react-native-toast-message';
 import api from '@/api/client';
@@ -38,6 +38,7 @@ import { StoryViewerLocal } from './stories';
 import { useChat } from '@/context/ChatContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 
 const { width: SW } = Dimensions.get('window');
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
@@ -99,6 +100,10 @@ function formatCount(n?: number) {
   return String(v);
 }
 
+function fullCount(n?: number) {
+  return (n ?? 0).toLocaleString('en-US');
+}
+
 function relativeTime(dateStr?: string | null) {
   if (!dateStr) return '';
   const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
@@ -136,6 +141,27 @@ export default function SpotlightProfile() {
   const [reelStyle, setReelStyle] = useState<'horizontal' | 'vertical'>('vertical');
   const durationsRef = useRef<Record<string, number>>({});
   const [menuOpen, setMenuOpen] = useState(false);
+  const [bioExpanded, setBioExpanded] = useState(false);
+  const sheetY = useRef(new Animated.Value(0)).current;
+  const sheetPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) sheetY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 100 || g.vy > 0.8) {
+          Animated.timing(sheetY, { toValue: 600, duration: 180, useNativeDriver: true }).start(() => {
+            setMenuOpen(false);
+            sheetY.setValue(0);
+          });
+        } else {
+          Animated.spring(sheetY, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    }),
+  ).current;
 
   // Guest profile data (name/avatar/followers of the visited user)
   const [guestData, setGuestData] = useState<{ name: string; avatar: string | null; followers: number; plan?: string | null } | null>(null);
@@ -145,6 +171,7 @@ export default function SpotlightProfile() {
   const [profileInfo, setProfileInfo] = useState<string>((user as any)?.spotlight_bio || (user as any)?.bio || '');
   const [editInfoOpen, setEditInfoOpen] = useState(false);
   const [infoDraft, setInfoDraft] = useState('');
+  const [nameDraft, setNameDraft] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
 
   useEffect(() => {
@@ -296,21 +323,28 @@ export default function SpotlightProfile() {
   const openEditInfo = () => {
     setMenuOpen(false);
     setInfoDraft(profileInfo);
+    setNameDraft(displayName || '');
     setEditInfoOpen(true);
   };
 
   const saveProfileInfo = async () => {
     const text = infoDraft.trim();
+    const name = nameDraft.trim();
+    if (!name) {
+      Toast.show({ type: 'error', text1: 'Name cannot be empty' });
+      return;
+    }
     setSavingInfo(true);
     setProfileInfo(text);
     try {
-      const res = await api.patch('/spotlight/profile', { spotlight_bio: text });
-      setUser({ ...user, ...(res?.data ?? {}) } as any);
+      const res = await api.patch('/spotlight/profile', { spotlight_bio: text, spotlight_name: name });
+      setUser({ ...user, spotlight_name: name, ...(res?.data ?? {}) } as any);
       setEditInfoOpen(false);
       Toast.show({ type: 'success', text1: 'Profile info saved' });
     } catch (err: any) {
       if (err?.response?.status === 404) {
         try { await AsyncStorage.setItem(`spotlight_bio_${user?.id}`, text); } catch {}
+        setUser({ ...user, spotlight_name: name } as any);
         setEditInfoOpen(false);
         Toast.show({ type: 'success', text1: 'Profile info saved' });
       } else {
@@ -445,7 +479,7 @@ export default function SpotlightProfile() {
 
   const avgViews = posts.length ? Math.round(totals.views / posts.length) : 0;
   const engagement = totals.views > 0
-    ? Math.round(((totals.likes + totals.comments + totals.reposts) / totals.views) * 100)
+    ? Math.round(((totals.likes + totals.comments + totals.reposts) / totals.views) * 1000) / 10
     : 0;
   const interactions = totals.likes + totals.comments + totals.reposts;
   const likeRate = totals.views > 0 ? Math.round((totals.likes / totals.views) * 100) : 0;
@@ -474,7 +508,7 @@ export default function SpotlightProfile() {
   }, [posts]);
 
   // Whose info to show
-  const displayName = guestMode ? (guestData?.name || '…') : user?.name;
+  const displayName = guestMode ? (guestData?.name || '…') : ((user as any)?.spotlight_name || user?.name);
   const displayAvatar = guestMode ? (guestData?.avatar ?? null) : user?.avatar_url;
   const displayPlan = guestMode ? (guestData?.plan ?? undefined) : (planActive ? user?.plan : undefined);
 
@@ -542,16 +576,17 @@ export default function SpotlightProfile() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator color={colors.brand} size="large" />
       </View>
     );
   }
 
   const allTabs: { key: TabKey; label: string; count?: number; outline: any; solid: any }[] = [
-    { key: 'overview', label: 'Overview', outline: UserIcon, solid: UserIcon },
+    { key: 'overview', label: 'Overview', outline: UserOutline, solid: UserSolid },
     { key: 'posts', label: 'Posts', count: posts.length, outline: GridOutline, solid: GridSolid },
-    { key: 'archived', label: 'Archived', count: archivedPosts.length, outline: Archive, solid: Archive },
-    { key: 'reposts', label: 'Reposts', count: reposts.length, outline: Repeat, solid: Repeat },
+    { key: 'archived', label: 'Archived', count: archivedPosts.length, outline: ArchiveOutline, solid: ArchiveSolid },
+    { key: 'reposts', label: 'Reposts', count: reposts.length, outline: RepostOutline, solid: RepostSolid },
     { key: 'insights', label: 'Insights', outline: InsightsOutline, solid: InsightsSolid },
   ];
   const tabs = guestMode
@@ -565,6 +600,7 @@ export default function SpotlightProfile() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 48 }}
@@ -577,7 +613,7 @@ export default function SpotlightProfile() {
         }
       >
         {/* Cover */}
-        <View style={{ height: COVER_H, position: 'relative', overflow: 'hidden' }}>
+        <View style={{ height: COVER_H + insets.top, position: 'relative', overflow: 'hidden' }}>
           {coverUri ? (
             <Image source={{ uri: coverUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
           ) : (
@@ -593,7 +629,7 @@ export default function SpotlightProfile() {
 
           <GlassIconButton
             onPress={onBackPress}
-            style={{ position: 'absolute', top: 10, left: 12 }}
+            style={{ position: 'absolute', top: insets.top + 10, left: 12 }}
           >
             <ArrowLeft size={20} color="#fff" />
           </GlassIconButton>
@@ -601,7 +637,7 @@ export default function SpotlightProfile() {
           {!guestMode && (
             <GlassIconButton
               onPress={() => setMenuOpen(true)}
-              style={{ position: 'absolute', top: 10, right: 12 }}
+              style={{ position: 'absolute', top: insets.top + 10, right: 12 }}
             >
               <MoreHorizontal size={20} color="#fff" />
             </GlassIconButton>
@@ -653,15 +689,46 @@ export default function SpotlightProfile() {
         {/* Profile info (bio) */}
         {!guestMode && !!profileInfo && (
           <View style={{ paddingHorizontal: GUTTER, marginTop: 8, paddingLeft: GUTTER + NAME_COL_OFFSET }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, lineHeight: 19 }}>
-              {profileInfo}
-            </Text>
+            <Pressable
+              onPress={() => {
+                if (!bioExpanded) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setBioExpanded((v) => !v);
+              }}
+            >
+              <Text
+                numberOfLines={bioExpanded ? undefined : 1}
+                ellipsizeMode="tail"
+                style={{ fontSize: 15, color: colors.textMuted, lineHeight: 20 }}
+              >
+                {profileInfo}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {guestMode && (
+          <View style={{ flexDirection: 'row', gap: 2, paddingHorizontal: GUTTER, marginTop: 4 }}>
+            <GlassActionButton
+              label={followStats?.i_follow ? 'Following' : 'Follow'}
+              onPress={toggleFollowProfile}
+              disabled={!followStats}
+              active={!!followStats?.i_follow}
+              colors={colors}
+              style={{ borderTopLeftRadius: 999, borderBottomLeftRadius: 999 }}
+            />
+            <GlassActionButton
+              label="Chat"
+              onPress={() => openChat({ sellerId: targetUserId, sellerName: displayName || '', draftMessage: '' })}
+              colors={colors}
+              active
+              style={{ borderTopRightRadius: 999, borderBottomRightRadius: 999 }}
+            />
           </View>
         )}
 
         {/* Tabs */}
         <View style={{
-          flexDirection: 'row', height: 32, marginTop: 20,
+          flexDirection: 'row', height: 32, marginTop: guestMode ? 20 : 36,
           borderBottomWidth: 1, borderBottomColor: colors.border,
         }}>
           {tabs.map((t) => {
@@ -676,9 +743,40 @@ export default function SpotlightProfile() {
                   paddingBottom: on ? 10 : 0,
                 }}
               >
-                <Icon size={on ? 18 : 12} color={on ? colors.brand : colors.textFaint} />
+                <View style={{ position: 'relative' }}>
+                  <Icon size={on ? 18 : 12} color={on ? colors.brand : colors.textFaint} />
+                  {!!t.count && t.count > 0 && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: -6,
+                        right: -10,
+                        backgroundColor: colors.brand,
+                        minWidth: 16,
+                        height: 16,
+                        borderRadius: 8,
+                        paddingHorizontal: 3,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: colors.textOnGold,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          lineHeight: 16,
+                          textAlign: 'center',
+                          includeFontPadding: false,
+                        }}
+                      >
+                        {t.count > 99 ? '99+' : t.count}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={{ fontSize: on ? 13 : 10.5, fontWeight: on ? '800' : '500', color: on ? colors.brand : colors.textFaint }}>
-                  {t.label}{t.count ? ` ${t.count}` : ''}
+                  {t.label}
                 </Text>
                 {on && (
                   <View
@@ -697,9 +795,9 @@ export default function SpotlightProfile() {
         {tab === 'overview' && (
           <View style={{ paddingHorizontal: GUTTER, paddingTop: 18 }}>
             {!!location && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginBottom: 16 }}>
                 <MapPin size={16} color={colors.textMuted} />
-                <Text style={{ fontSize: 16, color: colors.textMuted }}>{location}</Text>
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, color: colors.textMuted }}>{location}</Text>
               </View>
             )}
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -708,29 +806,10 @@ export default function SpotlightProfile() {
               <OverviewStat label="Views" value={formatCount(totals.views)} colors={colors} />
             </View>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-              <OverviewStat label="Spotlights" value={formatCount(posts.length)} colors={colors} />
+              <OverviewStat label="Feed posts" value={formatCount(posts.length)} colors={colors} />
               <OverviewStat label="Likes" value={formatCount(totals.likes)} colors={colors} />
               <OverviewStat label="Comments" value={formatCount(totals.comments)} colors={colors} />
             </View>
-            {guestMode && (
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-                <Pressable
-                  onPress={toggleFollowProfile}
-                  disabled={!followStats}
-                  style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: followStats?.i_follow ? colors.card : colors.brand, borderWidth: 1, borderColor: followStats?.i_follow ? colors.border : colors.brand }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: followStats?.i_follow ? colors.text : colors.textOnGold }}>
-                    {followStats?.i_follow ? 'Following' : 'Follow'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => openChat({ sellerId: targetUserId, sellerName: displayName || '', draftMessage: '' })}
-                  style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>Chat</Text>
-                </Pressable>
-              </View>
-            )}
           </View>
         )}
 
@@ -740,8 +819,8 @@ export default function SpotlightProfile() {
             {posts.length === 0 ? (
               <Empty
                 colors={colors}
-                text={guestMode ? 'No spotlight posts yet.' : "You haven't posted a spotlight yet."}
-                action={guestMode ? undefined : 'Post a spotlight'}
+                text={guestMode ? 'No feed posts yet.' : "You haven't posted to Feed yet."}
+                action={guestMode ? undefined : 'Post a Feed Story'}
                 onAction={guestMode ? undefined : () => router.push('/stories/new')}
               />
             ) : posts.map((p, i) => (
@@ -753,11 +832,11 @@ export default function SpotlightProfile() {
                   borderBottomWidth: i === posts.length - 1 ? 0 : 1, borderBottomColor: colors.border,
                 }}
               >
-                <View style={{ width: 66, height: 88, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.chipBg }}>
+                <View style={{ width: 66, height: 76, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.chipBg }}>
                   <Thumb uri={p.media_url} type={p.media_type} />
                   {p.media_type === 'video' && <PlayBadge />}
                 </View>
-                <View style={{ flex: 1, justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, justifyContent: 'center', gap: 8 }}>
                   <Text numberOfLines={2} style={{ fontSize: 17, fontWeight: '600', color: colors.text, lineHeight: 20 }}>
                     {p.caption || 'No caption'}
                   </Text>
@@ -790,11 +869,11 @@ export default function SpotlightProfile() {
                   borderBottomWidth: i === archivedPosts.length - 1 ? 0 : 1, borderBottomColor: colors.border,
                 }}
               >
-                <Pressable onPress={() => openAt([archivedGroup], 0, i)} style={{ width: 66, height: 88, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.chipBg }}>
+                <Pressable onPress={() => openAt([archivedGroup], 0, i)} style={{ width: 66, height: 76, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.chipBg }}>
                   <Thumb uri={p.media_url} type={p.media_type} />
                   {p.media_type === 'video' && <PlayBadge />}
                 </Pressable>
-                <View style={{ flex: 1, justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, justifyContent: 'center', gap: 8 }}>
                   <Text numberOfLines={2} style={{ fontSize: 17, fontWeight: '600', color: colors.text, lineHeight: 20 }}>
                     {p.caption || 'No caption'}
                   </Text>
@@ -817,7 +896,7 @@ export default function SpotlightProfile() {
         {!guestMode && tab === 'reposts' && (
           <View style={{ paddingHorizontal: GUTTER, paddingTop: 18 }}>
             {reposts.length === 0 ? (
-              <Empty colors={colors} text="Spotlights you repost will show up here." />
+              <Empty colors={colors} text="Feed posts you repost will show up here." />
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: TILE_GAP, rowGap: 20 }}>
                 {reposts.map((r) => (
@@ -855,90 +934,74 @@ export default function SpotlightProfile() {
 
         {/* Insights — only for own profile */}
         {!guestMode && tab === 'insights' && (
-          <View style={{ paddingHorizontal: GUTTER, paddingTop: 6, paddingBottom: 24 }}>
+          <View style={{ paddingHorizontal: GUTTER, paddingTop: 28, paddingBottom: 24 }}>
             {posts.length === 0 ? (
-              <Empty colors={colors} text="Post a spotlight to start seeing how it does." />
+              <Empty colors={colors} text="Post to Feed to start seeing how it does." />
             ) : (
               <>
-                <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text, marginBottom: 4 }}>
-                  Your spotlight performance
+                {/* Hero */}
+                <SectionLabel title="Total views" colors={colors} first />
+                <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 46, fontWeight: '800', color: colors.text, letterSpacing: -1.5, marginTop: 6 }}>
+                  {fullCount(totals.views)}
                 </Text>
-                <Text style={{ fontSize: 15, color: colors.textMuted, marginBottom: 16 }}>
-                  A complete overview of how your content is performing.
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}>
+                  across {posts.length} {posts.length === 1 ? 'post' : 'posts'}
                 </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                  <InsightCard icon={<Eye size={18} color={colors.brand} />} label="Total views" value={formatCount(totals.views)} colors={colors} />
-                  <InsightCard icon={<Users size={18} color={colors.brand} />} label="Followers" value={formatCount(followStats?.followers)} colors={colors} />
-                  <InsightCard icon={<Heart size={18} color={colors.brand} />} label="Interactions" value={formatCount(interactions)} colors={colors} />
-                  <InsightCard icon={<CalendarDays size={18} color={colors.brand} />} label="Last 30 days" value={formatCount(recentPosts.length)} colors={colors} />
+
+                {/* Key figures */}
+                <View
+                  style={{
+                    flexDirection: 'row', marginTop: 28, paddingVertical: 18,
+                    borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border,
+                  }}
+                >
+                  <InsightFigure label="Followers" value={fullCount(followStats?.followers)} colors={colors} />
+                  <View style={{ width: 1, backgroundColor: colors.border }} />
+                  <InsightFigure label="Interactions" value={fullCount(interactions)} colors={colors} />
+                  <View style={{ width: 1, backgroundColor: colors.border }} />
+                  <InsightFigure label="Avg. views" value={fullCount(avgViews)} colors={colors} />
                 </View>
 
-                <SectionTitle icon={<TrendingUp size={18} color={colors.brand} />} title="Engagement rates" colors={colors} />
-                <RateBar label="Overall engagement" value={engagement} colors={colors} />
-                <RateBar label="Likes per view" value={likeRate} colors={colors} />
-                <RateBar label="Comments per view" value={commentRate} colors={colors} />
-                <RateBar label="Reposts per view" value={repostRate} colors={colors} />
-                <RateBar label="Exports per view" value={exportRate} colors={colors} />
+                {/* Engagement */}
+                <SectionLabel title="Engagement" colors={colors} />
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
+                  <Text style={{ fontSize: 30, fontWeight: '800', color: colors.brand, letterSpacing: -0.8 }}>{engagement}%</Text>
+                  <Text style={{ fontSize: 14, color: colors.textMuted }}>interactions per view</Text>
+                </View>
+                <InsightLine label="Likes" value={fullCount(totals.likes)} colors={colors} />
+                <InsightLine label="Comments" value={fullCount(totals.comments)} colors={colors} />
+                <InsightLine label="Reposts" value={fullCount(totals.reposts)} colors={colors} />
+                <InsightLine label="Exports" value={fullCount(totals.exports)} colors={colors} last />
 
-                {topPost && (
-                  <Pressable
-                    onPress={() => openAt([myGroup], 0, Math.max(0, posts.findIndex((x) => x.id === topPost.id)))}
-                    style={{ flexDirection: 'row', gap: 14, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}
-                  >
-                    <View style={{ width: 66, height: 88, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.chipBg }}>
-                      <Thumb uri={topPost.media_url} type={topPost.media_type} />
-                      {topPost.media_type === 'video' && <PlayBadge />}
-                    </View>
-                    <View style={{ flex: 1, justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 15, color: colors.textMuted }}>Your most viewed spotlight</Text>
-                      <Text style={{ fontSize: 30, fontWeight: '900', color: colors.text, letterSpacing: -1, marginTop: 2 }}>
-                        {formatCount(topPost.view_count)} views
-                      </Text>
-                      <Text numberOfLines={1} style={{ fontSize: 15, color: colors.textMuted, marginTop: 2 }}>
-                        {topPost.caption || 'No caption'}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-
-                <SectionTitle icon={<Trophy size={18} color={colors.brand} />} title="Top-performing spotlights" colors={colors} />
+                {/* Top spotlights */}
+                <SectionLabel title="Top posts" colors={colors} />
                 {topPosts.map((post, index) => (
                   <Pressable
                     key={post.id}
                     onPress={() => openAt([myGroup], 0, posts.findIndex((x) => x.id === post.id))}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: index === topPosts.length - 1 ? 0 : 1, borderBottomColor: colors.border }}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12,
+                      borderBottomWidth: index === topPosts.length - 1 ? 0 : 1, borderBottomColor: colors.border,
+                    }}
                   >
-                    <Text style={{ width: 24, fontSize: 18, fontWeight: '900', color: colors.brand }}>#{index + 1}</Text>
-                    <View style={{ width: 44, height: 54, borderRadius: 6, overflow: 'hidden', backgroundColor: colors.chipBg }}>
+                    <Text style={{ width: 16, fontSize: 14, fontWeight: '700', color: colors.textMuted }}>{index + 1}</Text>
+                    <View style={{ width: 44, height: 54, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.chipBg }}>
                       <Thumb uri={post.media_url} type={post.media_type} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{post.caption || 'No caption'}</Text>
-                      <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
-                        {formatCount(post.view_count)} views · {formatCount(post.like_count)} likes · {relativeTime(post.created_at)}
+                      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
+                        {post.caption || 'No caption'}
+                      </Text>
+                      <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 3 }}>
+                        {fullCount(post.view_count)} views · {fullCount(post.like_count)} likes
                       </Text>
                     </View>
                   </Pressable>
                 ))}
 
-                <SectionTitle icon={<Target size={18} color={colors.brand} />} title="Content breakdown" colors={colors} />
-                {contentBreakdown.map(([type, count], index) => (
-                  <Row
-                    key={type}
-                    label={`${CONTENT_LABEL[type] ?? 'Other'} (${count} ${count === 1 ? 'post' : 'posts'})`}
-                    value={`${Math.round((count / posts.length) * 100)}%`}
-                    colors={colors}
-                    last={index === contentBreakdown.length - 1}
-                  />
-                ))}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                  <MiniStat icon={<Video size={16} color={colors.brand} />} label="Video posts" value={`${videoCount}`} colors={colors} />
-                  <MiniStat icon={<Eye size={16} color={colors.brand} />} label="Avg. views" value={formatCount(avgViews)} colors={colors} />
-                  <MiniStat icon={<Send size={16} color={colors.brand} />} label="Exports" value={formatCount(totals.exports)} colors={colors} />
-                </View>
                 {!!topType && (
-                  <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 14 }}>
-                    Your most-used content type is <Text style={{ fontWeight: '800', color: colors.text }}>{topType}</Text>.
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 24 }}>
+                    Most-used content type: <Text style={{ fontWeight: '700', color: colors.text }}>{topType}</Text>
                   </Text>
                 )}
               </>
@@ -955,20 +1018,23 @@ export default function SpotlightProfile() {
               onPress={() => setMenuOpen(false)}
               style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
             />
-            <View
+            <Animated.View
               style={{
                 backgroundColor: colors.card,
                 borderTopLeftRadius: 24, borderTopRightRadius: 24,
-                paddingTop: 12, paddingBottom: insets.bottom + 16,
+                paddingBottom: insets.bottom + 16,
+                transform: [{ translateY: sheetY }],
               }}
             >
-              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 }} />
+              <View
+                {...sheetPan.panHandlers}
+                style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 14 }}
+              >
+                <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+              </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: GUTTER, marginBottom: 8 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Spotlight profile</Text>
-                <Pressable onPress={() => setMenuOpen(false)} hitSlop={10}>
-                  <X size={18} color={colors.textMuted} />
-                </Pressable>
+              <View style={{ paddingHorizontal: GUTTER, marginBottom: 8 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>Feed profile</Text>
               </View>
 
               <MenuRow
@@ -996,7 +1062,7 @@ export default function SpotlightProfile() {
                 last
                 onPress={shareProfile}
               />
-            </View>
+            </Animated.View>
           </View>
         </Modal>
       )}
@@ -1029,7 +1095,29 @@ export default function SpotlightProfile() {
             </View>
 
             <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 8 }}>
-              A short line about you or what you post. Shows on your spotlight profile.
+              Your display name. Your @username stays the same, so people can still find you by it.
+            </Text>
+            <TextInput
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              placeholder="Display name"
+              placeholderTextColor={colors.textFaint}
+              maxLength={40}
+              style={{
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.inputBg ?? 'transparent',
+                color: colors.text,
+                fontSize: 16,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                marginBottom: 16,
+              }}
+            />
+
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 8 }}>
+              A short line about you or what you post. Shows on your Feed profile.
             </Text>
 
             <TextInput
@@ -1147,6 +1235,40 @@ function GlassIconButton({
   );
 }
 
+function GlassActionButton({
+  label, onPress, colors, style, disabled, active,
+}: { label: string; onPress: () => void; colors: any; style?: any; disabled?: boolean; active?: boolean }) {
+  const Wrapper: any = GLASS ? GlassView : View;
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={{ flex: 1, opacity: disabled ? 0.5 : 1 }}
+    >
+      <Wrapper
+        {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
+        style={{
+          paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
+          ...(GLASS ? {} : { backgroundColor: active ? colors.card : colors.brand }),
+          ...style,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 15, fontWeight: '800',
+            color: GLASS ? colors.brand : (active ? colors.text : colors.textOnGold),
+          }}
+        >
+          {label}
+        </Text>
+      </Wrapper>
+    </Pressable>
+  );
+}
+
 function MenuRow({
   icon, label, onPress, colors, last,
 }: { icon: React.ReactNode; label: string; onPress: () => void; colors: any; last?: boolean }) {
@@ -1162,7 +1284,7 @@ function MenuRow({
       <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
         {icon}
       </View>
-      <Text style={{ flex: 1, fontSize: 17, fontWeight: '600', color: colors.text }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text }}>{label}</Text>
     </Pressable>
   );
 }
@@ -1239,6 +1361,42 @@ function Row({ label, value, colors, last }: { label: string; value: string; col
     >
       <Text style={{ flex: 1, fontSize: 16, color: colors.textMuted }}>{label}</Text>
       <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{value}</Text>
+    </View>
+  );
+}
+
+function SectionLabel({ title, colors, first }: { title: string; colors: any; first?: boolean }) {
+  return (
+    <Text
+      style={{
+        fontSize: 12, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase',
+        color: colors.brand, marginTop: first ? 0 : 32, marginBottom: 10,
+      }}
+    >
+      {title}
+    </Text>
+  );
+}
+
+function InsightFigure({ label, value, colors }: { label: string; value: string; colors: any }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>{value}</Text>
+      <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 3 }}>{label}</Text>
+    </View>
+  );
+}
+
+function InsightLine({ label, value, colors, last }: { label: string; value: string; colors: any; last?: boolean }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingVertical: 12, borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.border,
+      }}
+    >
+      <Text style={{ fontSize: 15, color: colors.textMuted }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{value}</Text>
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated, Modal, TextInput, Linking, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, Pressable, Animated, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -11,54 +11,17 @@ import Toast from 'react-native-toast-message';
 
 import {
   Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck,
-  Loader2, Send, X, MessageCircle,
 } from 'lucide-react-native';
 import api from '@/api/client';
-import { useChat } from '@/context/ChatContext';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { calcDeliveryFee, SCHOOL_COORDS, haversineKm } from '@/utils/distance';
+import { calcDeliveryFee, getDistanceTier } from '@/utils/distance';
 import { CART_VIDEO } from '@/data/media';
 import { useColors } from '@/hooks/useColors';
 import PaystackCheckout from '@/components/PaystackCheckout';
 
 const FALLBACK_DELIVERY_FEE = 15;
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
-
-function formatWhatsAppNumber(raw: string | null | undefined) {
-  if (!raw) return null;
-  let digits = String(raw).replace(/\D/g, '');
-  if (digits.startsWith('0')) digits = '233' + digits.slice(1);
-  return digits;
-}
-
-function buildPurchaseDraft(sellerItems: any[]) {
-  if (!sellerItems || sellerItems.length === 0) return '';
-  const lines = sellerItems.map(
-    (i) => `• ${i.quantity}x ${i.title} (GHS ${(parseFloat(i.price) * i.quantity).toFixed(2)})`
-  );
-  const subtotal = sellerItems.reduce((s, i) => s + parseFloat(i.price) * i.quantity, 0).toFixed(2);
-  return `Hi, I'd like to buy:\n${lines.join('\n')}\n\nSubtotal: GHS ${subtotal}`;
-}
-
-function buildWhatsAppMessage(sellerName: string | null | undefined, sellerItems: any[]) {
-  const lines = [
-    `Hello ${sellerName || 'there'} 👋`,
-    '',
-    `I found the following on Tre-X and I'd love to place an order:`,
-    '',
-    ...sellerItems.map(
-      (i) => `🛍️ ${i.title} × ${i.quantity} — GHS ${(parseFloat(i.price) * i.quantity).toFixed(2)}`
-    ),
-    '',
-    `💰 Total: GHS ${sellerItems.reduce((s, i) => s + parseFloat(i.price) * i.quantity, 0).toFixed(2)}`,
-    '',
-    `🤝 I'll pick it up on campus, kindly let me know a convenient meeting point.`,
-    '',
-    'Please confirm if this is still available. Thank you!',
-  ];
-  return lines.join('\n');
-}
 
 function ContinueBrowsingButton({ onPress, colors }: { onPress: () => void; colors: any }) {
   const Wrapper: any = GLASS ? GlassView : View;
@@ -89,7 +52,6 @@ export default function CartScreen() {
   const router = useRouter();
   const { items, removeItem, updateQuantity, clearCart, total } = useCart();
   const { user } = useAuth();
-  const { openChat, broadcastToSellers, openConversationDirect } = useChat();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const heroHeight = 200;
@@ -109,129 +71,12 @@ export default function CartScreen() {
     extrapolate: 'clamp',
   });
 
-  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('pickup');
+  const [deliveryMethod, setDeliveryMethod] = useState<'on_campus' | 'delivery'>('on_campus');
   const [paying, setPaying] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
-  const [locationDenied, setLocationDenied] = useState(false);
-  const [onCampusChecked, setOnCampusChecked] = useState(false);
-  const [verifyingCampus, setVerifyingCampus] = useState(false);
-  const [confirmedOnCampus, setConfirmedOnCampus] = useState<boolean | null>(null);
-
-  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
-  const [broadcastMessage, setBroadcastMessage] = useState('');
-  const [sendingBroadcast, setSendingBroadcast] = useState(false);
-
-  const sellerGroups = items.reduce((groups: any, item: any) => {
-    const key = item.seller_id || item.seller_whatsapp || item.seller_name || 'unknown';
-    if (!groups[key]) {
-      groups[key] = { sellerName: item.seller_name, whatsapp: item.seller_whatsapp, school: item.seller_school, items: [] };
-    }
-    groups[key].items.push(item);
-    return groups;
-  }, {});
-
-  const sellersForChat = Object.values(sellerGroups)
-    .map((group: any) => ({
-      sellerId: group.items[0]?.seller_id,
-      sellerName: group.sellerName,
-      productId: group.items[0]?.product_id,
-      items: group.items,
-    }))
-    .filter((s: any) => s.sellerId);
-
-  // Auto-detect location when delivery selected
-  useEffect(() => {
-    if (deliveryMethod !== 'delivery' || buyerCoords || locationDenied) return;
-    (async () => {
-      setLocating(true);
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setLocationDenied(true);
-          setLocating(false);
-          return;
-        }
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        setBuyerCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      } catch {
-        setLocationDenied(true);
-      } finally {
-        setLocating(false);
-      }
-    })();
-  }, [deliveryMethod, buyerCoords, locationDenied]);
-
-  const sellerSchoolsInCart = [...new Set(items.map((i: any) => i.seller_school).filter(Boolean))];
-
-  const handleOnCampusToggle = async () => {
-    if (onCampusChecked) {
-      setOnCampusChecked(false);
-      setConfirmedOnCampus(null);
-      return;
-    }
-    setOnCampusChecked(true);
-    setVerifyingCampus(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Toast.show({ type: 'error', text1: "Couldn't verify your location" });
-        setOnCampusChecked(false);
-        setVerifyingCampus(false);
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      const { latitude, longitude } = pos.coords;
-      const isOnCampus = (sellerSchoolsInCart as string[]).some((school) => {
-        const coords = (SCHOOL_COORDS as any)[school];
-        if (!coords) return false;
-        return haversineKm(latitude, longitude, coords.lat, coords.lng) <= 2;
-      });
-      setBuyerCoords({ lat: latitude, lng: longitude });
-      setConfirmedOnCampus(isOnCampus);
-      if (!isOnCampus) {
-        Toast.show({ type: 'error', text1: "You don't appear to be on campus right now" });
-      }
-    } catch {
-      Toast.show({ type: 'error', text1: "Couldn't verify your location" });
-      setOnCampusChecked(false);
-    } finally {
-      setVerifyingCampus(false);
-    }
-  };
-
-  const openBroadcastModal = () => {
-    const sellerCount = sellersForChat.length;
-    Toast.show({
-      type: 'info',
-      text1: `You're purchasing from ${sellerCount} different sellers`,
-      text2: 'This message will be sent to all of them',
-      visibilityTime: 4500,
-    });
-    setShowBroadcastModal(true);
-  };
-
-  const handleSendBroadcast = async () => {
-    if (!broadcastMessage.trim() || sendingBroadcast) return;
-    setSendingBroadcast(true);
-    try {
-      const conversations = await broadcastToSellers(sellersForChat, broadcastMessage);
-      if (conversations.length > 0) {
-        Toast.show({
-          type: 'success',
-          text1: `Message sent to ${conversations.length} seller${conversations.length > 1 ? 's' : ''}`,
-        });
-        setShowBroadcastModal(false);
-        setBroadcastMessage('');
-        openConversationDirect(conversations[0]);
-      }
-    } finally {
-      setSendingBroadcast(false);
-    }
-  };
-
   // Empty state
   if (items.length === 0) {
     return (
@@ -258,9 +103,17 @@ export default function CartScreen() {
 
   const itemCount = items.reduce((sum: number, i: any) => sum + i.quantity, 0);
   const subtotal = total;
+  const sellerGroups = items.reduce((groups: any, item: any) => {
+    const key = item.seller_id || item.seller_name || 'unknown';
+    if (!groups[key]) {
+      groups[key] = { school: item.seller_school, items: [] };
+    }
+    groups[key].items.push(item);
+    return groups;
+  }, {});
 
   let deliveryFee = 0;
-  if (deliveryMethod === 'delivery') {
+  if (deliveryMethod === 'on_campus' || deliveryMethod === 'delivery') {
     Object.values(sellerGroups).forEach((group: any) => {
       const sellerPrices = {
         delivery_fee_on_campus: Math.max(...group.items.map((i: any) => i.delivery_fee_on_campus || 0)),
@@ -268,9 +121,10 @@ export default function CartScreen() {
         delivery_fee_far_campus: Math.max(...group.items.map((i: any) => i.delivery_fee_far_campus || 0)),
       };
 
-      if (confirmedOnCampus === true) {
+      if (deliveryMethod === 'on_campus') {
         deliveryFee += sellerPrices.delivery_fee_on_campus;
       } else if (buyerCoords) {
+        const distance = getDistanceTier(buyerCoords.lat, buyerCoords.lng, group.school);
         const { fee } = calcDeliveryFee(buyerCoords.lat, buyerCoords.lng, group.school, sellerPrices);
         deliveryFee += fee;
       } else {
@@ -292,25 +146,40 @@ export default function CartScreen() {
   const handleAction = async () => {
     if (!user) return router.push('/login');
 
-    if (deliveryMethod === 'pickup') {
-      if (sellersForChat.length === 0) return;
-
-      if (sellersForChat.length === 1) {
-        const seller: any = sellersForChat[0];
-        openChat({ ...seller, draftMessage: buildPurchaseDraft(seller.items) });
-      } else {
-        openBroadcastModal();
-      }
-      return;
-    }
-
+    setLocating(true);
     setPaying(true);
     try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Location permission is required to choose delivery' });
+        return;
+      }
+
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setBuyerCoords(coords);
+
+      const tiers = Object.values(sellerGroups).map((group: any) =>
+        getDistanceTier(coords.lat, coords.lng, group.school).tier
+      );
+      const isOnCampusOrder = deliveryMethod === 'on_campus';
+      const isOnCampus = tiers.length > 0 && tiers.every((tier) => tier === 'on_campus');
+      const hasOnCampusSeller = tiers.some((tier) => tier === 'on_campus');
+
+      if (isOnCampusOrder && !isOnCampus) {
+        Toast.show({ type: 'error', text1: 'You are not on the seller campus', text2: 'Choose outside-campus delivery instead' });
+        return;
+      }
+      if (!isOnCampusOrder && hasOnCampusSeller) {
+        Toast.show({ type: 'error', text1: 'You are on campus', text2: 'Choose on-campus delivery instead' });
+        return;
+      }
+
       const res = await api.post('/orders', {
         items: items.map((i: any) => ({ product_id: i.product_id, quantity: i.quantity })),
         delivery_method: deliveryMethod,
-        buyer_lat: buyerCoords?.lat ?? null,
-        buyer_lng: buyerCoords?.lng ?? null,
+        buyer_lat: coords.lat,
+        buyer_lng: coords.lng,
       });
       setCheckoutUrl(res.data.authorization_url);
     } catch (err: any) {
@@ -320,6 +189,9 @@ export default function CartScreen() {
       } else {
         Toast.show({ type: 'error', text1: err.response?.data?.error || 'Checkout failed' });
       }
+      setPaying(false);
+    } finally {
+      setLocating(false);
       setPaying(false);
     }
   };
@@ -397,13 +269,14 @@ export default function CartScreen() {
           }}
         >
         {/* ITEMS */}
-        {items.map((item: any) => (
+        <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 10 }}>
+        {items.map((item: any, index: number) => (
           <View
             key={item.product_id}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 12,
-              backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-              borderRadius: 16, padding: 10,
+              paddingVertical: 10,
+              borderTopWidth: index === 0 ? 0 : 1, borderTopColor: colors.border,
             }}
           >
             <View style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: colors.cardAlt, overflow: 'hidden' }}>
@@ -429,110 +302,32 @@ export default function CartScreen() {
             </Pressable>
           </View>
         ))}
-
-        {/* SELLER CONTACT — only for pickup */}
-        {deliveryMethod === 'pickup' && (
-          <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginTop: 8 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
-              Chat with sellers
-            </Text>
-            <View style={{ gap: 8 }}>
-              {Object.values(sellerGroups).map((group: any) => {
-                const number = formatWhatsAppNumber(group.whatsapp);
-                const message = buildWhatsAppMessage(group.sellerName, group.items);
-                const waUrl = number
-                  ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
-                  : null;
-                const sellerId = group.items[0]?.seller_id;
-
-                return (
-                  <View key={group.sellerName + (group.whatsapp || '')} style={{ flexDirection: 'row', gap: 8 }}>
-                    <Pressable
-                      onPress={() => {
-                        if (!user) return router.push('/login');
-                        if (!sellerId) return Toast.show({ type: 'error', text1: 'Could not identify this seller' });
-                        openChat({
-                          sellerId,
-                          sellerName: group.sellerName,
-                          productId: group.items[0]?.product_id,
-                          draftMessage: buildPurchaseDraft(group.items),
-                        });
-                      }}
-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.brandSoft }}
-                    >
-                      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>
-                        Message {group.sellerName} in-app
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() => {
-                        if (!user) return router.push('/login');
-                        if (!waUrl) return Toast.show({ type: 'info', text1: `${group.sellerName} hasn't added a WhatsApp number yet.` });
-                        Linking.openURL(waUrl);
-                      }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: waUrl ? colors.success : colors.border, backgroundColor: waUrl ? colors.successSoft : colors.cardAlt, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <MessageCircle size={18} color={waUrl ? colors.success : colors.textFaint} />
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
+        </View>
 
         {/* SUMMARY */}
         <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginTop: 8 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 }}>Order summary</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, lineHeight: 22 }}>{'Order\nsummary'}</Text>
 
           {/* Delivery method toggle */}
-          <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, alignSelf: 'center', marginBottom: 16, gap: 4 }}>
-            {(['pickup', 'delivery'] as const).map((m) => (
+          <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, gap: 4 }}>
+            {(['on_campus', 'delivery'] as const).map((m) => (
               <Pressable
                 key={m}
                 onPress={() => setDeliveryMethod(m)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: deliveryMethod === m ? colors.card : 'transparent' }}
               >
-                {m === 'pickup' ? <MapPin size={13} color={deliveryMethod === m ? colors.brand : colors.textMuted} /> : <Truck size={13} color={deliveryMethod === m ? colors.brand : colors.textMuted} />}
+                {m === 'on_campus' ? <MapPin size={13} color={deliveryMethod === m ? colors.brand : colors.textMuted} /> : <Truck size={13} color={deliveryMethod === m ? colors.brand : colors.textMuted} />}
                 <Text style={{ fontSize: 14, fontWeight: '600', color: deliveryMethod === m ? colors.brand : colors.textMuted }}>
-                  {m === 'pickup' ? 'Meet on campus' : 'Delivery'}
+                  {m === 'on_campus' ? 'On campus' : 'Off campus'}
                 </Text>
               </Pressable>
             ))}
           </View>
+          </View>
 
-          {/* On-campus checkbox (delivery only) */}
           {deliveryMethod === 'delivery' && (
-            <View style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardAlt, marginBottom: 12 }}>
-              <Pressable onPress={handleOnCampusToggle} disabled={verifyingCampus} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: onCampusChecked ? colors.brand : colors.textFaint, backgroundColor: onCampusChecked ? colors.brand : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                  {onCampusChecked && <Text style={{ color: colors.textOnGold, fontSize: 14, fontWeight: '900' }}>✓</Text>}
-                </View>
-                <Text style={{ fontSize: 16, fontWeight: '500', color: colors.text }}>Are you on campus?</Text>
-              </Pressable>
-
-              {verifyingCampus && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                  <ActivityIndicator size="small" color={colors.textFaint} />
-                  <Text style={{ fontSize: 14, color: colors.textFaint }}>Checking your location…</Text>
-                </View>
-              )}
-              {!verifyingCampus && confirmedOnCampus === true && (
-                <Text style={{ fontSize: 14, color: colors.success, marginTop: 8 }}>
-                  ✓ You're on campus — delivery fee applied.
-                </Text>
-              )}
-              {!verifyingCampus && confirmedOnCampus === false && (
-                <Text style={{ fontSize: 14, color: colors.error, marginTop: 8 }}>
-                  You are not on campus. Standard delivery rates apply based on your distance.
-                </Text>
-              )}
-            </View>
-          )}
-
-          {deliveryMethod === 'delivery' && confirmedOnCampus !== true && (
-            <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>Delivered within 1–3 working days.</Text>
+            <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8, textAlign: 'right' }}>Delivered within 1–3 working days.</Text>
           )}
 
           {/* Subtotal */}
@@ -575,27 +370,25 @@ export default function CartScreen() {
 
           {deliveryMethod === 'delivery' && (
             <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>
-              A 2% payment processing fee is added at checkout.
+              Paystack charges a 2% payment processing fee at checkout.
             </Text>
           )}
 
           {/* Action button */}
           <Pressable
             onPress={handleAction}
-            disabled={paying || (deliveryMethod === 'delivery' && locating)}
-            style={{ marginTop: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, opacity: paying || (deliveryMethod === 'delivery' && locating) ? 0.6 : 1 }}
+            disabled={paying || locating}
+            style={{ marginTop: 20, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, opacity: paying || locating ? 0.6 : 1 }}
           >
-            {deliveryMethod === 'delivery' && locating && !paying && (
+            {locating && (
               <ActivityIndicator size="small" color={colors.textOnGold} />
             )}
             <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
               {paying
                 ? 'Redirecting to payment…'
-                : deliveryMethod === 'delivery' && locating
+                : locating
                   ? 'Checking location…'
-                  : deliveryMethod === 'pickup'
-                    ? 'Chat with Seller(s)'
-                    : `Pay · GHS ${grandTotal.toFixed(2)}`}
+                  : `Pay · GHS ${grandTotal.toFixed(2)}`}
             </Text>
           </Pressable>
 
@@ -629,70 +422,6 @@ export default function CartScreen() {
         }}
       />
 
-      {/* BROADCAST MODAL */}
-      <Modal visible={showBroadcastModal} transparent animationType="slide" onRequestClose={() => setShowBroadcastModal(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: colors.overlayLight, justifyContent: 'flex-end' }} onPress={() => !sendingBroadcast && setShowBroadcastModal(false)}>
-          <Pressable onPress={(e) => e.stopPropagation?.()} style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <MessageCircle size={17} color={colors.brand} />
-                </View>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Message all sellers</Text>
-              </View>
-              <Pressable onPress={() => !sendingBroadcast && setShowBroadcastModal(false)} style={{ padding: 6 }}>
-                <X size={18} color={colors.textFaint} />
-              </Pressable>
-            </View>
-            <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
-              This will start (or continue) a chat with each of the {sellersForChat.length} sellers below and send them the same message.
-            </Text>
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-              {sellersForChat.map((s: any) => (
-                <View key={s.sellerId} style={{ backgroundColor: colors.chipBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>{s.sellerName}</Text>
-                </View>
-              ))}
-            </View>
-
-            <TextInput
-              value={broadcastMessage}
-              onChangeText={setBroadcastMessage}
-              placeholder="Hi, I'd like to arrange pickup for my order..."
-              placeholderTextColor={colors.textFaint}
-              multiline
-              editable={!sendingBroadcast}
-              style={{
-                paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12,
-                borderWidth: 1, borderColor: colors.border,
-                backgroundColor: colors.inputBg, color: colors.text, fontSize: 16,
-                minHeight: 90, textAlignVertical: 'top',
-              }}
-            />
-
-            <Pressable
-              onPress={handleSendBroadcast}
-              disabled={!broadcastMessage.trim() || sendingBroadcast}
-              style={{ marginTop: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, opacity: !broadcastMessage.trim() || sendingBroadcast ? 0.6 : 1 }}
-            >
-              {sendingBroadcast ? (
-                <>
-                  <ActivityIndicator size="small" color={colors.textOnGold} />
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>Sending…</Text>
-                </>
-              ) : (
-                <>
-                  <Send size={16} color={colors.textOnGold} />
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>
-                    Send to {sellersForChat.length} sellers
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }

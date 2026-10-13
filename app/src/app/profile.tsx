@@ -19,8 +19,9 @@ import PaystackCheckout from '@/components/PaystackCheckout';
 import {
   X, BadgeCheck, ShieldAlert, Mail, Phone,
   MapPin, Map as MapIcon, FileText, Settings, LogOut, LayoutDashboard, Store, ShoppingBag, Clock,
-  ChevronDown, ChevronUp, ChevronRight, Film , Info, Shield, Star, Sparkles, User, Gift,
+  ChevronDown, ChevronUp, ChevronRight, Film , Info, Shield, Star, Sparkles, User, Gift, Plus,
 } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -51,6 +52,7 @@ export default function ProfileScreen() {
   const [donationAmount, setDonationAmount] = useState('');
   const [donationUrl, setDonationUrl] = useState<string | null>(null);
   const [donating, setDonating] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [form, setForm] = useState({
     about: user?.about || '',
     personal_email: user?.personal_email || '',
@@ -119,7 +121,7 @@ export default function ProfileScreen() {
 
   const isBuyer = user.account_type === 'buyer';
 
-const guardLocationEdit = async () => {
+  const guardLocationEdit = async () => {
     if (!isBuyer) return true;
     try {
       const res = await api.get('/auth/me/location-lock');
@@ -208,7 +210,7 @@ const guardLocationEdit = async () => {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 1,
     });
     if (result.canceled || !result.assets[0]) return;
 
@@ -270,6 +272,10 @@ const guardLocationEdit = async () => {
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
   const planTier = planIsActive ? user.plan.toLowerCase() : 'free';
 
+  const headerPhoto = avatarPreview || user.avatar_url || null;
+  const isDarkCard = String(colors.card) === '#161411';
+  const glassAvailable = Platform.OS === 'ios' && isLiquidGlassAvailable();
+
   const infoRowStyle = {
     flexDirection: 'row' as const,
     alignItems: 'flex-start' as const,
@@ -304,38 +310,87 @@ const guardLocationEdit = async () => {
           showsHorizontalScrollIndicator={false}
         >
           {/* Header banner */}
-          <LinearGradient
-            colors={
-              colors.card === '#161411'
-                ? ['#0d0c0a', '#161411', 'rgba(230,171,43,0.35)']
-                : ['#1e293b', '#334155', 'rgba(184,117,21,0.55)']
-            }
-            start={{ x: 0.3, y: 0.2 }}
-            end={{ x: 0.5, y: 1 }}
-            style={{ paddingTop: insets.top }}
-          >
-            <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 64 }}>
+          <View style={{ paddingTop: insets.top, overflow: 'hidden' }}>
+            {headerPhoto ? (
+              <>
+                <Image
+                  source={{ uri: headerPhoto }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  contentFit="cover"
+                  cachePolicy="disk"
+                />
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['rgba(0,0,0,0.30)', 'rgba(0,0,0,0.15)', colors.card]}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                />
+              </>
+            ) : (
+              <LinearGradient
+                pointerEvents="none"
+                colors={
+                  isDarkCard
+                    ? [
+                        'rgba(13,12,10,0)',
+                        'rgba(230,171,43,0.10)',
+                        'rgba(230,171,43,0.30)',
+                        'rgba(22,20,17,0.75)',
+                        colors.card,
+                      ]
+                    : [
+                        'rgba(30,41,59,0)',
+                        'rgba(184,117,21,0.15)',
+                        'rgba(184,117,21,0.45)',
+                        'rgba(30,41,59,0.75)',
+                        colors.card,
+                      ]
+                }
+                locations={[0, 0.3, 0.55, 0.8, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              />
+            )}
+
+            <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 80 }}>
               <Pressable
-                onPress={closeDrawer}
+                onPress={() => closeDrawer()}
                 style={{
                   position: 'absolute',
                   top: 16, right: 16,
-                  padding: 8,
-                  borderRadius: 8,
-                  backgroundColor: colors.border,
+                  borderRadius: 999,
+                  overflow: 'hidden',
                 }}
               >
-                <X size={18} color="white" />
+                {glassAvailable ? (
+                  <GlassView glassEffectStyle="regular" isInteractive style={{ padding: 8, borderRadius: 999 }}>
+                    <X size={18} color="white" />
+                  </GlassView>
+                ) : (
+                  <BlurView
+                    intensity={40}
+                    tint="dark"
+                    style={{ padding: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' }}
+                  >
+                    <X size={18} color="white" />
+                  </BlurView>
+                )}
               </Pressable>
               <Text style={{ color: 'white', fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>
                 My Profile
               </Text>
             </View>
-          </LinearGradient>
+          </View>
 
           {/* Avatar */}
           <View style={{ paddingHorizontal: 24, marginTop: -48 }}>
-            <Pressable onPress={handleAvatarPick} disabled={uploading}>
+            <Pressable
+              onPress={() => (headerPhoto ? setPreviewOpen(true) : handleAvatarPick())}
+              disabled={uploading}
+            >
               <View
                 style={{
                   width: 96, height: 96, borderRadius: 48,
@@ -357,7 +412,16 @@ const guardLocationEdit = async () => {
                     cachePolicy="disk"
                   />
                 ) : (
-                  <User size={36} color={colors.textFaint} strokeWidth={1.5} />
+                  <>
+                    <User size={36} color={colors.textFaint} strokeWidth={1.5} />
+                    <BlurView
+                      intensity={25}
+                      tint={isDarkCard ? 'dark' : 'light'}
+                      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Plus size={32} color={colors.text} strokeWidth={2.5} />
+                    </BlurView>
+                  </>
                 )}
                 {uploading && (
                   <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
@@ -416,7 +480,7 @@ const guardLocationEdit = async () => {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <FileText size={17} color={colors.textSecondary} />
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Personal details</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Personal details</Text>
                 </View>
                 {personalOpen ? <ChevronUp size={16} color={colors.textMuted} /> : <ChevronDown size={16} color={colors.textMuted} />}
               </Pressable>
@@ -455,7 +519,7 @@ const guardLocationEdit = async () => {
                               : 'Location — hostel, hall, or area'
                             }
                             placeholderTextColor={colors.textFaint}
-                            style={{ paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, backgroundColor: colors.card, borderBottomWidth: field === 'location' ? 0 : 1, borderBottomColor: colors.border }}
+                            style={{ paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: colors.text, backgroundColor: colors.card, borderBottomWidth: field === 'sms_number' ? 0 : 1, borderBottomColor: colors.border }}
                           />
                         ))}
                       </View>
@@ -559,7 +623,7 @@ const guardLocationEdit = async () => {
               onPress={() => router.replace('/dashboard')}
             />
 
-                        <DrawerButton
+            <DrawerButton
               icon={<Film size={17} color={colors.text} />}
               label="Spotlight Profile"
               colors={colors}
@@ -569,18 +633,18 @@ const guardLocationEdit = async () => {
             {planTier !== 'free' && (
               <DrawerButton
                 icon={<Sparkles size={17} color={
-                  colors.card === '#161411'
+                  String(colors.card) === '#161411'
                     ? (planTier === 'premium' ? '#f5f3ff' : '#eff6ff')
                     : (planTier === 'premium' ? '#7c3aed' : '#2563eb')
                 } />}
                 label={planTier === 'premium' ? 'Premium Benefits' : 'Pro Benefits'}
                 bg={
-                  colors.card === '#161411'
+                  String(colors.card) === '#161411'
                     ? (planTier === 'premium' ? '#7e22ce' : '#1d4ed8')
                     : (planTier === 'premium' ? '#f5f3ff' : '#eff6ff')
                 }
                 textColor={
-                  colors.card === '#161411'
+                  String(colors.card) === '#161411'
                     ? (planTier === 'premium' ? '#f5f3ff' : '#eff6ff')
                     : (planTier === 'premium' ? '#6d28d9' : '#1d4ed8')
                 }
@@ -603,7 +667,7 @@ const guardLocationEdit = async () => {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <Info size={17} color={colors.text} />
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Support & About</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Support & About</Text>
                 </View>
                 {supportOpen ? <ChevronUp size={16} color={colors.textMuted} /> : <ChevronDown size={16} color={colors.textMuted} />}
               </Pressable>
@@ -624,7 +688,7 @@ const guardLocationEdit = async () => {
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12 }}
               >
                 <LogOut size={17} color={colors.error} />
-                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.error }}>Log out</Text>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.error }}>Log out</Text>
               </Pressable>
             </View>
 
@@ -648,7 +712,7 @@ const guardLocationEdit = async () => {
           backgroundColor: 'rgba(0,0,0,0.45)',
         }}
       >
-        <Pressable style={{ flex: 1 }} onPress={closeDrawer} />
+        <Pressable style={{ flex: 1 }} onPress={() => closeDrawer()} />
       </Animated.View>
 
       {/* Verify modal */}
@@ -691,6 +755,35 @@ const guardLocationEdit = async () => {
         }}
         onClose={() => setDonationUrl(null)}
       />
+      <Modal visible={previewOpen} transparent animationType="fade" onRequestClose={() => setPreviewOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' }}>
+          <Pressable
+            onPress={() => setPreviewOpen(false)}
+            style={{ position: 'absolute', top: insets.top + 16, right: 16, padding: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)', zIndex: 2 }}
+          >
+            <X size={20} color="white" />
+          </Pressable>
+          {headerPhoto && (
+            <Image
+              source={{ uri: headerPhoto }}
+              style={{ width: '100%', aspectRatio: 1 }}
+              contentFit="contain"
+              allowDownscaling={false}
+              priority="high"
+              cachePolicy="disk"
+            />
+          )}
+          <Pressable
+            onPress={() => {
+              setPreviewOpen(false);
+              setTimeout(handleAvatarPick, 400);
+            }}
+            style={{ position: 'absolute', bottom: insets.bottom + 24, alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)' }}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>Change photo</Text>
+          </Pressable>
+        </View>
+      </Modal>
       <Toast />
 
       {showLocPicker && (
@@ -719,7 +812,7 @@ function DrawerButton({
   const content = (
     <>
       {icon}
-      <Text style={{ fontSize: 16, fontWeight: '600', color: textColor || colors.text, flex: 1 }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: textColor || colors.text, flex: 1 }}>{label}</Text>
       {badge !== undefined && badge > 0 && (
         <View style={{ backgroundColor: colors.brand, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: colors.textOnGold, fontSize: 13, fontWeight: '700' }}>{badge > 9 ? '9+' : badge}</Text>

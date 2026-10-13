@@ -21,8 +21,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import ReviewsSection from '@/components/ReviewsSection';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import PaystackCheckout from '@/components/PaystackCheckout';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const PAYMENT_CALLBACK_URL = 'https://campuscart-tdfn.onrender.com/paystack/callback';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
@@ -56,6 +58,20 @@ function parseAvailability(raw: any) {
   } catch {
     return null; // old plain-text duration values (e.g. "2hrs")
   }
+
+}
+
+function parseServiceOptions(raw: any, fallbackPrice: any): { name: string; price: number }[] {
+  let options = raw;
+  if (typeof options === 'string') {
+    try { options = JSON.parse(options); } catch { options = []; }
+  }
+  if (!Array.isArray(options) || options.length === 0) {
+    return [{ name: 'Service', price: Number(fallbackPrice) }];
+  }
+  return options
+    .filter((option: any) => option?.name && Number(option?.price) > 0)
+    .sort((a: any, b: any) => Number(b.price) - Number(a.price));
 }
 
 // "09:00" (24hr, as stored) -> "9:00 AM"
@@ -103,6 +119,9 @@ export default function ServiceDetail() {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [bookingBlocked, setBookingBlocked] = useState(false);
+  const [checkout, setCheckout] = useState<{ id: string; url: string } | null>(null);
+  const serviceOptions = parseServiceOptions(service?.service_options, service?.price);
+  const [selectedServiceOption, setSelectedServiceOption] = useState<{ name: string; price: number } | null>(null);
 
   const [buyerLocation, setBuyerLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingBuyer, setLocatingBuyer] = useState(false);
@@ -225,9 +244,9 @@ export default function ServiceDetail() {
   const heroHeight = Math.max(280, height * 0.42);
 
   const priceLabel =
-    service.price_max && parseFloat(service.price_max) > parseFloat(service.price)
-      ? `GHS ${parseFloat(service.price).toFixed(2)} – ${parseFloat(service.price_max).toFixed(2)}`
-      : `GHS ${parseFloat(service.price).toFixed(2)}`;
+    serviceOptions.length > 1
+      ? `GHS ${Number(serviceOptions[serviceOptions.length - 1].price).toFixed(2)} – GHS ${Number(serviceOptions[0].price).toFixed(2)}`
+      : `GHS ${Number(serviceOptions[0].price).toFixed(2)}`;
 
   const openDirections = () => {
     if (!hasServiceLocation) return;
@@ -268,21 +287,38 @@ export default function ServiceDetail() {
       Toast.show({ type: 'error', text1: 'You cannot book your own service.' });
       return;
     }
+    if (!selectedServiceOption) {
+      Toast.show({ type: 'error', text1: 'Select the service you want to book.' });
+      return;
+    }
 
     setSubmitting(true);
     try {
       const { data } = await api.post('/bookings', {
         service_id: service.id,
+        service_option_name: selectedServiceOption.name,
         booking_date: dateStr,
         booking_time: timeStr,
         message: message || '',
       });
-      await Linking.openURL(data.authorization_url);
+      setCheckout({ id: String(data.booking_id), url: data.authorization_url });
       setSubmitting(false);
     } catch (err: any) {
       if (err.response?.status === 409) setBookingBlocked(true);
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Something went wrong. Please try again.' });
       setSubmitting(false);
+    }
+  };
+
+  const verifyBooking = async (reference: string) => {
+    if (!checkout) return;
+    try {
+      await api.post(`/bookings/${checkout.id}/verify`, { reference });
+      Toast.show({ type: 'success', text1: 'Booking confirmed' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Could not verify booking payment.' });
+    } finally {
+      setCheckout(null);
     }
   };
 
@@ -575,6 +611,28 @@ export default function ServiceDetail() {
                   </Text>
                 )}
 
+                <View style={{ gap: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase' }}>Choose a service</Text>
+                  {serviceOptions.map((option) => {
+                    const selected = selectedServiceOption?.name === option.name;
+                    return (
+                      <Pressable
+                        key={option.name}
+                        onPress={() => setSelectedServiceOption({ name: option.name, price: Number(option.price) })}
+                        style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brandSoft : colors.card, flexDirection: 'row', justifyContent: 'space-between' }}
+                      >
+                        <Text style={{ color: colors.text, fontWeight: '600' }}>{option.name}</Text>
+                        <Text style={{ color: colors.brand, fontWeight: '700' }}>GHS {Number(option.price).toFixed(2)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                  {selectedServiceOption && (
+                    <Text style={{ fontSize: 13, color: colors.textFaint, textAlign: 'right' }}>
+                      Buyer booking fee: GHS {(selectedServiceOption.price * 0.02).toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+
                 <View>
                   <FieldLabel colors={colors} icon={<MessageSquare size={13} color={colors.textMuted} />} label="Message (optional)" />
                   <TextInput
@@ -612,7 +670,9 @@ export default function ServiceDetail() {
                     <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textFaint }}>Pick another time</Text>
                   ) : (
                     <>
-                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textOnGold }}>Pay (GHS 2) & Book</Text>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textOnGold }}>
+                        {selectedServiceOption ? `Pay GHS ${(selectedServiceOption.price * 1.02).toFixed(2)} & Book` : 'Select a service to book'}
+                      </Text>
                       <ArrowRight size={15} color={colors.textOnGold} />
                     </>
                   )}
@@ -740,6 +800,13 @@ export default function ServiceDetail() {
           </Pressable>
         </View>
       </Modal>
+      <PaystackCheckout
+        visible={!!checkout}
+        authorizationUrl={checkout?.url || null}
+        callbackUrl={PAYMENT_CALLBACK_URL}
+        onSuccess={verifyBooking}
+        onClose={() => setCheckout(null)}
+      />
     </View>
   );
 }

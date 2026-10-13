@@ -26,6 +26,7 @@ import api from '@/api/client';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 const MAX_ITEMS = 10;
+const SPOTLIGHT_PROFILE_ROUTE = '/SpotlightProfile' as const;
 
 type PlayerControl = {
   seek: (ms: number) => void;
@@ -388,9 +389,22 @@ export default function NewStory() {
         kind: mode,
       });
 
-      Toast.show({ type: 'success', text1: mode === 'spotlight' ? 'Posted to Spotlight' : 'Story posted' });
       setItems([]);
       fetchMine();
+
+      if (mode === 'spotlight') {
+        Toast.show({
+          type: 'success',
+          text1: 'Posted to Feed',
+          text2: 'Tap to check it in your profile',
+          onPress: () => {
+            Toast.hide();
+            router.push(SPOTLIGHT_PROFILE_ROUTE);
+          },
+        });
+      } else {
+        Toast.show({ type: 'success', text1: 'Story posted' });
+      }
     } catch (err: any) {
       console.log('POST STORY ERROR', err?.message, err?.response?.status, err?.response?.data);
       Toast.show({
@@ -443,7 +457,7 @@ export default function NewStory() {
                   <View key={k} style={{ gap: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 0.6, color: colors.textMuted }}>
-                        {k === 'story' ? 'STORIES' : 'SPOTLIGHT'}
+                        {k === 'story' ? 'STORIES' : 'FEED'}
                       </Text>
                       <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                     </View>
@@ -518,7 +532,7 @@ export default function NewStory() {
                   borderTopRightRadius: 999,
                   borderBottomRightRadius: 999,
                 }}
-                label="Post to Spotlight"
+                label="Post to Feed"
               />
             </View>
           </View>
@@ -817,8 +831,6 @@ export default function NewStory() {
             />
           );
         })()}
-        <Toast />
-
         {/* Editing tools (centered, horizontal) */}
         <Modal
           visible={toolsOpen}

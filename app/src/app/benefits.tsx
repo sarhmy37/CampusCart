@@ -79,7 +79,7 @@ function BenefitsVideo() {
 export default function Benefits() {
   const colors = useColors();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const insets = { top: 0, bottom: 0 };
   const { height } = useWindowDimensions();
   const { user } = useAuth();
 
@@ -284,14 +284,7 @@ export default function Benefits() {
             </Text>
           </View>
         </View>
-
-        {isSeller && (
-          <View style={{ flexDirection: 'row', marginTop: 20, borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-            <HeaderStat label="Listings" value={loading ? '···' : String(listingCount)} />
-            <HeaderStat label="Total views" value={loading ? '···' : String(totalViews)} />
-            <HeaderStat label="Fees saved" value={loading ? '···' : `GHS ${feeSaved.toFixed(0)}`} />
-          </View>
-        )}
+        
       </Animated.View>
 
       {/* ─── BACK BUTTON (fades on scroll) ─── */}
@@ -360,6 +353,8 @@ export default function Benefits() {
             <View style={{ paddingTop: 36 }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>Manage</Text>
 
+              <View style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14 }}>
+              <View style={{ marginTop: -1 }}>
               {isSeller && (
                 <ActionRow icon={Store} title="View my store" desc="See your public storefront" colors={colors} onPress={() => router.push(`/store/${user!.id}` as any)} />
               )}
@@ -439,6 +434,8 @@ export default function Benefits() {
               ) : (
                 <ActionRow icon={X} title="Cancel subscription" desc="Keep access until your current period ends" colors={colors} onPress={() => setShowCancelModal(true)} danger />
               )}
+              </View>
+              </View>
             </View>
           </Reveal>
 
@@ -452,7 +449,7 @@ export default function Benefits() {
               {SELLER_BENEFITS.map((group, gi) => {
                 const groupItems = group.items.filter((item) => item.tiers.includes(planTier));
                 if (groupItems.length === 0) return null;
-                const isOpen = !!collapsedCategories[group.category];
+                const isOpen = !collapsedCategories[group.category];
                 return (
                   <Reveal key={group.category} delay={gi * 60}>
                     <View>
@@ -613,9 +610,9 @@ function StatementLine({ label, value, highlight, colors }: any) {
 function BenefitRow({ item, colors }: any) {
   const Icon = item.icon;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
-        <Icon size={14} color={colors.brand} />
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14, padding: 14, marginTop: 10, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}>
+      <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon size={18} color={colors.brand} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, lineHeight: 19 }}>{item.title}</Text>

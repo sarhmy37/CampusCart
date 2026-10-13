@@ -1,4 +1,4 @@
-import { Text, TextProps, StyleSheet } from 'react-native';
+import { Text, TextProps, StyleSheet, type TextStyle } from 'react-native';
 import { useFontSettings } from '@/context/FontContext';
 
 // Swap `Text` for `AppText` on any screen you want to respect the user's
@@ -15,6 +15,7 @@ export default function AppText({ style, ...props }: TextProps) {
     (flat.fontWeight === 'bold' || parseInt(String(flat.fontWeight), 10) >= 600);
 
   const resolvedFamily = fontFamily(isBold ? 'bold' : 'regular');
+  const resolvedWeight = fontWeight(flat.fontWeight) as TextStyle['fontWeight'];
 
   return (
     <Text
@@ -23,8 +24,8 @@ export default function AppText({ style, ...props }: TextProps) {
         style,
         {
           fontSize: flat.fontSize ? scaleFont(flat.fontSize) : undefined,
-          fontWeight: fontWeight(flat.fontWeight),
-          ...(resolvedFamily ? { fontFamily: resolvedFamily } : null),
+          fontWeight: resolvedWeight,
+          ...(resolvedFamily ? { fontFamily: resolvedFamily } : {}),
         },
       ]}
     />

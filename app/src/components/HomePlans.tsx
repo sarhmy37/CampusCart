@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { Star, Sparkles } from 'lucide-react-native';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import PaystackCheckout from '@/components/PaystackCheckout';
+
+const PAYMENT_CALLBACK_URL = 'https://campuscart-tdfn.onrender.com/paystack/callback';
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 const PLANS = [
   {
@@ -21,7 +26,8 @@ const PLANS = [
     ],
     sellerBenefits: [
       'Up to 10 active listings',
-      'Standard 1.5% fee per sale',
+      '2% service commission on each booked service',
+      'Buyers pay a 2% booking fee',
       'Basic store page',
     ],
   },
@@ -38,7 +44,8 @@ const PLANS = [
       'See new listings first',
     ],
     sellerBenefits: [
-      'Keep 100% of every sale — no platform fee',
+      'No service commission on booked orders',
+      'Buyers still pay the 2% booking fee',
       'Up to 30 active listings',
       'Listings shown first in search',
       'Pro Seller badge',
@@ -60,11 +67,12 @@ const PLANS = [
       'Export videos with no watermark',
     ],
     sellerBenefits: [
-      'Keep 100% of every sale — no platform fee',
+      'No service commission on booked orders',
+      'Buyers still pay the 2% booking fee',
       'Unlimited active listings',
       'Listings shown first in search',
       'Premium Seller badge',
-      'Store page shown at the very top of search',
+      'Upgraded store page with social sharing',
       'Export videos with no watermark',
       'Views & sales statistics',
     ],
@@ -74,7 +82,7 @@ const PLANS = [
 export default function HomePlans() {
   const colors = useColors();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const isSeller =
     String(user?.role ?? '').toLowerCase().includes('seller') ||
     String(user?.account_type ?? '').toLowerCase().includes('seller') ||
@@ -85,6 +93,7 @@ export default function HomePlans() {
   const audience: 'buyer' | 'seller' | 'both' = !user ? 'both' : isSeller ? 'seller' : 'buyer';
 
   const [subscribingPlan, setSubscribingPlan] = useState<string | null>(null);
+  const [checkout, setCheckout] = useState<{ url: string; reference: string } | null>(null);
   const [now, setNow] = useState(Date.now());
 
   const discountExpiry = user?.plan_discount_expires_at
@@ -177,11 +186,27 @@ export default function HomePlans() {
     try {
       setSubscribingPlan(planName);
       const res = await api.post('/subscriptions/initiate', { plan: targetPlan });
-      Linking.openURL(res.data.authorization_url);
+      setCheckout({ url: res.data.authorization_url, reference: res.data.reference });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Could not start payment.' });
     } finally {
       setSubscribingPlan(null);
+    }
+  };
+
+  const verifySubscription = async (reference: string) => {
+    try {
+      const res = await api.post(`/subscriptions/verify/${encodeURIComponent(reference)}`);
+      if (res.data.status === 'active') {
+        await updateProfile({});
+        Toast.show({ type: 'success', text1: `${res.data.plan} plan is now active` });
+      } else {
+        Toast.show({ type: 'error', text1: 'Payment is still being confirmed. Please check again shortly.' });
+      }
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Could not verify payment.' });
+    } finally {
+      setCheckout(null);
     }
   };
 
@@ -195,29 +220,29 @@ export default function HomePlans() {
 
     if (pendingPlan && plan.name.toLowerCase() === pendingPlan) {
       return (
-        <View style={[btnStyle(colors), { backgroundColor: colors.warningSoft }]}>
+        <ButtonShell colors={colors} bg={colors.warningSoft}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: colors.warning, textAlign: 'center' }} numberOfLines={1}>
             Starts {pendingDate}
           </Text>
-        </View>
+        </ButtonShell>
       );
     }
     if (isCurrent && pendingPlan) {
       return (
-        <View style={[btnStyle(colors), { backgroundColor: colors.chipBg }]}>
+        <ButtonShell colors={colors} bg={colors.chipBg}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textAlign: 'center' }} numberOfLines={1}>
             Active until {pendingDate}
           </Text>
-        </View>
+        </ButtonShell>
       );
     }
     if (isCurrent) {
       return (
-        <View style={[btnStyle(colors), { backgroundColor: colors.chipBg }]}>
+        <ButtonShell colors={colors} bg={colors.chipBg}>
           <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textFaint, textAlign: 'center' }} numberOfLines={1}>
             Current plan
           </Text>
-        </View>
+        </ButtonShell>
       );
     }
 
@@ -231,16 +256,12 @@ export default function HomePlans() {
         : `Choose ${plan.name}`;
 
     return (
-      <Pressable
+      <ButtonShell
+        colors={colors}
+        bg={plan.highlight ? colors.brand : colors.chipBg}
+        tint={plan.highlight ? colors.brand : undefined}
         onPress={() => handlePlanClick(plan.name)}
         disabled={subscribingPlan === plan.name}
-        style={[
-          btnStyle(colors),
-          {
-            backgroundColor: plan.highlight ? colors.brand : colors.chipBg,
-            opacity: subscribingPlan === plan.name ? 0.6 : 1,
-          },
-        ]}
       >
         {subscribingPlan === plan.name ? (
           <ActivityIndicator size="small" color={plan.highlight ? colors.textOnGold : colors.text} />
@@ -257,7 +278,7 @@ export default function HomePlans() {
             {label}
           </Text>
         )}
-      </Pressable>
+      </ButtonShell>
     );
   };
 
@@ -320,6 +341,13 @@ export default function HomePlans() {
           width="full"
         />
       </View>
+      <PaystackCheckout
+        visible={!!checkout}
+        authorizationUrl={checkout?.url || null}
+        callbackUrl={PAYMENT_CALLBACK_URL}
+        onSuccess={verifySubscription}
+        onClose={() => setCheckout(null)}
+      />
     </View>
   );
 }
@@ -391,6 +419,7 @@ function PlanCard({
 
       <View
         style={{
+          flex: 1,
           flexDirection: 'row',
           gap: 8,
           marginTop: 12,
@@ -429,6 +458,28 @@ function PlanCard({
 
       {renderButton(plan)}
     </View>
+  );
+}
+
+function ButtonShell({ colors, bg, tint, onPress, disabled, children }: any) {
+  const base = btnStyle(colors);
+  const inner = GLASS ? (
+    <GlassView
+      glassEffectStyle="regular"
+      isInteractive={!!onPress}
+      tintColor={tint}
+      style={{ ...base, borderRadius: 10 }}
+    >
+      {children}
+    </GlassView>
+  ) : (
+    <View style={{ ...base, backgroundColor: bg }}>{children}</View>
+  );
+  if (!onPress) return inner;
+  return (
+    <Pressable onPress={onPress} disabled={disabled} style={{ opacity: disabled ? 0.6 : 1 }}>
+      {inner}
+    </Pressable>
   );
 }
 

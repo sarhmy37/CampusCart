@@ -133,6 +133,7 @@ const backOpacity = scrollY.interpolate({
 
   // Service form
   const [serviceForm, setServiceForm] = useState({ title: '', description: '', price: '', priceMax: '' });
+  const [serviceOptions, setServiceOptions] = useState<{ name: string; price: string }[]>([{ name: '', price: '' }]);
   const [is247, setIs247] = useState(false);
   const [workingDays, setWorkingDays] = useState(
     WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' }))
@@ -380,10 +381,11 @@ setLocationSource('gps');
 
   const submitService = async () => {
     if (!serviceForm.title.trim()) return Toast.show({ type: 'error', text1: 'Enter a service title' });
-    if (!serviceForm.price || parseFloat(serviceForm.price) <= 0)
-      return Toast.show({ type: 'error', text1: 'Enter a valid starting price' });
-    if (serviceForm.priceMax && parseFloat(serviceForm.priceMax) < parseFloat(serviceForm.price))
-      return Toast.show({ type: 'error', text1: "The upper price can't be less than the starting price" });
+    const validServiceOptions = serviceOptions
+      .map((option) => ({ name: option.name.trim(), price: Number(option.price) }))
+      .filter((option) => option.name && Number.isFinite(option.price) && option.price > 0);
+    if (validServiceOptions.length === 0)
+      return Toast.show({ type: 'error', text1: 'Add at least one named service option and price' });
     if (serviceImageUrls.length === 0) return Toast.show({ type: 'error', text1: 'Add at least one photo' });
     if (!is247 && workingDays.every((d) => !d.enabled))
       return Toast.show({ type: 'error', text1: 'Select working days or 24/7' });
@@ -406,8 +408,9 @@ setLocationSource('gps');
       await api.post('/products', {
         title: serviceForm.title,
         description: serviceForm.description || 'No description provided.',
-        price: serviceForm.price,
-        price_max: serviceForm.priceMax || null,
+        price: Math.min(...validServiceOptions.map((option) => option.price)),
+        price_max: Math.max(...validServiceOptions.map((option) => option.price)),
+        service_options: validServiceOptions,
         condition: 'new',
         stock: 999,
         category: 'Services',
@@ -643,7 +646,7 @@ onScroll={(e) => {
                     uploading={uploading}
                     maxReached={imageUrls.length >= MAX_IMAGES}
                     onAdd={() => pickImages(imageUrls, setImageUrls, setPreviews, setUploading)}
-                    onRemove={(i) => {
+                    onRemove={(i: number) => {
                       setImageUrls((p) => p.filter((_, idx) => idx !== i));
                       setPreviews((p) => p.filter((_, idx) => idx !== i));
                     }}
@@ -798,7 +801,7 @@ onScroll={(e) => {
                     uploading={serviceUploading}
                     maxReached={serviceImageUrls.length >= MAX_IMAGES}
                     onAdd={() => pickImages(serviceImageUrls, setServiceImageUrls, setServicePreviews, setServiceUploading)}
-                    onRemove={(i) => {
+                    onRemove={(i: number) => {
                       setServiceImageUrls((p) => p.filter((_, idx) => idx !== i));
                       setServicePreviews((p) => p.filter((_, idx) => idx !== i));
                     }}
@@ -814,28 +817,41 @@ onScroll={(e) => {
                 />
               </View>
 
-              <FieldLabel colors={colors} label="Price range (GHS)" />
+              <FieldLabel colors={colors} label="Service options and prices" />
               <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 6 }}>
-                What your service typically costs, from cheapest to priciest option.
+                Add each service you provide and its price. Buyers will choose one when booking.
               </Text>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TextInput
-                  value={serviceForm.price}
-                  onChangeText={(v) => setServiceForm({ ...serviceForm, price: v })}
-                  keyboardType="decimal-pad"
-                  placeholder="From e.g. 30"
-                  placeholderTextColor={colors.textFaint}
-                  style={[inputStyle(colors), { flex: 1 }]}
-                />
-                <TextInput
-                  value={serviceForm.priceMax}
-                  onChangeText={(v) => setServiceForm({ ...serviceForm, priceMax: v })}
-                  keyboardType="decimal-pad"
-                  placeholder="To (optional)"
-                  placeholderTextColor={colors.textFaint}
-                  style={[inputStyle(colors), { flex: 1 }]}
-                />
-              </View>
+              {serviceOptions.map((option, index) => (
+                <View key={index} style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                  <TextInput
+                    value={option.name}
+                    onChangeText={(name) => setServiceOptions((current) => current.map((item, i) => i === index ? { ...item, name } : item))}
+                    placeholder="Service type"
+                    placeholderTextColor={colors.textFaint}
+                    style={[inputStyle(colors), { flex: 1.4 }]}
+                  />
+                  <TextInput
+                    value={option.price}
+                    onChangeText={(price) => setServiceOptions((current) => current.map((item, i) => i === index ? { ...item, price } : item))}
+                    keyboardType="decimal-pad"
+                    placeholder="Price"
+                    placeholderTextColor={colors.textFaint}
+                    style={[inputStyle(colors), { flex: 1 }]}
+                  />
+                  {serviceOptions.length > 1 && (
+                    <Pressable onPress={() => setServiceOptions((current) => current.filter((_, i) => i !== index))} style={{ justifyContent: 'center', padding: 8 }}>
+                      <Trash2 size={17} color={colors.error} />
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+              <Pressable
+                onPress={() => setServiceOptions((current) => [...current, { name: '', price: '' }])}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 6 }}
+              >
+                <Plus size={16} color={colors.brand} />
+                <Text style={{ color: colors.brand, fontWeight: '700' }}>Add another option</Text>
+              </Pressable>
 
               {/* Duration */}
               <Divider colors={colors} />

@@ -557,7 +557,7 @@ export default function RegisterScreen() {
                   <GlassButton
                     key={t}
                     onPress={() => setAccountType(t)}
-                    tint={colors.brand}
+                    tint={accountType === t ? colors.brand : undefined}
                     accessibilityRole="button"
                     accessibilityLabel={t === 'buyer' ? 'Sign up to shop and find items' : 'Sign up to sell and offer items'}
                     accessibilityState={{ selected: accountType === t }}
@@ -574,11 +574,11 @@ export default function RegisterScreen() {
                   >
                     {(() => {
                       const on = accountType === t;
-                      const col = !USE_GLASS ? (on ? colors.brand : colors.textMuted) : colors.textOnGold;
+                      const col = !USE_GLASS ? (on ? colors.brand : colors.textMuted) : (on ? colors.textOnGold : colors.text);
                       const Icon = !USE_GLASS ? (t === 'buyer' ? ShoppingBag : Store) : t === 'buyer' ? (on ? BagSolid : BagOutline) : (on ? StoreSolid : StoreOutline);
                       return <Icon size={USE_GLASS ? (on ? 18 : 16) : 15} color={col} />;
                     })()}
-                    <Text style={{ fontSize: USE_GLASS && accountType === t ? 16 : 14, fontWeight: USE_GLASS ? (accountType === t ? '800' : '500') : '600', color: USE_GLASS ? colors.textOnGold : (accountType === t ? colors.brand : colors.textMuted) }}>
+                    <Text style={{ fontSize: USE_GLASS && accountType === t ? 16 : 14, fontWeight: USE_GLASS ? (accountType === t ? '800' : '500') : '600', color: USE_GLASS ? (accountType === t ? colors.textOnGold : colors.text) : (accountType === t ? colors.brand : colors.textMuted) }}>
                       {t === 'buyer' ? 'Shop & Find' : 'Sell & Offer'}
                     </Text>
                   </GlassButton>
@@ -793,7 +793,7 @@ export default function RegisterScreen() {
                     <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textSecondary }}>Payout Account</Text>
                   </View>
 
-                  <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 12, gap: 4 }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, alignSelf: 'center', marginBottom: 12, gap: 4 }}>
                     {(['bank','mobile_money'] as const).map((m) => (
                       <Pressable
                         key={m}

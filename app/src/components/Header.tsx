@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { View, Text, Pressable, Platform, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, usePathname } from 'expo-router';
-import { Search, Heart, Bell, LayoutDashboard } from 'lucide-react-native';
+import { Search, Heart, Bell, BellOff, LayoutDashboard } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '@/context/AuthContext';
 import { useWishlist } from '@/context/WishlistContext';
@@ -129,6 +129,8 @@ export default function Header() {
       return next;
     });
   };
+
+  if (pathname?.toLowerCase().startsWith('/spotlightprofile')) return null;
 
   return (
     <>

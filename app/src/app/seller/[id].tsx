@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
-import { ArrowLeft, Star, Tag, Sparkles, BadgeCheck, ShoppingBag } from 'lucide-react-native';
+import { ArrowLeft, Star, Tag, Sparkles, BadgeCheck, ShoppingBag, Search, X } from 'lucide-react-native';
 import ProductCard from '@/components/ProductCard';
 import { useColors } from '@/hooks/useColors';
 import api from '@/api/client';

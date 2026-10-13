@@ -63,7 +63,7 @@ export default function ProductCard({
   }, [isBoosted, product.boosted_until]);
 
   let stockLabel: string | null = null;
-  let stockColor = colors.textFaint;
+  let stockColor: string = colors.textFaint;
   if (stock !== null && stock <= 0) {
     stockLabel = 'Out of stock';
     stockColor = colors.error;

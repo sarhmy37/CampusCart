@@ -182,7 +182,7 @@ export default function OrderConfirmation() {
             <Text style={{ fontSize: 14, color: colors.textFaint }}>
               {order.delivery_method === 'delivery'
                 ? 'Delivery within 1–3 working days'
-                : 'Arrange pickup with the seller on campus'}
+                : 'On-campus delivery is being prepared'}
             </Text>
           </View>
         </View>
