@@ -33,7 +33,7 @@ function escapeHtml(str) {
 
 async function getSellerSummary(id) {
     const userResult = await pool.query(
-        'SELECT id, name, school, verified FROM users WHERE id = $1',
+        'SELECT id, name, school, verified, avatar_url FROM users WHERE id = $1',
         [id]
     );
     const seller = userResult.rows[0];
@@ -104,44 +104,77 @@ router.get('/store/:id/og-image.png', async (req, res) => {
         const seller = await getSellerSummary(req.params.id);
         if (!seller) return res.status(404).end();
 
+        let avatarSrc = null;
+        if (seller.avatar_url) {
+            try {
+                const url = seller.avatar_url.includes('cdn.sanity.io')
+                    ? `${seller.avatar_url}${seller.avatar_url.includes('?') ? '&' : '?'}w=600&h=600&fit=crop&fm=png`
+                    : seller.avatar_url;
+                const r = await fetch(url);
+                if (r.ok) {
+                    const type = r.headers.get('content-type') || 'image/png';
+                    avatarSrc = `data:${type};base64,${Buffer.from(await r.arrayBuffer()).toString('base64')}`;
+                }
+            } catch {}
+        }
+
         const svg = await satori(
             {
                 type: 'div',
                 props: {
                     style: {
-                        width: '1200px',
-                        height: '630px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        padding: '64px',
-                        background: 'linear-gradient(135deg, #1d4ed8 0%, #f97316 100%)',
-                        fontFamily: 'Inter',
-                        color: 'white',
+                        width: '1200px', height: '630px', display: 'flex', flexDirection: 'column',
+                        background: '#161411', fontFamily: 'Inter',
                     },
                     children: [
                         {
                             type: 'div',
-                            props: { style: { fontSize: 40, fontWeight: 800, letterSpacing: '-1px' }, children: 'TreX' },
+                            props: {
+                                style: { position: 'relative', display: 'flex', width: '1200px', height: '270px', background: '#211e19', overflow: 'hidden' },
+                                children: [
+                                    avatarSrc && {
+                                        type: 'img',
+                                        props: { src: avatarSrc, width: 1200, height: 270, style: { position: 'absolute', top: 0, left: 0, width: '1200px', height: '270px', objectFit: 'cover' } },
+                                    },
+                                    {
+                                        type: 'div',
+                                        props: { style: { position: 'absolute', top: 0, left: 0, width: '1200px', height: '270px', background: 'rgba(0,0,0,0.4)' } },
+                                    },
+                                ].filter(Boolean),
+                            },
                         },
                         {
                             type: 'div',
                             props: {
-                                style: { display: 'flex', flexDirection: 'column', gap: '16px' },
+                                style: {
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                                    width: '180px', height: '180px', borderRadius: '90px',
+                                    marginTop: '-90px', marginLeft: '64px',
+                                    border: '8px solid #161411', background: '#211e19',
+                                },
+                                children: avatarSrc
+                                    ? { type: 'img', props: { src: avatarSrc, width: 180, height: 180, style: { width: '180px', height: '180px', objectFit: 'cover' } } }
+                                    : { type: 'div', props: { style: { fontSize: 72, fontWeight: 800, color: '#E6AB2B' }, children: (seller.name || '?')[0].toUpperCase() } },
+                            },
+                        },
+                        {
+                            type: 'div',
+                            props: {
+                                style: { display: 'flex', flexDirection: 'column', flexGrow: 1, padding: '16px 64px 0 64px' },
                                 children: [
-                                    { type: 'div', props: { style: { fontSize: 64, fontWeight: 800 }, children: seller.name } },
-                                    { type: 'div', props: { style: { fontSize: 32, opacity: 0.85 }, children: seller.school || '' } },
+                                    { type: 'div', props: { style: { fontSize: 60, fontWeight: 800, color: '#f5f0e6' }, children: seller.name } },
+                                    { type: 'div', props: { style: { fontSize: 28, color: '#a89f8d', marginTop: '4px' }, children: seller.school || '' } },
                                     {
                                         type: 'div',
                                         props: {
-                                            style: { display: 'flex', gap: '32px', fontSize: 19, marginTop: '12px' },
+                                            style: { display: 'flex', gap: '32px', fontSize: 30, color: '#a89f8d', marginTop: '16px' },
                                             children: [
-                                                { type: 'div', props: { children: `${seller.listingCount} listings` } },
+                                                { type: 'div', props: { children: `${seller.listingCount} listing${seller.listingCount === 1 ? '' : 's'}` } },
                                                 {
                                                     type: 'div',
                                                     props: {
                                                         children: seller.avgRating > 0
-                                                            ? `★ ${seller.avgRating.toFixed(1)} (${seller.reviewCount})`
+                                                            ? `Rated ${seller.avgRating.toFixed(1)} · ${seller.reviewCount} review${seller.reviewCount === 1 ? '' : 's'}`
                                                             : 'New seller',
                                                     },
                                                 },
@@ -149,6 +182,13 @@ router.get('/store/:id/og-image.png', async (req, res) => {
                                         },
                                     },
                                 ],
+                            },
+                        },
+                        {
+                            type: 'div',
+                            props: {
+                                style: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '84px', background: '#E6AB2B' },
+                                children: { type: 'div', props: { style: { fontSize: 34, fontWeight: 800, color: '#0d0c0a' }, children: 'View store →' } },
                             },
                         },
                     ],
