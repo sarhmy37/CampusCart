@@ -100,7 +100,7 @@ router.get('/store/:id', async (req, res) => {
 <meta property="og:title" content="TreX" />
 <meta property="og:image" content="${imageUrl}" />
 <meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="900" />
+<meta property="og:image:height" content="630" />
 <meta property="og:url" content="${pageUrl}" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -142,8 +142,8 @@ router.get('/store/:id/og-image.png', async (req, res) => {
             props: {
                 style: { display: 'flex', flexDirection: 'column' },
                 children: [
-                    { type: 'div', props: { style: { fontSize: 56, fontWeight: 800, color: T.text }, children: String(value) } },
-                    { type: 'div', props: { style: { fontSize: 26, color: T.muted, marginTop: '4px' }, children: label } },
+                    { type: 'div', props: { style: { fontSize: 48, fontWeight: 800, color: T.text }, children: String(value) } },
+                    { type: 'div', props: { style: { fontSize: 24, color: T.muted, marginTop: '2px' }, children: label } },
                 ],
             },
         });
@@ -153,22 +153,22 @@ router.get('/store/:id/og-image.png', async (req, res) => {
                 type: 'div',
                 props: {
                     style: {
-                        width: '1200px', height: '900px', display: 'flex', flexDirection: 'column',
+                        width: '1200px', height: '630px', display: 'flex', flexDirection: 'column',
                         background: T.bg, fontFamily: 'Inter',
                     },
                     children: [
                         {
                             type: 'div',
                             props: {
-                                style: { position: 'relative', display: 'flex', width: '1200px', height: '400px', background: T.alt, overflow: 'hidden' },
+                                style: { position: 'relative', display: 'flex', width: '1200px', height: '220px', background: T.alt, overflow: 'hidden' },
                                 children: [
                                     avatarSrc && {
                                         type: 'img',
-                                        props: { src: avatarSrc, width: 1200, height: 400, style: { position: 'absolute', top: 0, left: 0, width: '1200px', height: '400px', objectFit: 'cover' } },
+                                        props: { src: avatarSrc, width: 1200, height: 220, style: { position: 'absolute', top: 0, left: 0, width: '1200px', height: '220px', objectFit: 'cover' } },
                                     },
                                     {
                                         type: 'div',
-                                        props: { style: { position: 'absolute', bottom: 0, left: 0, width: '1200px', height: '220px', background: `linear-gradient(to bottom, ${T.fade}, ${T.bg})` } },
+                                        props: { style: { position: 'absolute', bottom: 0, left: 0, width: '1200px', height: '120px', background: `linear-gradient(to bottom, ${T.fade}, ${T.bg})` } },
                                     },
                                 ].filter(Boolean),
                             },
@@ -178,27 +178,27 @@ router.get('/store/:id/og-image.png', async (req, res) => {
                             props: {
                                 style: {
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                                    width: '200px', height: '200px', borderRadius: '100px',
-                                    marginTop: '-100px', marginLeft: '64px',
+                                    width: '160px', height: '160px', borderRadius: '80px',
+                                    marginTop: '-80px', marginLeft: '64px',
                                     border: `8px solid ${T.bg}`, background: T.alt,
                                 },
                                 children: avatarSrc
-                                    ? { type: 'img', props: { src: avatarSrc, width: 200, height: 200, style: { width: '200px', height: '200px', objectFit: 'cover' } } }
-                                    : { type: 'div', props: { style: { fontSize: 80, fontWeight: 800, color: T.muted }, children: (seller.name || '?')[0].toUpperCase() } },
+                                    ? { type: 'img', props: { src: avatarSrc, width: 160, height: 160, style: { width: '160px', height: '160px', objectFit: 'cover' } } }
+                                    : { type: 'div', props: { style: { fontSize: 64, fontWeight: 800, color: T.muted }, children: (seller.name || '?')[0].toUpperCase() } },
                             },
                         },
                         {
                             type: 'div',
                             props: {
-                                style: { display: 'flex', flexDirection: 'column', padding: '20px 64px 0 64px' },
+                                style: { display: 'flex', flexDirection: 'column', padding: '12px 64px 0 64px' },
                                 children: [
-                                    { type: 'div', props: { style: { fontSize: 64, fontWeight: 800, color: T.text }, children: seller.name } },
-                                    seller.school && { type: 'div', props: { style: { fontSize: 30, color: T.muted, marginTop: '6px' }, children: seller.school } },
-                                    seller.location && { type: 'div', props: { style: { fontSize: 30, color: T.muted, marginTop: '6px' }, children: seller.location } },
+                                    { type: 'div', props: { style: { fontSize: 52, fontWeight: 800, color: T.text }, children: seller.name } },
+                                    seller.school && { type: 'div', props: { style: { fontSize: 26, color: T.muted, marginTop: '4px' }, children: seller.school } },
+                                    seller.location && { type: 'div', props: { style: { fontSize: 26, color: T.muted, marginTop: '4px' }, children: seller.location } },
                                     {
                                         type: 'div',
                                         props: {
-                                            style: { display: 'flex', gap: '72px', marginTop: '40px' },
+                                            style: { display: 'flex', gap: '64px', marginTop: '22px' },
                                             children: [
                                                 stat(seller.listingCount, seller.listingCount === 1 ? 'Listing' : 'Listings'),
                                                 stat(seller.salesCount, seller.salesCount === 1 ? 'Sale' : 'Sales'),
@@ -216,7 +216,7 @@ router.get('/store/:id/og-image.png', async (req, res) => {
             },
             {
                 width: 1200,
-                height: 900,
+                height: 630,
                 fonts: [{ name: 'Inter', data: fontData, weight: 800, style: 'normal' }],
             }
         );
