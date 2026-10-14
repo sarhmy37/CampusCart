@@ -33,15 +33,16 @@ function escapeHtml(str) {
 
 async function getSellerSummary(id) {
     const userResult = await pool.query(
-        'SELECT id, name, school, verified, avatar_url FROM users WHERE id = $1',
+        'SELECT id, name, school, verified, avatar_url, location FROM users WHERE id = $1',
         [id]
     );
     const seller = userResult.rows[0];
     if (!seller) return null;
 
-    const [listingsResult, reviewsResult] = await Promise.all([
-        pool.query("SELECT COUNT(*) FROM products WHERE seller_id = $1 AND status = 'available'", [id]),
+    const [listingsResult, reviewsResult, salesResult] = await Promise.all([
+        pool.query('SELECT COUNT(*) FROM products WHERE seller_id = $1 AND stock > 0', [id]),
         pool.query('SELECT COALESCE(AVG(rating), 0) AS avg_rating, COUNT(*) AS total FROM reviews WHERE seller_id = $1', [id]),
+        pool.query('SELECT COUNT(*) FROM order_items WHERE seller_id = $1 AND buyer_confirmed_at IS NOT NULL', [id]),
     ]);
 
     return {
@@ -49,6 +50,7 @@ async function getSellerSummary(id) {
         listingCount: parseInt(listingsResult.rows[0].count, 10),
         avgRating: parseFloat(reviewsResult.rows[0].avg_rating),
         reviewCount: parseInt(reviewsResult.rows[0].total, 10),
+        salesCount: parseInt(salesResult.rows[0].count, 10),
     };
 }
 
@@ -60,7 +62,25 @@ router.get('/store/:id', async (req, res) => {
     const pageUrl = `${FRONTEND_URL}/store/${id}`;
 
     if (!isBot) {
-        return res.redirect(302, pageUrl);
+        const appUrl = `app://seller/${encodeURIComponent(id)}`;
+        res.set('Content-Type', 'text/html');
+        return res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Opening TreX…</title>
+</head>
+<body style="font-family:sans-serif;text-align:center;padding-top:40px">
+<p>Opening TreX…</p>
+<p><a href="${appUrl}">Open in app</a> · <a href="${pageUrl}">Continue on web</a></p>
+<script>
+  var t = setTimeout(function () { window.location.href = ${JSON.stringify(pageUrl)}; }, 1500);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) clearTimeout(t); });
+  window.location.href = ${JSON.stringify(appUrl)};
+</script>
+</body>
+</html>`);
     }
 
     const seller = await getSellerSummary(id).catch(() => null);
@@ -68,30 +88,22 @@ router.get('/store/:id', async (req, res) => {
         return res.redirect(302, pageUrl);
     }
 
-    const title = `${seller.name} — TreX Store`;
-    const description = `${seller.listingCount} listing${seller.listingCount === 1 ? '' : 's'} on TreX` +
-        (seller.avgRating > 0 ? ` · ★ ${seller.avgRating.toFixed(1)} (${seller.reviewCount} reviews)` : '');
-    const imageUrl = `${req.protocol}://${req.get('host')}/store/${id}/og-image.png`;
+    const theme = req.query.theme === 'dark' ? 'dark' : 'light';
+    const imageUrl = `${req.protocol}://${req.get('host')}/store/${id}/og-image.png?theme=${theme}`;
 
     res.set('Content-Type', 'text/html');
     res.send(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
-<title>${escapeHtml(title)}</title>
-<meta property="og:title" content="${escapeHtml(title)}" />
-<meta property="og:description" content="${escapeHtml(description)}" />
 <meta property="og:image" content="${imageUrl}" />
 <meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
+<meta property="og:image:height" content="900" />
 <meta property="og:url" content="${pageUrl}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="TreX" />
 <meta name="twitter:card" content="summary_large_image" />
 </head>
-<body>
-<a href="${pageUrl}">View ${escapeHtml(seller.name)}'s store on TreX</a>
-</body>
+<body></body>
 </html>`);
 });
 
@@ -118,27 +130,43 @@ router.get('/store/:id/og-image.png', async (req, res) => {
             } catch {}
         }
 
+        const dark = req.query.theme === 'dark';
+        const T = dark
+            ? { bg: '#161411', alt: '#211e19', text: '#f5f0e6', muted: '#a89f8d', fade: 'rgba(22,20,17,0)' }
+            : { bg: '#ffffff', alt: '#f8fafc', text: '#0f172a', muted: '#64748b', fade: 'rgba(255,255,255,0)' };
+
+        const stat = (value, label) => ({
+            type: 'div',
+            props: {
+                style: { display: 'flex', flexDirection: 'column' },
+                children: [
+                    { type: 'div', props: { style: { fontSize: 56, fontWeight: 800, color: T.text }, children: String(value) } },
+                    { type: 'div', props: { style: { fontSize: 26, color: T.muted, marginTop: '4px' }, children: label } },
+                ],
+            },
+        });
+
         const svg = await satori(
             {
                 type: 'div',
                 props: {
                     style: {
-                        width: '1200px', height: '630px', display: 'flex', flexDirection: 'column',
-                        background: '#161411', fontFamily: 'Inter',
+                        width: '1200px', height: '900px', display: 'flex', flexDirection: 'column',
+                        background: T.bg, fontFamily: 'Inter',
                     },
                     children: [
                         {
                             type: 'div',
                             props: {
-                                style: { position: 'relative', display: 'flex', width: '1200px', height: '270px', background: '#211e19', overflow: 'hidden' },
+                                style: { position: 'relative', display: 'flex', width: '1200px', height: '400px', background: T.alt, overflow: 'hidden' },
                                 children: [
                                     avatarSrc && {
                                         type: 'img',
-                                        props: { src: avatarSrc, width: 1200, height: 270, style: { position: 'absolute', top: 0, left: 0, width: '1200px', height: '270px', objectFit: 'cover' } },
+                                        props: { src: avatarSrc, width: 1200, height: 400, style: { position: 'absolute', top: 0, left: 0, width: '1200px', height: '400px', objectFit: 'cover' } },
                                     },
                                     {
                                         type: 'div',
-                                        props: { style: { position: 'absolute', top: 0, left: 0, width: '1200px', height: '270px', background: 'rgba(0,0,0,0.4)' } },
+                                        props: { style: { position: 'absolute', bottom: 0, left: 0, width: '1200px', height: '220px', background: `linear-gradient(to bottom, ${T.fade}, ${T.bg})` } },
                                     },
                                 ].filter(Boolean),
                             },
@@ -148,47 +176,37 @@ router.get('/store/:id/og-image.png', async (req, res) => {
                             props: {
                                 style: {
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                                    width: '180px', height: '180px', borderRadius: '90px',
-                                    marginTop: '-90px', marginLeft: '64px',
-                                    border: '8px solid #161411', background: '#211e19',
+                                    width: '200px', height: '200px', borderRadius: '100px',
+                                    marginTop: '-100px', marginLeft: '64px',
+                                    border: `8px solid ${T.bg}`, background: T.alt,
                                 },
                                 children: avatarSrc
-                                    ? { type: 'img', props: { src: avatarSrc, width: 180, height: 180, style: { width: '180px', height: '180px', objectFit: 'cover' } } }
-                                    : { type: 'div', props: { style: { fontSize: 72, fontWeight: 800, color: '#E6AB2B' }, children: (seller.name || '?')[0].toUpperCase() } },
+                                    ? { type: 'img', props: { src: avatarSrc, width: 200, height: 200, style: { width: '200px', height: '200px', objectFit: 'cover' } } }
+                                    : { type: 'div', props: { style: { fontSize: 80, fontWeight: 800, color: T.muted }, children: (seller.name || '?')[0].toUpperCase() } },
                             },
                         },
                         {
                             type: 'div',
                             props: {
-                                style: { display: 'flex', flexDirection: 'column', flexGrow: 1, padding: '16px 64px 0 64px' },
+                                style: { display: 'flex', flexDirection: 'column', padding: '20px 64px 0 64px' },
                                 children: [
-                                    { type: 'div', props: { style: { fontSize: 60, fontWeight: 800, color: '#f5f0e6' }, children: seller.name } },
-                                    { type: 'div', props: { style: { fontSize: 28, color: '#a89f8d', marginTop: '4px' }, children: seller.school || '' } },
+                                    { type: 'div', props: { style: { fontSize: 64, fontWeight: 800, color: T.text }, children: seller.name } },
+                                    seller.school && { type: 'div', props: { style: { fontSize: 30, color: T.muted, marginTop: '6px' }, children: seller.school } },
+                                    seller.location && { type: 'div', props: { style: { fontSize: 30, color: T.muted, marginTop: '6px' }, children: seller.location } },
                                     {
                                         type: 'div',
                                         props: {
-                                            style: { display: 'flex', gap: '32px', fontSize: 30, color: '#a89f8d', marginTop: '16px' },
+                                            style: { display: 'flex', gap: '72px', marginTop: '40px' },
                                             children: [
-                                                { type: 'div', props: { children: `${seller.listingCount} listing${seller.listingCount === 1 ? '' : 's'}` } },
-                                                {
-                                                    type: 'div',
-                                                    props: {
-                                                        children: seller.avgRating > 0
-                                                            ? `Rated ${seller.avgRating.toFixed(1)} · ${seller.reviewCount} review${seller.reviewCount === 1 ? '' : 's'}`
-                                                            : 'New seller',
-                                                    },
-                                                },
+                                                stat(seller.listingCount, seller.listingCount === 1 ? 'Listing' : 'Listings'),
+                                                stat(seller.salesCount, seller.salesCount === 1 ? 'Sale' : 'Sales'),
+                                                seller.reviewCount > 0
+                                                    ? stat(seller.avgRating.toFixed(1), `${seller.reviewCount} review${seller.reviewCount === 1 ? '' : 's'}`)
+                                                    : stat('-', 'No reviews yet'),
                                             ],
                                         },
                                     },
-                                ],
-                            },
-                        },
-                        {
-                            type: 'div',
-                            props: {
-                                style: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '84px', background: '#E6AB2B' },
-                                children: { type: 'div', props: { style: { fontSize: 34, fontWeight: 800, color: '#0d0c0a' }, children: 'View store →' } },
+                                ].filter(Boolean),
                             },
                         },
                     ],
@@ -196,7 +214,7 @@ router.get('/store/:id/og-image.png', async (req, res) => {
             },
             {
                 width: 1200,
-                height: 630,
+                height: 900,
                 fonts: [{ name: 'Inter', data: fontData, weight: 800, style: 'normal' }],
             }
         );
