@@ -54,7 +54,7 @@ const amountGHS = discountActive
             amountGHS,
             reference,
             metadata: { user_id: req.userId, plan },
-            callback_url: `${process.env.CORS_ORIGIN}/subscription/callback`,
+            callback_url: `${process.env.PUBLIC_API_URL || 'https://campuscart-tdfn.onrender.com'}/paystack/callback`,
         });
 
         res.json({

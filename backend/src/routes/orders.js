@@ -3,7 +3,7 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { initializeTransaction, verifyWebhookSignature, refundTransaction } = require('../utils/paystack');
 const { sendOrderSMS } = require('../utils/mailer');
-const { calcDeliveryFee } = require('../utils/distance');
+const { calcDeliveryFee, getDistanceTier } = require('../utils/distance');
 const { getDeliveryDiscountRate } = require('../utils/plans');
 const { getSellerFeeRate } = require('../utils/plans');
 
@@ -159,11 +159,26 @@ router.post('/', requireAuth, async (req, res) => {
         // seller receives. Only the buyer-facing total (deliveryFee) is discounted.
         let deliveryFeeFull = 0;
         const deliveryFeeBySeller = {};
+        const sellerDistanceTiers = Object.values(sellerDeliveryInfo).map((info) =>
+            getDistanceTier(buyer_lat, buyer_lng, info.school).tier
+        );
+        if (delivery_method === 'on_campus' &&
+            (sellerDistanceTiers.length === 0 || sellerDistanceTiers.some((tier) => tier !== 'on_campus'))) {
+            throw { status: 400, message: 'You are not on the seller campus. Choose outside-campus delivery instead.' };
+        }
+        if (delivery_method === 'delivery' && sellerDistanceTiers.includes('on_campus')) {
+            throw { status: 400, message: 'You are on campus. Choose on-campus delivery instead.' };
+        }
         if (delivery_method === 'delivery') {
             for (const [sellerId, info] of Object.entries(sellerDeliveryInfo)) {
                 const { fee } = calcDeliveryFee(buyer_lat, buyer_lng, info.school, info);
                 deliveryFeeFull += fee;
                 deliveryFeeBySeller[sellerId] = fee;
+            }
+        } else if (delivery_method === 'on_campus') {
+            for (const [sellerId, info] of Object.entries(sellerDeliveryInfo)) {
+                deliveryFeeBySeller[sellerId] = info.delivery_fee_on_campus;
+                deliveryFeeFull += info.delivery_fee_on_campus;
             }
         }
 
@@ -213,14 +228,14 @@ router.post('/', requireAuth, async (req, res) => {
             await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
             await client.query(
                 `UPDATE orders SET delivery_method = $1, subtotal = $2, delivery_fee = $3, delivery_fee_full = $4, total_amount = $5, credit_applied = $6 WHERE id = $7`,
-                [delivery_method || 'pickup', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, orderId]
+                [delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, orderId]
             );
         } else {
             const orderResult = await client.query(
                 `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, delivery_fee_full, total_amount, credit_applied)
                  VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7)
                  RETURNING id`,
-                [req.userId, delivery_method || 'pickup', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied]
+                [req.userId, delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied]
             );
             orderId = orderResult.rows[0].id;
         }
@@ -260,9 +275,9 @@ router.post('/', requireAuth, async (req, res) => {
 
                 // Sellers: new order
                 const buyerRow = (await pool.query('SELECT name, location FROM users WHERE id = $1', [req.userId])).rows[0];
-                const deliveryNote = delivery_method === 'delivery'
-                    ? 'get it delivered within 1–3 working days to secure the sale.'
-                    : "they'll reach out to arrange pickup on campus.";
+                const deliveryNote = delivery_method === 'on_campus'
+                    ? "prepare it for on-campus delivery."
+                    : 'get it delivered within 1–3 working days to secure the sale.';
                 const locationPhrase = buyerRow?.location ? `This person is located at ${buyerRow.location}, ` : '';
                 for (const sellerId of [...new Set(lineItems.map((i) => i.seller_id))]) {
                     const mine = lineItems.filter((i) => i.seller_id === sellerId);
@@ -446,7 +461,7 @@ router.post('/webhook', async (req, res) => {
 
         const deliveryNote = order.delivery_method === 'delivery'
             ? "get it delivered within 1–3 working days to secure the sale."
-            : "they'll reach out to arrange pickup on campus.";
+            : 'prepare it for on-campus delivery.';
 
         const locationPhrase = buyerLocation
             ? `This person is located at ${buyerLocation}, `

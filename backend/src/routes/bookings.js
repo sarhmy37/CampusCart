@@ -1,14 +1,15 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { initializeTransaction } = require('../utils/paystack');
+const { initializeTransaction, paystackRequest } = require('../utils/paystack');
 const { insertNotification } = require('../utils/notifications');
+const { isPlanActive } = require('../utils/plans');
 
 const router = express.Router();
 
 // ─── POST /api/bookings ──────────────────────────────────────────────
 router.post('/', requireAuth, async (req, res) => {
-    const { service_id, booking_date, booking_time, message } = req.body;
+    const { service_id, service_option_name, booking_date, booking_time, message } = req.body;
     const buyer_id = req.userId;
 
     if (!service_id || !booking_date || !booking_time) {
@@ -18,7 +19,10 @@ router.post('/', requireAuth, async (req, res) => {
     try {
         // 1. Fetch the service details
         const serviceResult = await pool.query(
-            `SELECT id, title, seller_id, price, service_duration FROM products WHERE id = $1`,
+            `SELECT id, title, seller_id, price, service_options, service_duration,
+                    u.plan AS seller_plan, u.plan_expires_at
+             FROM products p JOIN users u ON u.id = p.seller_id
+             WHERE p.id = $1`,
             [service_id]
         );
         const service = serviceResult.rows[0];
@@ -28,6 +32,28 @@ router.post('/', requireAuth, async (req, res) => {
         if (service.seller_id === buyer_id) {
             return res.status(400).json({ error: 'You cannot book your own service.' });
         }
+
+        let serviceOptions = [];
+        try {
+            serviceOptions = Array.isArray(service.service_options)
+                ? service.service_options
+                : JSON.parse(service.service_options || '[]');
+        } catch {
+            serviceOptions = [];
+        }
+        if (serviceOptions.length === 0 && Number(service.price) > 0) {
+            serviceOptions = [{ name: 'Service', price: Number(service.price) }];
+        }
+        const selectedOption = serviceOptions.find((option) => option.name === service_option_name);
+        if (!selectedOption) {
+            return res.status(400).json({ error: 'Select one of the available service options.' });
+        }
+        const serviceAmount = Math.round(Number(selectedOption.price) * 100) / 100;
+        const buyerFee = Math.round(serviceAmount * 0.02 * 100) / 100;
+        const sellerFee = isPlanActive(service.seller_plan, service.seller_plan_expires_at)
+            ? 0
+            : Math.round(serviceAmount * 0.02 * 100) / 100;
+        const sellerEarnings = Math.round((serviceAmount - sellerFee) * 100) / 100;
 
         // 3. Check for overlapping bookings — duration-aware, not just exact-time match.
         // The seller sets how long one booking takes (duration_minutes, stored in the
@@ -87,15 +113,17 @@ router.post('/', requireAuth, async (req, res) => {
         }
 
         // 4. Insert booking with pending_payment status
-        const platformFee = 2.00; // GHS 2.00
+        const platformFee = buyerFee;
         const reference = `book_${Date.now()}_${buyer_id}`;
 
         const bookingResult = await pool.query(
             `INSERT INTO bookings
-                (service_id, buyer_id, seller_id, booking_date, booking_time, message, platform_fee, payment_reference, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending_payment')
+                (service_id, buyer_id, seller_id, booking_date, booking_time, message, service_option_name,
+                 service_amount, buyer_fee, seller_fee, seller_earnings, platform_fee, payment_reference, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending_payment')
              RETURNING id`,
-            [service_id, buyer_id, service.seller_id, booking_date, booking_time, message || '', platformFee, reference]
+            [service_id, buyer_id, service.seller_id, booking_date, booking_time, message || '', selectedOption.name,
+             serviceAmount, buyerFee, sellerFee, sellerEarnings, platformFee, reference]
         );
         const bookingId = bookingResult.rows[0].id;
 
@@ -114,9 +142,9 @@ router.post('/', requireAuth, async (req, res) => {
         // 6. Initialize Paystack transaction
         const paystackRes = await initializeTransaction({
             email: buyerEmail,
-            amountGHS: platformFee,
+            amountGHS: serviceAmount + buyerFee,
             reference,
-            callback_url: `${process.env.CORS_ORIGIN}/browse`, // redirect after payment
+            callback_url: `${process.env.PUBLIC_API_URL || 'https://campuscart-tdfn.onrender.com'}/paystack/callback`,
             metadata: { booking_id: bookingId, buyer_id, service_id },
         });
 
@@ -124,6 +152,10 @@ router.post('/', requireAuth, async (req, res) => {
         res.status(201).json({
             booking_id: bookingId,
             service_title: service.title,
+            service_option_name: selectedOption.name,
+            service_amount: serviceAmount,
+            buyer_fee: buyerFee,
+            total_amount: serviceAmount + buyerFee,
             platform_fee: platformFee,
             authorization_url: paystackRes.data.authorization_url,
         });
@@ -147,9 +179,9 @@ async function processBookingWebhookEvent(event) {
         const booking = bookingResult.rows[0];
         if (!booking) return; // Already processed or not found
 
-        const expectedFee = parseFloat(booking.platform_fee);
-        if (Math.abs(amountPaidGHS - expectedFee) > 0.05) {
-            console.error(`[BOOKING AMOUNT MISMATCH] Booking ${booking.id}: expected GHS ${expectedFee}, got GHS ${amountPaidGHS}`);
+        const expectedAmount = Math.round((parseFloat(booking.service_amount) + parseFloat(booking.buyer_fee)) * 100) / 100;
+        if (Math.abs(amountPaidGHS - expectedAmount) > 0.05) {
+            console.error(`[BOOKING AMOUNT MISMATCH] Booking ${booking.id}: expected GHS ${expectedAmount}, got GHS ${amountPaidGHS}`);
             // Optionally notify admin
             return;
         }
@@ -189,6 +221,45 @@ async function processBookingWebhookEvent(event) {
         console.error('Booking webhook processing error:', err);
     }
 }
+
+// POST /api/bookings/:id/verify — direct Paystack verification after checkout.
+router.post('/:id/verify', requireAuth, async (req, res) => {
+    try {
+        const bookingResult = await pool.query(
+            `SELECT id, buyer_id, payment_reference, status
+             FROM bookings
+             WHERE id = $1 AND buyer_id = $2`,
+            [req.params.id, req.userId]
+        );
+        const booking = bookingResult.rows[0];
+        if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        if (req.body.reference && req.body.reference !== booking.payment_reference) {
+            return res.status(400).json({ error: 'Invalid booking payment reference' });
+        }
+        if (booking.status === 'confirmed' || booking.status === 'completed') {
+            return res.json({ status: booking.status });
+        }
+
+        const payment = await paystackRequest(
+            `/transaction/verify/${encodeURIComponent(booking.payment_reference)}`
+        );
+        if (payment.data.status !== 'success') {
+            return res.status(400).json({ error: 'Booking payment was not successful', status: payment.data.status });
+        }
+
+        await processBookingWebhookEvent({
+            event: 'charge.success',
+            data: {
+                reference: booking.payment_reference,
+                amount: payment.data.amount,
+            },
+        });
+        res.json({ status: 'confirmed' });
+    } catch (err) {
+        console.error('Direct booking verification error:', err);
+        res.status(500).json({ error: 'Could not verify booking payment' });
+    }
+});
 
 // GET /api/bookings/buyer – bookings the logged-in user has made
 router.get('/buyer', requireAuth, async (req, res) => {

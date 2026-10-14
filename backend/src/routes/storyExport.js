@@ -17,7 +17,10 @@ GlobalFonts.registerFromPath(path.join(__dirname, '..', 'assets', 'Poppins-Bold.
 const TMP = path.join(os.tmpdir(), 'trex-export');
 fs.mkdirSync(TMP, { recursive: true });
 
-const SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is required for story exports');
+}
+const SECRET = process.env.JWT_SECRET;
 const MAX_MS = 60000;
 
 const sign = (obj) => {

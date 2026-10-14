@@ -47,10 +47,12 @@ const BLOCKED_FILE_TYPES = [
 ];
 
 const chatMediaFilter = (req, file, cb) => {
-    if (BLOCKED_FILE_TYPES.includes(file.mimetype)) {
-        return cb(new Error('This file type is not allowed'));
-    }
-    cb(null, true);
+    const isAllowed = file.mimetype.startsWith('image/')
+        || file.mimetype.startsWith('video/')
+        || file.mimetype.startsWith('audio/')
+        || file.mimetype === 'application/pdf';
+    if (isAllowed && !BLOCKED_FILE_TYPES.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Only images, videos, audio, and PDF files are allowed'));
 };
 
 const uploadChatMedia = multer({

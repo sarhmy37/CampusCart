@@ -157,6 +157,8 @@ app.use('/api/data-orders', require('./routes/dataOrders'));
 
 app.use('/api/data-bundles', require('./routes/dataBundles'));
 
+app.use('/api/service-types', require('./routes/serviceTypes'));
+
 app.use('/api/subscriptions', require('./routes/subscriptions'));
 
 app.use('/api/saved-searches', require('./routes/savedSearches'));

@@ -82,7 +82,11 @@ router.get('/', optionalAuth, async (req, res) => {
         else conditions.push('FALSE'); // types that don't apply to listings (deals, events, ...)
     }
 
-    const { excludeServices, newOnly, verified, priceMin, priceMax, mine, subcategory } = req.query;
+    const { excludeServices, newOnly, verified, priceMin, priceMax, mine, subcategory, serviceTypeId } = req.query;
+    if (serviceTypeId && Number.isInteger(parseInt(serviceTypeId, 10))) {
+        values.push(parseInt(serviceTypeId, 10));
+        conditions.push(`p.service_type_id = $${values.length}`);
+    }
     if (excludeServices) conditions.push(`(c.name IS NULL OR c.name != 'Services')`);
     if (newOnly) conditions.push(`p.created_at >= now() - interval '3 days'`);
     if (verified) conditions.push(`u.verified = TRUE`);
@@ -113,7 +117,7 @@ router.get('/', optionalAuth, async (req, res) => {
         const result = await pool.query(
             `SELECT
                 p.id, p.title, p.price, p.old_price, p.condition, p.stock, p.network, p.subcategory, p.primary_image, p.video_url, p.created_at,
-                p.rating, p.review_count, p.price_max, p.service_duration, p.boosted_until, p.boost_tier,
+                p.rating, p.review_count, p.price_max, p.service_duration, p.boosted_until, p.boost_tier, p.service_type_id,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place, u.location AS seller_location,
@@ -308,7 +312,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.old_price, p.condition, p.stock, p.video_url, p.created_at,
-                p.rating, p.review_count, p.service_duration, p.price_max, p.subcategory,
+                        p.rating, p.review_count, p.service_duration, p.price_max, p.service_options, p.subcategory,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place,
@@ -344,7 +348,7 @@ router.post('/', requireAuth, async (req, res) => {
     const {
         title, description, price, price_max, condition, category, stock, images, video, network,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
-        service_duration, subcategory,
+        service_duration, subcategory, service_options, service_type_id,
     } = req.body;
 
     if (!title || !price || !images || images.length === 0) {
@@ -378,6 +382,18 @@ router.post('/', requireAuth, async (req, res) => {
         return res.status(500).json({ error: 'Something went wrong checking your seller status' });
     }
 
+    const normalizedServiceOptions = Array.isArray(service_options)
+        ? service_options
+            .map((option) => ({ name: String(option?.name || '').trim(), price: Number(option?.price) }))
+            .filter((option) => option.name && Number.isFinite(option.price) && option.price > 0)
+            .sort((a, b) => b.price - a.price)
+        : [];
+    if (category === 'Services' && normalizedServiceOptions.length === 0) {
+        return res.status(400).json({ error: 'Add at least one named service option with a valid price' });
+    }
+    const servicePrices = normalizedServiceOptions.map((option) => option.price);
+    const servicePrice = servicePrices.length ? Math.min(...servicePrices) : price;
+    const servicePriceMax = servicePrices.length ? Math.max(...servicePrices) : (price_max || null);
     const feeOnCampus = clampFee(delivery_fee_on_campus);
     const feeNearCampus = clampFee(delivery_fee_near_campus);
     const feeFarCampus = clampFee(delivery_fee_far_campus);
@@ -398,15 +414,26 @@ router.post('/', requireAuth, async (req, res) => {
         const productResult = await client.query(
             `INSERT INTO products
                 (seller_id, title, description, price, old_price, condition, category_id, stock, primary_image, video_url, network,
-                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus, service_duration, price_max, subcategory)
-             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                 delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus, service_duration, price_max, subcategory, service_options, service_type_id)
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
              RETURNING id`,
-            [req.userId, title, description || null, price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl, network || null,
-             feeOnCampus, feeNearCampus, feeFarCampus, service_duration || null, price_max || null,
-             subcategory ? String(subcategory).slice(0, 60) : null]
+            [req.userId, title, description || null, category === 'Services' ? servicePrice : price, condition || 'good', categoryId, stock || 1, primaryImage, videoUrl, network || null,
+             feeOnCampus, feeNearCampus, feeFarCampus, service_duration || null, category === 'Services' ? servicePriceMax : (price_max || null),
+             subcategory ? String(subcategory).slice(0, 60) : null, JSON.stringify(normalizedServiceOptions),
+             category === 'Services' && service_type_id ? parseInt(service_type_id, 10) : null]
         );
 
         const productId = productResult.rows[0].id;
+
+        // A pending type used by 3+ different sellers becomes approved automatically.
+        if (category === 'Services' && service_type_id) {
+            await client.query(
+                `UPDATE service_types SET status = 'approved'
+                 WHERE id = $1 AND status = 'pending'
+                   AND (SELECT COUNT(DISTINCT seller_id) FROM products WHERE service_type_id = $1) >= 3`,
+                [parseInt(service_type_id, 10)]
+            );
+        }
 
         for (let i = 0; i < images.length; i++) {
             await client.query(
