@@ -7,6 +7,10 @@ const pool = require('../db/pool');
 
 const router = express.Router();
 
+// Generated share images are kept in memory so repeat requests are instant.
+const imageCache = new Map(); // "sellerId:theme" -> { png, at }
+const IMAGE_TTL_MS = 60 * 60 * 1000;
+
 // Your deployed React app's origin — real visitors get redirected here.
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://your-frontend.vercel.app';
 
@@ -115,6 +119,14 @@ router.get('/store/:id/og-image.png', async (req, res) => {
         return res.status(500).send('Font not configured — see FONT_PATH in storefront.js');
     }
     try {
+        const cacheKey = `${req.params.id}:${req.query.theme === 'dark' ? 'dark' : 'light'}`;
+        const cached = imageCache.get(cacheKey);
+        if (cached && Date.now() - cached.at < IMAGE_TTL_MS) {
+            res.set('Content-Type', 'image/png');
+            res.set('Cache-Control', 'public, max-age=3600');
+            return res.send(cached.png);
+        }
+
         const seller = await getSellerSummary(req.params.id);
         if (!seller) return res.status(404).end();
 
@@ -223,6 +235,7 @@ router.get('/store/:id/og-image.png', async (req, res) => {
 
         const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: 1200 } });
         const png = resvg.render().asPng();
+        imageCache.set(cacheKey, { png, at: Date.now() });
 
         res.set('Content-Type', 'image/png');
         res.set('Cache-Control', 'public, max-age=3600'); // 1hr — balances freshness vs regen cost
