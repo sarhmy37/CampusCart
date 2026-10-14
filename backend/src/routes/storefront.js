@@ -96,6 +96,8 @@ router.get('/store/:id', async (req, res) => {
 <html>
 <head>
 <meta charset="utf-8" />
+<title>TreX</title>
+<meta property="og:title" content="TreX" />
 <meta property="og:image" content="${imageUrl}" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="900" />
