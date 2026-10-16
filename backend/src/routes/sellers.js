@@ -1,6 +1,8 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { initializeTransaction, paystackRequest } = require('../utils/paystack');
+const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -23,15 +25,24 @@ async function getSuccessfulPurchaseCount(sellerId) {
 
 async function reconcilePayments(sellerId) {
     const monthsResult = await pool.query(
-        `SELECT
-            date_trunc('month', o.created_at)::date AS period_start,
-            (date_trunc('month', o.created_at) + interval '1 month - 1 day')::date AS period_end,
-            SUM(oi.platform_fee) AS amount_due
-         FROM order_items oi
-         JOIN orders o ON o.id = oi.order_id
-         WHERE oi.seller_id = $1
-           AND oi.buyer_confirmed_at IS NOT NULL
-           AND date_trunc('month', o.created_at) < date_trunc('month', now())
+        `SELECT period_start, period_end, SUM(fee) AS amount_due FROM (
+            SELECT date_trunc('month', o.created_at)::date AS period_start,
+                   (date_trunc('month', o.created_at) + interval '1 month - 1 day')::date AS period_end,
+                   oi.platform_fee AS fee
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            WHERE oi.seller_id = $1
+              AND oi.buyer_confirmed_at IS NOT NULL
+              AND date_trunc('month', o.created_at) < date_trunc('month', now())
+            UNION ALL
+            SELECT date_trunc('month', b.booking_date)::date,
+                   (date_trunc('month', b.booking_date) + interval '1 month - 1 day')::date,
+                   b.seller_fee
+            FROM bookings b
+            WHERE b.seller_id = $1
+              AND b.status = 'completed'
+              AND date_trunc('month', b.booking_date) < date_trunc('month', now())
+         ) t
          GROUP BY 1, 2`,
         [sellerId]
     );
@@ -63,7 +74,7 @@ async function reconcilePayments(sellerId) {
     await pool.query(
         `UPDATE seller_payments
          SET status = 'overdue'
-         WHERE seller_id = $1 AND status = 'pending' AND period_end < now() AND amount_paid < amount_due`,
+         WHERE seller_id = $1 AND status = 'pending' AND period_end + interval '6 days' < now() AND amount_paid < amount_due`,
         [sellerId]
     );
 }
@@ -339,12 +350,17 @@ router.get('/payment-status', requireAuth, async (req, res) => {
         await reconcilePayments(req.userId);
 
         const currentMonthResult = await pool.query(
-            `SELECT COALESCE(SUM(oi.platform_fee), 0) AS amount_due
-             FROM order_items oi
-             JOIN orders o ON o.id = oi.order_id
-             WHERE oi.seller_id = $1
-               AND oi.buyer_confirmed_at IS NOT NULL
-               AND date_trunc('month', o.created_at) = date_trunc('month', now())`,
+            `SELECT COALESCE(SUM(fee), 0) AS amount_due FROM (
+                SELECT oi.platform_fee AS fee
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                WHERE oi.seller_id = $1 AND oi.buyer_confirmed_at IS NOT NULL
+                  AND date_trunc('month', o.created_at) = date_trunc('month', now())
+                UNION ALL
+                SELECT b.seller_fee FROM bookings b
+                WHERE b.seller_id = $1 AND b.status = 'completed'
+                  AND date_trunc('month', b.booking_date) = date_trunc('month', now())
+             ) t`,
             [req.userId]
         );
 
@@ -366,21 +382,163 @@ router.get('/payment-status', requireAuth, async (req, res) => {
     }
 });
 
-// POST /api/sellers/payment-status/:paymentId/pay — demo "pay now" (no real gateway yet)
-router.post('/payment-status/:paymentId/pay', requireAuth, async (req, res) => {
+// POST /api/sellers/payment-status/pay — body: { amount? }. No amount = pay everything owed.
+router.post('/payment-status/pay', requireAuth, async (req, res) => {
     try {
-        const result = await pool.query(
-            `UPDATE seller_payments
-             SET amount_paid = amount_due, status = 'paid', paid_at = now()
-             WHERE id = $1 AND seller_id = $2
-             RETURNING *`,
-            [req.params.paymentId, req.userId]
+        await reconcilePayments(req.userId);
+        const owedResult = await pool.query(
+            `SELECT COALESCE(SUM(amount_due - amount_paid), 0) AS owed
+             FROM seller_payments WHERE seller_id = $1 AND status != 'paid'`,
+            [req.userId]
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Payment record not found' });
-        res.json(result.rows[0]);
+        const owed = Math.round(parseFloat(owedResult.rows[0].owed) * 100) / 100;
+        if (owed <= 0) return res.status(400).json({ error: 'You have nothing to pay.' });
+
+        const requested = req.body.amount === undefined ? owed : Math.round(Number(req.body.amount) * 100) / 100;
+        if (!Number.isFinite(requested) || requested < 1 || requested > owed) {
+            return res.status(400).json({ error: `Enter an amount between GHS 1 and GHS ${owed.toFixed(2)}.` });
+        }
+
+        const userResult = await pool.query('SELECT personal_email, university_email FROM users WHERE id = $1', [req.userId]);
+        const email = userResult.rows[0]?.personal_email || userResult.rows[0]?.university_email;
+        if (!email) return res.status(400).json({ error: 'No email found. Please update your profile.' });
+
+        const reference = `fee_${Date.now()}_${req.userId}`;
+        await pool.query(
+            'INSERT INTO fee_payments (reference, seller_id, amount) VALUES ($1, $2, $3)',
+            [reference, req.userId, requested]
+        );
+        const paystackRes = await initializeTransaction({
+            email,
+            amountGHS: requested,
+            reference,
+            callback_url: `${process.env.PUBLIC_API_URL || 'https://campuscart-tdfn.onrender.com'}/paystack/callback`,
+            metadata: { seller_id: req.userId },
+        });
+        res.json({ authorization_url: paystackRes.data.authorization_url, reference, amount: requested });
     } catch (err) {
-        console.error('Pay seller payment error:', err);
-        res.status(500).json({ error: 'Something went wrong recording your payment' });
+        console.error('Start fee payment error:', err);
+        res.status(500).json({ error: 'Could not start the payment. Please try again.' });
+    }
+});
+
+// Applies a paid amount to the oldest unpaid months first.
+async function processFeePaymentWebhookEvent(event) {
+    const reference = event.data.reference;
+    try {
+        const pending = await pool.query(
+            `SELECT seller_id, amount FROM fee_payments WHERE reference = $1 AND status = 'pending'`,
+            [reference]
+        );
+        const fp = pending.rows[0];
+        if (!fp) return;
+        const paidGHS = Math.round((event.data.amount / 100) * 100) / 100;
+        const expected = parseFloat(fp.amount);
+        if (Math.abs(paidGHS - expected) > 0.05) {
+            console.error(`[FEE AMOUNT MISMATCH] ${reference}: expected ${expected}, got ${paidGHS}`);
+            return;
+        }
+        const claimed = await pool.query(
+            `UPDATE fee_payments SET status = 'paid', paid_at = now()
+             WHERE reference = $1 AND status = 'pending' RETURNING id`,
+            [reference]
+        );
+        if (claimed.rowCount !== 1) return;
+
+        let remaining = expected;
+        const rows = await pool.query(
+            `SELECT id, amount_due, amount_paid FROM seller_payments
+             WHERE seller_id = $1 AND status != 'paid' ORDER BY period_start ASC`,
+            [fp.seller_id]
+        );
+        for (const r of rows.rows) {
+            if (remaining <= 0) break;
+            const due = parseFloat(r.amount_due);
+            const paid = parseFloat(r.amount_paid);
+            const pay = Math.min(due - paid, remaining);
+            const newPaid = Math.round((paid + pay) * 100) / 100;
+            const fullyPaid = newPaid >= due - 0.005;
+            await pool.query(
+                `UPDATE seller_payments
+                 SET amount_paid = $1, status = CASE WHEN $2 THEN 'paid' ELSE status END,
+                     paid_at = CASE WHEN $2 THEN now() ELSE paid_at END
+                 WHERE id = $3`,
+                [newPaid, fullyPaid, r.id]
+            );
+            remaining = Math.round((remaining - pay) * 100) / 100;
+        }
+
+        await insertNotification(
+            fp.seller_id,
+            'fee_payment_received',
+            `Your payment of GHS ${expected.toFixed(2)} was received.`,
+            null,
+            '/dashboard?tab=orders'
+        );
+    } catch (err) {
+        console.error('Fee payment webhook error:', err);
+    }
+}
+
+// POST /api/sellers/payment-status/verify — body: { reference }
+router.post('/payment-status/verify', requireAuth, async (req, res) => {
+    try {
+        const fp = await pool.query(
+            'SELECT reference FROM fee_payments WHERE reference = $1 AND seller_id = $2',
+            [req.body.reference, req.userId]
+        );
+        if (!fp.rows[0]) return res.status(404).json({ error: 'Payment not found' });
+        const payment = await paystackRequest(`/transaction/verify/${encodeURIComponent(req.body.reference)}`);
+        if (payment.data.status !== 'success') {
+            return res.status(400).json({ error: 'Payment was not successful' });
+        }
+        await processFeePaymentWebhookEvent({ data: { reference: req.body.reference, amount: payment.data.amount } });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Verify fee payment error:', err);
+        res.status(500).json({ error: 'Could not verify the payment' });
+    }
+});
+
+// POST /api/sellers/run-fee-reminders — call once a day from a cron
+router.post('/run-fee-reminders', async (req, res) => {
+    if (!process.env.CRON_KEY || req.headers['x-cron-key'] !== process.env.CRON_KEY) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        const day = new Date().getDate();
+        if (day !== 2 && day !== 5) return res.json({ skipped: true });
+
+        const sellers = await pool.query(
+            `SELECT DISTINCT seller_id FROM order_items WHERE buyer_confirmed_at IS NOT NULL
+             UNION
+             SELECT DISTINCT seller_id FROM bookings WHERE status = 'completed'`
+        );
+        let reminded = 0;
+        for (const { seller_id } of sellers.rows) {
+            await reconcilePayments(seller_id);
+            const owedResult = await pool.query(
+                `SELECT COALESCE(SUM(amount_due - amount_paid), 0) AS owed
+                 FROM seller_payments WHERE seller_id = $1 AND status != 'paid'`,
+                [seller_id]
+            );
+            const owed = parseFloat(owedResult.rows[0].owed);
+            if (owed <= 0) continue;
+            await insertNotification(
+                seller_id,
+                'fee_reminder',
+                day === 2
+                    ? `Reminder: you owe GHS ${owed.toFixed(2)} in platform fees. Pay by the 5th or your listings will be hidden.`
+                    : `Today is the deadline. Pay your GHS ${owed.toFixed(2)} in platform fees today to keep your listings visible.`,
+                null,
+                '/dashboard?tab=payouts'
+            );
+            reminded++;
+        }
+        res.json({ reminded });
+    } catch (err) {
+        console.error('Fee reminders error:', err);
+        res.status(500).json({ error: 'Reminder run failed' });
     }
 });
 
@@ -389,5 +547,6 @@ router.post('/payment-status/:paymentId/pay', requireAuth, async (req, res) => {
 module.exports = router;
 module.exports.isSellerRestricted = isSellerRestricted;
 module.exports.reconcilePayments = reconcilePayments;
+module.exports.processFeePaymentWebhookEvent = processFeePaymentWebhookEvent;
 module.exports.getSuccessfulPurchaseCount = getSuccessfulPurchaseCount;
 module.exports.checkAndCreditRewards = checkAndCreditRewards;

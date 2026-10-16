@@ -385,6 +385,13 @@ router.post('/webhook', async (req, res) => {
         return;
     }
 
+    // Seller fee payments use a 'fee_' prefixed reference
+    if (reference.startsWith('fee_')) {
+        const { processFeePaymentWebhookEvent } = require('./sellers');
+        await processFeePaymentWebhookEvent(event);
+        return;
+    }
+
     // Boost payments use a 'boost_' prefixed reference
     if (reference.startsWith('boost_')) {
         const { processBoostWebhookEvent } = require('./boosts');

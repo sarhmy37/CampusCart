@@ -3,7 +3,8 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { initializeTransaction, paystackRequest } = require('../utils/paystack');
 const { insertNotification } = require('../utils/notifications');
-const { isPlanActive } = require('../utils/plans');
+const { getSellerFeeRate } = require('../utils/plans');
+const { isSellerRestricted } = require('./sellers');
 
 const router = express.Router();
 
@@ -32,6 +33,9 @@ router.post('/', requireAuth, async (req, res) => {
         if (service.seller_id === buyer_id) {
             return res.status(400).json({ error: 'You cannot book your own service.' });
         }
+        if (await isSellerRestricted(service.seller_id)) {
+            return res.status(403).json({ error: 'This provider is currently unavailable.' });
+        }
 
         let serviceOptions = [];
         try {
@@ -49,10 +53,8 @@ router.post('/', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Select one of the available service options.' });
         }
         const serviceAmount = Math.round(Number(selectedOption.price) * 100) / 100;
-        const buyerFee = Math.round(serviceAmount * 0.02 * 100) / 100;
-        const sellerFee = isPlanActive(service.seller_plan, service.seller_plan_expires_at)
-            ? 0
-            : Math.round(serviceAmount * 0.02 * 100) / 100;
+        const buyerFee = 2;
+        const sellerFee = Math.round(serviceAmount * getSellerFeeRate(service.seller_plan, service.seller_plan_expires_at) * 100) / 100;
         const sellerEarnings = Math.round((serviceAmount - sellerFee) * 100) / 100;
 
         // 3. Check for overlapping bookings — duration-aware, not just exact-time match.

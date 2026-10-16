@@ -335,6 +335,14 @@ router.get('/:id', optionalAuth, async (req, res) => {
             [req.params.id]
         );
 
+        if (String(product.seller_id) !== String(req.userId)) {
+            const overdue = await pool.query(
+                `SELECT 1 FROM seller_payments WHERE seller_id = $1 AND status = 'overdue' LIMIT 1`,
+                [product.seller_id]
+            );
+            if (overdue.rows.length > 0) return res.status(404).json({ error: 'Listing not found' });
+        }
+
         product.images = imagesResult.rows;
         res.json(product);
     } catch (err) {
