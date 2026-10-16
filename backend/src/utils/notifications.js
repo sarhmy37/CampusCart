@@ -31,6 +31,9 @@ const NOTIFICATION_TITLES = {
     story_comment: 'Tre-X',
     follow_post: 'New post',
     donation_received: 'Thank you for your support',
+    booking_soon: 'Your service starts soon',
+    booking_completed: 'Booking completed',
+    booking_delayed: 'Booking delayed',
 };
 
 function getPushTitle(type) {

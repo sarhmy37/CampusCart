@@ -5,6 +5,7 @@ const path = require('path');
 const cron = require('node-cron');
 
 const { checkOverdueOrders } = require('./jobs/overdueOrders');
+const { startBookingJobs } = require('./utils/bookingJobs');
 
 const { startSubscriptionRenewalJobs } = require('./jobs/subscriptionRenewals');
 const { checkBoostWaitlist, checkBoostExpiryNotifications } = require('./routes/boosts');
@@ -199,3 +200,4 @@ cron.schedule('0 8 * * *', checkOverdueOrders); // daily at 8am
 cron.schedule('* * * * *', checkBoostWaitlist); // activate paid boosts as slots open
 cron.schedule('0 * * * *', checkBoostExpiryNotifications); // remind sellers during the final 24 hours
 startSubscriptionRenewalJobs();
+startBookingJobs();

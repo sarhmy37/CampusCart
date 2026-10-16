@@ -312,7 +312,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         const productResult = await pool.query(
             `SELECT
                 p.id, p.title, p.description, p.price, p.old_price, p.condition, p.stock, p.video_url, p.created_at,
-                        p.rating, p.review_count, p.service_duration, p.price_max, p.service_options, p.subcategory,
+                        p.rating, p.review_count, p.service_duration, p.price_max, p.service_options, p.subcategory, p.service_type_id,
                 p.delivery_fee_on_campus, p.delivery_fee_near_campus, p.delivery_fee_far_campus,
                 u.id AS seller_id, u.name AS seller_name, u.school AS seller_school,
                 u.meeting_place AS seller_meeting_place,
@@ -536,7 +536,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const {
         title, description, price, condition, category, stock,
         delivery_fee_on_campus, delivery_fee_near_campus, delivery_fee_far_campus,
-        images, video_url, service_duration, price_max, subcategory,
+        images, video_url, service_duration, price_max, subcategory, service_options, service_type_id,
     } = req.body;
 
     try {
@@ -572,6 +572,17 @@ router.patch('/:id', requireAuth, async (req, res) => {
         // So when the key is present in the body, use it as-is (even if null);
         // only fall back to the existing value when the key is missing entirely.
         const nextPriceMax = 'price_max' in req.body ? price_max : product.price_max;
+        const nextOptions = Array.isArray(service_options)
+            ? JSON.stringify(service_options
+                .map((o) => ({
+                    name: String(o?.name || '').trim(),
+                    price: Number(o?.price),
+                    duration_minutes: Number(o?.duration_minutes) > 0 ? Number(o.duration_minutes) : 60,
+                }))
+                .filter((o) => o.name && Number.isFinite(o.price) && o.price > 0)
+                .sort((a, b) => b.price - a.price))
+            : null;
+        const nextTypeId = service_type_id ? parseInt(service_type_id, 10) : null;
 
         const result = await pool.query(
             `UPDATE products SET
@@ -589,12 +600,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
                 service_duration = COALESCE($14, service_duration),
                 price_max = $15,
                 subcategory = COALESCE($16, subcategory),
+                service_options = COALESCE($17, service_options),
+                service_type_id = COALESCE($18, service_type_id),
                 restocked_at = CASE WHEN $11 THEN now() ELSE restocked_at END
              WHERE id = $10
              RETURNING *`,
             [title, description, price, condition, stock, categoryId,
              feeOnCampus, feeNearCampus, feeFarCampus, req.params.id, isRestock, primaryImage, video_url,
-             service_duration, nextPriceMax, subcategory || null]
+             service_duration, nextPriceMax, subcategory || null, nextOptions, nextTypeId]
         );
 
         if (hasImageUpdate) {
