@@ -70,6 +70,9 @@ router.post('/', requireAuth, async (req, res) => {
         } catch {
             // legacy plain-text duration value — fall back to default
         }
+        if (Number(selectedOption.duration_minutes) > 0) {
+            durationMinutes = Number(selectedOption.duration_minutes);
+        }
 
         const timeToMinutes = (t) => {
             const [h, m] = t.split(':').map(Number);
@@ -83,7 +86,7 @@ router.post('/', requireAuth, async (req, res) => {
         };
 
         const sameDayBookings = await pool.query(
-            `SELECT booking_time FROM bookings
+            `SELECT booking_time, duration_minutes FROM bookings
              WHERE service_id = $1
                AND booking_date = $2
                AND (
@@ -99,7 +102,7 @@ router.post('/', requireAuth, async (req, res) => {
         let conflictEnd = null;
         for (const row of sameDayBookings.rows) {
             const existingStart = timeToMinutes(row.booking_time);
-            const existingEnd = existingStart + durationMinutes;
+            const existingEnd = existingStart + (Number(row.duration_minutes) || durationMinutes);
             if (requestedStart < existingEnd && existingStart < requestedEnd) {
                 if (conflictEnd === null || existingEnd > conflictEnd) conflictEnd = existingEnd;
             }
@@ -119,11 +122,11 @@ router.post('/', requireAuth, async (req, res) => {
         const bookingResult = await pool.query(
             `INSERT INTO bookings
                 (service_id, buyer_id, seller_id, booking_date, booking_time, message, service_option_name,
-                 service_amount, buyer_fee, seller_fee, seller_earnings, platform_fee, payment_reference, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending_payment')
+                 service_amount, buyer_fee, seller_fee, seller_earnings, platform_fee, payment_reference, duration_minutes, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'pending_payment')
              RETURNING id`,
             [service_id, buyer_id, service.seller_id, booking_date, booking_time, message || '', selectedOption.name,
-             serviceAmount, buyerFee, sellerFee, sellerEarnings, platformFee, reference]
+             serviceAmount, buyerFee, sellerFee, sellerEarnings, platformFee, reference, durationMinutes]
         );
         const bookingId = bookingResult.rows[0].id;
 

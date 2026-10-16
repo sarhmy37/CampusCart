@@ -384,7 +384,11 @@ router.post('/', requireAuth, async (req, res) => {
 
     const normalizedServiceOptions = Array.isArray(service_options)
         ? service_options
-            .map((option) => ({ name: String(option?.name || '').trim(), price: Number(option?.price) }))
+            .map((option) => ({
+                name: String(option?.name || '').trim(),
+                price: Number(option?.price),
+                duration_minutes: Number(option?.duration_minutes) > 0 ? Number(option.duration_minutes) : 60,
+            }))
             .filter((option) => option.name && Number.isFinite(option.price) && option.price > 0)
             .sort((a, b) => b.price - a.price)
         : [];
