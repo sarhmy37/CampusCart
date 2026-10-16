@@ -83,6 +83,19 @@ router.get('/net-earnings', async (req, res) => {
 
         const data = result.rows[0];
         
+        const bk = await pool.query(
+            `SELECT COALESCE(SUM(buyer_fee) FILTER (WHERE paid_at IS NOT NULL), 0) AS buyer_fees,
+                    COALESCE(SUM(seller_fee) FILTER (WHERE status = 'completed'), 0) AS seller_fees
+             FROM bookings`
+        );
+        const bookingBuyer = parseFloat(bk.rows[0].buyer_fees);
+        const bookingSeller = parseFloat(bk.rows[0].seller_fees);
+        const bookingPaystack = Math.round(bookingBuyer * 0.0195 * 100) / 100;
+        data.total_buyer_fees = parseFloat(data.total_buyer_fees) + bookingBuyer;
+        data.total_seller_fees = parseFloat(data.total_seller_fees) + bookingSeller;
+        data.total_revenue_processed = parseFloat(data.total_revenue_processed) + bookingBuyer;
+        data.total_admin_net_profit = parseFloat(data.total_admin_net_profit) + bookingBuyer - bookingPaystack + bookingSeller;
+
         const grossAdminProfit = parseFloat(data.total_buyer_fees) + parseFloat(data.total_seller_fees) + parseFloat(data.total_admin_delivery_fees);
         const paystackFee = parseFloat(data.total_revenue_processed) * 0.0195;
         const netAdminProfit = parseFloat(data.total_admin_net_profit);

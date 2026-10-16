@@ -201,3 +201,9 @@ cron.schedule('* * * * *', checkBoostWaitlist); // activate paid boosts as slots
 cron.schedule('0 * * * *', checkBoostExpiryNotifications); // remind sellers during the final 24 hours
 startSubscriptionRenewalJobs();
 startBookingJobs();
+cron.schedule('0 8 * * *', () => {
+    fetch(`http://localhost:${PORT}/api/sellers/run-fee-reminders`, {
+        method: 'POST',
+        headers: { 'x-cron-key': process.env.CRON_KEY || '' },
+    }).catch(() => {});
+});

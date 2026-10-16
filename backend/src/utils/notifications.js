@@ -34,6 +34,7 @@ const NOTIFICATION_TITLES = {
     booking_soon: 'Your service starts soon',
     booking_completed: 'Booking completed',
     booking_delayed: 'Booking delayed',
+    no_show_flag: 'Provider flagged',
 };
 
 function getPushTitle(type) {

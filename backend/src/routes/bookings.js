@@ -585,6 +585,24 @@ router.post('/:id/no-show', requireAuth, async (req, res) => {
             `A buyer reported a no-show for "${t.rows[0]?.title || 'your service'}". No fee is charged for this booking.`,
             b.id, `/dashboard?tab=orders`
         );
+        const recent = await pool.query(
+            `SELECT COUNT(*)::int AS n FROM bookings
+             WHERE seller_id = $1 AND status = 'no_show'
+               AND updated_at > NOW() - INTERVAL '30 days'`,
+            [b.seller_id]
+        );
+        if (recent.rows[0].n >= 3) {
+            const sellerRow = await pool.query('SELECT name FROM users WHERE id = $1', [b.seller_id]);
+            const admins = await pool.query(`SELECT id FROM users WHERE role = 'admin'`);
+            for (const a of admins.rows) {
+                await insertNotification(
+                    a.id, 'no_show_flag',
+                    `${sellerRow.rows[0]?.name || 'A provider'} has ${recent.rows[0].n} no-show reports in the last 30 days. Please review.`,
+                    b.seller_id, null
+                );
+            }
+        }
+
         res.json({ success: true });
     } catch (err) {
         console.error('No-show report error:', err);
