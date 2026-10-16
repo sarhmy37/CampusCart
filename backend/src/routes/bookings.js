@@ -20,7 +20,7 @@ router.post('/', requireAuth, async (req, res) => {
     try {
         // 1. Fetch the service details
         const serviceResult = await pool.query(
-            `SELECT id, title, seller_id, price, service_options, service_duration,
+            `SELECT p.id, p.title, p.seller_id, p.price, p.service_options, p.service_duration,
                     u.plan AS seller_plan, u.plan_expires_at, u.services_paused_until
              FROM products p JOIN users u ON u.id = p.seller_id
              WHERE p.id = $1`,
