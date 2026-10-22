@@ -223,6 +223,58 @@ router.get('/top-sellers', async (req, res) => {
     }
 });
 
+// GET /api/products/top-services — top 20 providers by completed bookings
+router.get('/top-services', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.name, u.avatar_url, u.verified,
+                    CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS plan,
+                    COUNT(*) AS sales_count
+             FROM bookings b
+             JOIN users u ON u.id = b.seller_id
+             WHERE b.status = 'completed'
+               AND u.banned IS NOT TRUE
+               AND u.id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
+             GROUP BY u.id
+             ORDER BY sales_count DESC, u.name ASC
+             LIMIT 20`
+        );
+        res.json(result.rows.map((r) => ({ ...r, sales_count: parseInt(r.sales_count, 10) })));
+    } catch (err) {
+        console.error('Get top services error:', err);
+        res.status(500).json({ error: 'Something went wrong loading top services' });
+    }
+});
+
+// GET /api/products/top-users — top 20 users by likes + views across all their Spotlight posts
+router.get('/top-users', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.name, u.avatar_url, u.verified,
+                    CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS plan,
+                    SUM(x.likes)::int AS likes,
+                    SUM(x.views)::int AS views
+             FROM users u
+             JOIN (
+                 SELECT s.user_id,
+                        (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS likes,
+                        (SELECT COUNT(*) FROM story_views v WHERE v.story_id = s.id) AS views
+                 FROM stories s
+                 WHERE s.kind = 'spotlight'
+             ) x ON x.user_id = u.id
+             WHERE u.banned IS NOT TRUE
+             GROUP BY u.id
+             HAVING SUM(x.likes) + SUM(x.views) > 0
+             ORDER BY SUM(x.likes) + SUM(x.views) DESC, u.name ASC
+             LIMIT 20`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get top users error:', err);
+        res.status(500).json({ error: 'Something went wrong loading top users' });
+    }
+});
+
 // GET /api/products/showcase — up to 8 products for the homepage grid.
 // Priority: active boosts, then premium sellers (earliest-listed first),
 // then pro sellers, then a random free-seller product.
