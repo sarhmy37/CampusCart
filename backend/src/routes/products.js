@@ -204,6 +204,9 @@ router.get('/top-sellers', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT u.id, u.name, u.school, u.avatar_url, u.verified,
+                    (SELECT oi2.product_id FROM order_items oi2
+                     WHERE oi2.seller_id = u.id AND oi2.buyer_confirmed_at IS NOT NULL
+                     GROUP BY oi2.product_id ORDER BY COUNT(*) DESC LIMIT 1) AS top_product_id,
                     CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS plan,
                     COUNT(*) AS sales_count
              FROM order_items oi
@@ -228,6 +231,9 @@ router.get('/top-services', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT u.id, u.name, u.avatar_url, u.verified,
+                    (SELECT b2.service_id FROM bookings b2
+                     WHERE b2.seller_id = u.id AND b2.status = 'completed'
+                     GROUP BY b2.service_id ORDER BY COUNT(*) DESC LIMIT 1) AS top_product_id,
                     CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS plan,
                     COUNT(*) AS sales_count
              FROM bookings b
