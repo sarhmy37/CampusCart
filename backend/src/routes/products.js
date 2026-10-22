@@ -199,6 +199,30 @@ router.get('/boosted', async (req, res) => {
     }
 });
 
+// GET /api/products/top-sellers — top 20 sellers by confirmed sales
+router.get('/top-sellers', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.name, u.school, u.avatar_url, u.verified,
+                    CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS plan,
+                    COUNT(*) AS sales_count
+             FROM order_items oi
+             JOIN users u ON u.id = oi.seller_id
+             WHERE oi.buyer_confirmed_at IS NOT NULL
+               AND u.account_type = 'seller'
+               AND u.banned IS NOT TRUE
+               AND u.id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
+             GROUP BY u.id
+             ORDER BY sales_count DESC, u.name ASC
+             LIMIT 20`
+        );
+        res.json(result.rows.map((r) => ({ ...r, sales_count: parseInt(r.sales_count, 10) })));
+    } catch (err) {
+        console.error('Get top sellers error:', err);
+        res.status(500).json({ error: 'Something went wrong loading top sellers' });
+    }
+});
+
 // GET /api/products/showcase — up to 8 products for the homepage grid.
 // Priority: active boosts, then premium sellers (earliest-listed first),
 // then pro sellers, then a random free-seller product.
