@@ -49,6 +49,8 @@ function toPublicUser(row) {
         whatsapp: row.whatsapp,
         sms_number: row.sms_number,
         location: row.location,
+        location_lat: row.location_lat,
+        location_lng: row.location_lng,
         meeting_place: row.meeting_place,
         referral_code: row.referral_code,
         credit_balance: row.credit_balance,
@@ -196,13 +198,6 @@ router.post('/register', async (req, res) => {
     
     if (resolvedAccountType === 'buyer' && !isAllowedBuyerEmailDomain(university_email)) {
         return res.status(400).json({ error: 'Please sign up with a valid Gmail, Yahoo, Outlook, or iCloud email address' });
-    }
-
-    if (resolvedAccountType === 'buyer' && !location) {
-        return res.status(400).json({ error: 'Delivery location is required for buyer accounts' });
-    }
-    if (resolvedAccountType === 'buyer' && (typeof location_lat !== 'number' || typeof location_lng !== 'number')) {
-        return res.status(400).json({ error: 'Please set your location on the map or use your current location' });
     }
 
     if (resolvedAccountType === 'seller' && !meeting_place) {
@@ -446,7 +441,7 @@ router.get('/seller-location/:sellerId', requireAuth, async (req, res) => {
 router.get('/me/location-lock', requireAuth, async (req, res) => {
     try {
         const r = await pool.query(
-            `SELECT 1 FROM orders WHERE buyer_id = $1 AND status IN ('pending','paid') LIMIT 1`,
+            `SELECT 1 FROM orders WHERE buyer_id = $1 AND (status = 'paid' OR (status = 'pending' AND payment_reference IS NOT NULL)) LIMIT 1`,
             [req.userId]
         );
         res.json({ locked: r.rows.length > 0 });
@@ -467,7 +462,7 @@ router.patch('/me', requireAuth, async (req, res) => {
         const isBuyerAcct = acctRow.rows[0]?.account_type === 'buyer';
         if (isBuyerAcct && location_lat != null && location_lng != null) {
             const open = await pool.query(
-                `SELECT 1 FROM orders WHERE buyer_id = $1 AND status IN ('pending','paid') LIMIT 1`,
+                `SELECT 1 FROM orders WHERE buyer_id = $1 AND (status = 'paid' OR (status = 'pending' AND payment_reference IS NOT NULL)) LIMIT 1`,
                 [req.userId]
             );
             if (open.rows.length > 0) {
@@ -512,7 +507,7 @@ router.patch('/me', requireAuth, async (req, res) => {
             [about, personal_email, whatsapp, location, name, school, verified, req.userId, isUserProfileEdit, avatar_url, meeting_place, sms_number]
         );
         
-        if (!isBuyerAcct && location_lat != null && location_lng != null) {
+        if (location_lat != null && location_lng != null) {
             await pool.query(
                 'UPDATE users SET location_lat = $1, location_lng = $2 WHERE id = $3',
                 [location_lat, location_lng, req.userId]

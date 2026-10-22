@@ -83,7 +83,7 @@ async function processTransferWebhookEvent(event) {
 
 // POST /api/orders — create pending order + get Paystack payment link
 router.post('/', requireAuth, async (req, res) => {
-    const { items, delivery_method, buyer_lat, buyer_lng } = req.body;
+    const { items, delivery_method, buyer_lat, buyer_lng, buyer_location } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'Cart is empty' });
@@ -227,15 +227,16 @@ router.post('/', requireAuth, async (req, res) => {
             orderId = existingCartOrder.rows[0].id;
             await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
             await client.query(
-                `UPDATE orders SET delivery_method = $1, subtotal = $2, delivery_fee = $3, delivery_fee_full = $4, total_amount = $5, credit_applied = $6 WHERE id = $7`,
-                [delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, orderId]
+                `UPDATE orders SET delivery_method = $1, subtotal = $2, delivery_fee = $3, delivery_fee_full = $4, total_amount = $5, credit_applied = $6,
+                        buyer_location = $8, buyer_lat = $9, buyer_lng = $10 WHERE id = $7`,
+                [delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, orderId, buyer_location || null, buyer_lat ?? null, buyer_lng ?? null]
             );
         } else {
             const orderResult = await client.query(
-                `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, delivery_fee_full, total_amount, credit_applied)
-                 VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7)
+                `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, delivery_fee_full, total_amount, credit_applied, buyer_location, buyer_lat, buyer_lng)
+                 VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7, $8, $9, $10)
                  RETURNING id`,
-                [req.userId, delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied]
+                [req.userId, delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, buyer_location || null, buyer_lat ?? null, buyer_lng ?? null]
             );
             orderId = orderResult.rows[0].id;
         }
@@ -602,7 +603,11 @@ router.get('/deliveries', requireAuth, async (req, res) => {
             `SELECT
                 o.id AS order_id, o.status, o.delivery_method, o.created_at,
                 MAX(oi.delivered_at) AS delivered_at, o.delivered_by_seller_id,
-                o.buyer_id, u.name AS buyer_name, u.location AS buyer_location, u.whatsapp AS buyer_whatsapp,
+                o.buyer_id, u.name AS buyer_name,
+                COALESCE(o.buyer_location, u.location) AS buyer_location,
+                COALESCE(o.buyer_lat, u.location_lat) AS buyer_lat,
+                COALESCE(o.buyer_lng, u.location_lng) AS buyer_lng,
+                u.whatsapp AS buyer_whatsapp,
                 COALESCE(
                     json_agg(json_build_object('title', oi.title, 'quantity', oi.quantity, 'image', p.primary_image))
                     FILTER (WHERE oi.id IS NOT NULL),
@@ -613,7 +618,7 @@ router.get('/deliveries', requireAuth, async (req, res) => {
              JOIN users u ON u.id = o.buyer_id
              LEFT JOIN products p ON p.id = oi.product_id
              WHERE o.status = 'paid'
-             GROUP BY o.id, u.name, u.location, u.whatsapp
+             GROUP BY o.id, u.name, u.location, u.location_lat, u.location_lng, u.whatsapp
              HAVING COUNT(*) FILTER (WHERE oi.buyer_confirmed_at IS NULL) > 0
              ORDER BY o.created_at DESC`,
             [req.userId]
