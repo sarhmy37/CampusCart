@@ -278,6 +278,7 @@ router.get('/reels', requireAuth, async (req, res) => {
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const GAP = 5; // same creator can't repeat until 5 other posts have passed
     const ctype = req.query.content_type && req.query.content_type !== 'all' ? String(req.query.content_type) : null;
+    const exclude = String(req.query.exclude || '').split(',').map(Number).filter(Number.isFinite);
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
              s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay, s.comments_off,
@@ -326,12 +327,13 @@ router.get('/reels', requireAuth, async (req, res) => {
       JOIN users u ON u.id = s.user_id
       WHERE s.kind = 'spotlight' AND s.expires_at > NOW() AND s.archived_at IS NULL
         AND ($2::text IS NULL OR s.content_type = $2)
+        AND NOT (s.id = ANY($4::int[]))
         AND ($3::boolean IS NOT TRUE OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.following_id = s.user_id))
         AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = s.id AND h.user_id = $1)
         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = s.user_id) OR (b.blocker_id = s.user_id AND b.blocked_id = $1))
       ORDER BY score DESC
       LIMIT 300
-    `, [req.userId, ctype, req.query.following === 'true']);
+    `, [req.userId, ctype, req.query.following === 'true', exclude]);
 
     // spacing: pick the best post whose creator isn't in the last GAP picks
     const left = rows.slice();
