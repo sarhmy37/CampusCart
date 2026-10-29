@@ -498,6 +498,35 @@ router.post('/:id/view', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/stories/:id/watch — how much of a post the viewer watched
+router.post('/:id/watch', requireAuth, async (req, res) => {
+  try {
+    const watched = Math.max(0, Math.round(Number(req.body.watched_ms) || 0));
+    const duration = Math.max(0, Math.round(Number(req.body.duration_ms) || 0));
+    const completed = !!req.body.completed;
+    const replay = req.body.replay ? 1 : 0;
+    await pool.query(
+      `INSERT INTO story_watch (story_id, viewer_id, watched_ms, duration_ms, completed, replays, skipped)
+       VALUES ($1, $2, $3, $4, $5, $6,
+         (NOT $5 AND $4 > 0 AND $3 < 0.35 * $4))
+       ON CONFLICT (story_id, viewer_id) DO UPDATE SET
+         watched_ms = GREATEST(story_watch.watched_ms, EXCLUDED.watched_ms),
+         duration_ms = GREATEST(story_watch.duration_ms, EXCLUDED.duration_ms),
+         completed = story_watch.completed OR EXCLUDED.completed,
+         replays = story_watch.replays + EXCLUDED.replays,
+         skipped = NOT (story_watch.completed OR EXCLUDED.completed)
+                   AND GREATEST(story_watch.duration_ms, EXCLUDED.duration_ms) > 0
+                   AND GREATEST(story_watch.watched_ms, EXCLUDED.watched_ms) < 0.35 * GREATEST(story_watch.duration_ms, EXCLUDED.duration_ms),
+         updated_at = NOW()`,
+      [req.params.id, req.userId, watched, duration, completed, replay]
+    );
+    res.sendStatus(204);
+  } catch (err) {
+    console.error('Watch story error:', err);
+    res.status(500).json({ error: 'Failed to save watch' });
+  }
+});
+
 // POST /api/stories/:id/like
 router.post('/:id/like', requireAuth, async (req, res) => {
   try {
