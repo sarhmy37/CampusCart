@@ -271,6 +271,126 @@ router.get('/feed', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/stories/reels — ranked Spotlight posts for the full-screen viewer
+router.get('/reels', requireAuth, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 36, 50);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    const GAP = 5; // same creator can't repeat until 5 other posts have passed
+    const ctype = req.query.content_type && req.query.content_type !== 'all' ? String(req.query.content_type) : null;
+    const { rows } = await pool.query(`
+      SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
+             s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay, s.comments_off,
+             COALESCE(s.export_count, 0) AS export_count,
+             (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
+             EXISTS (SELECT 1 FROM follows fl WHERE fl.follower_id = $1 AND fl.following_id = s.user_id) AS is_following,
+             u.name AS user_name, u.avatar_url AS user_avatar,
+             (u.account_type = 'seller') AS is_seller,
+             CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
+             EXISTS (SELECT 1 FROM story_views v WHERE v.story_id = s.id AND v.viewer_id = $1) AS viewed,
+             (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
+             EXISTS (SELECT 1 FROM story_likes l WHERE l.story_id = s.id AND l.user_id = $1) AS liked,
+             (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id) AS comment_count,
+             (SELECT COUNT(*) FROM story_reposts rp WHERE rp.story_id = s.id) AS repost_count,
+             EXISTS (SELECT 1 FROM story_reposts rp WHERE rp.story_id = s.id AND rp.user_id = $1) AS reposted,
+             (SELECT MAX(rp.created_at) FROM story_reposts rp WHERE rp.story_id = s.id) AS last_repost_at,
+             ${topReposter('s.id')} AS reposted_by_name,
+             ${topReposters('s.id', '$1')} AS top_reposters,
+             (
+               -- creator affinity: following + how much this viewer finishes / skips their posts
+               (CASE WHEN EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.following_id = s.user_id) THEN 3 ELSE 0 END)
+               + 3 * COALESCE((SELECT AVG(w.completed::int) FROM story_watch w JOIN stories ws ON ws.id = w.story_id
+                               WHERE w.viewer_id = $1 AND ws.user_id = s.user_id), 0)
+               - 3 * COALESCE((SELECT AVG(w.skipped::int) FROM story_watch w JOIN stories ws ON ws.id = w.story_id
+                               WHERE w.viewer_id = $1 AND ws.user_id = s.user_id), 0)
+               + LEAST(5, (SELECT COUNT(*) FROM story_likes l JOIN stories ls ON ls.id = l.story_id
+                           WHERE l.user_id = $1 AND ls.user_id = s.user_id))
+               -- content type affinity: types this viewer watches to the end
+               + 1.5 * LN(1 + (SELECT COUNT(*) FROM story_watch w JOIN stories ws ON ws.id = w.story_id
+                               WHERE w.viewer_id = $1 AND w.completed AND s.content_type IS NOT NULL AND ws.content_type = s.content_type))
+               -- the post's own quality signals
+               + LN(1 + (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id))
+               + 0.5 * LN(1 + (SELECT COUNT(*) FROM story_comments c WHERE c.story_id = s.id))
+               + 0.5 * LN(1 + (SELECT COUNT(*) FROM story_reposts rp WHERE rp.story_id = s.id))
+               + 2 * COALESCE((SELECT AVG(w.completed::int) FROM story_watch w WHERE w.story_id = s.id), 0)
+               -- freshness
+               + 3.0 / (1 + EXTRACT(EPOCH FROM (NOW() - s.created_at)) / 86400)
+               -- already seen by this viewer
+               - CASE WHEN EXISTS (SELECT 1 FROM story_watch w WHERE w.story_id = s.id AND w.viewer_id = $1 AND w.completed) THEN 9
+                      WHEN EXISTS (SELECT 1 FROM story_views v WHERE v.story_id = s.id AND v.viewer_id = $1) THEN 4
+                      ELSE 0 END
+               -- small stable variety
+               + (hashtext(s.id::text || $1::text) % 1000) / 2000.0
+             ) AS score
+      FROM stories s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.kind = 'spotlight' AND s.expires_at > NOW() AND s.archived_at IS NULL
+        AND ($2::text IS NULL OR s.content_type = $2)
+        AND ($3::boolean IS NOT TRUE OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.following_id = s.user_id))
+        AND NOT EXISTS (SELECT 1 FROM story_hidden h WHERE h.story_id = s.id AND h.user_id = $1)
+        AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $1 AND b.blocked_id = s.user_id) OR (b.blocker_id = s.user_id AND b.blocked_id = $1))
+      ORDER BY score DESC
+      LIMIT 300
+    `, [req.userId, ctype, req.query.following === 'true']);
+
+    // spacing: pick the best post whose creator isn't in the last GAP picks
+    const left = rows.slice();
+    const ordered = [];
+    const recent = [];
+    while (left.length) {
+      let idx = left.findIndex((r) => !recent.includes(String(r.user_id)));
+      if (idx === -1) idx = 0;
+      const [pick] = left.splice(idx, 1);
+      ordered.push(pick);
+      recent.push(String(pick.user_id));
+      if (recent.length > GAP) recent.shift();
+    }
+
+    const page = ordered.slice(offset, offset + limit).map((row) => ({
+      user_id: row.user_id,
+      user_name: row.user_name,
+      user_avatar: row.user_avatar,
+      user_plan: row.user_plan,
+      is_seller: row.is_seller,
+      is_following: row.is_following,
+      allViewed: !!row.viewed,
+      stories: [{
+        id: row.id,
+        user_id: row.user_id,
+        user_name: row.user_name,
+        user_avatar: row.user_avatar,
+        media_url: row.media_url,
+        media_type: row.media_type,
+        caption: row.caption,
+        created_at: row.created_at,
+        viewed: row.viewed,
+        content_type: row.content_type,
+        kind: row.kind,
+        crop: row.crop,
+        product_tag: row.product_tag,
+        text_overlay: row.text_overlay,
+        comments_off: row.comments_off,
+        trim_start_ms: row.trim_start_ms,
+        trim_end_ms: row.trim_end_ms,
+        view_count: Number(row.view_count),
+        like_count: Number(row.like_count),
+        liked: row.liked,
+        comment_count: Number(row.comment_count),
+        export_count: Number(row.export_count),
+        reposted: row.reposted,
+        repost_count: Number(row.repost_count),
+        last_repost_at: row.last_repost_at,
+        reposted_by: row.reposted_by_name || null,
+        top_reposters: row.top_reposters || [],
+      }],
+    }));
+    res.json(page);
+  } catch (err) {
+    console.error('Reels feed error:', err);
+    res.status(500).json({ error: 'Failed to load reels' });
+  }
+});
+
 // GET /api/stories/mine — the current user's own active stories, with view counts
 router.get('/mine', requireAuth, async (req, res) => {
   try {
