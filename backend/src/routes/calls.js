@@ -142,9 +142,11 @@ router.post('/:id/:action', requireAuth, async (req, res) => {
     if (!status) return res.status(400).json({ error: 'Invalid action' });
     try {
         const result = await pool.query(
-            `UPDATE calls SET status = $1
+            `UPDATE calls SET status = CASE
+                 WHEN $1::text = 'ended' AND status IN ('ringing', 'delivered') THEN 'missed'
+                 ELSE $1::text END
              WHERE id = $2 AND (caller_id = $3 OR callee_id = $3)
-               AND ($1 <> 'answered' OR callee_id = $3)
+               AND ($1::text <> 'answered' OR callee_id = $3)
                AND status NOT IN ('declined', 'ended', 'missed')
              RETURNING id, status`,
             [status, req.params.id, req.userId]
