@@ -69,6 +69,10 @@ function toPublicUser(row) {
         plan_discount_expires_at: row.plan_discount_expires_at,
         cover_url: row.cover_url,
         spotlight_bio: row.spotlight_bio,
+        spotlight_allow_chat: row.spotlight_allow_chat,
+        spotlight_show_likes: row.spotlight_show_likes,
+        spotlight_allow_repost: row.spotlight_allow_repost,
+        spotlight_allow_export: row.spotlight_allow_export,
     };
 }
 

@@ -154,7 +154,7 @@ router.get('/search/users', optionalAuth, async (req, res) => {
     if (!q) return res.json([]);
     try {
         const result = await pool.query(
-            `SELECT u.id, u.name, u.username, u.school, u.avatar_url, u.verified, u.account_type,
+            `SELECT u.id, u.name, u.username, u.school, u.avatar_url, u.verified, u.account_type, u.spotlight_allow_chat,
                     CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > now() THEN u.plan ELSE NULL END AS plan
              FROM users u
              WHERE u.banned IS NOT TRUE

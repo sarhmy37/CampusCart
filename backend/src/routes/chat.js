@@ -433,6 +433,30 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
         const recipientPrefs = await pool.query(`SELECT notify_messages FROM users WHERE id = $1`, [recipientId]);
         const recipientMuted = recipientPrefs.rows[0]?.notify_messages === false;
 
+        // Spotlight chat privacy: blocked unless the account allows chat, the recipient already
+        // wrote in this chat, or this is a reply to one of their posts that has chat on.
+        const rcp = await pool.query(
+            `SELECT spotlight_allow_chat, account_type FROM users WHERE id = $1`, [recipientId]
+        );
+        const rc = rcp.rows[0];
+        if (rc && rc.spotlight_allow_chat === false && rc.account_type !== 'seller' && recipientId !== TREX_ID) {
+            const theyWrote = await pool.query(
+                `SELECT 1 FROM messages WHERE conversation_id = $1 AND sender_id = $2 LIMIT 1`, [id, recipientId]
+            );
+            let storyOk = false;
+            if (reply_story_id) {
+                const sc = await pool.query(
+                    `SELECT 1 FROM stories s JOIN users u ON u.id = s.user_id
+                     WHERE s.id = $1 AND s.user_id = $2 AND COALESCE(s.allow_chat, u.spotlight_allow_chat)`,
+                    [reply_story_id, recipientId]
+                );
+                storyOk = sc.rows.length > 0;
+            }
+            if (theyWrote.rows.length === 0 && !storyOk) {
+                return res.status(403).json({ error: 'This user is not accepting chats' });
+            }
+        }
+
         let storyId = null, storyMediaUrl = null, storyMediaType = null, storyOwnerId = null;
         if (reply_story_id) {
             const story = await pool.query(

@@ -6,6 +6,38 @@ const { insertNotification } = require('../utils/notifications');
 
 const router = express.Router();
 
+const pickBool = (v) => (typeof v === 'boolean' ? v : null);
+
+// effective = post setting, else the owner's account default (needs aliases s = stories, u = users)
+const SETTINGS_COLS = `s.allow_chat, s.show_likes, s.allow_repost, s.allow_export,
+  COALESCE(s.allow_chat, u.spotlight_allow_chat) AS chat_allowed,
+  COALESCE(s.show_likes, u.spotlight_show_likes) AS likes_visible,
+  COALESCE(s.allow_repost, u.spotlight_allow_repost) AS repost_allowed,
+  COALESCE(s.allow_export, u.spotlight_allow_export) AS export_allowed,
+  u.spotlight_allow_chat AS user_allow_chat`;
+
+const settingsOut = (r) => ({
+  allow_chat: r.allow_chat, show_likes: r.show_likes,
+  allow_repost: r.allow_repost, allow_export: r.allow_export,
+  chat_allowed: r.chat_allowed, likes_visible: r.likes_visible,
+  repost_allowed: r.repost_allowed, export_allowed: r.export_allowed,
+});
+
+// blocks a route when the post's effective setting is off (spotlight posts, not the owner)
+const requireFlag = (col, msg) => async (req, res, next) => {
+  try {
+    const { rows: [r] } = await pool.query(
+      `SELECT s.user_id, s.kind, COALESCE(s.${col}, u.spotlight_${col}) AS ok
+       FROM stories s JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
+      [req.params.id]
+    );
+    if (r && r.kind === 'spotlight' && r.ok === false && String(r.user_id) !== String(req.userId)) {
+      return res.status(403).json({ error: msg });
+    }
+    next();
+  } catch (err) { next(err); }
+};
+
 async function notifyStoryLike(storyId, likerId) {
   try {
     const { rows: [s] } = await pool.query(
@@ -186,6 +218,7 @@ router.get('/feed', requireAuth, async (req, res) => {
                THEN (SELECT COUNT(*) FROM order_items oi WHERE oi.seller_id = u.id AND oi.buyer_confirmed_at IS NOT NULL)
                ELSE (SELECT COUNT(*) FROM orders o WHERE o.buyer_id = u.id)
              END AS activity_count,
+             ${SETTINGS_COLS},
              EXISTS (
                SELECT 1 FROM story_views v
                WHERE v.story_id = s.id AND v.viewer_id = $1
@@ -224,10 +257,12 @@ router.get('/feed', requireAuth, async (req, res) => {
           is_seller: row.is_seller,
           is_following: row.is_following,
           activity_count: Number(row.activity_count),
+          user_allow_chat: row.user_allow_chat !== false,
           stories: [],
         });
       }
       groupsMap.get(row.user_id).stories.push({
+        ...settingsOut(row),
         id: row.id,
         user_id: row.user_id,
         user_name: row.user_name,
@@ -297,6 +332,7 @@ router.get('/reels', requireAuth, async (req, res) => {
              (SELECT MAX(rp.created_at) FROM story_reposts rp WHERE rp.story_id = s.id) AS last_repost_at,
              ${topReposter('s.id')} AS reposted_by_name,
              ${topReposters('s.id', '$1')} AS top_reposters,
+             ${SETTINGS_COLS},
              (
                -- creator affinity: following + how much this viewer finishes / skips their posts
                (CASE WHEN EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.following_id = s.user_id) THEN 3 ELSE 0 END)
@@ -356,7 +392,9 @@ router.get('/reels', requireAuth, async (req, res) => {
       is_seller: row.is_seller,
       is_following: row.is_following,
       allViewed: !!row.viewed,
+      user_allow_chat: row.user_allow_chat !== false,
       stories: [{
+        ...settingsOut(row),
         id: row.id,
         user_id: row.user_id,
         user_name: row.user_name,
@@ -399,6 +437,7 @@ router.get('/mine', requireAuth, async (req, res) => {
     const archived = String(req.query.archived || '') === 'true';
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.kind, s.content_type,
+             s.allow_chat, s.show_likes, s.allow_repost, s.allow_export,
              s.trim_start_ms, s.trim_end_ms, s.crop, s.product_tag, s.text_overlay,
              COALESCE(s.export_count, 0)::int AS export_count,
              (SELECT COUNT(*)::int FROM story_views v WHERE v.story_id = s.id) AS view_count,
@@ -464,6 +503,7 @@ router.get('/reposts/mine', requireAuth, async (req, res) => {
              s.trim_start_ms, s.trim_end_ms, s.crop, s.product_tag, s.text_overlay,
              COALESCE(s.export_count, 0)::int AS export_count,
              rp.created_at AS reposted_at,
+             ${SETTINGS_COLS},
              u.name AS owner_name, u.avatar_url AS owner_avatar,
              CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS owner_plan,
              (SELECT COUNT(*)::int FROM story_views v WHERE v.story_id = s.id) AS view_count,
@@ -492,6 +532,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     const { rows } = await pool.query(`
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
              s.trim_start_ms, s.trim_end_ms, s.product_tag, s.crop, s.text_overlay, s.comments_off,
+             ${SETTINGS_COLS},
              u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
              (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
              EXISTS (
@@ -578,8 +619,8 @@ router.post('/', requireAuth, async (req, res) => {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb,
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, allow_chat, show_likes, allow_repost, allow_export, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15,
            CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
          RETURNING *`,
         [
@@ -588,6 +629,10 @@ router.post('/', requireAuth, async (req, res) => {
           trimStart, trimEnd, kind, crop ? JSON.stringify(crop) : null,
           productTag ? JSON.stringify(productTag) : null,
           textOverlay ? JSON.stringify(textOverlay) : null,
+          kind === 'spotlight' ? pickBool(item.allow_chat) : null,
+          kind === 'spotlight' ? pickBool(item.show_likes) : null,
+          kind === 'spotlight' ? pickBool(item.allow_repost) : null,
+          kind === 'spotlight' ? pickBool(item.allow_export) : null,
         ]
       );
       inserted.push(rows[0]);
@@ -687,7 +732,7 @@ router.delete('/:id/like', requireAuth, async (req, res) => {
   }
 });
 // POST /api/stories/:id/repost — not your own post
-router.post('/:id/repost', requireAuth, async (req, res) => {
+router.post('/:id/repost', requireAuth, requireFlag('allow_repost', 'Reposts are turned off for this post'), async (req, res) => {
   try {
     const { rows: [s] } = await pool.query('SELECT user_id FROM stories WHERE id = $1', [req.params.id]);
     if (!s) return res.status(404).json({ error: 'Story not found' });
@@ -933,6 +978,32 @@ router.patch('/:id/comments/:commentId/pin', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Pin comment error:', err);
     res.status(500).json({ error: 'Failed to pin comment' });
+  }
+});
+
+// PATCH /api/stories/:id/settings — owner only (true / false / null = use my default)
+router.patch('/:id/settings', requireAuth, async (req, res) => {
+  try {
+    const keys = ['allow_chat', 'show_likes', 'allow_repost', 'allow_export'];
+    const sets = [];
+    const vals = [req.params.id, req.userId];
+    for (const k of keys) {
+      if (k in req.body) { vals.push(pickBool(req.body[k])); sets.push(`${k} = $${vals.length}`); }
+    }
+    if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+    const upd = await pool.query(
+      `UPDATE stories SET ${sets.join(', ')} WHERE id = $1 AND user_id = $2 AND kind = 'spotlight' RETURNING id`,
+      vals
+    );
+    if (upd.rows.length === 0) return res.status(404).json({ error: 'Story not found' });
+    const { rows: [r] } = await pool.query(
+      `SELECT ${SETTINGS_COLS} FROM stories s JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
+      [req.params.id]
+    );
+    res.json(settingsOut(r));
+  } catch (err) {
+    console.error('Story settings error:', err);
+    res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 
