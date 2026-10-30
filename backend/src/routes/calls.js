@@ -82,6 +82,28 @@ router.get('/incoming', requireAuth, async (req, res) => {
     }
 });
 
+// GET /api/calls/mine — my call history
+router.get('/mine', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.id, c.caller_id, c.callee_id, c.status, c.created_at,
+                    u.id AS other_user_id,
+                    u.name AS other_user_name,
+                    u.avatar_url AS other_user_avatar
+             FROM calls c
+             JOIN users u ON u.id = CASE WHEN c.caller_id = $1 THEN c.callee_id ELSE c.caller_id END
+             WHERE c.caller_id = $1 OR c.callee_id = $1
+             ORDER BY c.created_at DESC
+             LIMIT 100`,
+            [req.userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Call history error:', err);
+        res.status(500).json({ error: 'Could not load calls' });
+    }
+});
+
 // GET /api/calls/:id — status of a call (caller polls this while ringing)
 router.get('/:id', requireAuth, async (req, res) => {
     try {
