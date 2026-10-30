@@ -159,28 +159,24 @@ router.post('/', requireAuth, async (req, res) => {
         // seller receives. Only the buyer-facing total (deliveryFee) is discounted.
         let deliveryFeeFull = 0;
         const deliveryFeeBySeller = {};
-        const sellerDistanceTiers = Object.values(sellerDeliveryInfo).map((info) =>
-            getDistanceTier(buyer_lat, buyer_lng, info.school).tier
-        );
-        if (delivery_method === 'on_campus' &&
-            (sellerDistanceTiers.length === 0 || sellerDistanceTiers.some((tier) => tier !== 'on_campus'))) {
-            throw { status: 400, message: 'You are not on the seller campus. Choose outside-campus delivery instead.' };
-        }
-        if (delivery_method === 'delivery' && sellerDistanceTiers.includes('on_campus')) {
-            throw { status: 400, message: 'You are on campus. Choose on-campus delivery instead.' };
-        }
-        if (delivery_method === 'delivery') {
-            for (const [sellerId, info] of Object.entries(sellerDeliveryInfo)) {
-                const { fee } = calcDeliveryFee(buyer_lat, buyer_lng, info.school, info);
-                deliveryFeeFull += fee;
-                deliveryFeeBySeller[sellerId] = fee;
+        const methodBySeller = {};
+        for (const [sellerId, info] of Object.entries(sellerDeliveryInfo)) {
+            const tier = getDistanceTier(buyer_lat, buyer_lng, info.school).tier;
+            let fee;
+            if (tier === 'on_campus') {
+                methodBySeller[sellerId] = 'on_campus';
+                fee = Number(info.delivery_fee_on_campus) || 0;
+            } else {
+                methodBySeller[sellerId] = 'delivery';
+                fee = Number(calcDeliveryFee(buyer_lat, buyer_lng, info.school, info).fee) || 0;
             }
-        } else if (delivery_method === 'on_campus') {
-            for (const [sellerId, info] of Object.entries(sellerDeliveryInfo)) {
-                deliveryFeeBySeller[sellerId] = info.delivery_fee_on_campus;
-                deliveryFeeFull += info.delivery_fee_on_campus;
-            }
+            deliveryFeeBySeller[sellerId] = fee;
+            deliveryFeeFull += fee;
         }
+        const distinctMethods = new Set(Object.values(methodBySeller));
+        const orderDeliveryMethod = distinctMethods.size > 1
+            ? 'mixed'
+            : (distinctMethods.values().next().value || 'on_campus');
 
         const deliveryDiscountRate = getDeliveryDiscountRate(buyerPlan, buyerPlanExpiresAt);
         // Discount applies to the FULL delivery fee the buyer sees. The seller's 80%
@@ -229,14 +225,14 @@ router.post('/', requireAuth, async (req, res) => {
             await client.query(
                 `UPDATE orders SET delivery_method = $1, subtotal = $2, delivery_fee = $3, delivery_fee_full = $4, total_amount = $5, credit_applied = $6,
                         buyer_location = $8, buyer_lat = $9, buyer_lng = $10 WHERE id = $7`,
-                [delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, orderId, buyer_location || null, buyer_lat ?? null, buyer_lng ?? null]
+                [orderDeliveryMethod, subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, orderId, buyer_location || null, buyer_lat ?? null, buyer_lng ?? null]
             );
         } else {
             const orderResult = await client.query(
                 `INSERT INTO orders (buyer_id, status, delivery_method, subtotal, delivery_fee, delivery_fee_full, total_amount, credit_applied, buyer_location, buyer_lat, buyer_lng)
                  VALUES ($1, 'pending', $2, $3, $4, $5, $6, $7, $8, $9, $10)
                  RETURNING id`,
-                [req.userId, delivery_method || 'on_campus', subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, buyer_location || null, buyer_lat ?? null, buyer_lng ?? null]
+                [req.userId, orderDeliveryMethod, subtotal, deliveryFee, deliveryFeeFull, totalAmount, creditApplied, buyer_location || null, buyer_lat ?? null, buyer_lng ?? null]
             );
             orderId = orderResult.rows[0].id;
         }
@@ -244,9 +240,9 @@ router.post('/', requireAuth, async (req, res) => {
         for (const item of lineItems) {
             await client.query(
                 `INSERT INTO order_items
-                    (order_id, product_id, seller_id, title, quantity, price_at_purchase, platform_fee, seller_earnings, admin_delivery_share, status)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')`,
-                [orderId, item.product_id, item.seller_id, item.title, item.quantity, item.price_at_purchase, item.platform_fee, item.seller_earnings, item.admin_delivery_share || 0]
+                    (order_id, product_id, seller_id, title, quantity, price_at_purchase, platform_fee, seller_earnings, admin_delivery_share, delivery_method, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')`,
+                [orderId, item.product_id, item.seller_id, item.title, item.quantity, item.price_at_purchase, item.platform_fee, item.seller_earnings, item.admin_delivery_share || 0, methodBySeller[item.seller_id]]
             );
         }
 
@@ -276,7 +272,7 @@ router.post('/', requireAuth, async (req, res) => {
 
                 // Sellers: new order
                 const buyerRow = (await pool.query('SELECT name, location FROM users WHERE id = $1', [req.userId])).rows[0];
-                const deliveryNote = delivery_method === 'on_campus'
+                const noteFor = (sid) => methodBySeller[sid] === 'on_campus'
                     ? "prepare it for on-campus delivery."
                     : 'get it delivered within 1–3 working days to secure the sale.';
                 const locationPhrase = buyerRow?.location ? `This person is located at ${buyerRow.location}, ` : '';
@@ -287,7 +283,7 @@ router.post('/', requireAuth, async (req, res) => {
                     await insertNotification(
                         sellerId,
                         'payment_received_seller',
-                        `🎉 ${buyerRow?.name || 'A buyer'} just bought ${names} for GHS ${amount.toFixed(2)}. ${locationPhrase}${deliveryNote}`,
+                        `🎉 ${buyerRow?.name || 'A buyer'} just bought ${names} for GHS ${amount.toFixed(2)}. ${locationPhrase}${noteFor(sellerId)}`,
                         orderId,
                         '/dashboard?tab=deliveries'
                     );
@@ -467,7 +463,7 @@ router.post('/webhook', async (req, res) => {
         const buyerName = buyerResult.rows[0]?.name || 'A buyer';
         const buyerLocation = buyerResult.rows[0]?.location;
 
-        const deliveryNote = order.delivery_method === 'delivery'
+        const noteFor = (method) => method === 'delivery'
             ? "get it delivered within 1–3 working days to secure the sale."
             : 'prepare it for on-campus delivery.';
 
@@ -479,7 +475,7 @@ router.post('/webhook', async (req, res) => {
         // is owed from this order, not the order's grand total (which may span
         // multiple sellers).
         const itemsWithPricing = await pool.query(
-            'SELECT seller_id, title, quantity, price_at_purchase FROM order_items WHERE order_id = $1',
+            'SELECT seller_id, title, quantity, price_at_purchase, delivery_method FROM order_items WHERE order_id = $1',
             [order.id]
         );
 
@@ -493,7 +489,7 @@ router.post('/webhook', async (req, res) => {
                 0
             );
 
-            const message = `🎉 ${buyerName} just bought ${itemNames} for GHS ${sellerAmount.toFixed(2)}. ${locationPhrase}${deliveryNote}`;
+            const message = `🎉 ${buyerName} just bought ${itemNames} for GHS ${sellerAmount.toFixed(2)}. ${locationPhrase}${noteFor(sellerItems[0]?.delivery_method || order.delivery_method)}`;
 
             // Sellers: new order, with link to their Delivery tab
             await insertNotification(sellerId, 'payment_received_seller', message, order.id, '/dashboard?tab=deliveries');
@@ -601,7 +597,7 @@ router.get('/deliveries', requireAuth, async (req, res) => {
     try {
          const result = await pool.query(
             `SELECT
-                o.id AS order_id, o.status, o.delivery_method, o.created_at,
+                o.id AS order_id, o.status, COALESCE(MAX(oi.delivery_method), o.delivery_method) AS delivery_method, o.created_at,
                 MAX(oi.delivered_at) AS delivered_at, o.delivered_by_seller_id,
                 o.buyer_id, u.name AS buyer_name,
                 COALESCE(o.buyer_location, u.location) AS buyer_location,
