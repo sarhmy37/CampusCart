@@ -194,7 +194,7 @@ router.get('/feed', requireAuth, async (req, res) => {
                  + 0.5 * LEAST(10, (SELECT COUNT(*) FROM story_likes l JOIN stories ls ON ls.id = l.story_id
                      WHERE l.user_id = $1 AND ls.content_type IN (SELECT x.content_type FROM stories x WHERE x.user_id = st.user_id AND x.content_type IS NOT NULL AND x.expires_at > NOW())))
                  + LN(1 + (SELECT COUNT(*) FROM story_likes pl JOIN stories ps ON ps.id = pl.story_id WHERE ps.user_id = st.user_id AND ps.expires_at > NOW()))
-                 + 4.0 / (1 + EXTRACT(EPOCH FROM (NOW() - MAX(st.created_at))) / 21600)
+                 + 4.0 / (1 + EXTRACT(EPOCH FROM (NOW() - GREATEST(MAX(st.created_at), COALESCE((SELECT MAX(r2.created_at) FROM story_reposts r2 JOIN stories s2 ON s2.id = r2.story_id WHERE s2.user_id = st.user_id AND s2.expires_at > NOW() AND s2.archived_at IS NULL AND EXISTS (SELECT 1 FROM follows f2 WHERE f2.follower_id = $1 AND f2.following_id = r2.user_id)), MAX(st.created_at))))) / 21600)
                ELSE EXTRACT(EPOCH FROM GREATEST(MAX(st.created_at), COALESCE(MAX(rp.created_at), MAX(st.created_at)))) END AS rank_key
         FROM stories st
         LEFT JOIN story_reposts rp ON rp.story_id = st.id
