@@ -152,8 +152,9 @@ const topReposters = (storyIdExpr, viewerExpr) => `(
     SELECT ru.id, ru.name, ru.avatar_url AS avatar FROM story_reposts r
     JOIN users ru ON ru.id = r.user_id
     WHERE r.story_id = ${storyIdExpr}
-      AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${viewerExpr} AND f.following_id = ru.id)
+      AND (ru.id = ${viewerExpr} OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${viewerExpr} AND f.following_id = ru.id))
     ORDER BY
+      CASE WHEN ru.id = ${viewerExpr} THEN 0 ELSE 1 END,
       CASE WHEN ru.plan = 'premium' AND ru.plan_expires_at > NOW() THEN 0
            WHEN ru.plan = 'pro' AND ru.plan_expires_at > NOW() THEN 1 ELSE 2 END,
       CASE WHEN ru.account_type = 'seller'
@@ -760,7 +761,7 @@ router.get('/:id/reposters', requireAuth, async (req, res) => {
        FROM story_reposts r
        JOIN users ru ON ru.id = r.user_id
        WHERE r.story_id = $1
-         AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $2 AND f.following_id = ru.id)
+         AND (ru.id = $2 OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $2 AND f.following_id = ru.id))
          AND NOT EXISTS (SELECT 1 FROM user_blocks b
                          WHERE (b.blocker_id = $2 AND b.blocked_id = ru.id) OR (b.blocker_id = ru.id AND b.blocked_id = $2))
        ORDER BY r.created_at DESC
