@@ -232,10 +232,15 @@ module.exports = ({ pool, requireAuth }) => {
   // app reports a successful export
   router.post('/:id/done', requireAuth, async (req, res) => {
     try {
-      const { rows: [r] } = await pool.query(
-        'UPDATE stories SET export_count = COALESCE(export_count, 0) + 1 WHERE id = $1 RETURNING export_count',
-        [req.params.id]);
-      res.json({ count: r ? r.export_count : 0 });
+      const ins = await pool.query(
+        'INSERT INTO story_exports (story_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.id, req.userId]);
+      const { rows: [r] } = ins.rowCount > 0
+        ? await pool.query(
+            'UPDATE stories SET export_count = COALESCE(export_count, 0) + 1 WHERE id = $1 RETURNING export_count',
+            [req.params.id])
+        : await pool.query('SELECT export_count FROM stories WHERE id = $1', [req.params.id]);
+      res.json({ count: r ? r.export_count || 0 : 0 });
     } catch (e) {
       res.status(500).json({ error: 'Failed' });
     }

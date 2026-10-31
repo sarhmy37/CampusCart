@@ -14,12 +14,15 @@ const SETTINGS_COLS = `s.allow_chat, s.show_likes, s.allow_repost, s.allow_expor
   COALESCE(s.show_likes, u.spotlight_show_likes) AS likes_visible,
   COALESCE(s.allow_repost, u.spotlight_allow_repost) AS repost_allowed,
   COALESCE(s.allow_export, u.spotlight_allow_export) AS export_allowed,
-  u.spotlight_allow_chat AS user_allow_chat`;
+  u.spotlight_allow_chat AS user_allow_chat,
+  (SELECT json_build_object('id', ss.id, 'url', ss.media_url, 'start', ss.trim_start_ms, 'end', ss.trim_end_ms, 'owner', su.name)
+     FROM stories ss JOIN users su ON su.id = ss.user_id WHERE ss.id = s.sound_story_id) AS sound`;
 
 const settingsOut = (r) => ({
   allow_chat: r.allow_chat, show_likes: r.show_likes,
   allow_repost: r.allow_repost, allow_export: r.allow_export,
   chat_allowed: r.chat_allowed, likes_visible: r.likes_visible,
+  sound: r.sound || null,
   repost_allowed: r.repost_allowed, export_allowed: r.export_allowed,
 });
 
@@ -527,6 +530,39 @@ router.get('/reposts/mine', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/stories/sound/:id — the sound page: original post + every post using it
+router.get('/sound/:id', requireAuth, async (req, res) => {
+  try {
+    const { rows: [o] } = await pool.query(
+      `SELECT s.id, s.media_url, s.trim_start_ms, s.trim_end_ms,
+              u.name AS owner_name, u.avatar_url AS owner_avatar
+       FROM stories s JOIN users u ON u.id = s.user_id
+       WHERE s.id = $1 AND s.media_type = 'video'`,
+      [req.params.id]
+    );
+    if (!o) return res.status(404).json({ error: 'Sound not found' });
+    const { rows: posts } = await pool.query(
+      `SELECT s.id, s.media_url, s.crop, (s.id = $1) AS is_original,
+              (SELECT COUNT(*)::int FROM story_views v WHERE v.story_id = s.id) AS view_count
+       FROM stories s
+       WHERE (s.id = $1 OR (s.sound_story_id = $1 AND s.kind = 'spotlight'))
+         AND s.expires_at > NOW() AND s.archived_at IS NULL
+         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = s.user_id) OR (b.blocker_id = s.user_id AND b.blocked_id = $2))
+       ORDER BY is_original DESC, view_count DESC
+       LIMIT 30`,
+      [req.params.id, req.userId]
+    );
+    const hasTrim = o.trim_start_ms != null && o.trim_end_ms != null && o.trim_end_ms > o.trim_start_ms;
+    res.json({
+      original: { ...o, duration_ms: hasTrim ? o.trim_end_ms - o.trim_start_ms : null },
+      posts,
+    });
+  } catch (err) {
+    console.error('Sound page error:', err);
+    res.status(500).json({ error: 'Failed to load sound' });
+  }
+});
+
 // GET /api/stories/:id — single story, regardless of expiry (used for chat deep-links)
 router.get('/:id', requireAuth, async (req, res) => {
   try {
@@ -598,6 +634,16 @@ router.post('/', requireAuth, async (req, res) => {
         textOverlay = { text: o.text.trim().slice(0, 200), y: Math.min(Math.max(o.y, 0), 1) };
       }
 
+      // Sound: always point at the ORIGINAL post, even if someone reuses a reused sound
+      let soundId = null;
+      if (item.sound_story_id) {
+        const { rows: [src] } = await pool.query(
+          `SELECT id, sound_story_id FROM stories WHERE id = $1 AND media_type = 'video'`,
+          [item.sound_story_id]
+        );
+        if (src) soundId = src.sound_story_id || src.id;
+      }
+
       // Product tag card — only the product's own seller may tag it
       let productTag = null;
       const t = item.product_tag;
@@ -620,8 +666,8 @@ router.post('/', requireAuth, async (req, res) => {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, allow_chat, show_likes, allow_repost, allow_export, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15,
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, allow_chat, show_likes, allow_repost, allow_export, sound_story_id, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16,
            CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
          RETURNING *`,
         [
@@ -634,6 +680,7 @@ router.post('/', requireAuth, async (req, res) => {
           kind === 'spotlight' ? pickBool(item.show_likes) : null,
           kind === 'spotlight' ? pickBool(item.allow_repost) : null,
           kind === 'spotlight' ? pickBool(item.allow_export) : null,
+          soundId,
         ]
       );
       inserted.push(rows[0]);
