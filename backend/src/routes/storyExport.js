@@ -207,8 +207,13 @@ module.exports = ({ pool, requireAuth }) => {
   router.post('/:id', requireAuth, async (req, res) => {
     try {
       const { rows: [s] } = await pool.query(
-        'SELECT id, media_type, media_url FROM stories WHERE id = $1', [req.params.id]);
+        `SELECT s.id, s.media_type, s.media_url, s.user_id, s.kind,
+                COALESCE(s.allow_export, u.spotlight_allow_export) AS export_ok
+         FROM stories s JOIN users u ON u.id = s.user_id WHERE s.id = $1`, [req.params.id]);
       if (!s) return res.status(404).json({ error: 'Story not found' });
+      if (s.kind === 'spotlight' && s.export_ok === false && String(s.user_id) !== String(req.userId)) {
+        return res.status(403).json({ error: 'Downloads are turned off for this post' });
+      }
       if (s.media_type !== 'video') {
         return res.json({ url: s.media_url, watermarked: false, type: 'image' });
       }
