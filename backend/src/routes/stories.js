@@ -758,8 +758,8 @@ router.post('/:id/watch', requireAuth, async (req, res) => {
     const replay = req.body.replay ? 1 : 0;
     await pool.query(
       `INSERT INTO story_watch (story_id, viewer_id, watched_ms, duration_ms, completed, replays, skipped)
-       VALUES ($1, $2, $3::int, $4::int, $5::boolean, $6::int,
-         (NOT $5::boolean AND $4::int > 0 AND $3::int < 0.35 * $4::int))
+       VALUES ($1, $2, $3::numeric, $4::numeric, $5::boolean, $6::int,
+         (NOT $5::boolean AND $4::numeric > 0 AND $3::numeric < 0.35 * $4::numeric))
        ON CONFLICT (story_id, viewer_id) DO UPDATE SET
          watched_ms = GREATEST(story_watch.watched_ms, EXCLUDED.watched_ms),
          duration_ms = GREATEST(story_watch.duration_ms, EXCLUDED.duration_ms),
