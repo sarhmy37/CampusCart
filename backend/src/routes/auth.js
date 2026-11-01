@@ -136,7 +136,7 @@ function isAllowedEmailDomain(email) {
 router.get('/check-username', async (req, res) => {
     const username = (req.query.username || '').trim();
 
-    if (!/^[a-zA-Z0-9._]{3,20}$/.test(username)) {
+    if (!/^[a-zA-Z0-9._-]{3,30}$/.test(username)) {
         return res.json({ available: false, reason: 'invalid' });
     }
 
@@ -174,13 +174,14 @@ router.post('/register', async (req, res) => {
     const { username, name, university_email, password, school, account_type, whatsapp, sms_number, location, location_lat, location_lng, meeting_place, referral_code,
             bank_code, account_number, account_name, payout_method } = req.body;
 
-    const displayName = (username || name || '').trim();
+    const actualName = String(name || '').trim();
+    const displayName = String(username || '').trim();
 
-    if (!displayName || !university_email || !password) {
-        return res.status(400).json({ error: 'Username, university email, and password are required' });
+    if (!displayName || !actualName || !university_email || !password) {
+        return res.status(400).json({ error: 'Name, username, university email, and password are required' });
     }
-    if (!/^[a-zA-Z0-9._]{3,20}$/.test(displayName)) {
-        return res.status(400).json({ error: 'Username must be 3–20 characters, letters/numbers/._ only' });
+    if (!/^[a-zA-Z0-9._-]{3,30}$/.test(displayName)) {
+        return res.status(400).json({ error: 'Username must be 3–30 characters using letters, numbers, ".", "_" or "-"' });
     }
     const passwordError = validatePassword(password);
     if (passwordError) {
@@ -271,7 +272,7 @@ router.post('/register', async (req, res) => {
         const result = await client.query(
             `INSERT INTO users (name, username, university_email, password_hash, school, account_type, whatsapp, sms_number, location, meeting_place, referral_code, referred_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-            [displayName, displayName, university_email.trim().toLowerCase(), passwordHash, school || null, resolvedAccountType, whatsapp, sms_number, location || null, meeting_place || null, myReferralCode, referrerId]
+            [actualName.slice(0, 120), displayName, university_email.trim().toLowerCase(), passwordHash, school || null, resolvedAccountType, whatsapp, sms_number, location || null, meeting_place || null, myReferralCode, referrerId]
         );
         const user = result.rows[0];
 

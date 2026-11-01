@@ -7,6 +7,10 @@ const { insertNotification } = require('../utils/notifications');
 const router = express.Router();
 
 const pickBool = (v) => (typeof v === 'boolean' ? v : null);
+const ALLOWED_MUSIC_URLS = new Set([
+  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+]);
 
 // effective = post setting, else the owner's account default (needs aliases s = stories, u = users)
 const SETTINGS_COLS = `s.allow_chat, s.show_likes, s.allow_repost, s.allow_export,
@@ -15,14 +19,16 @@ const SETTINGS_COLS = `s.allow_chat, s.show_likes, s.allow_repost, s.allow_expor
   COALESCE(s.allow_repost, u.spotlight_allow_repost) AS repost_allowed,
   COALESCE(s.allow_export, u.spotlight_allow_export) AS export_allowed,
   u.spotlight_allow_chat AS user_allow_chat,
-  (SELECT json_build_object('id', ss.id, 'url', ss.media_url, 'start', ss.trim_start_ms, 'end', ss.trim_end_ms, 'owner', su.name)
-     FROM stories ss JOIN users su ON su.id = ss.user_id WHERE ss.id = s.sound_story_id) AS sound`;
+  (SELECT json_build_object('id', ss.id, 'url', ss.media_url, 'start', ss.trim_start_ms, 'end', ss.trim_end_ms, 'owner', su.name, 'username', su.username)
+     FROM stories ss JOIN users su ON su.id = ss.user_id
+     WHERE ss.id = s.sound_story_id AND ss.media_type = 'video' AND ss.archived_at IS NULL AND ss.expires_at > NOW()) AS sound`;
 
 const settingsOut = (r) => ({
   allow_chat: r.allow_chat, show_likes: r.show_likes,
   allow_repost: r.allow_repost, allow_export: r.allow_export,
   chat_allowed: r.chat_allowed, likes_visible: r.likes_visible,
   sound: r.sound || null,
+  music_url: r.music_url || null,
   repost_allowed: r.repost_allowed, export_allowed: r.export_allowed,
 });
 
@@ -215,7 +221,7 @@ router.get('/feed', requireAuth, async (req, res) => {
              COALESCE(s.export_count, 0) AS export_count,
              (SELECT COUNT(*) FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
              EXISTS (SELECT 1 FROM follows fl WHERE fl.follower_id = $1 AND fl.following_id = s.user_id) AS is_following,
-             u.name AS user_name, u.avatar_url AS user_avatar,
+             u.name AS user_name, u.username AS user_username, u.avatar_url AS user_avatar,
              (u.account_type = 'seller') AS is_seller,
              CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
              CASE WHEN u.account_type = 'seller'
@@ -256,6 +262,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         groupsMap.set(row.user_id, {
           user_id: row.user_id,
           user_name: row.user_name,
+          user_username: row.user_username,
           user_avatar: row.user_avatar,
           user_plan: row.user_plan,
           is_seller: row.is_seller,
@@ -270,6 +277,7 @@ router.get('/feed', requireAuth, async (req, res) => {
         id: row.id,
         user_id: row.user_id,
         user_name: row.user_name,
+        user_username: row.user_username,
         user_avatar: row.user_avatar,
         media_url: row.media_url,
         media_type: row.media_type,
@@ -535,9 +543,9 @@ router.get('/sound/:id', requireAuth, async (req, res) => {
   try {
     const { rows: [o] } = await pool.query(
       `SELECT s.id, s.media_url, s.trim_start_ms, s.trim_end_ms,
-              u.name AS owner_name, u.avatar_url AS owner_avatar
+              u.name AS owner_name, u.username AS owner_username, u.avatar_url AS owner_avatar
        FROM stories s JOIN users u ON u.id = s.user_id
-       WHERE s.id = $1 AND s.media_type = 'video'`,
+       WHERE s.id = $1 AND s.media_type = 'video' AND s.archived_at IS NULL AND s.expires_at > NOW()`,
       [req.params.id]
     );
     if (!o) return res.status(404).json({ error: 'Sound not found' });
@@ -548,7 +556,7 @@ router.get('/sound/:id', requireAuth, async (req, res) => {
               (s.id = $1) AS is_original,
               (SELECT COUNT(*)::int FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
               EXISTS (SELECT 1 FROM follows fl WHERE fl.follower_id = $2 AND fl.following_id = s.user_id) AS is_following,
-              u.name AS user_name, u.avatar_url AS user_avatar,
+              u.name AS user_name, u.username AS user_username, u.avatar_url AS user_avatar,
               (u.account_type = 'seller') AS is_seller,
               CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
               EXISTS (SELECT 1 FROM story_views v WHERE v.story_id = s.id AND v.viewer_id = $2) AS viewed,
@@ -570,12 +578,12 @@ router.get('/sound/:id', requireAuth, async (req, res) => {
       [req.params.id, req.userId]
     );
     const groups = rows.map((row) => ({
-      user_id: row.user_id, user_name: row.user_name, user_avatar: row.user_avatar,
+      user_id: row.user_id, user_name: row.user_name, user_username: row.user_username, user_avatar: row.user_avatar,
       user_plan: row.user_plan, is_seller: row.is_seller, is_following: row.is_following,
       allViewed: !!row.viewed,
       stories: [{
         ...settingsOut(row),
-        id: row.id, user_id: row.user_id, user_name: row.user_name, user_avatar: row.user_avatar,
+        id: row.id, user_id: row.user_id, user_name: row.user_name, user_username: row.user_username, user_avatar: row.user_avatar,
         media_url: row.media_url, media_type: row.media_type, caption: row.caption,
         created_at: row.created_at, viewed: row.viewed, content_type: row.content_type,
         kind: row.kind, crop: row.crop, product_tag: row.product_tag, text_overlay: row.text_overlay,
@@ -606,7 +614,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at,
              s.trim_start_ms, s.trim_end_ms, s.product_tag, s.crop, s.text_overlay, s.comments_off,
              ${SETTINGS_COLS},
-             u.name AS user_name, u.avatar_url AS user_avatar, u.plan AS user_plan,
+             u.name AS user_name, u.username AS user_username, u.avatar_url AS user_avatar, u.plan AS user_plan,
              (SELECT COUNT(*) FROM story_likes l WHERE l.story_id = s.id) AS like_count,
              EXISTS (
                SELECT 1 FROM story_likes l
@@ -674,13 +682,19 @@ router.post('/', requireAuth, async (req, res) => {
       let soundId = null;
       if (item.sound_story_id) {
         const { rows: [src] } = await pool.query(
-          `SELECT id, sound_story_id FROM stories WHERE id = $1 AND media_type = 'video'`,
-          [item.sound_story_id]
+          `SELECT id, sound_story_id FROM stories
+           WHERE id = $1 AND media_type = 'video' AND archived_at IS NULL AND expires_at > NOW()`,
+           [item.sound_story_id]
         );
-        if (src) soundId = src.sound_story_id || src.id;
+        if (!src) {
+           return res.status(400).json({ error: 'The selected sound is no longer available' });
+        }
+        soundId = src.sound_story_id || src.id;
       }
 
       // Product tag card — only the product's own seller may tag it
+      const musicUrl = typeof item.music_url === 'string' && ALLOWED_MUSIC_URLS.has(item.music_url)
+        ? item.music_url : null;
       let productTag = null;
       const t = item.product_tag;
       if (t && t.product_id && [t.x, t.y, t.rot].every(Number.isFinite)) {
@@ -702,9 +716,9 @@ router.post('/', requireAuth, async (req, res) => {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, allow_chat, show_likes, allow_repost, allow_export, sound_story_id, expires_at)
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, allow_chat, show_likes, allow_repost, allow_export, sound_story_id, music_url, expires_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16,
-           CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
+           $17, CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
          RETURNING *`,
         [
           req.userId, item.media_url, item.media_type, item.caption || null,
@@ -716,7 +730,7 @@ router.post('/', requireAuth, async (req, res) => {
           kind === 'spotlight' ? pickBool(item.show_likes) : null,
           kind === 'spotlight' ? pickBool(item.allow_repost) : null,
           kind === 'spotlight' ? pickBool(item.allow_export) : null,
-          soundId,
+          soundId, musicUrl,
         ]
       );
       inserted.push(rows[0]);
