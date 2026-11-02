@@ -178,28 +178,6 @@ function sweep() {
   });
 }
 
-async function ensureWatermarked(s) {
-  const out = path.join(TMP, `${s.id}.mp4`);
-  if (fs.existsSync(out)) return out;
-  const src = path.join(TMP, `${s.id}.src`);
-  await queued(async () => {
-    if (fs.existsSync(out)) return;
-    await fetchSource(s.media_url, src);
-    const hasTrim = s.trim_start_ms != null && s.trim_end_ms != null && s.trim_end_ms > s.trim_start_ms;
-    const startMs = hasTrim ? Number(s.trim_start_ms) : 0;
-    const durMs = Math.min(hasTrim ? s.trim_end_ms - s.trim_start_ms : MAX_MS, MAX_MS);
-    const tmpOut = `${out}.part.mp4`;
-    try {
-      await renderWatermarked({ src, out: tmpOut, handle: handleOf(s.owner_name), startMs, durMs, crop: s.crop });
-      fs.renameSync(tmpOut, out);
-    } finally {
-      fs.rm(src, () => {});
-      fs.rm(tmpOut, () => {});
-    }
-  });
-  return out;
-}
-
 module.exports = ({ pool, requireAuth }) => {
   const router = express.Router();
 
@@ -217,12 +195,9 @@ module.exports = ({ pool, requireAuth }) => {
       if (s.media_type !== 'video') {
         return res.json({ url: s.media_url, watermarked: false, type: 'image' });
       }
-      const { rows: [u] } = await pool.query(
-        'SELECT plan, plan_expires_at FROM users WHERE id = $1', [req.userId]);
-      const watermarked = !planActive(u);
-      const token = sign({ sid: s.id, wm: watermarked, exp: Date.now() + 10 * 60 * 1000 });
+      const token = sign({ sid: s.id, exp: Date.now() + 10 * 60 * 1000 });
       const proto = String(req.get('x-forwarded-proto') || req.protocol).split(',')[0];
-      res.json({ url: `${proto}://${req.get('host')}${req.baseUrl}/file?t=${token}`, watermarked });
+      res.json({ url: `${proto}://${req.get('host')}${req.baseUrl}/file?t=${token}`, watermarked: false });
     } catch (e) {
       console.error('export link', e);
       res.status(500).json({ error: 'Export failed' });
@@ -254,24 +229,18 @@ module.exports = ({ pool, requireAuth }) => {
     const src = path.join(TMP, `${tok.sid}.src`);
     try {
       const { rows: [s] } = await pool.query(
-        `SELECT s.id, s.media_url, s.trim_start_ms, s.trim_end_ms, s.crop, u.name AS owner_name
+        `SELECT s.id, s.media_url, s.trim_start_ms, s.trim_end_ms, s.crop
            FROM stories s JOIN users u ON u.id = s.user_id WHERE s.id = $1`, [tok.sid]);
       if (!s) return res.status(404).json({ error: 'Story not found' });
 
-      // Pro / Premium: original file, no watermark
-      if (!tok.wm) {
-        const hasTrim = s.trim_start_ms != null && s.trim_end_ms != null && s.trim_end_ms > s.trim_start_ms;
-        if (hasTrim || s.crop) {
-          const clean = await ensureClean(s);
-          return res.type('video/mp4').sendFile(clean);
-        }
-        if (/^https?:/i.test(s.media_url)) return res.redirect(s.media_url);
-        await fetchSource(s.media_url, src);
-        return res.type('video/mp4').sendFile(src, () => fs.rm(src, () => {}));
+      const hasTrim = s.trim_start_ms != null && s.trim_end_ms != null && s.trim_end_ms > s.trim_start_ms;
+      if (hasTrim || s.crop) {
+        const clean = await ensureClean(s);
+        return res.type('video/mp4').sendFile(clean);
       }
-
-      const out = await ensureWatermarked(s);
-      res.type('video/mp4').sendFile(out);
+      if (/^https?:/i.test(s.media_url)) return res.redirect(s.media_url);
+      await fetchSource(s.media_url, src);
+      return res.type('video/mp4').sendFile(src, () => fs.rm(src, () => {}));
     } catch (e) {
       console.error('export file', e);
       if (!res.headersSent) res.status(500).json({ error: 'Export failed' });
@@ -280,4 +249,3 @@ module.exports = ({ pool, requireAuth }) => {
 
   return router;
 };
-module.exports.ensureWatermarked = ensureWatermarked;
