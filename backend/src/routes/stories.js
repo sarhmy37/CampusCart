@@ -13,6 +13,7 @@ const ALLOWED_MUSIC_URLS = new Set([
 
 // effective = post setting, else the owner's account default (needs aliases s = stories, u = users)
 const SETTINGS_COLS = `s.allow_chat, s.show_likes, s.allow_repost, s.allow_export,
+  s.music_url, s.music_start_ms, s.music_end_ms,
   COALESCE(s.allow_chat, u.spotlight_allow_chat) AS chat_allowed,
   COALESCE(s.show_likes, u.spotlight_show_likes) AS likes_visible,
   COALESCE(s.allow_repost, u.spotlight_allow_repost) AS repost_allowed,
