@@ -540,6 +540,67 @@ router.get('/reposts/mine', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/stories/music?url=... — every post that used a library song
+router.get('/music', requireAuth, async (req, res) => {
+  try {
+    const url = String(req.query.url || '');
+    if (!ALLOWED_MUSIC_URLS.has(url)) return res.status(404).json({ error: 'Music not found' });
+    const { rows } = await pool.query(
+      `SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, s.created_at, s.content_type,
+              s.trim_start_ms, s.trim_end_ms, s.kind, s.crop, s.product_tag, s.text_overlay, s.comments_off,
+              COALESCE(s.export_count, 0) AS export_count,
+              (SELECT COUNT(*)::int FROM story_views vc WHERE vc.story_id = s.id) AS view_count,
+              EXISTS (SELECT 1 FROM follows fl WHERE fl.follower_id = $2 AND fl.following_id = s.user_id) AS is_following,
+              u.name AS user_name, u.username AS user_username, u.avatar_url AS user_avatar,
+              (u.account_type = 'seller') AS is_seller,
+              CASE WHEN u.plan IN ('pro', 'premium') AND u.plan_expires_at > NOW() THEN u.plan ELSE NULL END AS user_plan,
+              EXISTS (SELECT 1 FROM story_views v WHERE v.story_id = s.id AND v.viewer_id = $2) AS viewed,
+              (SELECT COUNT(*)::int FROM story_likes l WHERE l.story_id = s.id) AS like_count,
+              EXISTS (SELECT 1 FROM story_likes l WHERE l.story_id = s.id AND l.user_id = $2) AS liked,
+              (SELECT COUNT(*)::int FROM story_comments c WHERE c.story_id = s.id) AS comment_count,
+              (SELECT COUNT(*)::int FROM story_reposts rp WHERE rp.story_id = s.id) AS repost_count,
+              EXISTS (SELECT 1 FROM story_reposts rp WHERE rp.story_id = s.id AND rp.user_id = $2) AS reposted,
+              (SELECT MAX(rp.created_at) FROM story_reposts rp WHERE rp.story_id = s.id) AS last_repost_at,
+              ${topReposter('s.id')} AS reposted_by_name,
+              ${topReposters('s.id', '$2')} AS top_reposters,
+              ${SETTINGS_COLS}
+       FROM stories s JOIN users u ON u.id = s.user_id
+       WHERE s.music_url = $1 AND s.kind = 'spotlight'
+         AND s.expires_at > NOW() AND s.archived_at IS NULL
+         AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = $2 AND b.blocked_id = s.user_id) OR (b.blocker_id = s.user_id AND b.blocked_id = $2))
+       ORDER BY view_count DESC, s.created_at DESC
+       LIMIT 60`,
+      [url, req.userId]
+    );
+    const groups = rows.map((row) => ({
+      user_id: row.user_id, user_name: row.user_name, user_username: row.user_username, user_avatar: row.user_avatar,
+      user_plan: row.user_plan, is_seller: row.is_seller, is_following: row.is_following,
+      allViewed: !!row.viewed,
+      stories: [{
+        ...settingsOut(row),
+        id: row.id, user_id: row.user_id, user_name: row.user_name, user_username: row.user_username, user_avatar: row.user_avatar,
+        media_url: row.media_url, media_type: row.media_type, caption: row.caption,
+        created_at: row.created_at, viewed: row.viewed, content_type: row.content_type,
+        kind: row.kind, crop: row.crop, product_tag: row.product_tag, text_overlay: row.text_overlay,
+        comments_off: row.comments_off, trim_start_ms: row.trim_start_ms, trim_end_ms: row.trim_end_ms,
+        view_count: Number(row.view_count), like_count: Number(row.like_count), liked: row.liked,
+        comment_count: Number(row.comment_count), export_count: Number(row.export_count),
+        reposted: row.reposted, repost_count: Number(row.repost_count),
+        last_repost_at: row.last_repost_at, reposted_by: row.reposted_by_name || null,
+        top_reposters: row.top_reposters || [],
+      }],
+    }));
+    res.json({
+      original: { music: true },
+      posts: rows.map((r) => ({ id: r.id, media_url: r.media_url, media_type: r.media_type, is_original: false, view_count: r.view_count })),
+      groups,
+    });
+  } catch (err) {
+    console.error('Music page error:', err);
+    res.status(500).json({ error: 'Failed to load music' });
+  }
+});
+
 // GET /api/stories/sound/:id — the sound page: original post + every post using it
 router.get('/sound/:id', requireAuth, async (req, res) => {
   try {
