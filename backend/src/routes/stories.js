@@ -28,6 +28,8 @@ const settingsOut = (r) => ({
   chat_allowed: r.chat_allowed, likes_visible: r.likes_visible,
   sound: r.sound || null,
   music_url: r.music_url || null,
+  music_start_ms: r.music_start_ms ?? null,
+  music_end_ms: r.music_end_ms ?? null,
   repost_allowed: r.repost_allowed, export_allowed: r.export_allowed,
 });
 
@@ -694,6 +696,10 @@ router.post('/', requireAuth, async (req, res) => {
       // Product tag card — only the product's own seller may tag it
       const musicUrl = typeof item.music_url === 'string' && ALLOWED_MUSIC_URLS.has(item.music_url)
         ? item.music_url : null;
+      const musicStart = musicUrl && Number.isFinite(item.music_start_ms)
+        ? Math.max(0, Math.round(item.music_start_ms)) : null;
+      const musicEnd = musicUrl && Number.isFinite(item.music_end_ms)
+        ? Math.min(Math.max(Math.round(item.music_end_ms), (musicStart ?? 0) + 1000), (musicStart ?? 0) + 30000) : null;
       let productTag = null;
       const t = item.product_tag;
       if (t && t.product_id && [t.x, t.y, t.rot].every(Number.isFinite)) {
@@ -715,9 +721,9 @@ router.post('/', requireAuth, async (req, res) => {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, allow_chat, show_likes, allow_repost, allow_export, sound_story_id, music_url, expires_at)
+        `INSERT INTO stories (user_id, media_url, media_type, caption, content_type, trim_start_ms, trim_end_ms, kind, crop, product_tag, text_overlay, allow_chat, show_likes, allow_repost, allow_export, sound_story_id, music_url, music_start_ms, music_end_ms, expires_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16,
-           $17, CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
+           $17, $18, $19, CASE WHEN $8 = 'spotlight' THEN NOW() + INTERVAL '100 years' ELSE NOW() + INTERVAL '24 hours' END)
          RETURNING *`,
         [
           req.userId, item.media_url, item.media_type, item.caption || null,
@@ -729,7 +735,7 @@ router.post('/', requireAuth, async (req, res) => {
           kind === 'spotlight' ? pickBool(item.show_likes) : null,
           kind === 'spotlight' ? pickBool(item.allow_repost) : null,
           kind === 'spotlight' ? pickBool(item.allow_export) : null,
-          soundId, musicUrl,
+          soundId, musicUrl, musicStart, musicEnd,
         ]
       );
       inserted.push(rows[0]);

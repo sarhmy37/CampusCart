@@ -435,7 +435,9 @@ CREATE TABLE IF NOT EXISTS stories (
     text_overlay jsonb,
     comments_off boolean DEFAULT false NOT NULL,
     archived_at timestamp with time zone,
-    music_url text
+    music_url text,
+    music_start_ms integer,
+    music_end_ms integer
 );
 CREATE TABLE IF NOT EXISTS story_comment_likes (
     comment_id uuid NOT NULL,
@@ -1211,6 +1213,8 @@ CREATE INDEX IF NOT EXISTS service_types_trgm ON service_types USING gin (normal
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_active_booking_slot ON bookings USING btree (service_id, booking_date, booking_time) WHERE (status = ANY (ARRAY['pending_payment'::text, 'confirmed'::text]));
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_key ON users (LOWER(username)) WHERE username IS NOT NULL;
 ALTER TABLE stories ADD COLUMN IF NOT EXISTS music_url text;
+ALTER TABLE stories ADD COLUMN IF NOT EXISTS music_start_ms integer;
+ALTER TABLE stories ADD COLUMN IF NOT EXISTS music_end_ms integer;
 
 -- ---------- FOREIGN KEYS ----------
 DO $$ BEGIN
