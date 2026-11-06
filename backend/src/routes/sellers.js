@@ -204,6 +204,7 @@ router.get('/overview', requireAuth, async (req, res) => {
 
         const periodIntervals = {
             week: '7 days',
+            '2weeks': '14 days',
             month: '1 month',
             '6months': '6 months',
             year: '1 year',
