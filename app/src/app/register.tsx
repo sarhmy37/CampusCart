@@ -5,7 +5,6 @@ import { Image as ExpoImage } from 'expo-image';
 const AnimatedImage = Animated.createAnimatedComponent(ExpoImage);
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Toast from 'react-native-toast-message';
-import * as Location from 'expo-location';
 import { Mail, Lock, Eye, EyeOff, User, ShoppingBag, Store, Phone, Landmark, Loader2, CheckCircle, XCircle, ArrowLeft, MapPin, Map as MapIcon } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/api/client';
@@ -15,7 +14,6 @@ import PasswordStrength from '@/components/PasswordStrength';
 import { SCREEN_PADDING_X } from '@/constants/theme';
 import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
-import LocationPickerModal from '@/components/LocationPickerModal';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { ShoppingBagIcon as BagSolid, BuildingStorefrontIcon as StoreSolid } from 'react-native-heroicons/solid';
 import { ShoppingBagIcon as BagOutline, BuildingStorefrontIcon as StoreOutline } from 'react-native-heroicons/outline';
@@ -286,7 +284,7 @@ export default function RegisterScreen() {
   const [accountType, setAccountType] = useState<'buyer'|'seller'>(initialTab);
 
   const [form, setForm] = useState({
-    name: '', university_email: '', password: '', confirm_password: '',
+    username: '', name: '', university_email: '', password: '', confirm_password: '',
     school: SCHOOLS[0], meeting_place: '',
   });
 
@@ -299,14 +297,6 @@ export default function RegisterScreen() {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const [buyerSchool, setBuyerSchool] = useState('');
-  const [buyerExtraInfo, setBuyerExtraInfo] = useState('');
-  const [detectingSchool, setDetectingSchool] = useState(false);
-  const [detectError, setDetectError] = useState('');
-  const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationSource, setLocationSource] = useState<'map' | 'gps' | null>(null);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const [payoutMethod, setPayoutMethod] = useState<'bank'|'mobile_money'>('bank');
   const [bankCode, setBankCode] = useState('');
@@ -341,41 +331,6 @@ export default function RegisterScreen() {
       .finally(() => { if (!cancelled) setLoadingBanks(false); });
     return () => { cancelled = true; };
   }, [accountType]);
-
-  const describePlace = async (c: { lat: number; lng: number }, school: string) => {
-    try {
-      const [p] = await Location.reverseGeocodeAsync({ latitude: c.lat, longitude: c.lng });
-      const text = [p?.name, p?.street, p?.district, p?.city].filter(Boolean).join(', ');
-      setBuyerExtraInfo(text || `Near ${school}`);
-    } catch {
-      setBuyerExtraInfo(`Near ${school}`);
-    }
-  };
-
-  const detectNearestSchool = async () => {
-    if (detectingSchool) return;
-    setDetectingSchool(true);
-    setDetectError('');
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setDetectError("Couldn't get your location. Try 'Set on map' instead.");
-        setDetectingSchool(false);
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setBuyerCoords(c);
-      setLocationSource('gps');
-      const s = findNearestSchool(c.lat, c.lng);
-      setBuyerSchool(s);
-      describePlace(c, s);
-    } catch {
-      setDetectError("Couldn't get your location. Try 'Set on map' instead.");
-    } finally {
-      setDetectingSchool(false);
-    }
-  };
 
   const updateSellerSchool = (newSchool: string) => {
     const places = PLACES_BY_SCHOOL[newSchool] || [];
@@ -426,16 +381,16 @@ export default function RegisterScreen() {
 
   // Username availability (always on the trimmed value)
   useEffect(() => {
-    const name = form.name.trim();
-    if (!name) { setUsernameCheck({ checking:false, available:null, message:'' }); return; }
-    if (!/^[a-zA-Z0-9._]{3,20}$/.test(name)) {
-      setUsernameCheck({ checking:false, available:false, message:'Use 3–20 letters, numbers, "." or "_" only' });
+    const username = form.username.trim();
+    if (!username) { setUsernameCheck({ checking:false, available:null, message:'' }); return; }
+    if (!/^[a-zA-Z0-9._-]{3,30}$/.test(username)) {
+      setUsernameCheck({ checking:false, available:false, message:'Use 3–30 letters, numbers, ".", "_" or "-" only' });
       return;
     }
     let cancelled = false;
     setUsernameCheck({ checking: true, available: null, message: '' });
     const t = setTimeout(() => {
-      api.get('/auth/check-username', { params: { username: name } })
+      api.get('/auth/check-username', { params: { username } })
         .then((res) => {
           if (cancelled) return;
           setUsernameCheck({ checking:false, available:res.data.available, message: res.data.available ? 'Username is available' : 'That username is already taken' });
@@ -443,7 +398,7 @@ export default function RegisterScreen() {
         .catch(() => { if (!cancelled) setUsernameCheck({ checking:false, available:null, message:'' }); });
     }, 500);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [form.name]);
+  }, [form.username]);
 
   // Resolve the account holder's name
   useEffect(() => {
@@ -463,12 +418,14 @@ export default function RegisterScreen() {
 
   const onSubmit = async () => {
     if (loading) return;
-    const username = form.name.trim();
+    const username = form.username.trim();
+    const name = form.name.trim();
     const email = form.university_email.trim().toLowerCase();
     const smsC = sameAsWhatsapp ? whatsappCode : smsCode;
     const smsN = sameAsWhatsapp ? whatsappNumber : smsNumber;
 
     if (!username) { Toast.show({ type:'error', text1:'Please choose a username.' }); return; }
+    if (!name) { Toast.show({ type:'error', text1:'Please enter your actual name.' }); return; }
     if (usernameCheck.checking) { Toast.show({ type:'info', text1:'Checking username, one moment…' }); return; }
     if (usernameCheck.available === false) { Toast.show({ type:'error', text1: usernameCheck.message || 'That username is not available.' }); return; }
     if (!EMAIL_RE.test(email)) { Toast.show({ type:'error', text1:'Please enter a valid email address.' }); return; }
@@ -480,11 +437,6 @@ export default function RegisterScreen() {
 
     if (form.password !== form.confirm_password) { Toast.show({ type:'error', text1:"Passwords don't match" }); return; }
     if (!isPasswordValid(form.password)) { Toast.show({ type:'error', text1:'Password must be 8+ chars with a letter, number, and symbol' }); return; }
-    if (accountType === 'buyer') {
-      if (!buyerSchool) { Toast.show({ type:'error', text1:'Please select or wait for us to detect your nearest school.' }); return; }
-      if (!buyerCoords) { Toast.show({ type:'error', text1:'Please set your location on the map or use your current location.' }); return; }
-      if (!buyerExtraInfo.trim()) { Toast.show({ type:'error', text1:'Still finding your address, try again in a second.' }); return; }
-    }
     if (accountType === 'seller' && !form.meeting_place) { Toast.show({ type:'error', text1:'Please select a meeting place on your campus.' }); return; }
     if (!agreedToTerms) { Toast.show({ type:'error', text1:'Please agree to the Terms of Service and Privacy Policy' }); return; }
     if (accountType === 'seller') {
@@ -498,16 +450,14 @@ export default function RegisterScreen() {
     try {
       const payload: any = {
         username,
+        name,
         university_email: email,
         password: form.password,
-        school: accountType === 'seller' ? form.school : buyerSchool,
+        school: accountType === 'seller' ? form.school : null,
         account_type: accountType,
         whatsapp: `${whatsappCode}${whatsappNumber}`,
         sms_number: `${smsC}${smsN}`,
         meeting_place: accountType === 'seller' ? form.meeting_place : null,
-        location: accountType === 'buyer' ? buyerExtraInfo : null,
-        location_lat: accountType === 'buyer' ? buyerCoords?.lat ?? null : null,
-        location_lng: accountType === 'buyer' ? buyerCoords?.lng ?? null : null,
         referral_code: refCode,
       };
       if (accountType === 'seller') {
@@ -593,8 +543,8 @@ export default function RegisterScreen() {
                 </View>
                 <TextInput
                   ref={usernameRef}
-                  value={form.name}
-                  onChangeText={(v) => setForm((f) => ({ ...f, name: v.replace(/\s/g, '') }))}
+                  value={form.username}
+                  onChangeText={(v) => setForm((f) => ({ ...f, username: v.replace(/\s/g, '') }))}
                   placeholder="campusking"
                   placeholderTextColor={colors.textFaint}
                   autoCapitalize="none"
@@ -617,6 +567,25 @@ export default function RegisterScreen() {
                   {usernameCheck.message}
                 </Text>
               )}
+
+              <Text style={labelStyle}>Your name</Text>
+              <View style={{ position: 'relative', marginTop: 4 }}>
+                <View style={{ position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center', zIndex: 1 }}>
+                  <User size={16} color={colors.textFaint} />
+                </View>
+                <TextInput
+                  value={form.name}
+                  onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
+                  placeholder="Your actual name"
+                  placeholderTextColor={colors.textFaint}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                  accessibilityLabel="Your actual name"
+                  style={inputStyle}
+                />
+              </View>
 
               {/* Email */}
               <Text style={labelStyle}>{accountType === 'seller' ? 'University Email' : 'Email'}</Text>
@@ -743,57 +712,16 @@ export default function RegisterScreen() {
                 </>
               )}
 
-              {/* Buyer: auto-detect school + extra info */}
-              {accountType === 'buyer' && (
-                <>
-                  <Text style={labelStyle}>Your Campus & Location Details</Text>
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 6 }}>
-                    {([
-                      { key: 'map', label: 'Set on map', onPress: () => setShowLocationPicker(true), busy: false },
-                      { key: 'gps', label: detectingSchool ? 'Getting…' : 'Use current location', onPress: detectNearestSchool, busy: detectingSchool },
-                    ] as const).map((b) => {
-                      const active = locationSource === b.key;
-                      const c = active ? '#059669' : colors.textSecondary;
-                      return (
-                        <Pressable
-                          key={b.key}
-                          onPress={b.onPress}
-                          disabled={b.busy}
-                          accessibilityRole="button"
-                          accessibilityLabel={b.key === 'map' ? 'Set your location on the map' : 'Use your current location'}
-                          accessibilityState={{ selected: active, busy: b.busy }}
-                          style={{
-                            flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            paddingVertical: 12, borderRadius: 12, borderWidth: 1, opacity: b.busy ? 0.6 : 1,
-                            borderColor: active ? '#6ee7b7' : colors.border,
-                            backgroundColor: active ? 'rgba(16,185,129,0.1)' : 'transparent',
-                          }}
-                        >
-                          {b.busy ? <ActivityIndicator size="small" color={colors.brand} /> : b.key === 'map' ? <MapIcon size={15} color={c} /> : <MapPin size={15} color={c} />}
-                          <Text style={{ fontSize: 15, fontWeight: '600', color: c }}>{b.label}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  {!!buyerSchool && (
-                    <Text style={{ fontSize: 14, color: colors.textMuted, marginBottom: 6 }}>Nearest campus: {buyerSchool}</Text>
-                  )}
-                  {!!buyerExtraInfo && (
-                    <Text style={{ fontSize: 14, color: colors.textMuted }}>📍 {buyerExtraInfo}</Text>
-                  )}
-                  {!!detectError && <Text style={{ fontSize: 14, color: colors.error, marginTop: 4 }}>{detectError}</Text>}
-                </>
-              )}
-
               {/* Seller: Payout */}
               {accountType === 'seller' && (
                 <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Landmark size={16} color={colors.brand} />
                     <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textSecondary }}>Payout Account</Text>
                   </View>
 
-                  <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, alignSelf: 'center', marginBottom: 12, gap: 4 }}>
+                  <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 3, borderRadius: 10, gap: 2 }}>
                     {(['bank','mobile_money'] as const).map((m) => (
                       <Pressable
                         key={m}
@@ -808,6 +736,7 @@ export default function RegisterScreen() {
                         </Text>
                       </Pressable>
                     ))}
+                  </View>
                   </View>
 
                   <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>
@@ -979,22 +908,6 @@ export default function RegisterScreen() {
 
           </View>
         </ScrollView>
-
-        {showLocationPicker && (
-          <LocationPickerModal
-            colors={colors}
-            initial={buyerCoords}
-            onCancel={() => setShowLocationPicker(false)}
-            onConfirm={(pos: { lat: number; lng: number }) => {
-              setBuyerCoords(pos);
-              setLocationSource('map');
-              const s = findNearestSchool(pos.lat, pos.lng);
-              setBuyerSchool(s);
-              describePlace(pos, s);
-              setShowLocationPicker(false);
-            }}
-          />
-        )}
 
         {/* Floating back button */}
         <GlassButton

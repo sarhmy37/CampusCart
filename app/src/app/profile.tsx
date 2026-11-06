@@ -6,7 +6,7 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import api from '@/api/client';
@@ -26,7 +26,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
-const COOLDOWN_MS = 60 * 60 * 1000;
 const APP_VERSION = '1.0.0';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 320);
@@ -36,6 +35,7 @@ export default function ProfileScreen() {
   const { user, logout, updateProfile, uploadAvatar, removeAvatar } = useAuth();
   const [showVerify, setShowVerify] = useState(false);
   const router = useRouter();
+  const { editLocation, returnTo } = useLocalSearchParams<{ editLocation?: string; returnTo?: string }>();
   const insets = useSafeAreaInsets();
 
   const [uploading, setUploading] = useState(false);
@@ -109,13 +109,13 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
-  const cooldownRemaining = useMemo(() => {
-    if (!user?.profile_updated_at) return 0;
-    const elapsed = Date.now() - new Date(user.profile_updated_at).getTime();
-    return Math.max(0, COOLDOWN_MS - elapsed);
-  }, [user?.profile_updated_at]);
-  const onCooldown = cooldownRemaining > 0;
-  const cooldownMinutes = Math.ceil(cooldownRemaining / 60000);
+  useEffect(() => {
+    if (editLocation === '1') {
+      setPersonalOpen(true);
+      setEditing(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editLocation]);
 
   if (!user) return null;
 
@@ -240,6 +240,10 @@ export default function ProfileScreen() {
       setLocSource(null);
       Toast.show({ type: 'success', text1: 'Profile updated' });
       setEditing(false);
+      if (returnTo) {
+        const target = String(returnTo);
+        closeDrawer(() => setTimeout(() => router.push(target as any), 50));
+      }
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Update failed' });
     } finally {
@@ -287,7 +291,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: 'transparent' }}>
+    <Shell onRequestClose={() => closeDrawer()}>
       {/* Left — drawer */}
       <Animated.View
         style={{
@@ -487,15 +491,6 @@ export default function ProfileScreen() {
 
               {personalOpen && (
                 <View style={{ gap: 12, paddingHorizontal: 4, marginTop: 4 }}>
-                  {onCooldown && !editing && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Clock size={12} color={colors.warning} />
-                      <Text style={{ fontSize: 14, color: colors.warning }}>
-                        You can edit again in {cooldownMinutes} minute{cooldownMinutes === 1 ? '' : 's'}
-                      </Text>
-                    </View>
-                  )}
-
                   {editing ? (
                     <View style={{ gap: 12 }}>
                       <View style={{ borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
@@ -536,7 +531,6 @@ export default function ProfileScreen() {
                             {([
                               { key: 'map', label: 'Set on map', onPress: onSetOnMap, busy: false },
                               { key: 'gps', label: locBusy ? 'Getting…' : 'Use current', onPress: onUseCurrent, busy: locBusy },
-                              ...(!isBuyer ? [{ key: 'campus', label: 'My campus', onPress: onUseCampus, busy: false }] : []),
                             ] as const).map((b) => {
                               const active = locSource === b.key;
                               const c = active ? '#059669' : colors.textSecondary;
@@ -605,8 +599,8 @@ export default function ProfileScreen() {
 
                   {!editing && (
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Pressable onPress={() => !onCooldown && setEditing(true)} disabled={onCooldown}>
-                        <Text style={{ fontSize: 14, fontWeight: '600', color: onCooldown ? colors.textFaint : colors.brand }}>
+                      <Pressable onPress={() => setEditing(true)}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>
                           Edit
                         </Text>
                       </Pressable>
@@ -797,7 +791,26 @@ export default function ProfileScreen() {
           }}
         />
       )}
-    </View>
+    </Shell>
+  );
+}
+
+function Shell({ children, onRequestClose }: { children: React.ReactNode; onRequestClose: () => void }) {
+  const inner = (
+    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: 'transparent' }}>{children}</View>
+  );
+  if (Platform.OS !== 'android') return inner;
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onRequestClose}
+    >
+      {inner}
+    </Modal>
   );
 }
 

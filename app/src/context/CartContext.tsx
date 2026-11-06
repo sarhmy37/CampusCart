@@ -68,27 +68,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
-  const addItem = (product: any) => {
-    setItems((prev) => {
-      const existing = prev.find((i) => i.product_id === product.id);
-      const newQuantity = existing ? existing.quantity + 1 : 1;
+  const addItem = (product: any, qty: number = 1) => {
+    const existing = items.find((i) => i.product_id === product.id);
+    const newQuantity = (existing ? existing.quantity : 0) + qty;
+    const stockLimit = product.stock ?? existing?.stock;
 
-      if (product.stock !== undefined && newQuantity > product.stock) {
-        Toast.show({ type: 'error', text1: `Only ${product.stock} available in stock.` });
-        return prev;
-      }
+    if (stockLimit !== undefined && stockLimit !== null && newQuantity > stockLimit) {
+      Toast.show({ type: 'error', text1: `Only ${stockLimit} available in stock.` });
+      return false;
+    }
 
-      if (existing) {
-        return prev.map((i) =>
-          i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      }
-      return [...prev, {
+    const u: any = user;
+
+    if (existing) {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.product_id === product.id
+            ? {
+                ...i,
+                quantity: i.quantity + qty,
+                buyer_location: product.buyer_location ?? u?.location ?? i.buyer_location,
+                buyer_lat: product.buyer_lat ?? u?.location_lat ?? i.buyer_lat,
+                buyer_lng: product.buyer_lng ?? u?.location_lng ?? i.buyer_lng,
+              }
+            : i
+        )
+      );
+    } else {
+      setItems((prev) => [...prev, {
         product_id: product.id,
         title: product.title,
         price: product.price,
         image: product.primary_image,
-        quantity: 1,
+        quantity: qty,
         seller_id: product.seller_id ?? product.user_id ?? null,
         seller_name: product.seller_name || 'Seller',
         seller_whatsapp: product.seller_whatsapp || product.whatsapp || null,
@@ -97,8 +109,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         delivery_fee_on_campus: product.delivery_fee_on_campus || 0,
         delivery_fee_near_campus: product.delivery_fee_near_campus || 0,
         delivery_fee_far_campus: product.delivery_fee_far_campus || 0,
-      }];
-    });
+        buyer_location: product.buyer_location ?? u?.location ?? null,
+        buyer_lat: product.buyer_lat ?? u?.location_lat ?? null,
+        buyer_lng: product.buyer_lng ?? u?.location_lng ?? null,
+      }]);
+    }
+
+    Toast.show({ type: 'success', text1: qty > 1 ? `Added ${qty} to cart` : 'Added to cart', text2: product.title });
+    return true;
   };
 
   const removeItem = (productId: number) => {

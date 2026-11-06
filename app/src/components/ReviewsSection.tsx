@@ -3,7 +3,7 @@ import { View, Text, Pressable, TextInput, ActivityIndicator, Modal } from 'reac
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
-import { Star, ThumbsUp, MessageSquare, X, Send, ImagePlus } from 'lucide-react-native';
+import { Star, ThumbsUp, MessageSquare, X, Send, ImagePlus, ChevronRight } from 'lucide-react-native';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
@@ -54,24 +54,34 @@ export default function ReviewsSection({ reviewsData, productId }: { reviewsData
   }
 
   return (
-    <View style={{ marginTop: 24, backgroundColor: colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border }}>
+    <View style={{ marginTop: 24, paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Reviews</Text>
-          {data?.avg_rating && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Star size={14} color="#f59e0b" fill="#f59e0b" />
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>{data.avg_rating}</Text>
-              <Text style={{ fontSize: 15, color: colors.textFaint }}>({data.total})</Text>
-            </View>
-          )}
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand, textTransform: 'uppercase', letterSpacing: 1, textDecorationLine: 'underline' }}>Product Rating & Reviews</Text>
         </View>
-        {canReview && (
-          <Pressable onPress={() => setShowReviewModal(true)}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>+ Add review</Text>
-          </Pressable>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {canReview && (
+            <Pressable onPress={() => setShowReviewModal(true)}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.brand }}>+ Add review</Text>
+            </Pressable>
+          )}
+          <ChevronRight size={18} color={colors.textFaint} />
+        </View>
       </View>
+
+      {data?.avg_rating && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.brandSoft }}>
+            <Star size={14} color="#f59e0b" fill="#f59e0b" />
+            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand }}>
+              {Number(data.avg_rating).toFixed(1)} / 5
+            </Text>
+          </View>
+          <Text style={{ fontSize: 14, color: colors.textFaint }}>
+            {data.total} {data.total === 1 ? 'rating' : 'ratings'}
+          </Text>
+        </View>
+      )}
 
       {!data?.reviews?.length ? (
         <Text style={{ fontSize: 15, color: colors.textFaint }}>No reviews yet.</Text>

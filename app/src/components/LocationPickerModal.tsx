@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
+import GlassButton from '@/components/GlassButton';
 
 const DEFAULT_CENTER = { lat: 6.6885, lng: -1.6244 }; // change to your campus
 
@@ -122,15 +123,16 @@ export default function LocationPickerModal({ colors, initial, onCancel, onConfi
         </MapView>
 
         <View style={{ flexDirection: 'row', gap: 8, padding: 16, paddingBottom: insets.bottom + 16 }}>
-          <Pressable
+          <GlassButton
             onPress={onCancel}
             style={{
               flex: 1, paddingVertical: 12, borderRadius: 12,
-              borderWidth: 1, borderColor: colors.border, alignItems: 'center',
+              alignItems: 'center',
             }}
+            fallbackStyle={{ borderWidth: 1, borderColor: colors.border }}
           >
             <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 15 }}>Cancel</Text>
-          </Pressable>
+          </GlassButton>
           <Pressable
             onPress={() => onConfirm(pos)}
             style={{

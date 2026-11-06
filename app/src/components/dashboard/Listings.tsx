@@ -9,13 +9,13 @@ import { usePageReady } from '@/hooks/usePageReady';
 import { SkeletonList, ErrorState, EmptyState } from './shared';
 import { useColors } from '@/hooks/useColors';
 import EditListingModal from '@/components/EditListingModal';
-import EditServiceModal from '@/components/EditServiceModal';
 
 export default function Listings() {
   const colors = useColors();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const router = useRouter();
 
   const isPlanActive = user?.plan && user.plan !== 'free' &&
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
@@ -82,7 +82,7 @@ export default function Listings() {
               product={p}
               isPlanActive={!!isPlanActive}
               onRemove={handleRemove}
-              onEdit={setEditingProduct}
+              onEdit={(p: any) => router.push({ pathname: '/sell', params: { type: 'product', edit: String(p.id), from: 'dashboard' } })}
               colors={colors}
             />
           ))}
@@ -98,29 +98,13 @@ export default function Listings() {
               product={p}
               isPlanActive={!!isPlanActive}
               onRemove={handleRemove}
-              onEdit={setEditingProduct}
+              onEdit={(p: any) => router.push({ pathname: '/sell', params: { type: 'service', edit: String(p.id), from: 'dashboard' } })}
               isService
               colors={colors}
             />
           ))}
         </>
       )}
-
-      {/* Product edit modal */}
-      <EditListingModal
-        product={editingProduct && !isService ? editingProduct : null}
-        open={!!editingProduct && !isService}
-        onClose={() => setEditingProduct(null)}
-        onSaved={() => { setEditingProduct(null); load(); }}
-      />
-
-      {/* Service edit modal */}
-      <EditServiceModal
-        product={editingProduct && isService ? editingProduct : null}
-        open={!!editingProduct && isService}
-        onClose={() => setEditingProduct(null)}
-        onSaved={() => { setEditingProduct(null); load(); }}
-      />
     </View>
   );
 }

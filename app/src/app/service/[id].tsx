@@ -14,7 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import {
   Star, MapPin, Clock, ChevronLeft, ChevronRight, Calendar, ShieldCheck,
-  Briefcase, MessageSquare, ArrowRight, Sparkles, Maximize2, X, Navigation,
+  Briefcase, MessageSquare, ArrowRight, Sparkles, Maximize2, X, Navigation, ChevronDown, ChevronUp,
 } from 'lucide-react-native';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -117,6 +117,7 @@ export default function ServiceDetail() {
     return d;
   });
   const [message, setMessage] = useState('');
+  const [messageOpen, setMessageOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [bookingBlocked, setBookingBlocked] = useState(false);
   const [checkout, setCheckout] = useState<{ id: string; url: string } | null>(null);
@@ -301,6 +302,9 @@ export default function ServiceDetail() {
         booking_time: timeStr,
         message: message || '',
       });
+      if (data.queued) {
+        Toast.show({ type: 'info', text1: 'Provider is busy', text2: `You're in the queue. Your start time is ${formatTime12(data.booking_time)}.` });
+      }
       setCheckout({ id: String(data.booking_id), url: data.authorization_url });
       setSubmitting(false);
     } catch (err: any) {
@@ -554,9 +558,7 @@ export default function ServiceDetail() {
 
           {/* AVAILABILITY */}
           <View style={{ ...card, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 14 }}>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Clock size={16} color={colors.brand} />
-            </View>
+            <Clock size={20} color={colors.brand} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={{ fontSize: 12, color: colors.textFaint, fontWeight: '600', textTransform: 'uppercase' }}>Availability</Text>
               <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 2 }}>{availabilitySummary}</Text>
@@ -621,20 +623,31 @@ export default function ServiceDetail() {
                         onPress={() => setSelectedServiceOption({ name: option.name, price: Number(option.price) })}
                         style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brandSoft : colors.card, flexDirection: 'row', justifyContent: 'space-between' }}
                       >
-                        <Text style={{ color: colors.text, fontWeight: '600' }}>{option.name}</Text>
+                        <Text style={{ color: colors.text, fontWeight: '600' }}>
+  {option.name}{(option as any).duration_minutes ? ` · ${(option as any).duration_minutes} min` : ''}
+</Text>
                         <Text style={{ color: colors.brand, fontWeight: '700' }}>GHS {Number(option.price).toFixed(2)}</Text>
                       </Pressable>
                     );
                   })}
                   {selectedServiceOption && (
-                    <Text style={{ fontSize: 13, color: colors.textFaint, textAlign: 'right' }}>
-                      Buyer booking fee: GHS {(selectedServiceOption.price * 0.02).toFixed(2)}
+                    <Text style={{ fontSize: 13, color: colors.textFaint, textAlign: 'left' }}>
+                      Booking fee: GHS 2.00. You pay the provider directly.
                     </Text>
                   )}
                 </View>
 
                 <View>
-                  <FieldLabel colors={colors} icon={<MessageSquare size={13} color={colors.textMuted} />} label="Message (optional)" />
+                  <Pressable
+                    onPress={() => setMessageOpen((v) => !v)}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: messageOpen ? 6 : 0 }}
+                  >
+                    <FieldLabel colors={colors} icon={<MessageSquare size={13} color={colors.textMuted} />} label="Message (optional)" />
+                    {messageOpen
+                      ? <ChevronUp size={16} color={colors.textMuted} />
+                      : <ChevronDown size={16} color={colors.textMuted} />}
+                  </Pressable>
+                  {messageOpen && (
                   <TextInput
                     value={message}
                     onChangeText={setMessage}
@@ -648,6 +661,7 @@ export default function ServiceDetail() {
                       color: colors.text, backgroundColor: colors.card, fontSize: 16, textAlignVertical: 'top',
                     }}
                   />
+                  )}
                 </View>
 
                 <Pressable
@@ -671,7 +685,7 @@ export default function ServiceDetail() {
                   ) : (
                     <>
                       <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textOnGold }}>
-                        {selectedServiceOption ? `Pay GHS ${(selectedServiceOption.price * 1.02).toFixed(2)} & Book` : 'Select a service to book'}
+                        {selectedServiceOption ? 'Pay GHS 2.00 & Book' : 'Select a service to book'}
                       </Text>
                       <ArrowRight size={15} color={colors.textOnGold} />
                     </>
@@ -854,10 +868,11 @@ function DateTimeField({
       <View
         style={{
           height: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 12,
-          backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center',
+          backgroundColor: colors.card, alignItems: 'flex-start', justifyContent: 'center', overflow: 'hidden',
         }}
       >
         <DateTimePicker
+          style={{ marginLeft: -4 }}
           value={value}
           mode={mode}
           display="compact"

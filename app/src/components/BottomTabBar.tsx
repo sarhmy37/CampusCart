@@ -1,8 +1,8 @@
 import { View, Text, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
-import { UserIcon as UserOutline, HomeModernIcon as HomeOutline, ChatBubbleLeftRightIcon as ChatOutline, ShoppingCartIcon as CartOutline, GlobeEuropeAfricaIcon as StoriesOutline } from 'react-native-heroicons/outline';
-import { UserIcon as UserSolid, HomeModernIcon as HomeSolid, ChatBubbleLeftRightIcon as ChatSolid, ShoppingCartIcon as CartSolid, GlobeEuropeAfricaIcon as StoriesSolid } from 'react-native-heroicons/solid';
+import { UserIcon as UserOutline, HomeModernIcon as HomeOutline, ChartPieIcon as BrowseOutline, ShoppingCartIcon as CartOutline, GlobeEuropeAfricaIcon as StoriesOutline } from 'react-native-heroicons/outline';
+import { UserIcon as UserSolid, HomeModernIcon as HomeSolid, ChartPieIcon as BrowseSolid, ShoppingCartIcon as CartSolid, GlobeEuropeAfricaIcon as StoriesSolid } from 'react-native-heroicons/solid';
 import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
 import { useCart } from '@/context/CartContext';
@@ -12,7 +12,7 @@ const TABS = [
   { key: 'cart', label: 'Cart', outline: CartOutline, solid: CartSolid, route: '/cart' },
   { key: 'stories', label: 'Stories', outline: StoriesOutline, solid: StoriesSolid, route: '/stories' },
   { key: 'home', label: 'Home', outline: HomeOutline, solid: HomeSolid, route: '/' },
-  { key: 'messages', label: 'Messages', outline: ChatOutline, solid: ChatSolid, route: '/chat' },
+  { key: 'browse', label: 'Browse', outline: BrowseOutline, solid: BrowseSolid, route: '/(browse)/all', match: '/all' },
   { key: 'profile', label: 'Profile', outline: UserOutline, solid: UserSolid, route: '/profile' },
 ];
 
@@ -35,16 +35,16 @@ export default function BottomTabBar() {
 
   const isProfileRoute = PROFILE_ROUTES.some((r) => pathname.startsWith(r));
 
-  const isActive = (route: string) => {
+  const isActive = (route: string, match?: string) => {
     if (route === '/profile') return isProfileRoute;
     if (route === '/') return pathname === '/';
-    return pathname.startsWith(route);
+    return pathname.startsWith(match ?? route);
   };
 
   const content = (
     <View style={{ flexDirection: 'row', height: 56 }}>
       {TABS.map((tab) => {
-        const active = isActive(tab.route);
+        const active = isActive(tab.route, (tab as any).match);
         const Icon = active ? tab.solid : tab.outline;
         const badge = badgeFor(tab.key);
         return (
@@ -109,7 +109,7 @@ export default function BottomTabBar() {
     >
       <View
         style={{
-          paddingBottom: insets.bottom,
+          paddingBottom: insets.bottom + (Platform.OS === 'android' ? 8 : 0),
           backgroundColor: colors.card,
         }}
       >

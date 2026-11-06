@@ -98,6 +98,10 @@ export default function SearchScreen() {
         { text: 'Cancel', style: 'cancel' },
       ]);
     } else {
+      if (item.account_type !== 'seller' && item.spotlight_allow_chat === false) {
+        Toast.show({ type: 'info', text1: 'This user is not accepting chats' });
+        return;
+      }
       openUserChat();
     }
   };
@@ -187,7 +191,7 @@ export default function SearchScreen() {
   };
 
   const handleSelect = (item: any) => {
-    router.push(`/product/${item.id}`);
+    router.push(isServiceItem(item) ? `/service/${item.id}` : `/product/${item.id}`);
   };
 
   return (
@@ -333,6 +337,7 @@ export default function SearchScreen() {
               following={isFollowingUser(item)}
               onFollow={() => toggleFollowUser(item)}
               onChat={() => openChat({ sellerId: item.id, sellerName: item.name })}
+              showChat={item.account_type === 'seller' || item.spotlight_allow_chat !== false}
             />
           ) : (
             <Pressable
@@ -391,10 +396,10 @@ export default function SearchScreen() {
 }
 
 function UserRow({
-  item, colors, onPress, showActions, following, onFollow, onChat,
+  item, colors, onPress, showActions, following, onFollow, onChat, showChat,
 }: {
   item: any; colors: any; onPress: () => void;
-  showActions: boolean; following: boolean; onFollow: () => void; onChat: () => void;
+  showActions: boolean; following: boolean; onFollow: () => void; onChat: () => void; showChat?: boolean;
 }) {
   return (
     <Pressable
@@ -437,7 +442,7 @@ function UserRow({
               borderColor: following ? colors.border : colors.brand,
               paddingHorizontal: 10, paddingVertical: 6,
               borderTopLeftRadius: 10, borderBottomLeftRadius: 10,
-              borderTopRightRadius: 0, borderBottomRightRadius: 0,
+              borderTopRightRadius: showChat === false ? 10 : 0, borderBottomRightRadius: showChat === false ? 10 : 0,
             }}
           >
             <Text style={{ fontSize: 14, fontWeight: '700', color: following ? colors.text : colors.textOnGold }}>
@@ -448,6 +453,7 @@ function UserRow({
             onPress={onChat}
             style={{
               backgroundColor: colors.card,
+              display: showChat === false ? 'none' : 'flex',
               borderWidth: 1, borderLeftWidth: 0, borderColor: colors.border,
               paddingHorizontal: 10, paddingVertical: 6,
               borderTopLeftRadius: 0, borderBottomLeftRadius: 0,

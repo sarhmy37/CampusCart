@@ -14,6 +14,9 @@ import { BALANCE_DARK_IMAGE, BALANCE_LIGHT_IMAGE } from '@/data/media';
 import ModalPicker from '@/components/ModalPicker';
 import { SkeletonList, ErrorState } from './shared';
 import { useColors } from '@/hooks/useColors';
+import PaystackCheckout from '@/components/PaystackCheckout';
+
+const PAYMENT_CALLBACK_URL = 'https://campuscart-tdfn.onrender.com/paystack/callback';
 
 const FALLBACK_GHS_TO_USD_RATE = 0.067;
 
@@ -270,6 +273,55 @@ export default function Payouts({ period, active }: { period: string; active?: b
     }
   };
 
+  const [fees, setFees] = useState({ owed: 0, overdue: false, thisMonth: 0 });
+  const [showFlex, setShowFlex] = useState(false);
+  const [flexAmount, setFlexAmount] = useState('');
+  const [payingFee, setPayingFee] = useState(false);
+  const [feeCheckout, setFeeCheckout] = useState<{ url: string; reference: string } | null>(null);
+
+  const loadFees = () => {
+    api.get('/sellers/payment-status')
+      .then((res) => {
+        const history = res.data?.history || [];
+        const owed = history
+          .filter((p: any) => p.status !== 'paid')
+          .reduce((s: number, p: any) => s + (parseFloat(p.amount_due) - parseFloat(p.amount_paid)), 0);
+        setFees({
+          owed: Math.round(owed * 100) / 100,
+          overdue: !!res.data?.restricted,
+          thisMonth: parseFloat(res.data?.current_month_due) || 0,
+        });
+      })
+      .catch(() => {});
+  };
+  useEffect(() => { if (active) loadFees(); }, [active]);
+
+  const startFeePayment = async (amount?: number) => {
+    setPayingFee(true);
+    try {
+      const { data } = await api.post('/sellers/payment-status/pay', amount ? { amount } : {});
+      setFeeCheckout({ url: data.authorization_url, reference: data.reference });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not start payment' });
+    } finally {
+      setPayingFee(false);
+    }
+  };
+
+  const verifyFeePayment = async (reference: string) => {
+    try {
+      await api.post('/sellers/payment-status/verify', { reference });
+      Toast.show({ type: 'success', text1: 'Payment received' });
+      setShowFlex(false);
+      setFlexAmount('');
+      loadFees();
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not verify payment' });
+    } finally {
+      setFeeCheckout(null);
+    }
+  };
+
   const balanceBg = theme === 'dark' ? BALANCE_DARK_IMAGE : BALANCE_LIGHT_IMAGE;
 
   const inputStyle = {
@@ -324,12 +376,71 @@ export default function Payouts({ period, active }: { period: string; active?: b
         </ImageBackground>
       </View>
 
+      {/* PLATFORM FEES OWED */}
+      {(fees.owed > 0 || fees.thisMonth > 0) && (
+        <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: fees.overdue ? colors.error : colors.border, borderRadius: 16, padding: 20 }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Platform fees</Text>
+          <Text style={{ fontSize: 26, fontWeight: '800', color: fees.owed > 0 ? colors.error : colors.text, marginTop: 6 }}>
+            GHS {money(fees.owed)}
+          </Text>
+          <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
+            {fees.overdue
+              ? 'Overdue. Your listings are hidden until you pay in full.'
+              : fees.owed > 0
+                ? 'Due by the 5th of this month.'
+                : 'Nothing due right now.'}
+          </Text>
+          {fees.thisMonth > 0 && (
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 6 }}>
+              Building this month: GHS {money(fees.thisMonth)}
+            </Text>
+          )}
+
+          {fees.owed > 0 && (
+            <>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+                <Pressable
+                  onPress={() => startFeePayment()}
+                  disabled={payingFee}
+                  style={[primaryBtn, { flex: 1, opacity: payingFee ? 0.6 : 1 }]}
+                >
+                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>Pay full</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowFlex((v) => !v)}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.brand, alignItems: 'center' }}
+                >
+                  <Text style={{ color: colors.brand, fontWeight: '700', fontSize: 15 }}>Pay part</Text>
+                </Pressable>
+              </View>
+              {showFlex && (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  <TextInput
+                    value={flexAmount}
+                    onChangeText={setFlexAmount}
+                    placeholder={`1.00 – ${fees.owed.toFixed(2)}`}
+                    placeholderTextColor={colors.textFaint}
+                    keyboardType="decimal-pad"
+                    style={inputStyle}
+                  />
+                  <Pressable
+                    onPress={() => startFeePayment(parseFloat(flexAmount))}
+                    disabled={payingFee || !parseFloat(flexAmount)}
+                    style={[primaryBtn, { opacity: payingFee || !parseFloat(flexAmount) ? 0.5 : 1 }]}
+                  >
+                    <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>Pay this amount</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      )}
+
       {/* WITHDRAW FUNDS */}
       <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Wallet size={16} color={colors.brand} />
-          </View>
+          <Wallet size={20} color={colors.brand} />
           <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Withdraw Funds</Text>
         </View>
 
@@ -374,9 +485,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
       {/* SAVED ACCOUNTS */}
       <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Landmark size={16} color={colors.brand} />
-          </View>
+          <Landmark size={20} color={colors.brand} />
           <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Saved Payout Accounts</Text>
         </View>
         <Text style={{ fontSize: 13, color: colors.textFaint, marginBottom: 16 }}>
@@ -515,6 +624,14 @@ export default function Payouts({ period, active }: { period: string; active?: b
           </View>
         )}
       </View>
+
+      <PaystackCheckout
+        visible={!!feeCheckout}
+        authorizationUrl={feeCheckout?.url || null}
+        callbackUrl={PAYMENT_CALLBACK_URL}
+        onSuccess={verifyFeePayment}
+        onClose={() => setFeeCheckout(null)}
+      />
 
       {/* PASSWORD MODAL — reveal balance */}
       <Modal visible={showPasswordModal} transparent animationType="fade" onRequestClose={() => setShowPasswordModal(false)}>

@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { ArrowLeft, Star, Tag, Sparkles, BadgeCheck, ShoppingBag, Search, X } from 'lucide-react-native';
 import ProductCard from '@/components/ProductCard';
 import { useColors } from '@/hooks/useColors';
+import GlassButton from '@/components/GlassButton';
 import api from '@/api/client';
 
 const GRID_GAP = 10;
@@ -223,7 +224,7 @@ export default function StorePage({
         }}
       >
         {!embedded && (
-          <Pressable
+          <GlassButton
             onPress={() => router.back()}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -232,10 +233,11 @@ export default function StorePage({
               borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
               paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
             }}
+            fallbackStyle={{ backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' }}
           >
             <ArrowLeft size={14} color="#fff" />
             <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Back</Text>
-          </Pressable>
+          </GlassButton>
         )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: embedded ? 4 : 20 }}>

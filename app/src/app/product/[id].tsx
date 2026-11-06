@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { View, Text, Pressable, Image, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/context/ThemeContext';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -7,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import {
   ShoppingCart, MessageCircle, Star, Flag, ChevronLeft, ChevronRight,
   Minus, Plus, ShieldCheck, MapPin, Clock, Truck, Tag, Sparkles,
+  Map as MapIcon,
 } from 'lucide-react-native';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -15,6 +17,7 @@ import { useChat } from '@/context/ChatContext';
 import ProductCard from '@/components/ProductCard';
 import ReviewsSection from '@/components/ReviewsSection';
 import ReportModal from '@/components/ReportModal';
+import LocationPickerModal from '@/components/LocationPickerModal';
 import { useColors } from '@/hooks/useColors';
 
 function formatWhatsAppNumber(n: string) {
@@ -40,7 +43,7 @@ export default function ProductDetail() {
   const reportColor = theme === 'dark' ? '#f87171' : '#dc2626';
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { addItem } = useCart();
   const { openChat } = useChat();
 
@@ -55,6 +58,60 @@ export default function ProductDetail() {
   const [qty, setQty] = useState(1);
   const [similar, setSimilar] = useState<any[]>([]);
   const [showReport, setShowReport] = useState(false);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const locationY = useRef(0);
+  const [loc, setLoc] = useState<{ lat: number; lng: number; text: string } | null>(null);
+  const [locSource, setLocSource] = useState<'profile' | 'map' | 'gps' | null>(null);
+  const [locMissing, setLocMissing] = useState(false);
+  const [locBusy, setLocBusy] = useState(false);
+  const [showLocPicker, setShowLocPicker] = useState(false);
+
+  // Use the profile location automatically if it exists
+  useEffect(() => {
+    const u: any = user;
+    if (u?.location && u.location_lat != null && u.location_lng != null) {
+      setLoc({ lat: Number(u.location_lat), lng: Number(u.location_lng), text: u.location });
+      setLocSource('profile');
+      setLocMissing(false);
+    }
+  }, [(user as any)?.location, (user as any)?.location_lat, (user as any)?.location_lng]);
+
+  const applyLocation = async (c: { lat: number; lng: number }, source: 'map' | 'gps') => {
+    let text = 'Pinned location';
+    try {
+      const [p] = await Location.reverseGeocodeAsync({ latitude: c.lat, longitude: c.lng });
+      text = [p?.name, p?.street, p?.district, p?.city].filter(Boolean).join(', ') || text;
+    } catch {}
+    setLoc({ ...c, text });
+    setLocSource(source);
+    setLocMissing(false);
+    // Save to the profile so they only set it once (ignore failures, e.g. edit cooldown)
+    updateProfile({ location: text, location_lat: c.lat, location_lng: c.lng } as any).catch(() => {});
+  };
+
+  const useCurrentLocation = async () => {
+    setLocBusy(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Location permission needed' });
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      await applyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }, 'gps');
+    } catch {
+      Toast.show({ type: 'error', text1: 'Could not get your location. Try the map instead.' });
+    } finally {
+      setLocBusy(false);
+    }
+  };
+
+  const promptForLocation = () => {
+    setLocMissing(true);
+    scrollRef.current?.scrollTo({ y: Math.max(0, locationY.current - 16), animated: true });
+    Toast.show({ type: 'info', text1: 'Set your delivery location first' });
+  };
 
   useEffect(() => {
     setProduct(null); setActiveImg(0); setQty(1);
@@ -110,12 +167,13 @@ export default function ProductDetail() {
   const sellerName = product.seller_name || 'Seller';
   const sellerInitial = sellerName.charAt(0).toUpperCase();
 
-  const handleAddToCart = () => {
-    if (isOutOfStock) return Toast.show({ type: 'error', text1: 'Sorry, this item is out of stock.' });
-    if (isOwner) return Toast.show({ type: 'error', text1: 'You cannot add your own listing to cart.' });
-    if (qty > stock) return Toast.show({ type: 'error', text1: `Only ${stock} available in stock.` });
-    for (let i = 0; i < qty; i++) {
-      addItem({
+  const addToCart = (): boolean => {
+    if (isOutOfStock) { Toast.show({ type: 'error', text1: 'Sorry, this item is out of stock.' }); return false; }
+    if (isOwner) { Toast.show({ type: 'error', text1: 'You cannot add your own listing to cart.' }); return false; }
+    if (qty > stock) { Toast.show({ type: 'error', text1: `Only ${stock} available in stock.` }); return false; }
+    if (!loc) { promptForLocation(); return false; }
+
+    return addItem({
         id: product.id,
         title: product.title,
         price: product.price,
@@ -128,17 +186,14 @@ export default function ProductDetail() {
         delivery_fee_on_campus: product.delivery_fee_on_campus,
         delivery_fee_near_campus: product.delivery_fee_near_campus,
         delivery_fee_far_campus: product.delivery_fee_far_campus,
-      });
-    }
-    Toast.show({ type: 'success', text1: `Added ${qty} to cart` });
+        buyer_location: loc.text,
+        buyer_lat: loc.lat,
+        buyer_lng: loc.lng,
+    } as any, qty);
   };
 
-  const handleBuyNow = () => {
-    if (isOutOfStock) return Toast.show({ type: 'error', text1: 'Sorry, this item is out of stock.' });
-    if (isOwner) return Toast.show({ type: 'error', text1: 'You cannot buy your own listing.' });
-    handleAddToCart();
-    router.push('/cart');
-  };
+  const handleAddToCart = () => { addToCart(); };
+  const handleBuyNow = () => { if (addToCart()) router.push('/cart'); };
 
   const handleMessage = () => {
     if (isOwner) return Toast.show({ type: 'info', text1: 'You are the seller.' });
@@ -152,7 +207,7 @@ export default function ProductDetail() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.backgroundAlt }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: colors.backgroundAlt }} contentContainerStyle={{ paddingBottom: 40 }}>
       <Pressable
         onPress={goBack}
         hitSlop={8}
@@ -220,7 +275,7 @@ export default function ProductDetail() {
 
       {/* Action Card */}
       <View style={{ marginTop: 20, paddingHorizontal: 16 }}>
-        <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border }}>
+        <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, flex: 1 }}>{product.title}</Text>
             <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: colors.brandSoft }}>
@@ -228,13 +283,9 @@ export default function ProductDetail() {
             </View>
           </View>
 
-          {reviews?.avg_rating && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-              <Star size={14} color="#f59e0b" fill="#f59e0b" />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary }}>{reviews.avg_rating}</Text>
-              <Text style={{ fontSize: 16, color: colors.textFaint }}>({reviews.total} reviews)</Text>
-            </View>
-          )}
+          <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 20, marginTop: 6 }}>
+            {product.description || 'No description provided.'}
+          </Text>
 
           <View style={{ marginTop: 10 }}>
             {discountPercent !== null && oldPrice ? (
@@ -274,44 +325,139 @@ export default function ProductDetail() {
 
           <View style={{ gap: 10, marginTop: 16 }}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
+              {/* Combined Buy now + Add to cart */}
+              <View style={{ flex: 1, height: 50 }}>
+                {/* Add to cart sits behind, on the right */}
+                <Pressable
+                  onPress={handleAddToCart}
+                  disabled={isOutOfStock || isOwner}
+                  style={{
+                    position: 'absolute', top: 0, bottom: 0, right: 0, width: '40%',
+                    paddingLeft: 18,
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 14,
+                    backgroundColor: colors.cardAlt,
+                    borderWidth: 1, borderColor: colors.border,
+                  }}
+                >
+                  <ShoppingCart size={20} color={isOutOfStock || isOwner ? colors.textFaint : colors.textSecondary} />
+                </Pressable>
+
+                {/* Buy now sits on top, with a small shadow on its right side */}
+                <Pressable
+                  onPress={handleBuyNow}
+                  disabled={isOutOfStock || isOwner}
+                  style={{
+                    position: 'absolute', top: 0, bottom: 0, left: 0, width: '68%',
+                    alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 14,
+                    backgroundColor: isOutOfStock || isOwner ? colors.chipBg : colors.brand,
+                    zIndex: 2,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 3, height: 0 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
+                >
+                  <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: isOutOfStock || isOwner ? colors.textFaint : colors.textOnGold }}>
+                    {isOutOfStock ? 'Out of Stock' : isOwner ? 'Your Listing' : 'Buy now'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Chat replaces the old Add to cart button */}
               <Pressable
-                onPress={handleBuyNow}
-                disabled={isOutOfStock || isOwner}
-                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: isOutOfStock || isOwner ? colors.chipBg : colors.brand, alignItems: 'center' }}
+                onPress={handleMessage}
+                disabled={isOwner}
+                style={{
+                  flex: 1, height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  borderRadius: 14, borderWidth: 1, borderColor: colors.border,
+                }}
               >
-                <Text style={{ fontSize: 16, fontWeight: '700', color: isOutOfStock || isOwner ? colors.textFaint : colors.textOnGold }}>
-                  {isOutOfStock ? 'Out of Stock' : isOwner ? 'Your Own Listing' : 'Buy now'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleAddToCart}
-                disabled={isOutOfStock || isOwner}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
-              >
-                <ShoppingCart size={18} color={isOutOfStock || isOwner ? colors.textFaint : colors.textSecondary} />
-                <Text style={{ fontSize: 16, fontWeight: '600', color: isOutOfStock || isOwner ? colors.textFaint : colors.textSecondary }}>
-                  {isOwner ? 'Cannot buy' : 'Add to cart'}
-                </Text>
+                <MessageCircle size={18} color={isOwner ? colors.textFaint : colors.textSecondary} />
+                <Text style={{ fontSize: 16, fontWeight: '600', color: isOwner ? colors.textFaint : colors.textSecondary }}>Chat</Text>
               </Pressable>
             </View>
-            <Pressable
-              onPress={handleMessage}
-              disabled={isOwner}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
-            >
-              <MessageCircle size={18} color={isOwner ? colors.textFaint : colors.textSecondary} />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: isOwner ? colors.textFaint : colors.textSecondary }}>
-                {isOwner ? 'You are the seller' : 'Chat with the seller'}
-              </Text>
-            </Pressable>
           </View>
         </View>
       </View>
 
+      {/* Delivery location */}
+      {!isOwner && (
+        <View
+          onLayout={(e) => { locationY.current = e.nativeEvent.layout.y; }}
+          style={{ marginTop: 16, paddingHorizontal: 16 }}
+        >
+        <View
+          style={{
+            paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1,
+            borderColor: locMissing ? colors.error : colors.border,
+            backgroundColor: locMissing ? colors.errorSoft : 'transparent',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand, textTransform: 'uppercase', letterSpacing: 1, textDecorationLine: 'underline' }}>
+              Delivery location
+            </Text>
+            <Pressable onPress={() => router.push({ pathname: '/profile', params: { editLocation: '1' } })} hitSlop={8}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>Edit</Text>
+            </Pressable>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+            <MapPin size={15} color={colors.textFaint} style={{ marginTop: 2 }} />
+            <Text style={{ flex: 1, fontSize: 16, color: loc ? colors.text : colors.textFaint }}>
+              {loc ? loc.text : 'No location set'}
+            </Text>
+          </View>
+
+          {locSource === 'profile' && (
+            <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>
+              Using your profile address. You can change it from your Profile page.
+            </Text>
+          )}
+          {locMissing && !loc && (
+            <Text style={{ fontSize: 14, color: colors.error, marginTop: 6 }}>
+              Please set where this order should be delivered.
+            </Text>
+          )}
+
+          {locSource !== 'profile' && (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              {([
+                { key: 'map', label: 'Set on map', onPress: () => setShowLocPicker(true), busy: false },
+                { key: 'gps', label: locBusy ? 'Getting…' : 'Use current location', onPress: useCurrentLocation, busy: locBusy },
+              ] as const).map((b) => {
+                const active = locSource === b.key;
+                const c = active ? '#059669' : colors.textSecondary;
+                return (
+                  <Pressable
+                    key={b.key}
+                    onPress={b.onPress}
+                    disabled={b.busy}
+                    style={{
+                      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      paddingVertical: 12, borderRadius: 12, borderWidth: 1, opacity: b.busy ? 0.6 : 1,
+                      borderColor: active ? '#6ee7b7' : colors.border,
+                      backgroundColor: active ? 'rgba(16,185,129,0.1)' : 'transparent',
+                    }}
+                  >
+                    {b.busy ? <ActivityIndicator size="small" color={colors.brand} /> : b.key === 'map' ? <MapIcon size={15} color={c} /> : <MapPin size={15} color={c} />}
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: c }}>{b.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+        </View>
+      )}
+
       {/* Seller Card */}
       <View style={{ marginTop: 16, paddingHorizontal: 16 }}>
-        <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: sellerPlan === 'premium' ? '#c4b5fd' : sellerPlan === 'pro' ? '#93c5fd' : colors.border }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Sold by</Text>
+        <View style={{ paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, textDecorationLine: 'underline' }}>Sold by</Text>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             {product.seller_avatar ? (
@@ -348,85 +494,56 @@ export default function ProductDetail() {
                 </Text>
               </View>
             </View>
-          </View>
 
-          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted, gap: 10 }}>
-            {product.seller_school && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <MapPin size={14} color={colors.textFaint} />
-                <Text style={{ fontSize: 16, color: colors.textSecondary }}>{product.seller_school}</Text>
-              </View>
-            )}
-            {(product.seller_location || product.seller_meeting_place) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Tag size={14} color={colors.textFaint} />
-                <Text style={{ fontSize: 16, color: colors.textSecondary }}>Near: {product.seller_location || product.seller_meeting_place}</Text>
-              </View>
-            )}
-            {(product.seller_whatsapp || product.whatsapp) && (
-              <Pressable onPress={handleWhatsApp} disabled={isOwner} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <MessageCircle size={14} color={isOwner ? colors.textFaint : colors.success} />
-                <Text style={{ fontSize: 16, color: isOwner ? colors.textFaint : colors.success }}>{product.seller_whatsapp || product.whatsapp}</Text>
-              </Pressable>
-            )}
+            <View style={{ alignItems: 'flex-end', gap: 6, maxWidth: 130 }}>
+              {product.seller_school && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <MapPin size={12} color={colors.textFaint} />
+                  <Text numberOfLines={1} style={{ fontSize: 13, color: colors.textSecondary }}>{product.seller_school}</Text>
+                </View>
+              )}
+              {(product.seller_location || product.seller_meeting_place) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Tag size={12} color={colors.textFaint} />
+                  <Text numberOfLines={1} style={{ fontSize: 13, color: colors.textSecondary }}>{product.seller_location || product.seller_meeting_place}</Text>
+                </View>
+              )}
+              {(product.seller_whatsapp || product.whatsapp) && (
+                <Pressable onPress={handleWhatsApp} disabled={isOwner} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <MessageCircle size={12} color={isOwner ? colors.textFaint : colors.success} />
+                  <Text numberOfLines={1} style={{ fontSize: 13, color: isOwner ? colors.textFaint : colors.success }}>{product.seller_whatsapp || product.whatsapp}</Text>
+                </Pressable>
+              )}
+            </View>
           </View>
         </View>
       </View>
 
-      {/* Trust Strip */}
-      <View style={{ marginTop: 16, paddingHorizontal: 16 }}>
-        <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border, gap: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <ShieldCheck size={18} color={colors.brand} />
-            <Text style={{ fontSize: 16, color: colors.textSecondary }}>Email-verified student seller</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Truck size={18} color={colors.brand} />
-            <Text style={{ fontSize: 16, color: colors.textSecondary }}>Meet up on campus, or arrange delivery</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Clock size={18} color={colors.brand} />
-            <Text style={{ fontSize: 16, color: colors.textSecondary }}>Usually responds within a few hours</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Description */}
-      <View style={{ marginTop: 16, paddingHorizontal: 16 }}>
-        <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 }}>Description</Text>
-          <Text style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 20 }}>
-            {product.description || 'No description provided.'}
-          </Text>
-        </View>
-      </View>
 
       {/* Details */}
-      <View style={{ marginTop: 12, paddingHorizontal: 16 }}>
-        <View style={{ backgroundColor: colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 }}>Details</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            <View style={{ width: '50%', paddingVertical: 6 }}>
-              <Text style={{ fontSize: 14, color: colors.textFaint }}>Condition</Text>
-              <Text style={{ fontSize: 16, color: colors.text, fontWeight: '500', textTransform: 'capitalize' }}>{product.condition}</Text>
+      <View style={{ marginTop: 16, paddingHorizontal: 16 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.brand, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textDecorationLine: 'underline' }}>Details</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {product.category && (
+            <View style={{ width: '33.33%', paddingVertical: 6 }}>
+              <Text style={{ fontSize: 14, color: colors.textFaint }}>Category</Text>
+              <Text style={{ fontSize: 16, color: colors.text, fontWeight: '500' }}>{product.category}</Text>
             </View>
-            {product.category && (
-              <View style={{ width: '50%', paddingVertical: 6 }}>
-                <Text style={{ fontSize: 14, color: colors.textFaint }}>Category</Text>
-                <Text style={{ fontSize: 16, color: colors.text, fontWeight: '500' }}>{product.category}</Text>
-              </View>
-            )}
-            <View style={{ width: '50%', paddingVertical: 6 }}>
-              <Text style={{ fontSize: 14, color: colors.textFaint }}>Available</Text>
-              <Text style={{ fontSize: 16, color: colors.text, fontWeight: '500' }}>{stock} in stock</Text>
+          )}
+          {product.delivery_fee_on_campus != null && (
+            <View style={{ width: '33.33%', paddingVertical: 6 }}>
+              <Text style={{ fontSize: 14, color: colors.textFaint }}>On-campus delivery</Text>
+              <Text style={{ fontSize: 16, color: colors.text, fontWeight: '500' }}>
+                {parseFloat(product.delivery_fee_on_campus) === 0 ? 'Free' : `GHS ${parseFloat(product.delivery_fee_on_campus).toFixed(2)}`}
+              </Text>
             </View>
-            {product.created_at && (
-              <View style={{ width: '50%', paddingVertical: 6 }}>
-                <Text style={{ fontSize: 14, color: colors.textFaint }}>Posted</Text>
-                <Text style={{ fontSize: 16, color: colors.text, fontWeight: '500' }}>{new Date(product.created_at).toLocaleDateString()}</Text>
-              </View>
-            )}
-          </View>
+          )}
+          {product.created_at && (
+            <View style={{ width: '33.33%', paddingVertical: 6 }}>
+              <Text style={{ fontSize: 14, color: colors.textFaint }}>Posted</Text>
+              <Text style={{ fontSize: 16, color: colors.text, fontWeight: '500' }}>{new Date(product.created_at).toLocaleDateString()}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -455,6 +572,18 @@ export default function ProductDetail() {
             ))}
           </ScrollView>
         </View>
+      )}
+
+      {showLocPicker && (
+        <LocationPickerModal
+          colors={colors}
+          initial={loc ? { lat: loc.lat, lng: loc.lng } : null}
+          onCancel={() => setShowLocPicker(false)}
+          onConfirm={(pos: { lat: number; lng: number }) => {
+            setShowLocPicker(false);
+            applyLocation(pos, 'map');
+          }}
+        />
       )}
 
       <ReportModal

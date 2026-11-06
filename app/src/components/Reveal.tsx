@@ -1,5 +1,5 @@
-import { Animated, Easing } from 'react-native';
-import { useEffect, useRef } from 'react';
+import { Animated, Easing, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 
 export default function Reveal({
   children,
@@ -12,6 +12,7 @@ export default function Reveal({
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(32)).current;
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -29,8 +30,10 @@ export default function Reveal({
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-    ]).start();
+    ]).start(() => setDone(true));
   }, []);
+
+  if (done) return <View style={style}>{children}</View>;
 
   return (
     <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>

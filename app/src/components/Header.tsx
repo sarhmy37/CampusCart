@@ -123,11 +123,16 @@ export default function Header() {
   };
 
   const toggleNotifications = () => {
-    setShowNotifications((s) => {
-      const next = !s;
-      if (next) markAllRead();
-      return next;
-    });
+    if (showNotifications) {
+      closeNotifications();
+    } else {
+      setShowNotifications(true);
+    }
+  };
+
+  const closeNotifications = () => {
+    setShowNotifications(false);
+    markAllRead();
   };
 
   if (pathname?.toLowerCase().startsWith('/spotlightprofile')) return null;
@@ -151,15 +156,12 @@ export default function Header() {
           {logoSrc && (
             <Image
               source={logoSrc}
-              style={{ width: 28, height: 28, marginRight: 4 }}
+              style={{ width: 42, height: 42, marginRight: 10 }}
               contentFit="contain"
-              cachePolicy="disk"
+              cachePolicy="disk" 
             />
           )}
-          <Text style={{ fontSize: 19, fontWeight: '900', color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>Tre</Text>
-          <Text style={{ fontSize: 19, fontWeight: '900', color: colors.text, marginHorizontal: 1, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>-</Text>
-          <Text style={{ fontSize: 25, fontWeight: '900', fontStyle: 'italic', color: colors.brand, marginLeft: 1, fontFamily: Platform.OS === 'ios' ? 'Georgia' : undefined }}>X</Text>
-        </Pressable>
+       </Pressable>
 
         {/* Search bar — hidden on /search screen */}
         {isSearchScreen ? (
@@ -225,7 +227,7 @@ export default function Header() {
         </View>
       </View>
 
-      <NotificationsPanel visible={showNotifications} onClose={() => setShowNotifications(false)} />
+      <NotificationsPanel visible={showNotifications} onClose={closeNotifications} />
       <WishlistPanel visible={showWishlist} onClose={() => setShowWishlist(false)} />
     </>
   );

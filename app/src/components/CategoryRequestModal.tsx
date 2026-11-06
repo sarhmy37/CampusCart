@@ -3,11 +3,29 @@ import {
   Modal, View, Text, TextInput, Pressable, KeyboardAvoidingView,
   Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator,
 } from 'react-native';
-import { X, HelpCircle } from 'lucide-react-native';
+import { LightBulbIcon } from 'react-native-heroicons/solid';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import api from '@/api/client';
 import Toast from 'react-native-toast-message'; // adjust to your toast lib
+
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
+
+function GlassBtn({ onPress, disabled, tint, fallbackStyle, children }: any) {
+  const base = { paddingVertical: 12, borderRadius: 12, alignItems: 'center' as const, justifyContent: 'center' as const };
+  return (
+    <Pressable onPress={onPress} disabled={disabled} style={{ flex: 1, opacity: disabled ? 0.6 : 1 }}>
+      {GLASS ? (
+        <GlassView glassEffectStyle="regular" isInteractive tintColor={tint} style={{ ...base, overflow: 'hidden' }}>
+          {children}
+        </GlassView>
+      ) : (
+        <View style={{ ...base, ...fallbackStyle }}>{children}</View>
+      )}
+    </Pressable>
+  );
+}
 
 type Props = {
   open: boolean;
@@ -93,37 +111,20 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                   width: '100%',
                 }}
               >
-                {/* Close button */}
-                <Pressable
-                  onPress={handleClose}
-                  hitSlop={10}
-                  style={{ position: 'absolute', top: 14, right: 14, zIndex: 1, padding: 4 }}
-                >
-                  <X size={18} color={colors.textMuted} />
-                </Pressable>
-
-                {/* Icon */}
-                <View
-                  style={{
-                    width: 44, height: 44, borderRadius: 12,
-                    backgroundColor: colors.brandSoft,
-                    alignItems: 'center', justifyContent: 'center',
-                    marginBottom: 14,
-                  }}
-                >
-                  <HelpCircle size={20} color={colors.brand} />
+                {/* Icon + title */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.borderMuted ?? `${colors.border}40` }}>
+                  <LightBulbIcon size={26} color={colors.brand} />
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: 19,
+                      fontWeight: '800',
+                      color: colors.text,
+                    }}
+                  >
+                    Suggest a feature
+                  </Text>
                 </View>
-
-                {/* Title + subtitle */}
-                <Text
-                  style={{
-                    fontSize: 19,
-                    fontWeight: '800',
-                    color: colors.text,
-                  }}
-                >
-                  Suggest a feature
-                </Text>
                 <Text
                   style={{
                     fontSize: 14,
@@ -205,36 +206,20 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
 
                 {/* Actions */}
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
-                  <Pressable
+                  <GlassBtn
                     onPress={handleClose}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: colors.card,
-                    }}
+                    fallbackStyle={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card }}
                   >
                     <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>
                       Cancel
                     </Text>
-                  </Pressable>
+                  </GlassBtn>
 
-                  <Pressable
+                  <GlassBtn
                     onPress={handleSubmit}
                     disabled={submitting}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: colors.brand,
-                      opacity: submitting ? 0.6 : 1,
-                    }}
+                    tint={colors.brand}
+                    fallbackStyle={{ backgroundColor: colors.brand }}
                   >
                     {submitting ? (
                       <ActivityIndicator color={colors.textOnGold} size="small" />
@@ -243,7 +228,7 @@ export default function CategoryRequestModal({ open, onClose }: Props) {
                         Send request
                       </Text>
                     )}
-                  </Pressable>
+                  </GlassBtn>
                 </View>
               </View>
             </TouchableWithoutFeedback>

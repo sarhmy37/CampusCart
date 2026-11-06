@@ -83,7 +83,7 @@ async function uploadToBackend(file: { uri: string; name: string; type: string }
 export default function CreateListing() {
   const colors = useColors();
   const router = useRouter();
-  const { from, type } = useLocalSearchParams<{ from?: string; type?: string }>();
+  const { from, type, edit } = useLocalSearchParams<{ from?: string; type?: string; edit?: string }>();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const { user } = useAuth();
@@ -133,7 +133,7 @@ const backOpacity = scrollY.interpolate({
 
   // Service form
   const [serviceForm, setServiceForm] = useState({ title: '', description: '', price: '', priceMax: '' });
-  const [serviceOptions, setServiceOptions] = useState<{ name: string; price: string }[]>([{ name: '', price: '' }]);
+  const [serviceOptions, setServiceOptions] = useState<{ name: string; price: string; duration: number }[]>([{ name: '', price: '', duration: 60 }]);
   const [is247, setIs247] = useState(false);
   const [workingDays, setWorkingDays] = useState(
     WORKING_DAYS.map((day) => ({ day, enabled: false, open: '09:00', close: '17:00' }))
@@ -142,13 +142,94 @@ const backOpacity = scrollY.interpolate({
 const [locatingService, setLocatingService] = useState(false);
 const [locationSource, setLocationSource] = useState<'map' | 'gps' | null>(null);
 const [showLocationPicker, setShowLocationPicker] = useState(false);
-  const [serviceDuration, setServiceDuration] = useState(60);
   const [serviceImageUrls, setServiceImageUrls] = useState<string[]>([]);
   const [servicePreviews, setServicePreviews] = useState<string[]>([]);
   const [serviceVideoUrl, setServiceVideoUrl] = useState<string | null>(null);
   const [serviceVideoPreview, setServiceVideoPreview] = useState<string | null>(null);
   const [serviceUploading, setServiceUploading] = useState(false);
   const [serviceLoading, setServiceLoading] = useState(false);
+  const [serviceTypeId, setServiceTypeId] = useState<number | null>(null);
+  const [typeMatches, setTypeMatches] = useState<{ id: number; label: string }[]>([]);
+  const [typeFocused, setTypeFocused] = useState(false);
+
+  const [pendingCategory, setPendingCategory] = useState('');
+  useEffect(() => {
+    if (!pendingCategory || categories.length === 0) return;
+    const c = categories.find((x) => x.name === pendingCategory);
+    if (c) setForm((f) => ({ ...f, category_id: String(c.id) }));
+  }, [pendingCategory, categories]);
+
+  // Edit mode: prefill every field from the existing listing
+  useEffect(() => {
+    if (!edit) return;
+    api.get(`/products/${edit}`)
+      .then((res) => {
+        const d = res.data;
+        if (d.category !== 'Services') {
+          setActiveTab('product');
+          setForm({
+            title: d.title || '',
+            description: d.description || '',
+            price: String(d.price ?? ''),
+            category_id: '',
+            condition: d.condition || 'used',
+            stock: String(d.stock ?? 1),
+            network: '',
+            subcategory: d.subcategory || '',
+          });
+          setPendingCategory(d.category || '');
+          setDeliveryPrices({
+            delivery_fee_on_campus: d.delivery_fee_on_campus ? String(parseFloat(d.delivery_fee_on_campus)) : '',
+            delivery_fee_near_campus: d.delivery_fee_near_campus ? String(parseFloat(d.delivery_fee_near_campus)) : '',
+            delivery_fee_far_campus: d.delivery_fee_far_campus ? String(parseFloat(d.delivery_fee_far_campus)) : '',
+          });
+          const urls = (d.images || []).map((i: any) => i.image_url);
+          setImageUrls(urls);
+          setPreviews(urls);
+          setVideoUrl(d.video_url || null);
+          setVideoPreview(d.video_url || null);
+          return;
+        }
+        setActiveTab('service');
+        let opts: any[] = [];
+        try { opts = typeof d.service_options === 'string' ? JSON.parse(d.service_options) : (d.service_options || []); } catch {}
+        let sched: any = {};
+        try { sched = d.service_duration ? JSON.parse(d.service_duration) : {}; } catch {}
+
+        setServiceForm({ title: d.title || '', description: d.description || '', price: '', priceMax: '' });
+        setServiceTypeId(d.service_type_id ?? null);
+        setServiceOptions(
+          opts.length
+            ? opts.map((o: any) => ({
+                name: o.name,
+                price: String(o.price),
+                duration: Number(o.duration_minutes) || Number(sched.duration_minutes) || 60,
+              }))
+            : [{ name: '', price: String(d.price || ''), duration: Number(sched.duration_minutes) || 60 }]
+        );
+
+        const urls = (d.images || []).map((i: any) => i.image_url);
+        setServiceImageUrls(urls);
+        setServicePreviews(urls);
+        setServiceVideoUrl(d.video_url || null);
+        setServiceVideoPreview(d.video_url || null);
+
+        setIs247(!!sched.is_24_7);
+        setWorkingDays(
+          WORKING_DAYS.map((day) => {
+            const m = Array.isArray(sched.days) ? sched.days.find((x: any) => x.day === day) : null;
+            return m
+              ? { day, enabled: true, open: m.open, close: m.close }
+              : { day, enabled: false, open: '09:00', close: '17:00' };
+          })
+        );
+        if (typeof sched.lat === 'number' && typeof sched.lng === 'number') {
+          setServiceLocation({ lat: sched.lat, lng: sched.lng });
+          setLocationSource('map');
+        }
+      })
+      .catch(() => Toast.show({ type: 'error', text1: 'Could not load this service' }));
+  }, [edit]);
 
   const selectedCategory = categories.find((c) => String(c.id) === String(form.category_id));
   const isMobileData = selectedCategory?.name === 'Mobile Data';
@@ -175,6 +256,17 @@ const [showLocationPicker, setShowLocationPicker] = useState(false);
   useEffect(() => {
     loadBundles();
   }, [isDataSeller]);
+
+  useEffect(() => {
+    const q = serviceForm.title.trim();
+    if (q.length < 2) { setTypeMatches([]); return; }
+    const t = setTimeout(() => {
+      api.get('/service-types/search', { params: { q } })
+        .then((r) => setTypeMatches(r.data || []))
+        .catch(() => setTypeMatches([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [serviceForm.title]);
 
   const loadBundles = () => {
     if (!isDataSeller) return;
@@ -341,7 +433,7 @@ setLocationSource('gps');
     setLoading(true);
     try {
       const category = categories.find((c) => String(c.id) === String(form.category_id));
-      await api.post('/products', {
+      const body = {
         title: form.title,
         description: form.description,
         price: form.price,
@@ -355,8 +447,13 @@ setLocationSource('gps');
         delivery_fee_on_campus: clampFee(deliveryPrices.delivery_fee_on_campus),
         delivery_fee_near_campus: clampFee(deliveryPrices.delivery_fee_near_campus),
         delivery_fee_far_campus: clampFee(deliveryPrices.delivery_fee_far_campus),
-      });
-      Toast.show({ type: 'success', text1: 'Listing created!' });
+      };
+      if (edit) {
+        await api.patch(`/products/${edit}`, { ...body, video_url: videoUrl });
+      } else {
+        await api.post('/products', body);
+      }
+      Toast.show({ type: 'success', text1: edit ? 'Listing updated!' : 'Listing created!' });
       router.replace('/dashboard');
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to create listing' });
@@ -368,7 +465,10 @@ setLocationSource('gps');
 
   const onSubmitProduct = () => {
     if (!form.title.trim()) return Toast.show({ type: 'error', text1: 'Enter a title' });
-    if (!form.price) return Toast.show({ type: 'error', text1: 'Enter a price' });
+    if (!form.description.trim()) return Toast.show({ type: 'error', text1: 'Enter a description' });
+    if (!form.price || Number(form.price) <= 0) return Toast.show({ type: 'error', text1: 'Enter a price' });
+    if (!form.stock || Number(form.stock) < 1) return Toast.show({ type: 'error', text1: 'Enter the stock quantity' });
+    if (!form.category_id) return Toast.show({ type: 'error', text1: 'Select a category' });
     if (imageUrls.length === 0) return Toast.show({ type: 'error', text1: 'Add at least one photo of the item' });
     if (isMobileData && !form.network) return Toast.show({ type: 'error', text1: 'Please select a network' });
     if (subOptions.length > 0 && !form.subcategory) return Toast.show({ type: 'error', text1: 'Please select a subcategory' });
@@ -381,8 +481,11 @@ setLocationSource('gps');
 
   const submitService = async () => {
     if (!serviceForm.title.trim()) return Toast.show({ type: 'error', text1: 'Enter a service title' });
+    if (!serviceForm.description.trim()) return Toast.show({ type: 'error', text1: 'Enter a description' });
+    if (serviceOptions.some((o) => !o.name.trim() || !(Number(o.price) > 0)))
+      return Toast.show({ type: 'error', text1: 'Fill in the name and price of every service option' });
     const validServiceOptions = serviceOptions
-      .map((option) => ({ name: option.name.trim(), price: Number(option.price) }))
+      .map((option) => ({ name: option.name.trim(), price: Number(option.price), duration_minutes: option.duration }))
       .filter((option) => option.name && Number.isFinite(option.price) && option.price > 0);
     if (validServiceOptions.length === 0)
       return Toast.show({ type: 'error', text1: 'Add at least one named service option and price' });
@@ -400,13 +503,21 @@ setLocationSource('gps');
           }),
       lat: serviceLocation.lat,
       lng: serviceLocation.lng,
-      duration_minutes: serviceDuration,
+      duration_minutes: validServiceOptions[0].duration_minutes,
     };
 
     setServiceLoading(true);
     try {
-      await api.post('/products', {
-        title: serviceForm.title,
+      let typeId = serviceTypeId;
+      let typeLabel = serviceForm.title.trim();
+      if (!typeId) {
+        const t = await api.post('/service-types', { label: typeLabel });
+        typeId = t.data.id;
+        typeLabel = t.data.label;
+      }
+      const payload = {
+        title: typeLabel,
+        service_type_id: typeId,
         description: serviceForm.description || 'No description provided.',
         price: Math.min(...validServiceOptions.map((option) => option.price)),
         price_max: Math.max(...validServiceOptions.map((option) => option.price)),
@@ -421,8 +532,13 @@ setLocationSource('gps');
         delivery_fee_near_campus: 0,
         delivery_fee_far_campus: 0,
         service_duration: JSON.stringify(schedule),
-      });
-      Toast.show({ type: 'success', text1: 'Service created!' });
+      };
+      if (edit) {
+        await api.patch(`/products/${edit}`, { ...payload, video_url: serviceVideoUrl });
+      } else {
+        await api.post('/products', payload);
+      }
+      Toast.show({ type: 'success', text1: edit ? 'Service updated!' : 'Service created!' });
       router.replace('/dashboard');
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to create service' });
@@ -476,8 +592,12 @@ onScroll={(e) => {
             elevation: 4,
           }}
         >
-          <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }}>New Listing</Text>
-          <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 4 }}>Add the details buyers will see.</Text>
+          <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }}>
+            {edit ? 'Edit Listing' : 'New Listing'}
+          </Text>
+          <Text style={{ fontSize: 16, color: colors.textMuted, marginTop: 4 }}>
+            {edit ? 'Update the details buyers will see.' : 'Add the details buyers will see.'}
+          </Text>
 
           {/* Tab toggle */}
           <View
@@ -489,7 +609,7 @@ onScroll={(e) => {
             {([
               { key: 'product', label: 'Product listing', Icon: Package },
               { key: 'service', label: 'Service listing', Icon: Briefcase },
-              ...(isDataSeller ? [{ key: 'data' as const, label: 'Mobile Data', Icon: Wifi }] : []),
+              ...(isDataSeller ? [{ key: 'data' as const, label: 'Data', Icon: Wifi }] : []),
             ] as const).map(({ key, label, Icon }) => {
               const active = activeTab === key;
               return (
@@ -518,9 +638,7 @@ onScroll={(e) => {
                 onPress={() => setDataBundlesOpen((open) => !open)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
               >
-                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Wifi size={16} color={colors.brand} />
-                </View>
+                <Wifi size={20} color={colors.brand} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: '700', color: colors.text }}>Mobile Data Bundles</Text>
                   <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
@@ -765,7 +883,7 @@ onScroll={(e) => {
                 colors={colors}
                 onPress={onSubmitProduct}
                 disabled={loading || uploading}
-                label={loading ? 'Publishing…' : 'Publish listing'}
+                label={loading ? 'Saving…' : edit ? 'Save changes' : 'Publish listing'}
               />
             </View>
           )}
@@ -773,14 +891,43 @@ onScroll={(e) => {
           {/* SERVICE */}
           {activeTab === 'service' && (
             <View style={{ marginTop: 12 }}>
-              <FieldLabel colors={colors} label="Service title" />
+              <FieldLabel colors={colors} label="Service type" />
               <TextInput
                 value={serviceForm.title}
-                onChangeText={(v) => setServiceForm({ ...serviceForm, title: v })}
-                placeholder="e.g. Professional makeup, Barbering, Tutoring"
+                onChangeText={(v) => { setServiceForm({ ...serviceForm, title: v }); setServiceTypeId(null); }}
+                onFocus={() => setTypeFocused(true)}
+                onBlur={() => setTimeout(() => setTypeFocused(false), 150)}
+                placeholder="e.g. Makeup, Barbering, Tutoring"
                 placeholderTextColor={colors.textFaint}
                 style={inputStyle(colors)}
               />
+              {typeFocused && !serviceTypeId && serviceForm.title.trim().length > 1 && (() => {
+                const q = serviceForm.title.trim().toLowerCase();
+                const exact = typeMatches.some((m) => m.label.toLowerCase() === q);
+                return (
+                  <View style={{ marginTop: -6, marginBottom: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.card }}>
+                    {typeMatches.length > 0 && !exact && (
+                      <Text style={{ fontSize: 13, color: colors.textFaint, paddingHorizontal: 14, paddingTop: 10 }}>Did you mean:</Text>
+                    )}
+                    {typeMatches.map((m) => (
+                      <Pressable
+                        key={m.id}
+                        onPress={() => { setServiceForm({ ...serviceForm, title: m.label }); setServiceTypeId(m.id); setTypeFocused(false); }}
+                        style={{ paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderMuted }}
+                      >
+                        <Text style={{ fontSize: 15, color: colors.text, fontWeight: '600' }}>{m.label}</Text>
+                      </Pressable>
+                    ))}
+                    {!exact && (
+                      <View style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
+                        <Text style={{ fontSize: 14, color: colors.brand, fontWeight: '600' }}>
+                          Add "{serviceForm.title.trim()}" as a new type of service
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
 
               <FieldLabel colors={colors} label="Description" />
               <TextInput
@@ -822,7 +969,8 @@ onScroll={(e) => {
                 Add each service you provide and its price. Buyers will choose one when booking.
               </Text>
               {serviceOptions.map((option, index) => (
-                <View key={index} style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                <View key={index} style={{ marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TextInput
                     value={option.name}
                     onChangeText={(name) => setServiceOptions((current) => current.map((item, i) => i === index ? { ...item, name } : item))}
@@ -844,30 +992,23 @@ onScroll={(e) => {
                     </Pressable>
                   )}
                 </View>
+                <MiniLabel colors={colors} label="Time for this service" />
+                <SelectField
+                  colors={colors}
+                  compact
+                  value={String(option.duration)}
+                  options={DURATION_OPTIONS.map((d) => ({ label: d.label, value: String(d.value) }))}
+                  onChange={(v) => setServiceOptions((current) => current.map((item, i) => i === index ? { ...item, duration: Number(v) } : item))}
+                />
+                </View>
               ))}
               <Pressable
-                onPress={() => setServiceOptions((current) => [...current, { name: '', price: '' }])}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 6 }}
+                onPress={() => setServiceOptions((current) => [...current, { name: '', price: '', duration: 60 }])}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-end', paddingVertical: 6 }}
               >
                 <Plus size={16} color={colors.brand} />
                 <Text style={{ color: colors.brand, fontWeight: '700' }}>Add another option</Text>
               </Pressable>
-
-              {/* Duration */}
-              <Divider colors={colors} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Clock size={15} color={colors.textMuted} />
-                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Time per booking</Text>
-              </View>
-              <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>
-                How long one booking takes you. We use this to stop buyers from booking a time you're still busy with someone else.
-              </Text>
-              <SelectField
-                colors={colors}
-                value={String(serviceDuration)}
-                options={DURATION_OPTIONS.map((d) => ({ label: d.label, value: String(d.value) }))}
-                onChange={(v) => setServiceDuration(Number(v))}
-              />
 
               {/* Working hours */}
               <Divider colors={colors} />
@@ -990,7 +1131,7 @@ onScroll={(e) => {
                 colors={colors}
                 onPress={submitService}
                 disabled={serviceLoading || serviceUploading}
-                label={serviceLoading ? 'Creating service…' : 'Publish service'}
+                label={serviceLoading ? 'Saving…' : edit ? 'Save changes' : 'Publish service'}
               />
             </View>
           )}

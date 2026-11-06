@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, Modal, ScrollView, TextInput,
   Animated, Dimensions, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Keyboard,
+  KeyboardAvoidingView, Platform, Keyboard, PanResponder,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,8 @@ import * as Sharing from 'expo-sharing';
 import {
   useAudioRecorder,
   useAudioRecorderState,
+  useAudioPlayer,
+  useAudioPlayerStatus,
   RecordingPresets,
   AudioModule,
   setAudioModeAsync,
@@ -22,8 +25,9 @@ import Toast from 'react-native-toast-message';
 import {
   X, Send, Loader2, Paperclip, Mic, Check, CheckCheck,
   MoreVertical, Trash2, Volume2, VolumeX, Flag, Image as ImageIcon, Ban, ShoppingBag,
-  Video as VideoIcon, FileText, Phone,
+  Video as VideoIcon, FileText, Phone, PhoneMissed, ChevronDown, ChevronLeft, Play, Pause,
 } from 'lucide-react-native';
+import api from '@/api/client';
 import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { useChat } from '../context/ChatContext';
@@ -33,8 +37,22 @@ import { useColors } from '../hooks/useColors';
 import { parseWallpaper } from '../data/wallpapers';
 import WallpaperPicker from './WallpaperPicker';
 import ReportModal from './ReportModal';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
+
+function GlassBox({ children, style, fallbackStyle, tint }: any) {
+  if (GLASS) {
+    return (
+      <GlassView glassEffectStyle="regular" isInteractive tintColor={tint} style={style}>
+        {children}
+      </GlassView>
+    );
+  }
+  return <View style={[style, fallbackStyle]}>{children}</View>;
+}
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PANEL_WIDTH = Math.min(SCREEN_WIDTH , 450);
 const ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
 const TREX_ID = '09dabd6c-c9ea-440d-b42a-0ba1d9011e8a';
@@ -118,12 +136,37 @@ const {
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState('');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showCallMenu, setShowCallMenu] = useState(false);
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [messageMenu, setMessageMenu] = useState<{ id: number; isMine: boolean } | null>(null);
+  const [messageMenu, setMessageMenu] = useState<{ id: number; isMine: boolean; top: number } | null>(null);
+  const msgRefs = useRef<Record<string, any>>({});
   const [showReportModal, setShowReportModal] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [missedCalls, setMissedCalls] = useState<any[]>([]);
+
+  // Load unanswered calls with this person (re-check shortly after, since the call may still be closing)
+  useEffect(() => {
+    if (!isOpen || !conversation?.otherUserId) { setMissedCalls([]); return; }
+    let cancelled = false;
+    const load = () =>
+      api.get('/calls/mine')
+        .then((res) => {
+          if (cancelled) return;
+          setMissedCalls(
+            (res.data || []).filter(
+              (c: any) =>
+                String(c.other_user_id) === String(conversation.otherUserId) &&
+                ['missed', 'declined'].includes(c.status)
+            )
+          );
+        })
+        .catch(() => {});
+    load();
+    const t = setTimeout(load, 2000);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [isOpen, conversation?.otherUserId]);
 
   const slideX = useRef(new Animated.Value(PANEL_WIDTH)).current;
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -135,6 +178,12 @@ const {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingTimerRef = useRef<any>(null);
+  const [recordingLocked, setRecordingLocked] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const holdActive = useRef(false);
+  const recordingActiveRef = useRef(false);
+  const recordStartRef = useRef(0);
+  const holdActions = useRef<any>({});
 
   // Animate in/out
   useEffect(() => {
@@ -165,7 +214,7 @@ const {
     if (isOpen) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
     }
-  }, [messages.length, isOpen]);
+  }, [messages.length, missedCalls.length, isOpen]);
 
   // Cleanup recording on close
   useEffect(() => {
@@ -252,12 +301,12 @@ const {
     });
   };
 
-  const startRecording = async () => {
+  const startRecording = async (locked = false): Promise<boolean> => {
     try {
       const perm = await AudioModule.requestRecordingPermissionsAsync();
       if (!perm.granted) {
         Toast.show({ type: 'error', text1: 'Microphone permission needed' });
-        return;
+        return false;
       }
       await setAudioModeAsync({
         allowsRecording: true,
@@ -265,25 +314,31 @@ const {
       });
       await recorder.prepareToRecordAsync();
       recorder.record();
+      recordingActiveRef.current = true;
+      recordStartRef.current = Date.now();
+      setRecordingLocked(locked);
       setIsRecording(true);
       setRecordingSeconds(0);
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds((s) => s + 1);
       }, 1000);
+      return true;
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Could not start recording' });
+      return false;
     }
   };
   // Auto-start a voice note when arriving from an unanswered call
 useEffect(() => {
   if (!isOpen || loading || !conversation || !pendingAutoRecord) return;
   clearPendingAutoRecord();
-  const t = setTimeout(() => startRecording(), 300);
+  const t = setTimeout(() => startRecording(true), 300);
   return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isOpen, loading, conversation?.id, pendingAutoRecord]);
 
   const stopRecordingAndSend = async () => {
+    recordingActiveRef.current = false;
     clearInterval(recordingTimerRef.current);
     try {
       await recorder.stop();
@@ -304,6 +359,7 @@ useEffect(() => {
   };
 
   const stopRecordingAndCancel = async () => {
+    recordingActiveRef.current = false;
     clearInterval(recordingTimerRef.current);
     try {
       await recorder.stop();
@@ -311,6 +367,45 @@ useEffect(() => {
     setIsRecording(false);
     setRecordingSeconds(0);
   };
+
+  const finishHold = async (cancel: boolean) => {
+    holdActive.current = false;
+    setCancelling(false);
+    if (!recordingActiveRef.current) return;
+    const tooShort = Date.now() - recordStartRef.current < 800;
+    if (cancel || tooShort) {
+      await stopRecordingAndCancel();
+      if (!cancel) Toast.show({ type: 'info', text1: 'Hold to record a voice note' });
+    } else {
+      await stopRecordingAndSend();
+    }
+  };
+
+  holdActions.current = {
+    enabled: !uploading && !draft.trim(),
+    start: async () => {
+      holdActive.current = true;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const ok = await startRecording(false);
+      if (ok && !holdActive.current) {
+        await stopRecordingAndCancel();
+        Toast.show({ type: 'info', text1: 'Hold to record a voice note' });
+      }
+    },
+    move: (dx: number) => setCancelling(dx < -80),
+    end: finishHold,
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !!holdActions.current.enabled,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => holdActions.current.start(),
+      onPanResponderMove: (_, g) => holdActions.current.move(g.dx),
+      onPanResponderRelease: (_, g) => holdActions.current.end(g.dx < -80),
+      onPanResponderTerminate: () => holdActions.current.end(true),
+    })
+  ).current;
 
   const openMedia = async (m: any) => {
     try {
@@ -345,7 +440,17 @@ useEffect(() => {
   };
 
   const handleLongPressMessage = (m: any, isMine: boolean) => {
-    setMessageMenu({ id: m.id, isMine });
+    const node = msgRefs.current[m.id];
+    const menuHeight = isMine ? 96 : 52;
+    if (!node?.measureInWindow) {
+      setMessageMenu({ id: m.id, isMine, top: SCREEN_HEIGHT * 0.4 });
+      return;
+    }
+    node.measureInWindow((_x: number, y: number, _w: number, h: number) => {
+      const below = y + h + 6;
+      const top = below + menuHeight > SCREEN_HEIGHT - insets.bottom - 16 ? Math.max(insets.top + 8, y - menuHeight - 6) : below;
+      setMessageMenu({ id: m.id, isMine, top });
+    });
   };
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -363,10 +468,18 @@ useEffect(() => {
 
   const wallpaperParsed = parseWallpaper(wallpaper);
   const renderWallpaperBackground = () => {
-    if (wallpaperParsed.kind === 'none') return { backgroundColor: '#EFEAFB' };
+    if (wallpaperParsed.kind === 'none') return { backgroundColor: '#1E1B2E' };
     if (wallpaperParsed.kind === 'color') return { backgroundColor: wallpaperParsed.color };
     return { backgroundColor: colors.background };
   };
+
+  const timeline = React.useMemo(() => {
+    const items: any[] = [
+      ...messages.map((m: any) => ({ kind: 'msg', at: new Date(m.created_at).getTime(), m })),
+      ...missedCalls.map((c: any) => ({ kind: 'call', at: new Date(c.created_at).getTime(), c })),
+    ];
+    return items.sort((a, b) => a.at - b.at);
+  }, [messages, missedCalls]);
 
   if (!isOpen) return null;
 
@@ -415,11 +528,9 @@ useEffect(() => {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                {!isTrexChat && (
-                  <Pressable onPress={() => setShowSettingsMenu((v) => !v)} style={{ padding: 6 }}>
-                    <MoreVertical size={18} color={colors.textMuted} />
-                  </Pressable>
-                )}
+                <Pressable onPress={closeEverything} hitSlop={10} style={{ marginLeft: -6 }}>
+                  <ChevronLeft size={26} color={colors.text} />
+                </Pressable>
 
                 {conversation?.otherUserAvatar ? (
                   <Image
@@ -443,7 +554,7 @@ useEffect(() => {
 
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ fontWeight: '700', color: colors.text, fontSize: 15 }}>
-                    {conversation?.otherUserName || 'Chat'}
+                    {conversation?.otherUserName || 'Chat'}{conversation?.otherUserId === user?.id ? ' (You)' : ''}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
                     {!loading && formatPresence(otherUserLastActive) === 'Active now' && (
@@ -457,22 +568,107 @@ useEffect(() => {
               </View>
 
               {!isTrexChat && (
-                <Pressable
-                  onPress={() => {
-                    if (!conversation) return;
-                    const c = conversation;
-                    closeChat();
-                    startCall(c.otherUserId, c.otherUserName, c.otherUserAvatar);
-                  }}
-                  style={{ padding: 6 }}
-                >
-                  <Phone size={18} color={colors.textMuted} />
+                <Pressable onPress={() => setShowCallMenu((v) => !v)}>
+                  <GlassBox
+                    style={{ height: 36, paddingHorizontal: 12, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    fallbackStyle={{}}
+                  >
+                    <Phone size={18} color={colors.textMuted} />
+                    <ChevronDown size={14} color={colors.textMuted} />
+                  </GlassBox>
                 </Pressable>
               )}
-              <Pressable onPress={closeEverything} style={{ padding: 6 }}>
-                <X size={18} color={colors.textMuted} />
-              </Pressable>
+              {isTrexChat && (
+                <Pressable onPress={closeEverything} style={{ padding: 6 }}>
+                  <X size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
             </Pressable>
+
+            {/* Call menu */}
+            {showCallMenu && (
+              <>
+                <Pressable
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}
+                  onPress={() => setShowCallMenu(false)}
+                />
+                <GlassBox
+                  style={{
+                    position: 'absolute',
+                    top: insets.top + 55,
+                    right: 12,
+                    zIndex: 21,
+                    minWidth: 180,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                  }}
+                  fallbackStyle={{
+                    backgroundColor: colors.card,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <MenuItem
+                    icon={<Phone size={15} color={colors.text} />}
+                    label="Call"
+                    colors={colors}
+                    onPress={() => {
+                      setShowCallMenu(false);
+                      if (!conversation) return;
+                      const c = conversation;
+                      closeChat();
+                      startCall(c.otherUserId, c.otherUserName, c.otherUserAvatar);
+                    }}
+                  />
+                  <MenuItem
+                    icon={<ImageIcon size={15} color={colors.text} />}
+                    label="Change wallpaper"
+                    colors={colors}
+                    onPress={() => {
+                      setShowCallMenu(false);
+                      setShowWallpaperPicker(true);
+                    }}
+                  />
+                  <MenuItem
+                    icon={
+                      isMuted(conversation?.id)
+                        ? <Volume2 size={15} color={colors.text} />
+                        : <VolumeX size={15} color={colors.text} />
+                    }
+                    label={isMuted(conversation?.id) ? 'Unmute notifications' : 'Mute notifications'}
+                    colors={colors}
+                    onPress={() => {
+                      if (!conversation) return;
+                      const willMute = !isMuted(conversation.id);
+                      toggleMute(conversation.id);
+                      Toast.show({ type: 'success', text1: willMute ? 'Muted' : 'Unmuted' });
+                      setShowCallMenu(false);
+                    }}
+                  />
+                  {conversation?.otherUserAccountType === 'seller' && (
+                    <MenuItem
+                      icon={<ShoppingBag size={15} color={colors.text} />}
+                      label="View store"
+                      colors={colors}
+                      onPress={() => {
+                        setShowCallMenu(false);
+                        closeChat();
+                        router.push(`/seller/${conversation?.otherUserId}`);
+                      }}
+                    />
+                  )}
+                  <MenuItem
+                    icon={<Flag size={15} color={colors.text} />}
+                    label="Report user"
+                    colors={colors}
+                    onPress={() => {
+                      setShowCallMenu(false);
+                      setShowReportModal(true);
+                    }}
+                  />
+                </GlassBox>
+              </>
+            )}
 
             {/* Settings menu */}
             {showSettingsMenu && (
@@ -576,14 +772,50 @@ onPress={() => {
                   <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                     <ActivityIndicator color={colors.brand} />
                   </View>
-                ) : messages.length === 0 ? (
+                ) : timeline.length === 0 ? (
                   <Text style={{ textAlign: 'center', color: colors.textFaint, fontSize: 14, marginTop: 40 }}>
                     Say hello — ask about condition, price, or when to meet up.
                   </Text>
                 ) : (
                   (() => {
                     let lastDate: string | null = null;
-                    return messages.map((m: any) => {
+                    return timeline.map((item: any) => {
+                      if (item.kind === 'call') {
+                        const c = item.c;
+                        const callDate = new Date(c.created_at).toDateString();
+                        const showCallDate = callDate !== lastDate;
+                        lastDate = callDate;
+                        const outgoing = String(c.caller_id) === String(user?.id);
+                        return (
+                          <React.Fragment key={`call-${c.id}`}>
+                            {showCallDate && (
+                              <View style={{ alignItems: 'center', marginVertical: 8 }}>
+                                <View style={{ backgroundColor: colors.chipBg, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 }}>
+                                  <Text style={{ fontSize: 12, color: colors.textMuted }}>{getDateLabel(c.created_at)}</Text>
+                                </View>
+                              </View>
+                            )}
+                            <View style={{ alignItems: 'center', marginVertical: 6 }}>
+                              <View
+                                style={{
+                                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+                                  backgroundColor: colors.errorSoft,
+                                }}
+                              >
+                                <PhoneMissed size={14} color={colors.error} />
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.error }}>
+                                  {outgoing ? 'Call not answered' : 'Missed call'}
+                                </Text>
+                                <Text style={{ fontSize: 12, color: colors.error, opacity: 0.8 }}>
+                                  {formatMessageTime(c.created_at)}
+                                </Text>
+                              </View>
+                            </View>
+                          </React.Fragment>
+                        );
+                      }
+                      const m = item.m;
                       const isMine = m.sender_id === user?.id;
                       const otherUserOnline =
                         otherUserLastActive &&
@@ -635,19 +867,21 @@ onPress={() => {
   </View>
 ) : (
                             <Pressable
+                              ref={(r) => { msgRefs.current[m.id] = r; }}
                               onLongPress={() => handleLongPressMessage(m, isMine)}
                               delayLongPress={400}
                               style={{ alignItems: isMine ? 'flex-end' : 'flex-start', marginBottom: 6 }}
                             >
                               <View style={{ maxWidth: '78%' }}>
-                              <BubbleTail isMine={isMine} color={isMine ? colors.brand : colors.chipBg} />
-                              <View
+                              {!GLASS && <BubbleTail isMine={isMine} color={isMine ? colors.brand : colors.chipBg} />}
+                              <GlassBox
+                                tint={isMine ? colors.brand : undefined}
+                                fallbackStyle={{ backgroundColor: isMine ? colors.brand : colors.chipBg }}
                                 style={{
                                   borderRadius: 16,
                                   borderBottomRightRadius: isMine ? 4 : 16,
                                   borderBottomLeftRadius: isMine ? 16 : 4,
                                   overflow: 'hidden',
-                                  backgroundColor: isMine ? colors.brand : colors.chipBg,
                                   paddingHorizontal: isImage || isAudio ? 4 : 12,
                                   paddingTop: isImage || isAudio ? 4 : 8,
                                   paddingBottom: 6,
@@ -688,37 +922,18 @@ onPress={() => {
                                 )}
 
                                 {isAudio && (
-                                  <View
-                                    style={{
-                                      flexDirection: 'row',
-                                      alignItems: 'center',
-                                      gap: 8,
-                                      paddingHorizontal: 10,
-                                      paddingVertical: 8,
-                                      minWidth: 180,
-                                    }}
-                                  >
-                                    <Volume2 size={18} color={isMine ? colors.textOnGold : colors.text} />
-                                    <Text style={{ flex: 1, fontSize: 14, color: isMine ? colors.textOnGold : colors.text }}>
-                                      Voice note
-                                    </Text>
-                                    <Text
-                                      style={{
-                                        fontSize: 11,
-                                        color: isMine ? colors.textOnGold : colors.textMuted,
-                                        opacity: 0.8,
-                                      }}
-                                    >
-                                      {formatMessageTime(m.created_at)}
-                                    </Text>
-                                    {isMine && (
-                                      <MessageTick
-                                        read={m.read}
-                                        otherOnline={!!otherUserOnline}
-                                        color={colors.textOnGold}
-                                        blueColor="#4EA4FF"
-                                      />
-                                    )}
+                                  <View style={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 2, minWidth: 230 }}>
+                                    <VoiceNote
+                                      m={m}
+                                      isMine={isMine}
+                                      colors={colors}
+                                      time={formatMessageTime(m.created_at)}
+                                      avatar={isMine ? ((user as any)?.avatar_url || (user as any)?.avatar) : conversation?.otherUserAvatar}
+                                      initial={((isMine ? user?.name : conversation?.otherUserName) || '?')[0]?.toUpperCase()}
+                                      tick={isMine ? (
+                                        <MessageTick read={m.read} otherOnline={!!otherUserOnline} color={colors.textOnGold} blueColor="#4EA4FF" />
+                                      ) : null}
+                                    />
                                   </View>
                                 )}
 
@@ -770,6 +985,7 @@ onPress={() => {
                                 )}
 
                                 {m.content && (
+                                  <View style={{ position: 'relative' }}>
                                   <Text
                                     style={{
                                       fontSize: isSingleEmoji(m.content) ? 28 : 14,
@@ -798,10 +1014,27 @@ onPress={() => {
                                         );
                                       });
                                     })()}
+                                    <Text style={{ fontSize: 11, color: 'transparent' }}>
+                                      {'\u00A0\u00A0\u00A0' + formatMessageTime(m.created_at) + (isMine ? '\u00A0\u00A0\u00A0\u00A0\u00A0' : '')}
+                                    </Text>
                                   </Text>
+                                  <View style={{ position: 'absolute', right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                    <Text style={{ fontSize: 11, color: isMine ? colors.textOnGold : colors.textMuted, opacity: isMine ? 0.75 : 1 }}>
+                                      {formatMessageTime(m.created_at)}
+                                    </Text>
+                                    {isMine && (
+                                      <MessageTick
+                                        read={m.read}
+                                        otherOnline={!!otherUserOnline}
+                                        color={colors.textOnGold}
+                                        blueColor="#4EA4FF"
+                                      />
+                                    )}
+                                  </View>
+                                  </View>
                                 )}
 
-                                {!isImage && !isAudio && (
+                                {!isImage && !isAudio && !m.content && (
                                   <View
                                     style={{
                                       flexDirection: 'row',
@@ -830,7 +1063,7 @@ onPress={() => {
                                     )}
                                   </View>
                                 )}
-                              </View>
+                              </GlassBox>
                               </View>
                             </Pressable>
                           )}
@@ -918,7 +1151,7 @@ onPress={() => {
                     This is an announcement from Tre-X.
                   </Text>
                 </View>
-              ) : isRecording ? (
+              ) : isRecording && recordingLocked ? (
                 <View
                   style={{
                     flexDirection: 'row',
@@ -928,15 +1161,13 @@ onPress={() => {
                     paddingVertical: 10,
                   }}
                 >
-                  <Pressable
-                    onPress={stopRecordingAndCancel}
-                    style={{
-                      width: 36, height: 36, borderRadius: 18,
-                      backgroundColor: colors.errorSoft,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    <Trash2 size={16} color={colors.error} />
+                  <Pressable onPress={stopRecordingAndCancel}>
+                    <GlassBox
+                      style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+                      fallbackStyle={{ backgroundColor: colors.errorSoft }}
+                    >
+                      <Trash2 size={16} color={colors.error} />
+                    </GlassBox>
                   </Pressable>
                   <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.error }} />
                   <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
@@ -945,67 +1176,84 @@ onPress={() => {
                   <View style={{ flex: 1, alignItems: 'flex-end' }}>
                     <Text style={{ fontSize: 13, color: colors.textFaint }}>Tap send to finish</Text>
                   </View>
-                  <Pressable
-                    onPress={stopRecordingAndSend}
-                    style={{
-                      width: 36, height: 36, borderRadius: 18,
-                      backgroundColor: colors.brand,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    <Send size={16} color={colors.textOnGold} />
+                  <Pressable onPress={stopRecordingAndSend}>
+                    <GlassBox
+                      tint={colors.brand}
+                      style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+                      fallbackStyle={{ backgroundColor: colors.brand }}
+                    >
+                      <Send size={16} color={colors.textOnGold} />
+                    </GlassBox>
                   </Pressable>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }}>
-                  <Pressable onPress={() => setShowAttachMenu(true)} disabled={uploading} style={{ padding: 10, opacity: uploading ? 0.4 : 1 }}>
-                    <Paperclip size={20} color={colors.textMuted} />
+                  {isRecording ? (
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 }}>
+                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.error }} />
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{formatDuration(recordingSeconds)}</Text>
+                      <Text style={{ flex: 1, textAlign: 'right', fontSize: 13, color: cancelling ? colors.error : colors.textFaint }}>
+                        {cancelling ? 'Release to cancel' : '‹ Slide to cancel'}
+                      </Text>
+                    </View>
+                  ) : (
+                  <>
+                  <Pressable onPress={() => setShowAttachMenu(true)} disabled={uploading} style={{ opacity: uploading ? 0.4 : 1 }}>
+                    <GlassBox
+                      style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+                      fallbackStyle={{}}
+                    >
+                      <Paperclip size={20} color={colors.textMuted} />
+                    </GlassBox>
                   </Pressable>
 
-                  <TextInput
-                    value={draft}
-                    onChangeText={setDraft}
-                    placeholder={uploading ? 'Uploading…' : 'Type a message…'}
-                    placeholderTextColor={colors.textFaint}
-                    editable={!uploading}
-                    multiline
-                    style={{
-                      flex: 1,
-                      minHeight: 40,
-                      maxHeight: 100,
-                      paddingHorizontal: 14,
-                      paddingVertical: 10,
-                      borderRadius: 20,
-                      backgroundColor: colors.chipBg,
-                      color: colors.text,
-                      fontSize: 15,
-                    }}
-                  />
+                  <GlassBox
+                    style={{ flex: 1, minHeight: 40, maxHeight: 100, borderRadius: 20 }}
+                    fallbackStyle={{ backgroundColor: colors.chipBg }}
+                  >
+                    <TextInput
+                      value={draft}
+                      onChangeText={setDraft}
+                      placeholder={uploading ? 'Uploading…' : 'Type a message…'}
+                      placeholderTextColor={colors.textFaint}
+                      editable={!uploading}
+                      multiline
+                      style={{
+                        minHeight: 40,
+                        maxHeight: 100,
+                        paddingHorizontal: 14,
+                        paddingVertical: 10,
+                        color: colors.text,
+                        fontSize: 15,
+                      }}
+                    />
+                  </GlassBox>
+                  </>
+                  )}
 
                   {draft.trim() ? (
-                    <Pressable
-                      onPress={handleSend}
-                      style={{
-                        width: 40, height: 40, borderRadius: 20,
-                        backgroundColor: colors.brand,
-                        alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      <Send size={18} color={colors.textOnGold} />
+                    <Pressable onPress={handleSend}>
+                      <GlassBox
+                        tint={colors.brand}
+                        style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+                        fallbackStyle={{ backgroundColor: colors.brand }}
+                      >
+                        <Send size={18} color={colors.textOnGold} />
+                      </GlassBox>
                     </Pressable>
                   ) : (
-                    <Pressable
-                      onPress={startRecording}
-                      disabled={uploading}
-                      style={{
-                        width: 40, height: 40, borderRadius: 20,
-                        backgroundColor: colors.brand,
-                        alignItems: 'center', justifyContent: 'center',
-                        opacity: uploading ? 0.4 : 1,
-                      }}
+                    <View
+                      {...panResponder.panHandlers}
+                      style={{ opacity: uploading ? 0.4 : 1, transform: [{ scale: isRecording ? 1.4 : 1 }] }}
                     >
-                      <Mic size={18} color={colors.textOnGold} />
-                    </Pressable>
+                      <GlassBox
+                        tint={colors.brand}
+                        style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+                        fallbackStyle={{ backgroundColor: colors.brand }}
+                      >
+                        <Mic size={18} color={colors.textOnGold} />
+                      </GlassBox>
+                    </View>
                   )}
                 </View>
               )}
@@ -1021,18 +1269,20 @@ onPress={() => {
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200 }}
             onPress={() => setMessageMenu(null)}
           />
-          <View
+          <GlassBox
             style={{
               position: 'absolute',
-              alignSelf: 'center',
-              top: '40%',
+              top: messageMenu.top,
+              ...(messageMenu.isMine ? { right: 16 } : { left: 16 }),
               zIndex: 201,
               minWidth: 200,
-              backgroundColor: colors.card,
               borderRadius: 14,
+              overflow: 'hidden',
+            }}
+            fallbackStyle={{
+              backgroundColor: colors.card,
               borderWidth: 1,
               borderColor: colors.border,
-              overflow: 'hidden',
             }}
           >
             <MenuItem
@@ -1050,7 +1300,7 @@ onPress={() => {
                 onPress={() => handleMessageAction('everyone')}
               />
             )}
-          </View>
+          </GlassBox>
         </>
       )}
 
@@ -1060,18 +1310,20 @@ onPress={() => {
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200 }}
             onPress={() => setShowAttachMenu(false)}
           />
-          <View
+          <GlassBox
             style={{
               position: 'absolute',
               left: 12,
               bottom: insets.bottom + 64,
               zIndex: 201,
               minWidth: 180,
-              backgroundColor: colors.card,
               borderRadius: 14,
+              overflow: 'hidden',
+            }}
+            fallbackStyle={{
+              backgroundColor: colors.card,
               borderWidth: 1,
               borderColor: colors.border,
-              overflow: 'hidden',
             }}
           >
             <MenuItem
@@ -1092,7 +1344,7 @@ onPress={() => {
               colors={colors}
               onPress={handlePickVideo}
             />
-          </View>
+          </GlassBox>
         </>
       )}
 
@@ -1210,6 +1462,87 @@ onPress={() => {
       )}
       <Toast />
     </Modal>
+  );
+}
+
+const WAVE_BARS = 36;
+
+function VoiceNote({ m, isMine, colors, time, tick, avatar, initial }: any) {
+  const [uri, setUri] = useState<string | null>(null);
+  const player = useAudioPlayer(uri);
+  const status = useAudioPlayerStatus(player);
+  const fg = isMine ? colors.textOnGold : colors.text;
+
+  const heights = React.useMemo(
+    () =>
+      Array.from({ length: WAVE_BARS }, (_, i) => {
+        const x = Math.sin((Number(m.id) + 1) * (i + 1) * 12.9898) * 43758.5453;
+        return 6 + (x - Math.floor(x)) * 18;
+      }),
+    [m.id]
+  );
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const base64 = m.media_url.split(',')[1];
+        const path = `${FileSystem.cacheDirectory}voice-${m.id}.m4a`;
+        await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+        setUri(path);
+      } catch {}
+    })();
+  }, [m.id]);
+
+  const toggle = async () => {
+    if (!uri) return;
+    if (status.playing) { player.pause(); return; }
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    if (status.duration && status.currentTime >= status.duration - 0.1) player.seekTo(0);
+    player.play();
+  };
+
+  const progress = status.duration ? Math.min(1, status.currentTime / status.duration) : 0;
+  const shown = status.playing || status.currentTime > 0 ? status.currentTime : status.duration;
+
+  const avatarEl = avatar ? (
+    <Image source={{ uri: avatar }} style={{ width: 34, height: 34, borderRadius: 17 }} contentFit="cover" />
+  ) : (
+    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontWeight: '700', color: colors.brand, fontSize: 14 }}>{initial}</Text>
+    </View>
+  );
+
+  const playEl = (
+    <Pressable onPress={toggle} disabled={!uri} hitSlop={8} style={{ opacity: uri ? 1 : 0.5 }}>
+      {status.playing ? <Pause size={18} color={fg} fill={fg} /> : <Play size={18} color={fg} fill={fg} />}
+    </Pressable>
+  );
+
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        {isMine ? avatarEl : playEl}
+        <View style={{ flex: 1, height: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          {heights.map((h, i) => (
+            <View
+              key={i}
+              style={{
+                width: 3, height: h, borderRadius: 2, backgroundColor: fg,
+                opacity: i / WAVE_BARS < progress ? 1 : 0.35,
+              }}
+            />
+          ))}
+        </View>
+        {isMine ? playEl : avatarEl}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, paddingLeft: isMine ? 44 : 28 }}>
+        <Text style={{ fontSize: 11, color: fg, opacity: 0.8 }}>{formatDuration(shown || 0)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={{ fontSize: 11, color: fg, opacity: 0.8 }}>{time}</Text>
+          {tick}
+        </View>
+      </View>
+    </View>
   );
 }
 

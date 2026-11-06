@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, Image, Alert, TextInput, ScrollView } from 'react-native';
+import { View, Text, Pressable, Image, Alert, TextInput, ScrollView, Modal, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ShoppingBag, MessageCircle, Search, Star, Sparkles } from 'lucide-react-native';
 import { useChat } from '@/context/ChatContext';
 import RouteMapModal from '@/components/RouteMapModal';
+import GlassButton from '@/components/GlassButton';
 import { SCHOOL_COORDS } from '@/data/schoolCoords';
 import Toast from 'react-native-toast-message';
 import api from '@/api/client';
@@ -72,10 +74,158 @@ export default function Orders({ period, isSeller, highlightOrder, mode = 'activ
   useEffect(loadDataOrders, []);
 
   const loadServiceOrders = () => {
-    const endpoint = isSeller ? '/bookings/seller' : '/bookings/buyer';
-    api.get(endpoint).then((res) => setServiceOrders(res.data)).catch(() => setServiceOrders([]));
+    Promise.all([
+      api.get('/bookings/buyer').then((r) => r.data.map((b: any) => ({ ...b, _seller: false }))).catch(() => []),
+      isSeller
+        ? api.get('/bookings/seller').then((r) => r.data.map((b: any) => ({ ...b, _seller: true }))).catch(() => [])
+        : Promise.resolve([]),
+    ]).then(([asBuyer, asSeller]) => {
+      const all = [...asBuyer, ...asSeller];
+      all.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setServiceOrders(all);
+    });
   };
   useEffect(loadServiceOrders, [isSeller]);
+
+  const [pausedUntil, setPausedUntil] = useState<string | null>(null);
+  const [extendingId, setExtendingId] = useState<any>(null);
+
+  const loadPause = () => {
+    if (!isSeller) return;
+    api.get('/bookings/pause').then((res) => setPausedUntil(res.data.paused_until)).catch(() => {});
+  };
+  useEffect(loadPause, [isSeller]);
+
+  const setPause = async (untilDate: Date | null) => {
+    try {
+      const res = await api.put('/bookings/pause', { until: untilDate ? untilDate.toISOString() : null });
+      setPausedUntil(res.data.paused_until);
+      Toast.show({ type: 'success', text1: untilDate ? 'Bookings paused' : 'You are taking bookings again' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not update availability' });
+    }
+  };
+
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [pauseDate, setPauseDate] = useState(new Date());
+  const [pauseTime, setPauseTime] = useState(new Date());
+  const [pauseAndroid, setPauseAndroid] = useState<'date' | 'time' | null>(null);
+
+  const submitPause = async () => {
+    const until = new Date(pauseDate);
+    until.setHours(pauseTime.getHours(), pauseTime.getMinutes(), 0, 0);
+    await setPause(until);
+    setPauseOpen(false);
+  };
+
+  const [rescheduling, setRescheduling] = useState<any>(null);
+  const [newDate, setNewDate] = useState(new Date());
+  const [newTime, setNewTime] = useState(new Date());
+  const [androidPicker, setAndroidPicker] = useState<'date' | 'time' | null>(null);
+  const [savingResched, setSavingResched] = useState(false);
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const hm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  const onAndroidPick = (e: any, d?: Date) => {
+    const which = androidPicker;
+    setAndroidPicker(null);
+    if (e.type !== 'set' || !d) return;
+    if (which === 'date') setNewDate(d); else setNewTime(d);
+  };
+
+  const submitReschedule = async () => {
+    if (!rescheduling) return;
+    setSavingResched(true);
+    try {
+      const res = await api.patch(`/bookings/${rescheduling.id}/reschedule`, {
+        booking_date: ymd(newDate),
+        booking_time: hm(newTime),
+      });
+      Toast.show({
+        type: 'success',
+        text1: res.data.queued ? `Provider is busy. Your new start time is ${res.data.booking_time}` : 'Booking rescheduled',
+      });
+      setRescheduling(null);
+      loadServiceOrders();
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not reschedule' });
+    } finally {
+      setSavingResched(false);
+    }
+  };
+
+  const promptCancelBooking = (b: any) => {
+    Alert.alert(
+      'Cancel this booking?',
+      'Cancelling is free, but the GHS 2 booking fee is not refunded.',
+      [
+        { text: 'Keep booking', style: 'cancel' },
+        {
+          text: 'Cancel booking',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.patch(`/bookings/${b.id}/cancel`);
+              Toast.show({ type: 'success', text1: 'Booking cancelled' });
+              loadServiceOrders();
+            } catch (err: any) {
+              Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not cancel' });
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const promptNoShow = (b: any) => {
+    Alert.alert(
+      'Report a no-show?',
+      "Only report this if the provider didn't show up or didn't do the service. The provider won't be charged a fee for it.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.post(`/bookings/${b.id}/no-show`);
+              Toast.show({ type: 'success', text1: 'Report sent' });
+              loadServiceOrders();
+            } catch (err: any) {
+              Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not send report' });
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleExtend = async (id: any, minutes: number) => {
+    setExtendingId(id);
+    try {
+      await api.patch(`/bookings/${id}/extend`, { minutes });
+      Toast.show({ type: 'success', text1: 'Time extended. Waiting buyers were notified.' });
+      loadServiceOrders();
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not extend this booking' });
+    } finally {
+      setExtendingId(null);
+    }
+  };
+
+  const promptExtend = (b: any) => {
+    Alert.alert(
+      'Extend this service',
+      'Buyers waiting after you will be told their new start time.',
+      [
+        { text: '+30 min', onPress: () => handleExtend(b.id, 30) },
+        { text: '+1 hour', onPress: () => handleExtend(b.id, 60) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
 
   const handleConfirmReceived = async (itemId: any) => {
     setConfirmingItem(itemId);
@@ -180,7 +330,7 @@ export default function Orders({ period, isSeller, highlightOrder, mode = 'activ
   const isCompletedTab = mode === 'completed';
   const modeOrders = (orders || []).filter((o: any) => (o.status === 'completed') === isCompletedTab);
   const modeDataOrders = dataOrders.filter((d) => (d.status === 'delivered') === isCompletedTab);
-  const modeServiceOrders = serviceOrders.filter((b: any) => (b.status === 'completed') === isCompletedTab);
+  const modeServiceOrders = serviceOrders.filter((b: any) => (b.status === 'completed' || b.status === 'no_show') === isCompletedTab);
 
   const hasAny = modeOrders.length > 0 || modeDataOrders.length > 0 || modeServiceOrders.length > 0;
   if (!hasAny) {
@@ -222,6 +372,120 @@ const q = search.trim().toLowerCase();
       )}
       <RouteMapModal visible={!!routeDest} destination={routeDest} title={routeTitle} onClose={() => setRouteDest(null)} />
 
+      <Modal visible={pauseOpen} transparent animationType="fade" onRequestClose={() => setPauseOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 20 }} onPress={() => setPauseOpen(false)}>
+          <Pressable onPress={(e) => e.stopPropagation?.()} style={{ backgroundColor: colors.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Pause bookings until</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>
+              New bookings will start from the time you pick.
+            </Text>
+            {Platform.OS === 'ios' ? (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                <DateTimePicker value={pauseDate} mode="date" display="compact" minimumDate={new Date()} onChange={(_, d) => { if (d) setPauseDate(d); }} />
+                <DateTimePicker value={pauseTime} mode="time" display="compact" onChange={(_, d) => { if (d) setPauseTime(d); }} />
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                <Pressable onPress={() => setPauseAndroid('date')} style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ color: colors.text }}>{ymd(pauseDate)}</Text>
+                </Pressable>
+                <Pressable onPress={() => setPauseAndroid('time')} style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ color: colors.text }}>{hm(pauseTime)}</Text>
+                </Pressable>
+              </View>
+            )}
+            {pauseAndroid && (
+              <DateTimePicker
+                value={pauseAndroid === 'date' ? pauseDate : pauseTime}
+                mode={pauseAndroid}
+                minimumDate={pauseAndroid === 'date' ? new Date() : undefined}
+                onChange={(e: any, d?: Date) => {
+                  const which = pauseAndroid;
+                  setPauseAndroid(null);
+                  if (e.type !== 'set' || !d) return;
+                  if (which === 'date') setPauseDate(d); else setPauseTime(d);
+                }}
+              />
+            )}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
+              <Pressable onPress={() => setPauseOpen(false)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                <Text style={{ fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={submitPause} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center' }}>
+                <Text style={{ fontWeight: '700', color: colors.textOnGold }}>Pause</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!rescheduling} transparent animationType="fade" onRequestClose={() => setRescheduling(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 20 }} onPress={() => setRescheduling(null)}>
+          <Pressable onPress={(e) => e.stopPropagation?.()} style={{ backgroundColor: colors.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Reschedule booking</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>
+              Pick a new date and time. If the provider is busy, you'll be moved to the next free time.
+            </Text>
+            {Platform.OS === 'ios' ? (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                <DateTimePicker value={newDate} mode="date" display="compact" minimumDate={new Date()} onChange={(_, d) => { if (d) setNewDate(d); }} />
+                <DateTimePicker value={newTime} mode="time" display="compact" onChange={(_, d) => { if (d) setNewTime(d); }} />
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                <Pressable onPress={() => setAndroidPicker('date')} style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ color: colors.text }}>{ymd(newDate)}</Text>
+                </Pressable>
+                <Pressable onPress={() => setAndroidPicker('time')} style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ color: colors.text }}>{hm(newTime)}</Text>
+                </Pressable>
+              </View>
+            )}
+            {androidPicker && (
+              <DateTimePicker
+                value={androidPicker === 'date' ? newDate : newTime}
+                mode={androidPicker}
+                minimumDate={androidPicker === 'date' ? new Date() : undefined}
+                onChange={onAndroidPick}
+              />
+            )}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
+              <Pressable onPress={() => setRescheduling(null)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                <Text style={{ fontWeight: '600', color: colors.textSecondary }}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={submitReschedule} disabled={savingResched} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand, alignItems: 'center', opacity: savingResched ? 0.6 : 1 }}>
+                <Text style={{ fontWeight: '700', color: colors.textOnGold }}>{savingResched ? 'Saving…' : 'Reschedule'}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {isSeller && !isCompletedTab && modeServiceOrders.length > 0 && (
+        <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
+            {pausedUntil
+              ? `Paused until ${new Date(pausedUntil).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`
+              : 'Taking bookings'}
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {pausedUntil ? (
+              <Pressable onPress={() => setPause(null)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.success }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>Resume now</Text>
+              </Pressable>
+            ) : (
+              <GlassButton
+                onPress={() => { setPauseDate(new Date()); setPauseTime(new Date()); setPauseOpen(true); }}
+                style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}
+                fallbackStyle={{ borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>Pause until…</Text>
+              </GlassButton>
+            )}
+          </View>
+        </View>
+      )}
+
       {/* SERVICE BOOKINGS */}
       {modeServiceOrders.length > 0 && (
         <>
@@ -232,7 +496,7 @@ const q = search.trim().toLowerCase();
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{b.service_title}</Text>
                   <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
-                    {isSeller ? `Buyer: ${b.buyer_name} · ${b.buyer_email}` : `Seller: ${b.seller_name} · ${b.seller_email}`}
+                    {b._seller ? `Buyer: ${b.buyer_name} · ${b.buyer_email}` : `Seller: ${b.seller_name} · ${b.seller_email}`}
                   </Text>
                   <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
                     📅 {new Date(b.booking_date).toLocaleDateString()} · ⏰ {b.booking_time?.slice(0, 5)}
@@ -243,17 +507,17 @@ const q = search.trim().toLowerCase();
                 </View>
                 <View style={{ backgroundColor: b.status === 'pending_payment' ? colors.warningSoft : colors.successSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
                   <Text style={{ fontSize: 12, fontWeight: '600', color: b.status === 'pending_payment' ? colors.warning : colors.success }}>
-                    {b.status === 'completed' ? 'Completed ✅' : b.status === 'confirmed' ? 'Confirmed ✅' : 'Awaiting payment'}
+                    {b.status === 'completed' ? 'Completed ✅' : b.status === 'no_show' ? 'No-show reported' : b.status === 'confirmed' ? 'Confirmed ✅' : 'Awaiting payment'}
                   </Text>
                 </View>
               </View>
               <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 8 }}>
                 {b.service_option_name ? `${b.service_option_name} · ` : ''}
-                {isSeller
+                {b._seller
                   ? `Service price: GHS ${parseFloat(b.service_amount || 0).toFixed(2)} · Your fee: GHS ${parseFloat(b.seller_fee || 0).toFixed(2)} · You receive: GHS ${parseFloat(b.seller_earnings || 0).toFixed(2)}`
                   : `Service price: GHS ${parseFloat(b.service_amount || 0).toFixed(2)} · Booking fee: GHS ${parseFloat(b.buyer_fee || 0).toFixed(2)}`}
               </Text>
-              {isSeller && b.status === 'confirmed' && (
+              {b._seller && b.status === 'confirmed' && (
                 <Pressable
                   onPress={() => promptCompleteBooking(b)}
                   disabled={confirmingBookingId === b.id}
@@ -261,6 +525,40 @@ const q = search.trim().toLowerCase();
                 >
                   <Text style={{ fontSize: 12, fontWeight: '700', color: 'white' }}>
                     {confirmingBookingId === b.id ? '...' : '✅ Mark as Completed'}
+                  </Text>
+                </Pressable>
+              )}
+              {b._seller && b.status === 'confirmed' && (
+                <Pressable
+                  onPress={() => promptExtend(b)}
+                  disabled={extendingId === b.id}
+                  style={{ marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.brand, opacity: extendingId === b.id ? 0.6 : 1 }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>
+                    {extendingId === b.id ? '...' : '⏱ Extend time'}
+                  </Text>
+                </Pressable>
+              )}
+              {!b._seller && b.status === 'confirmed' && (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <Pressable
+                    onPress={() => { setRescheduling(b); setNewDate(new Date()); setNewTime(new Date()); }}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.brand }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Reschedule</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => promptCancelBooking(b)}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.errorSoft }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.error }}>Cancel</Text>
+                  </Pressable>
+                </View>
+              )}
+              {!b._seller && b.status === 'completed' && b.updated_at && Date.now() - new Date(b.updated_at).getTime() < 48 * 3600 * 1000 && (
+                <Pressable onPress={() => promptNoShow(b)} style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.error, textDecorationLine: 'underline' }}>
+                    Report no-show
                   </Text>
                 </Pressable>
               )}

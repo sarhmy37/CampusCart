@@ -95,14 +95,7 @@ export default function OrderConfirmation() {
             alignItems: 'center',
           }}
         >
-          <View
-            style={{
-              width: 64, height: 64, borderRadius: 20,
-              backgroundColor: config.bg,
-              alignItems: 'center', justifyContent: 'center',
-              marginBottom: 16,
-            }}
-          >
+          <View style={{ marginBottom: 14 }}>
             <StatusIcon size={32} color={config.color} />
           </View>
           <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center' }}>

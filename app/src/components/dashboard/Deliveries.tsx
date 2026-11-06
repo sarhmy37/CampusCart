@@ -232,7 +232,11 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
                 {/* Location row — text on the left, icon pinned to the far right */}
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 6, width: '100%' }}>
                   <Text
-                    onPress={d.buyer_location ? () => trackBuyer(d.order_id, d.buyer_location) : undefined}
+                    onPress={d.buyer_location ? () => (
+                      d.buyer_lat != null && d.buyer_lng != null
+                        ? (setRouteTitle(d.buyer_location), setRouteDest({ lat: Number(d.buyer_lat), lng: Number(d.buyer_lng) }))
+                        : trackBuyer(d.order_id, d.buyer_location)
+                    ) : undefined}
                     style={{ flexShrink: 1, fontSize: 12, color: d.buyer_location ? colors.brand : colors.textMuted, textAlign: 'right', textDecorationLine: d.buyer_location ? 'underline' : 'none' }}
                   >
                     {d.buyer_location || 'No location provided'}

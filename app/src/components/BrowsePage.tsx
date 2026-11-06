@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from 'expo-router';
 import {
   View, Text, Pressable, Image, FlatList, Modal, ActivityIndicator,
-  ScrollView, TextInput, Platform, useColorScheme, Animated, Easing, Linking,
-  PanResponder, Dimensions, StyleSheet,
+  ScrollView, TextInput, Platform, Animated, Easing, Linking,
+  PanResponder, Dimensions, StyleSheet, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import InsetShadow from '@/components/InsetShadow';
 import * as Haptics from 'expo-haptics';
@@ -11,10 +11,12 @@ import Toast from 'react-native-toast-message';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-
-
 import {
   X, Check, SlidersHorizontal, ChevronDown, ChevronRight, MapPin, Sparkles, CheckCircle, Search, ArrowLeft, ArrowRight, LayoutGrid, Tag, Rocket, Wifi, Loader2, Wallet,
+  Shirt, Footprints, Gem, Utensils, Dumbbell, Armchair,
+  Laptop, Headphones, Watch, Gamepad2, Droplets, Cookie, CupSoda, Apple, Soup, Backpack,
+  Luggage, Wheat, Bed, Sofa, Microwave, Fan, Bike, Guitar, Piano, Drum, Disc3, PartyPopper,
+  Palette, Ruler,
 } from 'lucide-react-native';
 import Svg, { Defs, Pattern, Line, Rect } from 'react-native-svg';
 import {
@@ -25,6 +27,16 @@ import {
   CheckCircleIcon as CheckOutline,
 } from 'react-native-heroicons/outline';
 import { SUBCATEGORIES } from '@/data/subcategories';
+import {
+  SignalIcon, WrenchScrewdriverIcon, ShoppingBagIcon, BoltIcon, BriefcaseIcon,
+  DevicePhoneMobileIcon, PencilIcon, BookOpenIcon, BeakerIcon, SparklesIcon,
+  ScissorsIcon, ClockIcon, CakeIcon, ShoppingCartIcon, HomeIcon, HomeModernIcon,
+  LightBulbIcon, TrophyIcon, MusicalNoteIcon, TicketIcon, EllipsisHorizontalCircleIcon,
+  SpeakerWaveIcon, DeviceTabletIcon, CameraIcon, CpuChipIcon, DocumentTextIcon, FolderIcon,
+  CalculatorIcon, PaintBrushIcon, PrinterIcon, UserIcon, UsersIcon, HeartIcon, ArchiveBoxIcon,
+  FireIcon, SwatchIcon, SunIcon, AcademicCapIcon, TagIcon,
+  GlobeAltIcon, VideoCameraIcon, TruckIcon, HandRaisedIcon,
+} from 'react-native-heroicons/outline';
 import {
   Squares2X2Icon as GridSolid,
   SparklesIcon as SparklesSolid,
@@ -53,6 +65,88 @@ const ITEM_TYPES = [
   'Food', 'Groceries', 'Room Essentials', 'Furniture', 'Appliances',
   'Sports & Fitness', 'Music & Instruments', 'Tickets & Events', 'Other',
 ];
+const CATEGORY_ICONS: Record<string, any> = {
+  'Mobile Data': SignalIcon,
+  'Services': WrenchScrewdriverIcon,
+  'Clothes': Shirt,
+  'Sneakers': Footprints,
+  'Bags': ShoppingBagIcon,
+  'Gadgets': DevicePhoneMobileIcon,
+  'Stationery': PencilIcon,
+  'Books': BookOpenIcon,
+  'Perfumes': BeakerIcon,
+  'Beauty & Skincare': SparklesIcon,
+  'Hair & Wigs': ScissorsIcon,
+  'Jewelry & Watches': Gem,
+  'Food': Utensils,
+  'Groceries': ShoppingCartIcon,
+  'Room Essentials': HomeIcon,
+  'Furniture': Armchair,
+  'Appliances': LightBulbIcon,
+  'Sports & Fitness': Dumbbell,
+  'Music & Instruments': MusicalNoteIcon,
+  'Tickets & Events': TicketIcon,
+  'Other': EllipsisHorizontalCircleIcon,
+};
+
+const SUBCATEGORY_ICONS: Record<string, any> = {
+  'T-Shirts': Shirt, 'Shirts': Shirt, 'Activewear': Dumbbell, 'Suits/Formal': BriefcaseIcon,
+  'Phones': DevicePhoneMobileIcon, 'Laptops': Laptop, 'Headphones': Headphones,
+  'Chargers & Cables': BoltIcon, 'Smartwatches': Watch, 'Speakers': SpeakerWaveIcon,
+  'Tablets': DeviceTabletIcon, 'Cameras': CameraIcon, 'Gaming': Gamepad2, 'Computer Parts': CpuChipIcon,
+  'Notebooks': DocumentTextIcon, 'Pens & Pencils': PencilIcon, 'Files & Folders': FolderIcon,
+  'Textbooks': BookOpenIcon, 'Calculators': CalculatorIcon, 'Art supplies': PaintBrushIcon,
+  'Office supplies': BriefcaseIcon, 'Printing supplies': PrinterIcon, 'Bags': ShoppingBagIcon,
+  'Men': UserIcon, 'Women': UserIcon, 'Unisex': UsersIcon, 'Body sprays': Droplets,
+  'Oils': BeakerIcon, 'Body care': HeartIcon,
+  'Snacks': Cookie, 'Drinks': CupSoda, 'Homemade meals': Soup, 'Baked goods': CakeIcon,
+  'Fruits': Apple, 'Local delicacies': Utensils,
+  'Running': Footprints, 'Brands': TagIcon,
+  'Backpacks': Backpack, 'Handbags': ShoppingBagIcon, 'Duffel/Travel': Luggage,
+  'Skincare': Droplets, 'Makeup': SparklesIcon, 'Hair care': ScissorsIcon,
+  'Tools': WrenchScrewdriverIcon, 'Fragrances': BeakerIcon,
+  'Necklaces': Gem, 'Earrings': Gem, 'Rings': Gem, 'Bracelets': Gem, 'Watches': Watch,
+  'Staples': Wheat, 'Canned/Packaged': ArchiveBoxIcon, 'Spices & Seasoning': FireIcon, 'Household': HomeIcon,
+  'Bedding': Bed, 'Storage': ArchiveBoxIcon, 'Decor': SwatchIcon, 'Kitchenware': Utensils,
+  'Cleaning supplies': SparklesIcon,
+  'Beds': Bed, 'Desks & Chairs': Armchair, 'Wardrobes/Storage': ArchiveBoxIcon, 'Sofas': Sofa,
+  'Kitchen appliances': Microwave, 'Cooling': Fan, 'Cleaning appliances': SparklesIcon,
+  'Small electronics': LightBulbIcon,
+  'Gym equipment': Dumbbell, 'Sportswear': Shirt, 'Balls & Gear': TrophyIcon, 'Bicycles': Bike, 'Outdoor': SunIcon,
+  'Guitars': Guitar, 'Keyboards/Pianos': Piano, 'Drums': Drum, 'DJ/Audio gear': Disc3,
+  'Concerts': MusicalNoteIcon, 'Parties/Socials': PartyPopper, 'Sports events': TrophyIcon,
+  'Campus events': AcademicCapIcon,
+};
+
+const SERVICE_ICON_RULES: [string[], any][] = [
+  [['makeup', 'make-up'], Palette],
+  [['nail'], HandRaisedIcon],
+  [['haircut', 'barber'], ScissorsIcon],
+  [['hair', 'braid'], ScissorsIcon],
+  [['print'], PrinterIcon],
+  [['graphic'], PaintBrushIcon],
+  [['website', 'web dev'], GlobeAltIcon],
+  [['photo'], CameraIcon],
+  [['errand'], Footprints],
+  [['video'], VideoCameraIcon],
+  [['shirt', 'hoodie'], Shirt],
+  [['app dev', 'mobile app'], DevicePhoneMobileIcon],
+  [['pickup', 'delivery'], TruckIcon],
+  [['tutor', 'lesson'], AcademicCapIcon],
+  [['laundry'], Droplets],
+  [['repair'], WrenchScrewdriverIcon],
+  [['event'], PartyPopper],
+  [['clean'], SparklesIcon],
+  [['tailor', 'sewing'], Ruler],
+];
+
+const getServiceIcon = (label: string) => {
+  const l = label.toLowerCase();
+  for (const [keys, Icon] of SERVICE_ICON_RULES) {
+    if (keys.some((k) => l.includes(k))) return Icon;
+  }
+  return TagIcon;
+};
 
 const NETWORKS = [
   { id: 'MTN', name: 'MTN', logo: MTN_LOGO },
@@ -173,6 +267,36 @@ function TabsWrap({ colors, children }: any) {
   );
 }
 
+function BudgetPill({ children }: any) {
+  const base = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    width: 120,
+  };
+  if (GLASS) {
+    return (
+      <GlassView glassEffectStyle="regular" style={{ ...base, paddingVertical: 5 }}>
+        {children}
+      </GlassView>
+    );
+  }
+  return (
+    <View
+      style={{
+        ...base,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -191,6 +315,18 @@ export default function BrowsePage({ filter }: { filter: Filter }) {
   const { user } = useAuth();
 
   const isSeller = user?.account_type === 'seller';
+
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const swipeBack = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) =>
+        g.x0 < 30 && g.dx > 15 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onPanResponderRelease: (_e, g) => {
+        if (g.dx > 80 || g.vx > 0.6) routerRef.current.replace('/');
+      },
+    })
+  ).current;
 
   const navigation = useNavigation();
   const params = useLocalSearchParams<{ search?: string; category?: string; boost_ref?: string }>();
@@ -215,6 +351,8 @@ export default function BrowsePage({ filter }: { filter: Filter }) {
   }, [params.category]);
   const [school, setSchool] = useState('');
   const [serviceType, setServiceType] = useState('');
+  const [serviceTypes, setServiceTypes] = useState<{ id: number; label: string; listing_count: number }[]>([]);
+  const serviceTypeId = serviceTypes.find((t) => t.label === serviceType)?.id ?? null;
   const [newOnly, setNewOnly] = useState(filter === 'new');
   const [verifiedOnly, setVerifiedOnly] = useState(filter === 'verified');
   const [locating, setLocating] = useState(false);
@@ -324,6 +462,11 @@ useEffect(() => {
     setBoostConfirmOpen(false);
     setSelectedBoostTier(null);
   };
+
+  const boostDrag = useSheetDrag(() => { if (!boostSubmitting) closeBoostConfirm(); });
+  useEffect(() => {
+    if (boostConfirmOpen) boostDrag.translateY.setValue(0);
+  }, [boostConfirmOpen]);
 
   const handleListScroll = (e: any) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
@@ -483,6 +626,7 @@ useEffect(() => {
     }
     if (boostMode) p.mine = 1;
     if (subCategory) p.subcategory = subCategory;
+    if (itemCategory === 'Services' && serviceTypeId) p.serviceTypeId = serviceTypeId;
     return p;
   };
 
@@ -520,7 +664,7 @@ useEffect(() => {
       })
       .catch(() => { if (pageRef.current === s) setProducts([]); })
       .finally(() => { if (pageRef.current === s) setLoading(false); });
-  }, [search, itemCategory, subCategory, school, newOnly, verifiedOnly, priceRange, boostMode]);
+  }, [search, itemCategory, subCategory, school, newOnly, verifiedOnly, priceRange, boostMode, serviceTypeId]);
 
   useEffect(() => {
     if (!params.boost_ref) return;
@@ -579,7 +723,10 @@ useEffect(() => {
 }, [itemCategory]);
 
   useEffect(() => {
-    if (itemCategory !== 'Services') setServiceType('');
+    if (itemCategory !== 'Services') { setServiceType(''); return; }
+    api.get('/service-types')
+      .then((res) => setServiceTypes(res.data || []))
+      .catch(() => setServiceTypes([]));
   }, [itemCategory]);
 
   const detectNearest = async () => {
@@ -638,17 +785,11 @@ useEffect(() => {
     if (boostMode) {
       list = list.filter((p) => p.seller_id === user?.id);
     }
-    if (itemCategory === 'Services' && serviceType) {
-      const active = SERVICE_TYPES.find((t) => t.label === serviceType);
-      if (active) {
-        list = list.filter((p) => {
-          const text = `${p.title || ''} ${p.description || ''}`.toLowerCase();
-          return active.keywords.some((kw) => text.includes(kw));
-        });
-      }
+    if (itemCategory === 'Services' && serviceTypeId) {
+      list = list.filter((p) => p.service_type_id === serviceTypeId);
     }
     return list;
-  }, [products, itemCategory, subCategory, newOnly, verifiedOnly, school, priceRange, search, boostMode, user?.id, serviceType]);
+  }, [products, itemCategory, subCategory, newOnly, verifiedOnly, school, priceRange, search, boostMode, user?.id, serviceTypeId]);
 
   const stockOf = (p: any) => (p.stock !== undefined ? p.stock : 1);
   const inStock = useMemo(() => filtered.filter((p) => stockOf(p) > 0), [filtered]);
@@ -685,6 +826,28 @@ useEffect(() => {
   };
   const isBoosted = (p: any) => p.boosted_until && new Date(p.boosted_until) > new Date();
   const isServices = itemCategory === 'Services';
+
+  const hasLocation = !!(
+    (user as any)?.location &&
+    (user as any)?.location_lat != null &&
+    (user as any)?.location_lng != null
+  );
+  const needsLocation = (item: any) =>
+    !!user && !hasLocation && !boostMode && item.seller_id !== user.id;
+
+  const promptLocation = (item: any) => {
+    const isService = (item.category || item.category_name) === 'Services';
+    const target = isService ? `/service/${item.id}` : `/product/${item.id}`;
+    Toast.show({
+      type: 'info',
+      text1: 'Delivery location not set',
+      text2: 'Tap to complete it',
+      onPress: () => {
+        Toast.hide();
+        router.push({ pathname: '/profile', params: { editLocation: '1', returnTo: target } } as any);
+      },
+    });
+  };
   const gridData = inStock;
 
   const headerTitle =
@@ -696,17 +859,22 @@ useEffect(() => {
     <View
       style={{ flex: 1, backgroundColor: colors.background }}
       onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+      {...swipeBack.panHandlers}
     >
       <GridBackground isDark={isDark} />
 
       {/* HEADER STRIP */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={{ position: 'relative', overflow: 'hidden', height: 150 }}>
         <HeroSlideshow images={BROWSE_HEADER_IMAGES} />
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.55)' }} />
 
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
           <GlassButton
-            onPress={() => router.replace('/')}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.replace('/');
+            }}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 4,
               backgroundColor: 'rgba(255,255,255,0.1)',
@@ -724,7 +892,7 @@ useEffect(() => {
               {headerTitle}
             </Text>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, width: 120 }}>
+            <BudgetPill>
               <Wallet size={12} color="rgba(255,255,255,0.7)" style={{ marginRight: 6 }} />
               <TextInput
                 value={budgetInput}
@@ -739,7 +907,7 @@ useEffect(() => {
               <Pressable onPress={applyBudgetValue} hitSlop={6}>
                 <Search size={12} color="white" />
               </Pressable>
-            </View>
+            </BudgetPill>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: isPlanActive ? 'space-between' : 'flex-end', marginTop: -2 }}>
@@ -758,6 +926,7 @@ useEffect(() => {
           </View>
         </View>
       </View>
+      </TouchableWithoutFeedback>
 
       {/* Browse sub-tabs */}
       <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card }}>
@@ -932,9 +1101,7 @@ useEffect(() => {
               gap: 6,
             }}
           >
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Wifi size={16} color={colors.brand} />
-            </View>
+            <Wifi size={20} color={colors.brand} />
             <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
               {parseFloat(b.gb_amount)}GB
             </Text>
@@ -994,6 +1161,12 @@ useEffect(() => {
           renderItem={({ item }) => (
             <View style={{ width: '31.5%' }}>
               <Dangle active={!!isBoosted(item)}>
+                {needsLocation(item) && (
+                  <Pressable
+                    onPress={() => promptLocation(item)}
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 }}
+                  />
+                )}
                 {(item.category || item.category_name) === 'Services' && isBoosted(item) && (
                   <View
                     pointerEvents="none"
@@ -1063,19 +1236,17 @@ useEffect(() => {
 
       <Modal visible={boostConfirmOpen} transparent animationType="fade" onRequestClose={closeBoostConfirm}>
         <Pressable style={{ flex: 1, backgroundColor: colors.overlayLight }} onPress={() => !boostSubmitting && closeBoostConfirm()} />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Rocket size={20} color={colors.brand} />
-            </View>
-            <Pressable onPress={() => !boostSubmitting && closeBoostConfirm()} hitSlop={8}>
-              <X size={18} color={colors.textMuted} />
-            </Pressable>
+        <Animated.View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingTop: 8, transform: [{ translateY: boostDrag.translateY }] }}>
+          <View {...boostDrag.panHandlers} style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 16 }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
           </View>
 
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 10 }}>
-            Boost {selectedBoostIds.length} {selectedBoostIds.length === 1 ? 'listing' : 'listings'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Rocket size={26} color={colors.brand} />
+            <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: colors.text }}>
+              Boost {selectedBoostIds.length} {selectedBoostIds.length === 1 ? 'listing' : 'listings'}
+            </Text>
+          </View>
           <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
             Choose how long these listings should stay at the top of search and browse results. The price is based on each selected item's price (a service uses its highest price).
           </Text>
@@ -1126,7 +1297,7 @@ useEffect(() => {
           <Text style={{ fontSize: 12, color: colors.textFaint, textAlign: 'center', marginTop: 8 }}>
             🔒 Secured by Paystack
           </Text>
-        </View>
+        </Animated.View>
       </Modal>
 
       <Modal
@@ -1143,12 +1314,12 @@ useEffect(() => {
       onPress={(e) => e.stopPropagation?.()}
       style={{ backgroundColor: colors.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.border }}
     >
-      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-        <Wifi size={20} color={colors.brand} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Wifi size={26} color={colors.brand} />
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: colors.text }}>
+          {parseFloat(confirmBundle?.gb_amount || '0')}GB {confirmBundle?.network} — GHS {parseFloat(confirmBundle?.price || '0').toFixed(2)}
+        </Text>
       </View>
-      <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>
-        {parseFloat(confirmBundle?.gb_amount || '0')}GB {confirmBundle?.network} — GHS {parseFloat(confirmBundle?.price || '0').toFixed(2)}
-      </Text>
       <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
         Enter the mobile money number to receive this data. You'll be sent a prompt to approve the payment.
       </Text>
@@ -1263,14 +1434,24 @@ useEffect(() => {
         onClose={() => setOpenSheet(null)}
         getSubOptions={getCategorySubOptions}
         onSelectSub={(cat, sub) => { setItemCategory(cat); setSubCategory(sub); setOpenSheet(null); }}
+        renderIcon={(v, active) => {
+          const Icon = v ? (CATEGORY_ICONS[v] ?? SUBCATEGORY_ICONS[v]) : GridOutline;
+          return Icon ? <Icon size={18} color={active ? colors.brand : colors.textMuted} /> : null;
+        }}
       />
 
       {/* SERVICE TYPE SHEET */}
       <FilterSheet
         visible={openSheet === 'service'}
         title="Service type"
-        options={['', ...SERVICE_TYPES.map((t) => t.label)]}
-        renderLabel={(v) => v || 'All services'}
+        dragToClose
+        searchable
+        options={['', ...serviceTypes.map((t) => t.label)]}
+        renderLabel={(v) => (v ? v.replace(/^[^\p{L}\p{N}]+/u, '') : 'All services')}
+        renderIcon={(v, active) => {
+          const Icon = v ? getServiceIcon(v) : GridOutline;
+          return <Icon size={18} color={active ? colors.brand : colors.textMuted} />;
+        }}
         selected={serviceType}
         onSelect={(v) => { setServiceType(v); setOpenSheet(null); }}
         onClose={() => setOpenSheet(null)}
@@ -1300,8 +1481,11 @@ useEffect(() => {
 
 function FilterSheet({
   visible, title, options, renderLabel, selected, onSelect, onClose,
-  autoDetectLabel, onAutoDetect, getSubOptions, onSelectSub,
+  autoDetectLabel, onAutoDetect, getSubOptions, onSelectSub, dragToClose, searchable, renderIcon,
 }: {
+  renderIcon?: (v: string, active: boolean) => React.ReactNode;
+  searchable?: boolean;
+  dragToClose?: boolean;
   visible: boolean;
   title: string;
   options: string[];
@@ -1316,9 +1500,37 @@ function FilterSheet({
 }) {
   const colors = useColors();
   const [drillDown, setDrillDown] = useState<{ value: string; label: string; subs: any[] } | null>(null);
+  const drag = useSheetDrag(onClose);
+  useEffect(() => {
+    if (visible) drag.translateY.setValue(0);
+  }, [visible]);
+
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const expand = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef<TextInput>(null);
+
+  const openSearch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSearchOpen(true);
+    Animated.timing(expand, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false })
+      .start(() => inputRef.current?.focus());
+  };
+  const closeSearch = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    inputRef.current?.blur();
+    setQuery('');
+    Animated.timing(expand, { toValue: 0, duration: 220, easing: Easing.inOut(Easing.cubic), useNativeDriver: false })
+      .start(() => setSearchOpen(false));
+  };
 
   useEffect(() => {
-    if (!visible) setDrillDown(null);
+    if (!visible) {
+      setDrillDown(null);
+      setQuery('');
+      setSearchOpen(false);
+      expand.setValue(0);
+    }
   }, [visible]);
 
   const handleOptionClick = (opt: string) => {
@@ -1333,9 +1545,20 @@ function FilterSheet({
 
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: colors.overlayLight }} onPress={onClose} />
-      <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '75%', borderTopWidth: 1, borderColor: colors.border }}>
+    <Modal visible={visible} transparent animationType={dragToClose ? 'none' : 'slide'} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <Animated.View
+        style={{
+          position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+          opacity: dragToClose
+            ? drag.translateY.interpolate({ inputRange: [0, 600], outputRange: [1, 0], extrapolate: 'clamp' })
+            : 1,
+        }}
+      >
+        <Pressable style={{ flex: 1, backgroundColor: colors.overlayLight }} onPress={onClose} />
+      </Animated.View>
+      <Animated.View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '75%', borderTopWidth: 1, borderColor: colors.border, transform: [{ translateY: drag.translateY }] }}>
+        <View {...(dragToClose ? drag.panHandlers : {})}>
         <View style={{ alignItems: 'center', paddingTop: 10 }}>
           <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
         </View>
@@ -1348,11 +1571,66 @@ function FilterSheet({
                 <ArrowLeft size={18} color={colors.textMuted} />
               </Pressable>
             )}
-            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, flexShrink: 1 }} numberOfLines={1}>
+            <Animated.Text
+              style={{
+                fontSize: 17, fontWeight: '800', color: colors.text, flexShrink: 1,
+                opacity: expand.interpolate({ inputRange: [0, 0.5], outputRange: [1, 0], extrapolate: 'clamp' }),
+              }}
+              numberOfLines={1}
+            >
               {drillDown ? drillDown.label : title}
-            </Text>
+            </Animated.Text>
           </View>
-          <Pressable onPress={onClose}><X size={18} color={colors.textMuted} /></Pressable>
+          {!dragToClose && (
+            <Pressable onPress={onClose}><X size={18} color={colors.textMuted} /></Pressable>
+          )}
+          {searchable && !drillDown && (
+            <Animated.View
+              style={{
+                position: 'absolute', top: 0, bottom: 0, justifyContent: 'center',
+                                right: 16,
+                width: expand.interpolate({ inputRange: [0, 1], outputRange: [36, Dimensions.get('window').width - 32] }),
+              }}
+            >
+              <View style={{ height: 36, borderRadius: 18, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}>
+                <Animated.View
+                  pointerEvents="none"
+                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: colors.chipBg, opacity: expand }}
+                />
+                <Animated.View
+                  pointerEvents={searchOpen ? 'auto' : 'none'}
+                  style={{
+                    flex: searchOpen ? 1 : 0,
+                    width: searchOpen ? undefined : 0,
+                    marginLeft: searchOpen ? 14 : 0,
+                    opacity: expand.interpolate({ inputRange: [0.6, 1], outputRange: [0, 1], extrapolate: 'clamp' }),
+                  }}
+                >
+                  <TextInput
+                    ref={inputRef}
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Search services"
+                    placeholderTextColor={colors.textFaint}
+                    style={{ paddingVertical: 0, color: colors.text, fontSize: 16 }}
+                  />
+                </Animated.View>
+                {query.length > 0 && (
+                  <Pressable onPress={() => setQuery('')} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+                    <X size={16} color={colors.textFaint} />
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={searchOpen ? closeSearch : openSearch}
+                  hitSlop={6}
+                  style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Search size={18} color={searchOpen ? colors.brand : colors.textMuted} />
+                </Pressable>
+              </View>
+            </Animated.View>
+          )}
+        </View>
         </View>
 
         {drillDown ? (
@@ -1381,9 +1659,12 @@ function FilterSheet({
                     backgroundColor: isSelected ? colors.brandSoft : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 15, color: isSelected ? colors.brand : colors.textSecondary, fontWeight: isSelected ? '700' : '500' }}>
-                    {item.label}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    {renderIcon && renderIcon(isAll ? drillDown.value : item.value, isSelected)}
+                    <Text style={{ fontSize: 15, color: isSelected ? colors.brand : colors.textSecondary, fontWeight: isSelected ? '700' : '500' }}>
+                      {item.label}
+                    </Text>
+                  </View>
                   {isSelected && <Check size={16} color={colors.brand} />}
                 </Pressable>
               );
@@ -1391,8 +1672,13 @@ function FilterSheet({
           />
         ) : (
           <FlatList
-            data={options}
+            data={
+              searchable && query.trim()
+                ? options.filter((o) => o && renderLabel(o).toLowerCase().includes(query.trim().toLowerCase()))
+                : options
+            }
             keyExtractor={(v) => v || 'all'}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 32 }}
             ListHeaderComponent={
               onAutoDetect ? (
@@ -1424,9 +1710,12 @@ function FilterSheet({
                     backgroundColor: isSelected && !hasSubs ? colors.brandSoft : 'transparent',
                   }}
                 >
-                  <Text style={{ fontSize: 15, color: isSelected && !hasSubs ? colors.brand : colors.textSecondary, fontWeight: isSelected && !hasSubs ? '700' : '500' }}>
-                    {renderLabel(item)}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    {renderIcon && renderIcon(item, isSelected && !hasSubs)}
+                    <Text style={{ fontSize: 15, color: isSelected && !hasSubs ? colors.brand : colors.textSecondary, fontWeight: isSelected && !hasSubs ? '700' : '500' }}>
+                      {renderLabel(item)}
+                    </Text>
+                  </View>
                   {isSelected && !hasSubs && <Check size={16} color={colors.brand} />}
                   {hasSubs && <ChevronRight size={16} color={colors.textFaint} />}
                 </Pressable>
@@ -1434,9 +1723,35 @@ function FilterSheet({
             }}
           />
         )}
-      </View>
+      </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
+}
+
+// Faint line-grid backdrop
+
+function useSheetDrag(onClose: () => void) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderMove: (_e, g) => translateY.setValue(Math.max(0, g.dy)),
+    onPanResponderRelease: (_e, g) => {
+      if (g.dy > 120 || g.vy > 0.8) {
+        Animated.timing(translateY, { toValue: Dimensions.get('window').height, duration: 200, useNativeDriver: false })
+          .start(() => onCloseRef.current());
+      } else {
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: false }).start();
+      }
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: false }).start();
+    },
+  })).current;
+  return { translateY, panHandlers: pan.panHandlers };
 }
 
 // Faint line-grid backdrop — light lines on dark backgrounds, dark lines on light ones.
@@ -1691,17 +2006,22 @@ function Dangle({ active, children }: { active: boolean; children: React.ReactNo
       Animated.timing(rot, { toValue: to, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true });
 
     let anim: Animated.CompositeAnimation | null = null;
+    let id: any;
     const swing = () => {
       rot.setValue(0); // always start centered
+      const d = Math.random() < 0.5 ? -1 : 1;   // random direction
+      const a = 0.6 + Math.random() * 0.4;      // random strength
       anim = Animated.sequence([
-        t(-1, 140), t(1, 220), t(-0.7, 200), t(0.5, 180), t(-0.25, 150), t(0, 130),
+        t(-d * a, 140), t(d * a, 220), t(-d * a * 0.7, 200), t(d * a * 0.5, 180), t(-d * a * 0.25, 150), t(0, 130),
       ]);
       anim.start();
     };
 
-    swing();
-    const id = setInterval(swing, 6000);
-    return () => { clearInterval(id); anim?.stop(); rot.setValue(0); };
+    const first = setTimeout(() => {
+      swing();
+      id = setInterval(swing, 6000);
+    }, Math.random() * 1500);
+    return () => { clearTimeout(first); clearInterval(id); anim?.stop(); rot.setValue(0); };
   }, [active]);
 
   if (!active) return <>{children}</>;

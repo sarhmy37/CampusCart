@@ -1,29 +1,30 @@
-import { useEffect, useState, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback, useLayoutEffect, memo } from 'react';
 import {
   View, Text, Pressable, ScrollView, Dimensions, Modal, ActivityIndicator, Animated, Easing, PanResponder,
-  TextInput, KeyboardAvoidingView, Platform, Keyboard, AppState, Alert
+  TextInput, KeyboardAvoidingView, Platform, Keyboard, AppState, Alert 
 } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { useVideoPlayer as useBaseVideoPlayer, VideoView } from 'expo-video';
 import StoryViewer from '@/components/StoryViewer';
+import { useAudioPlayer } from 'expo-audio';
 import { BlurView } from 'expo-blur';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Image } from 'expo-image';
+import { Image as BaseImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop, Pattern, Line, Rect, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, RadialGradient, Stop, Pattern, Line, Rect, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   Plus, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Eye, Sparkles, Star, Flame, Send, Play, Heart,
   MessageCircle, Repeat, Reply, MoreHorizontal, Maximize2, Download, Share2, Check, Pause, Archive,
-  Trash2, EyeOff, Ban, Flag, Pin, Rocket, Pencil, Volume2, VolumeX,
+  Trash2, EyeOff, Ban, Flag, Pin, Rocket, Pencil, Volume2, VolumeX, Music, Settings, Clock
 } from 'lucide-react-native';
-import ProductCard from '@/components/ProductCard';
-import ServiceCard from '@/components/ServiceCard';
 import InsetShadow from '@/components/InsetShadow';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { useChat } from '@/context/ChatContext';
 import api from '@/api/client';
+import PostSettingsSheet, { PostSettingsT } from '@/components/PostSettingsSheet';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
@@ -31,6 +32,8 @@ import { LOGO_LIGHT, LOGO_DARK } from '@/data/media';
 import { useTheme } from '@/context/ThemeContext';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
+import YoutubePlayer from 'react-native-youtube-iframe';
+import { FlatList } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { Squares2X2Icon as GridOutline, FireIcon as FireOutline, UsersIcon as UsersOutline, UserIcon, ChartBarIcon } from 'react-native-heroicons/outline';
 import { Squares2X2Icon as GridSolid, FireIcon as FireSolid, UsersIcon as UsersSolid } from 'react-native-heroicons/solid';
@@ -93,6 +96,18 @@ type Story = {
   last_repost_at?: string | null;
   crop?: { x: number; y: number; w: number; h: number; fa?: number | null } | null;
   text_overlay?: { text: string; y: number } | null;
+  music_url?: string | null;
+  music_start_ms?: number | null;
+  music_end_ms?: number | null;
+  sound?: { id: number; url: string; start?: number | null; end?: number | null; owner: string } | null;
+  allow_chat?: boolean | null;
+  show_likes?: boolean | null;
+  allow_repost?: boolean | null;
+  allow_export?: boolean | null;
+  chat_allowed?: boolean;
+  likes_visible?: boolean;
+  repost_allowed?: boolean;
+  export_allowed?: boolean;
   product_tag?: { product_id: string; title: string; price: number; image: string | null; x: number; y: number; rot: number } | null;
 };
 
@@ -103,6 +118,7 @@ type StoryGroup = {
   user_plan?: 'pro' | 'premium';
   activity_count?: number;
   is_seller?: boolean;
+  user_allow_chat?: boolean;
   is_following?: boolean;
   stories: Story[];
   allViewed: boolean;
@@ -250,10 +266,119 @@ const DEMO_EXPLORE = Array.from({ length: 20 }, (_, i) => ({
 }));
 
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
+const TEXT_SHADOW = {
+  textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5,
+} as const;
 
-function FollowChatButtons({
+function GlassOrView({ glass, tint, style, children }: any) {
+  if (glass) {
+    return (
+      <GlassView glassEffectStyle="regular" isInteractive tintColor={tint} style={[style, { overflow: 'hidden' }]}>
+        {children}
+      </GlassView>
+    );
+  }
+  return <View style={style}>{children}</View>;
+}
+
+function FollowChatButtons(props: {
+  group: any; colors: any; onFollow: () => void; onChat: () => void; showChat?: boolean;
+}) {
+  const { group, colors, onFollow, showChat = true } = props;
+  if (showChat) return <FollowChatButtonsFull {...props} />;
+  return <NoChatFollowButton group={group} colors={colors} onFollow={onFollow} />;
+}
+
+function NoChatFollowButton({ group, colors, onFollow }: {
+  group: any; colors: any; onFollow: () => void;
+}) {
+  const [followConfirmation, setFollowConfirmation] = useState(false);
+  const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (confirmationTimerRef.current) clearTimeout(confirmationTimerRef.current);
+  }, []);
+
+  if (group.is_following && !followConfirmation) return null;
+
+  const handleFollow = () => {
+    if (group.is_following) return;
+    onFollow();
+    setFollowConfirmation(true);
+    if (confirmationTimerRef.current) clearTimeout(confirmationTimerRef.current);
+    confirmationTimerRef.current = setTimeout(() => setFollowConfirmation(false), 3000);
+  };
+
+  const followContent = (
+    <Text style={{ fontSize: 15, fontWeight: '700', color: group.is_following || followConfirmation ? colors.text : colors.textOnGold }}>
+      {group.is_following || followConfirmation ? 'Following' : 'Follow'}
+    </Text>
+  );
+
+  if (GLASS) {
+    return (
+      <Pressable onPress={handleFollow} hitSlop={6}>
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          tintColor={group.is_following || followConfirmation ? undefined : colors.brand}
+          style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10, overflow: 'hidden' }}
+        >
+          {followContent}
+        </GlassView>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={handleFollow}
+      hitSlop={6}
+      style={{
+        backgroundColor: group.is_following || followConfirmation ? colors.card : colors.brand,
+        borderWidth: 1,
+        borderColor: group.is_following || followConfirmation ? colors.border : colors.brand,
+        paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10,
+      }}
+    >
+      {followContent}
+    </Pressable>
+  );
+}
+
+function FollowChatButtonsFull({
   group, colors, onFollow, onChat,
 }: { group: any; colors: any; onFollow: () => void; onChat: () => void }) {
+  if (group.is_following) {
+    if (GLASS) {
+      return (
+        <Pressable onPress={onChat} hitSlop={6}>
+          <GlassView
+            glassEffectStyle="regular"
+            isInteractive
+            style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10, overflow: 'hidden' }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>Chat</Text>
+          </GlassView>
+        </Pressable>
+      );
+    }
+    return (
+      <Pressable
+        onPress={onChat}
+        hitSlop={6}
+        style={{
+          backgroundColor: colors.card,
+          borderWidth: 1, borderColor: colors.border,
+          paddingHorizontal: 12, paddingVertical: 5,
+          borderRadius: 10,
+        }}
+      >
+        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>Chat</Text>
+      </Pressable>
+    );
+  }
+
   if (GLASS) {
     const following = !!group.is_following;
     return (
@@ -332,6 +457,34 @@ const REPORT_REASONS = ['Spam', 'Nudity or sexual content', 'Harassment or hate'
 const AnimatedKeyboardAvoidingView = Animated.createAnimatedComponent(KeyboardAvoidingView);
 let currentFeedStop: (() => void) | null = null;
 
+let lastMediaFailToast = 0;
+function notifyMediaFail() {
+  const now = Date.now();
+  if (now - lastMediaFailToast < 15000) return;
+  lastMediaFailToast = now;
+  Toast.show({
+    type: 'error',
+    text1: "Couldn't load media",
+    text2: 'Check your internet connection and try again.',
+  });
+}
+
+function useVideoPlayer(source: any, setup?: (p: any) => void) {
+  return useBaseVideoPlayer(source, (p) => {
+    setup?.(p);
+    const timer = setTimeout(() => {
+      try { if (p.status === 'loading') notifyMediaFail(); } catch {}
+    }, 20000);
+    p.addListener('statusChange', ({ status }: { status: string }) => {
+      if (status === 'readyToPlay' || status === 'error') clearTimeout(timer);
+      if (status === 'error') notifyMediaFail();
+    });
+  });
+}
+
+const Image: any = (props: any) => <BaseImage onError={notifyMediaFail} {...props} />;
+Image.prefetch = BaseImage.prefetch;
+
 type ExportUi = { busy: (text: string | null) => void; msg: (text: string, isError?: boolean) => void };
 
 const toastUi: ExportUi = {
@@ -345,7 +498,9 @@ async function runExport(story: Story, kind: 'gallery' | 'share', ui: ExportUi, 
     api.post(`/story-export/${story.id}/done`).then((r) => onCount?.(r.data.count)).catch(() => {});
   if (exportRunning) { ui.msg('Please wait, another video is still downloading', true); return; }
   exportRunning = true;
-  ui.busy('Preparing video...');
+  const noun = story.media_type === 'video' ? 'video' : 'photo';
+  let finished = false;
+  ui.busy(`Preparing ${noun}...`);
   try {
     const { data } = await api.post(`/story-export/${story.id}`);
     const isImage = data.type === 'image';
@@ -354,13 +509,14 @@ async function runExport(story: Story, kind: 'gallery' | 'share', ui: ExportUi, 
     const dl = FileSystem.createDownloadResumable(data.url, dest, {}, (p) => {
       if (!p.totalBytesExpectedToWrite) return;
       const pct = Math.floor((p.totalBytesWritten / p.totalBytesExpectedToWrite) * 100);
-      if (pct !== lastPct) { lastPct = pct; ui.busy(`Downloading video ${pct}%`); }
+      if (!finished && pct !== lastPct) { lastPct = pct; ui.busy(`Downloading ${noun} ${pct}%`); }
     });
     const res = await dl.downloadAsync();
     if (!res || res.status !== 200) {
       const body = res ? await FileSystem.readAsStringAsync(res.uri).catch(() => '') : '';
       throw new Error(`download ${res?.status ?? 'failed'} ${body.slice(0, 120)}`);
     }
+    finished = true;
     ui.busy(null);
     if (kind === 'gallery') {
       const perm = await MediaLibrary.requestPermissionsAsync(true);
@@ -375,6 +531,7 @@ async function runExport(story: Story, kind: 'gallery' | 'share', ui: ExportUi, 
       countIt();
     }
   } catch (e: any) {
+    finished = true;
     ui.busy(null);
     console.log('EXPORT ERROR', e?.response?.status, e?.response?.data, e?.message);
     ui.msg(`Export failed: ${e?.response?.status ?? ''} ${e?.response?.data?.error ?? e?.message ?? ''}`.trim(), true);
@@ -391,6 +548,7 @@ function mergeGroups(prev: StoryGroup[], next: StoryGroup[]): StoryGroup[] {
     if (!old) { map.set(key, g); continue; }
     const have = new Set(old.stories.map((s) => s.id));
     const stories = [...old.stories, ...g.stories.filter((s) => !have.has(s.id))]
+      .filter((s, i, arr) => arr.findIndex((x) => String(x.id) === String(s.id)) === i)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     map.set(key, { ...old, ...g, stories, allViewed: stories.every((s) => s.viewed) });
   }
@@ -457,7 +615,7 @@ const { openChat, sendQuickMessage } = useChat();
   const [contentFilter, setContentFilter] = useState('all');
   const [viewerNotice, setViewerNotice] = useState<{ text: string; id: number } | null>(null);
 
-  const PAGE_SIZE = 12;
+  const PAGE_SIZE = 36;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
@@ -468,7 +626,7 @@ const { openChat, sendQuickMessage } = useChat();
     setVisibleCount(PAGE_SIZE);
   }, [contentFilter]);
 
-  const FEED_PAGE = 12;
+  const FEED_PAGE = 36;
   const feedOffsetRef = useRef(0);
   const feedHasMoreRef = useRef(true);
   const feedFetchingRef = useRef(false);
@@ -503,6 +661,47 @@ const { openChat, sendQuickMessage } = useChat();
       .finally(() => { feedFetchingRef.current = false; setLoadingMore(false); });
   };
 
+    const refreshFeed = async () => {
+    try {
+      const [spotRes, statRes, folRes] = await Promise.all([
+        api.get('/stories/feed', { params: { limit: FEED_PAGE, offset: 0, foryou: 'true', kind: 'spotlight' } }),
+        api.get('/stories/feed', { params: { limit: FEED_PAGE, offset: 0, foryou: 'true', kind: 'story' } }),
+        api.get('/stories/feed', { params: { limit: 50, following: 'true', kind: 'story' } }),
+      ]);
+      const spot: StoryGroup[] = spotRes.data || [];
+      const stat: StoryGroup[] = statRes.data || [];
+      feedOffsetRef.current = spot.length;
+      feedHasMoreRef.current = spot.length >= FEED_PAGE;
+      statusOffsetRef.current = stat.length;
+      statusHasMoreRef.current = stat.length >= FEED_PAGE;
+      const orderMap: Record<string, number> = {};
+      stat.forEach((g, i) => { orderMap[String(g.user_id)] = i; });
+      setStatusOrder(orderMap);
+      feedShuffleRef.current = {};
+      setShuffleKey((k) => k + 1);
+      releasePins();
+      setVisibleCount(PAGE_SIZE);
+      setGroups(mergeGroups(mergeGroups(spot, stat), folRes.data || []));
+    } catch {
+      Toast.show({ type: 'error', text1: "Couldn't refresh" });
+    }
+  };
+
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
+  const [shuffleKey, setShuffleKey] = useState(0);
+  const doRefresh = async () => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
+    setRefreshing(true);
+    const t0 = Date.now();
+    await refreshFeed();
+    setTimeout(() => {
+      refreshingRef.current = false;
+      setRefreshing(false);
+    }, Math.max(0, 1000 - (Date.now() - t0)));
+  };
+
   const loadMoreExplore = () => {
     if (loadingMoreRef.current) return;
     if (visibleCountRef.current >= totalExploreRef.current) { loadMoreFeed(); return; }
@@ -519,11 +718,6 @@ const { openChat, sendQuickMessage } = useChat();
   useEffect(() => {
     if (filterOpen) filterDrag.translateY.setValue(0);
   }, [filterOpen]);
-  const [reelStyleOpen, setReelStyleOpen] = useState(false);
-  const reelDrag = useSheetDrag(() => setReelStyleOpen(false));
-  useEffect(() => {
-    if (reelStyleOpen) reelDrag.translateY.setValue(0);
-  }, [reelStyleOpen]);
   const [feedTab, setFeedTab] = useState<'all' | 'following' | 'foryou'>('foryou');
   const [tabsY, setTabsY] = useState(0);
   const tabsYRef = useRef(0);
@@ -531,16 +725,16 @@ const { openChat, sendQuickMessage } = useChat();
   const [tabsPinned, setTabsPinned] = useState(false);
   const [commentsStoryId, setCommentsStoryId] = useState<string | null>(null);
   const [exportStory, setExportStory] = useState<Story | null>(null);
-  const [reelStyle, setReelStyle] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [mainTab, setMainTab] = useState<'stories' | 'feed' | 'podcast'>('stories');
+const reelStyle: 'horizontal' | 'vertical' = mainTab === 'feed' ? 'vertical' : 'horizontal';
+const changeMainTab = (k: 'stories' | 'feed' | 'podcast') => {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  setMainTab(k);
+  setVisibleCount(PAGE_SIZE);
+};
   const [previewGroup, setPreviewGroup] = useState<any>(null);
   const [mainScrollLocked, setMainScrollLocked] = useState(false);
 
-  // restore the saved reel style when the screen opens
-  useEffect(() => {
-    AsyncStorage.getItem('reel_style_v1')
-      .then((v) => { if (v === 'horizontal' || v === 'vertical') setReelStyle(v); })
-      .catch(() => {});
-  }, []);
   // restore the saved content type when the screen opens
   useEffect(() => {
     AsyncStorage.getItem('content_filter_v1')
@@ -555,6 +749,7 @@ const { openChat, sendQuickMessage } = useChat();
 
   const [allGroups, setGroups] = useState<StoryGroup[]>([]);
   const [viewerSource, setViewerSource] = useState<'story' | 'spotlight'>('story');
+const [reelList, setReelList] = useState<StoryGroup[]>([]);
   const [pinnedLatest, setPinnedLatest] = useState<Record<string, number>>({});
   const pinnedLatestRef = useRef<Record<string, number>>({});
   const pinScrollYRef = useRef(0);
@@ -586,7 +781,6 @@ const { openChat, sendQuickMessage } = useChat();
   }, [allGroups, contentFilter]);
 
   // `groups` = whichever list the full-screen viewer is stepping through
-  const groups = viewerSource === 'spotlight' ? spotlightList : statusList;
   const [fresh, setFresh] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
@@ -672,6 +866,8 @@ const { openChat, sendQuickMessage } = useChat();
   const topBtnOpacity = useRef(new Animated.Value(0)).current;
   const topBtnTimerRef = useRef<any>(null);
   const topBtnVisibleRef = useRef(false);
+  const prevYRef = useRef(0);
+  const pullArmedRef = useRef(false);
   const [topBtnTouchable, setTopBtnTouchable] = useState(false);
 
   const hideTopBtn = () => {
@@ -703,6 +899,7 @@ const { openChat, sendQuickMessage } = useChat();
       listener: (e: any) => {
         const y = e.nativeEvent.contentOffset.y;
         lastScrollYRef.current = y;
+
         if (settlingRef.current) {
           settleAnimRef.current?.stop();
           anchorRef.current = { p: progressRef.current, y };
@@ -716,15 +913,17 @@ const { openChat, sendQuickMessage } = useChat();
           : (y <= a.y ? 0 : (y - a.y) / (D - a.y));
         collapseProgress.setValue(Math.min(1, Math.max(0, p)));
         const lockY = tabsYRef.current - 14;
-        if (reelStyle === 'vertical' && tabsYRef.current > 0) {
+        if (mainTab !== 'podcast' && tabsYRef.current > 0) {
           setTabsPinned(y >= lockY);
           if (y > lockY + 2) tabsArmedRef.current = true;
         }
         if (Object.keys(pinnedLatestRef.current).length > 0 && Math.abs(y - pinScrollYRef.current) > 600) releasePins();
         const { contentSize, layoutMeasurement } = e.nativeEvent;
         if (y + layoutMeasurement.height >= contentSize.height - 600) loadMoreExplore();
-        if (y > TOP_BTN_THRESHOLD) showTopBtn();
-        else hideTopBtn();
+        const dyScroll = y - prevYRef.current;
+        prevYRef.current = y;
+        if (y > TOP_BTN_THRESHOLD && dyScroll < -2) showTopBtn();
+        else if (dyScroll > 2 || y <= TOP_BTN_THRESHOLD) hideTopBtn();
 
         if (y <= 0 && collapseStateRef.current !== 'expanded') {
           collapseStateRef.current = 'expanded';
@@ -747,6 +946,63 @@ const { openChat, sendQuickMessage } = useChat();
   const mainScrollRef = useRef<ScrollView>(null);
   const lastScrollYRef = useRef(0);
   const snapTimeoutRef = useRef<any>(null);
+
+    // ── Pull-to-refresh WITHOUT bounce ──
+  // The scroll view never overscrolls. While the page is at the very top we
+  // measure the finger drag and feed it to the PullLine instead.
+  const PULL_THRESHOLD = 70;
+  const PULL_FACTOR = 0.8; // lower = need to drag further
+  const pullY = useRef(new Animated.Value(0)).current; // 0 → -70, same shape PullLine expects
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const resetPull = () => {
+    Animated.timing(pullY, {
+      toValue: 0, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start();
+  };
+
+  const onPullTouchStart = (e: any) => {
+    const { pageX, pageY } = e.nativeEvent;
+    touchStartRef.current =
+      lastScrollYRef.current <= 0 && !refreshingRef.current ? { x: pageX, y: pageY } : null;
+    pullArmedRef.current = false;
+  };
+
+  const onPullTouchMove = (e: any) => {
+    const start = touchStartRef.current;
+    if (!start) return;
+    const dx = e.nativeEvent.pageX - start.x;
+    const dy = e.nativeEvent.pageY - start.y;
+    // mostly-horizontal drag (carousels, status row) → not a pull
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+      touchStartRef.current = null;
+      pullArmedRef.current = false;
+      pullY.setValue(0);
+      return;
+    }
+    if (dy <= 0) {
+      pullY.setValue(0);
+      pullArmedRef.current = false;
+      return;
+    }
+    pullY.setValue(-Math.min(PULL_THRESHOLD, dy * PULL_FACTOR));
+    const reached = dy * PULL_FACTOR >= PULL_THRESHOLD;
+    if (reached && !pullArmedRef.current) {
+      pullArmedRef.current = true;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } else if (!reached && pullArmedRef.current) {
+      pullArmedRef.current = false;
+    }
+  };
+
+  const onPullTouchEnd = () => {
+    if (!touchStartRef.current) return;
+    const shouldRefresh = pullArmedRef.current;
+    touchStartRef.current = null;
+    pullArmedRef.current = false;
+    resetPull();
+    if (shouldRefresh) doRefresh();
+  };
 
   const SNAP_COLLAPSE_AT = 0.6; // 40% away from fully collapsed
   const SNAP_EXPAND_AT = 0.4;   // 40% away from fully expanded
@@ -876,6 +1132,7 @@ useFocusEffect(
           const orderMap: Record<string, number> = {};
           stat.forEach((g, i) => { orderMap[String(g.user_id)] = i; });
           setStatusOrder(orderMap);
+          feedShuffleRef.current = {};
           const nextGroups = mergeGroups(mergeGroups(spot, stat), folRes.data || []);
 
           // Drop any cached "already loaded" ids for stories that are no
@@ -927,10 +1184,12 @@ useFocusEffect(
   };
 
   const patchStory = (id: string, patch: Partial<Story>) => {
-    setGroups((prev) => prev.map((g) => ({
+    const apply = (prev: StoryGroup[]) => prev.map((g) => ({
       ...g,
       stories: g.stories.map((s) => (s.id === id ? { ...s, ...patch } : s)),
-    })));
+    }));
+    setGroups(apply);
+    setReelList(apply);
   };
 
   const removeStory = (id: string) => {
@@ -1027,7 +1286,7 @@ useFocusEffect(
 
   const goToStory = (groupIdx: number, storyIdx: number, source: 'story' | 'spotlight' = viewerSource) => {
     setViewerSource(source);
-    const list = source === 'spotlight' ? spotlightList : statusList;
+    const list = source === 'spotlight' ? viewerSpotlight : statusList;
     const nextStory = list[groupIdx]?.stories[storyIdx];
     if (nextStory && pinnedLatestRef.current[String(nextStory.user_id)] === undefined) releasePins();
     if (nextStory && nextStory.media_type !== 'video') {
@@ -1051,6 +1310,11 @@ useFocusEffect(
       goToStory(activeGroupIndex, activeStoryIndex + 1);
     } else if (reelStyle === 'vertical') {
       if (group.stories.length === 1) {
+        const rs = group.stories[0];
+        const rd = storyDurationsRef.current[rs.id] ?? PHOTO_DURATION_MS;
+        if (rs.kind === 'spotlight') {
+          api.post(`/stories/${rs.id}/watch`, { watched_ms: rd, duration_ms: rd, completed: true, replay: true }).catch(() => {});
+        }
         setMediaReady(group.stories[0].media_type !== 'video');
         setReplayKey((k) => k + 1);
       } else {
@@ -1083,6 +1347,7 @@ useFocusEffect(
     if (activeGroupIndex === null) return;
     const nextIdx = (activeGroupIndex + direction + groups.length) % groups.length;
     goToStory(nextIdx, 0);
+    if (viewerSource === 'spotlight' && direction === 1 && nextIdx >= groups.length - 5) loadMoreReels();
   };
 
   // Deep-link: opened from a chat reply-to-story tap. If the story is
@@ -1190,6 +1455,18 @@ useFocusEffect(
     return [...sortedStatusItems].filter((i: any) => String(i.group.user_id) !== String(user?.id)).sort((a: any, b: any) =>
       (statusOrder[String(a.group.user_id)] ?? 9999) - (statusOrder[String(b.group.user_id)] ?? 9999));
   }, [sortedStatusItems, statusOrder]);
+    const FEED_STALE_MS = 30 * 60 * 1000;
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const feedShuffleRef = useRef<Record<string, number>>({});
+  const feedStale = useMemo(() => {
+    const newest = spotlightList.reduce(
+      (m, g) => Math.max(m, ...g.stories.map((s) => new Date(s.created_at).getTime())), 0);
+    return nowTick - newest > FEED_STALE_MS;
+  }, [spotlightList, nowTick]);
   // one post per person, newest activity first
   const feedItems = useMemo(() => (
     spotlightList
@@ -1203,12 +1480,114 @@ useFocusEffect(
         ))),
       }))
       .filter((i) => feedTab !== 'following' || !!i.group.is_following)
-      .sort((a, b) => (feedTab === 'foryou' ? a.groupIndex - b.groupIndex : b.latest - a.latest))
-  ), [spotlightList, pinnedLatest, feedTab]);
+      .sort((a, b) => {
+        if (shuffleKey === 0 && feedTab === 'foryou') return a.groupIndex - b.groupIndex;
+        if (shuffleKey > 0 || feedStale) {
+          const r = feedShuffleRef.current;
+          const ka = String(a.group.user_id), kb = String(b.group.user_id);
+          if (r[ka] === undefined) r[ka] = Math.random();
+          if (r[kb] === undefined) r[kb] = Math.random();
+          return r[ka] - r[kb];
+        }
+        return b.latest - a.latest;
+      })
+      .map((it, i, arr) => ({
+  ...it,
+  viewerIndex: arr.slice(0, i).reduce((n, x) => n + x.group.stories.length, 0),
+}))
+  ), [spotlightList, pinnedLatest, feedTab, feedStale, shuffleKey]);
+  const viewerSpotlight = reelList;
+  const groups = useMemo(() => {
+    const src = viewerSource === 'spotlight' ? viewerSpotlight : statusList;
+    const seenStories = new Set<string>();
+    return src
+      .map((g) => ({
+        ...g,
+        stories: g.stories.filter((s) => {
+          const k = String(s.id);
+          if (seenStories.has(k)) return false;
+          seenStories.add(k);
+          return true;
+        }),
+      }))
+      .filter((g) => g.stories.length > 0);
+  }, [viewerSource, viewerSpotlight, statusList]);
   totalExploreRef.current = reelStyle === 'vertical' ? feedItems.length : exploreStatusItems.length;
   const tabsLockY = tabsY - 14;
 
   const [screenFocused, setScreenFocused] = useState(true);
+
+  const reelsLoadingRef = useRef(false);
+  const loadMoreReels = async () => {
+    if (reelsLoadingRef.current) return;
+    reelsLoadingRef.current = true;
+    try {
+      const res = await api.get('/stories/reels', {
+        params: {
+          limit: 36,
+          content_type: contentFilter,
+          following: feedTab === 'following' ? 'true' : 'false',
+          exclude: reelList.map((g) => g.stories[0].id).join(','),
+        },
+      });
+      const have = new Set(reelList.map((g) => String(g.stories[0].id)));
+      const more: StoryGroup[] = (res.data || []).filter((g: StoryGroup) => !have.has(String(g.stories[0].id)));
+      if (more.length) {
+        setGroups((prev) => mergeGroups(prev, more));
+        setReelList((cur) => [...cur, ...more]);
+      }
+    } catch {}
+    finally { reelsLoadingRef.current = false; }
+  };
+
+  // Opens the full-screen viewer on one tapped post, then fills the rest
+  // of the viewer with the server-ranked posts.
+  const openReel = async (story: Story) => {
+    const owner = allGroups.find((g) => String(g.user_id) === String(story.user_id));
+    if (!owner) return;
+    if (story.media_type !== 'video') storyDurationsRef.current[story.id] = PHOTO_DURATION_MS;
+    setReelList([{ ...owner, stories: [story], allViewed: !!story.viewed }]);
+    setViewerSource('spotlight');
+    setActiveGroupIndex(0);
+    setActiveStoryIndex(0);
+    setMediaReady(story.media_type !== 'video' && loadedStoryIds.current.has(story.id));
+    try {
+      const res = await api.get('/stories/reels', {
+        params: { limit: 36, content_type: contentFilter, following: feedTab === 'following' ? 'true' : 'false' },
+      });
+      const ranked: StoryGroup[] = res.data || [];
+      setGroups((prev) => mergeGroups(prev, ranked));
+      setReelList((cur) => [
+        ...cur.slice(0, 1),
+        ...ranked.filter((g, i, arr) => String(g.stories[0].id) !== String(story.id) && arr.findIndex((x) => String(x.stories[0].id) === String(g.stories[0].id)) === i),
+      ]);
+    } catch {}
+  };
+
+  const handlersRef = useRef<any>({});
+handlersRef.current = {
+  goToStory, openReel, toggleFeedLike, toggleFeedRepost, markViewed, toggleFollow, openChat,
+  setCommentsStoryId, setExportStory, setPreviewGroup, userId: user?.id,
+};
+const feedHandlers = useMemo(() => ({
+  open: (gi: number, si: number) => handlersRef.current.goToStory(gi, si, 'spotlight'),
+  openReel: (s: Story) => handlersRef.current.openReel(s),
+  like: (s: Story) => handlersRef.current.toggleFeedLike(s),
+  repost: (s: Story) => handlersRef.current.toggleFeedRepost(s),
+  view: (s: Story) => handlersRef.current.markViewed(s),
+  comments: (s: Story) => {
+    const r = handlersRef.current;
+    if (s.comments_off && String(s.user_id) !== String(r.userId)) Toast.show({ type: 'error', text1: 'Comments are turned off' });
+    else r.setCommentsStoryId(s.id);
+  },
+  export: (s: Story) => handlersRef.current.setExportStory(s),
+  profile: (g: any) => handlersRef.current.setPreviewGroup(g),
+  follow: (g: any) => handlersRef.current.toggleFollow(g),
+  chat: (group: any, s: Story) => handlersRef.current.openChat({
+    sellerId: group.user_id, sellerName: group.user_name, draftMessage: '',
+    storyId: s.id, storyMediaUrl: s.media_url, storyMediaType: s.media_type, storyCaption: s.caption,
+  }),
+}), []);
 
   if (loading) {
     return <StoriesSkeleton colors={colors} />;
@@ -1472,7 +1851,11 @@ useFocusEffect(
         </View>
       </View>
 
-      {reelStyle === 'vertical' && statusList.length === 0 && spotlightAll.length === 0 ? (
+      {mainTab === 'podcast' ? (
+        <View style={{ flex: 1, marginTop: -14, backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
+          <PodcastTab colors={colors} mainTab={mainTab} onChange={changeMainTab} />
+        </View>
+      ) : reelStyle === 'vertical' && statusList.length === 0 && spotlightAll.length === 0 ? (
         <EmptyState colors={colors} onAdd={() => router.push('/stories/new')} />
       ) : (
         <View style={{ flex: 1, marginTop: -14 }}>
@@ -1484,7 +1867,14 @@ useFocusEffect(
           nestedScrollEnabled
           onScroll={handleScroll}
           scrollEventThrottle={16}
-          onScrollEndDrag={scheduleSnapCheck}
+          onScrollEndDrag={() => scheduleSnapCheck()}
+          bounces={false}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          onTouchStart={onPullTouchStart}
+          onTouchMove={onPullTouchMove}
+          onTouchEnd={onPullTouchEnd}
+          onTouchCancel={onPullTouchEnd}
           onMomentumScrollEnd={() => { clearTimeout(snapTimeoutRef.current); snapHeaderIfNeeded(); }}
           style={{
             backgroundColor: colors.background,
@@ -1497,32 +1887,23 @@ useFocusEffect(
               row so it's completely separate from products in Explore */}
           {(reelStyle !== 'vertical' || sortedStatusItems.length > 0 || spotlightAll.length > 0 || filterActive) && (
             <View style={{ marginTop: 20 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                  {reelStyle === 'vertical' && (
-                    <Flame size={22} color={colors.brand} strokeWidth={2.2} />
-                  )}
+                  {reelStyle === 'vertical'
+                    ? <Flame size={22} color={colors.brand} strokeWidth={2.2} />
+                    : <Sparkles size={22} color={colors.brand} strokeWidth={2.2} />}
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-                      {reelStyle === 'vertical' ? 'Feed' : (sortedStatusItems.some((i: any) => i.group.is_following) ? 'Following' : 'For You')}
+                      {reelStyle === 'vertical' ? 'Feed' : 'Stories'}
                     </Text>
-                    {reelStyle === 'vertical' && (
-                      <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
-                        Fresh posts from your campus
-                      </Text>
-                    )}
+                    <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
+                      {reelStyle === 'vertical' ? 'Fresh posts from your campus' : 'Moments from people around campus'}
+                    </Text>
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                  <Pressable
-                    onPress={() => setReelStyleOpen(true)}
-                    hitSlop={8}
-                  >
-                    <DevicePhoneMobileIcon size={18} color={theme === 'dark' ? '#f5b301' : '#b45309'} />
-                  </Pressable>
-                  {reelStyle === 'vertical' && (
+                  {mainTab !== 'podcast' && (
                     <>
-                      <Text style={{ marginHorizontal: 8, fontSize: 16, color: theme === 'dark' ? '#f5b301' : '#b45309' }}>|</Text>
                       <Pressable
                         onPress={() => setFilterOpen(true)}
                         hitSlop={8}
@@ -1543,6 +1924,23 @@ useFocusEffect(
                 </View>
               </View>
 
+            </View>
+          )}
+
+          <View
+            style={{ marginTop: 14 }}
+            onLayout={(e) => { tabsYRef.current = e.nativeEvent.layout.y; setTabsY(e.nativeEvent.layout.y); }}
+          >
+            <View style={{ flexDirection: 'row', marginBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <MainTabs mainTab={mainTab} colors={colors} onChange={changeMainTab} />
+            </View>
+            <View style={{ marginTop: -4, marginBottom: -3 }}>
+              <PullLine scrollY={pullY} refreshing={refreshing} colors={colors} />
+            </View>
+          </View>
+
+          {reelStyle !== 'vertical' && (
+            <View style={{ marginTop: 10 }}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -1553,7 +1951,7 @@ useFocusEffect(
                     key={item.id}
                     item={item}
                     colors={colors}
-                    onPress={() => goToStory(item.groupIndex, 0)}
+                    onPress={() => handlersRef.current.goToStory(item.groupIndex, 0)}
                   />
                 ))}
               </ScrollView>
@@ -1594,7 +1992,6 @@ useFocusEffect(
           {reelStyle === 'vertical' && (
             <View
               style={{ marginTop: 20 }}
-              onLayout={(e) => { tabsYRef.current = e.nativeEvent.layout.y; setTabsY(e.nativeEvent.layout.y); }}
             >
 <View style={{ flexDirection: 'row', marginBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
   <FeedTabs
@@ -1609,33 +2006,15 @@ useFocusEffect(
                 </Text>
               )}
               {feedItems.slice(0, visibleCount).map((item) => (
-                <FeedPost
-                  key={item.id}
-                  item={item}
-                  colors={colors}
-                  isOwn={String(item.group.user_id) === String(user?.id)}
-                  scrollY={scrollY}
-                  onOpen={(storyIndex) => goToStory(item.groupIndex, storyIndex, 'spotlight')}
-                  onLike={(story) => toggleFeedLike(story)}
-                  onRepost={(story) => toggleFeedRepost(story)}
-                  viewerOpen={activeGroupIndex !== null || !screenFocused}
-                  onView={(story) => markViewed(story)}
-                  onComments={(story) => story.comments_off && String(story.user_id) !== String(user?.id)
-                    ? Toast.show({ type: 'error', text1: 'Comments are turned off' })
-                    : setCommentsStoryId(story.id)}
-                  onExport={(story) => setExportStory(story)}
-                  onOpenProfile={(group) => setPreviewGroup(group)}
-                  onFollow={(group) => toggleFollow(group)}
-                  onChat={(story) => openChat({
-                    sellerId: item.group.user_id,
-                    sellerName: item.group.user_name,
-                    draftMessage: '',
-                    storyId: story.id,
-                    storyMediaUrl: story.media_url,
-                    storyMediaType: story.media_type,
-                    storyCaption: story.caption,
-                  })}
-                />
+<FeedPost
+  key={item.id}
+  item={item}
+  colors={colors}
+  isOwn={String(item.group.user_id) === String(user?.id)}
+  scrollY={scrollY}
+  viewerOpen={activeGroupIndex !== null || !screenFocused}
+  h={feedHandlers}
+/>
               ))}
             </View>
           )}
@@ -1655,7 +2034,7 @@ useFocusEffect(
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                             {exploreStatusItems.slice(0, visibleCount).map((item: any) => (
                 <View key={item.id} style={{ width: (SCREEN_WIDTH - 8 * 2 - 8) / 2 }}>
-                  <ExploreStoryCard item={item} onPress={() => goToStory(item.groupIndex, 0)} />
+                  <ExploreStoryCard item={item} onPress={() => handlersRef.current.goToStory(item.groupIndex, 0)} />
                 </View>
               ))}
             </View>
@@ -1665,7 +2044,7 @@ useFocusEffect(
           )}
         </Animated.ScrollView>
 
-        {reelStyle === 'vertical' && (
+        {mainTab !== 'podcast' && (
           <Animated.View
             pointerEvents={tabsPinned ? 'auto' : 'none'}
             style={{
@@ -1681,11 +2060,7 @@ useFocusEffect(
             }}
           >
 <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-              <FeedTabs
-                feedTab={feedTab}
-                colors={colors}
-                onChange={(key) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFeedTab(key); setVisibleCount(PAGE_SIZE); }}
-              />
+              <MainTabs mainTab={mainTab} colors={colors} onChange={changeMainTab} />
             </View>
           </Animated.View>
         )}
@@ -1747,77 +2122,7 @@ useFocusEffect(
         colors={colors}
         onClose={() => setCommentsStoryId(null)}
         onCountChange={(id, count) => patchStory(id, { comment_count: count })}
-      />
-
-      {/* Reel style picker */}
-      <Modal
-        visible={reelStyleOpen}
-        transparent
-        animationType="none"
-        onRequestClose={() => setReelStyleOpen(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Pressable
-            onPress={() => setReelStyleOpen(false)}
-            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          />
-          <Animated.View
-            style={{
-              backgroundColor: colors.card,
-              borderTopLeftRadius: 28, borderTopRightRadius: 28,
-              paddingHorizontal: 20, paddingTop: 12,
-              paddingBottom: insets.bottom + 20,
-              transform: [{ translateY: reelDrag.translateY }],
-            }}
-          >
-            <View {...reelDrag.panHandlers} style={{ paddingBottom: 14 }}>
-              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 16 }} />
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>View mode</Text>
-                  <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>
-                    Choose how you move through stories.
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => setReelStyleOpen(false)}
-                  style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.brand }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>Done</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16, justifyContent: 'center' }}>
-              {([
-                { key: 'horizontal', label: 'Following Statuses', desc: 'View statuses from people you follow' },
-                { key: 'vertical', label: 'Spotlight Feed', desc: 'Explore posts from everyone on campus' },
-              ] as const).map((s) => {
-                const active = reelStyle === s.key;
-                return (
-                  <Pressable
-                    key={s.key}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setReelStyle(s.key);
-                      AsyncStorage.setItem('reel_style_v1', s.key).catch(() => {});
-                    }}
-                    style={{
-                      width: '46%', padding: 10, borderRadius: 14,
-                      backgroundColor: active ? colors.brandSoft : 'transparent',
-                      borderWidth: 1.5, borderColor: active ? colors.brand : colors.border,
-                    }}
-                  >
-                    <ReelStyleSkeleton direction={s.key} colors={colors} />
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 9 }}>{s.label}</Text>
-                    <Text style={{ fontSize: 13, lineHeight: 15, color: colors.textMuted, marginTop: 3 }}>{s.desc}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
+      /> 
 
       {/* Content type filter */}
       <Modal
@@ -1989,17 +2294,47 @@ useFocusEffect(
         animationType="fade"
         onRequestClose={() => setActiveGroupIndex(null)}
       >
-        {activeGroupIndex !== null && (
+        {activeGroupIndex !== null && !!groups[activeGroupIndex] && (
           <StoryViewerLocal
             group={groups[activeGroupIndex]}
             story={groups[activeGroupIndex].stories[activeStoryIndex]}
             durationMs={
               storyDurationsRef.current[groups[activeGroupIndex].stories[activeStoryIndex].id]
-              ?? PHOTO_DURATION_MS
+              ?? (groups[activeGroupIndex].stories[activeStoryIndex].kind === 'story'
+                ? (groups[activeGroupIndex].stories[activeStoryIndex].media_type === 'image' &&
+                  groups[activeGroupIndex].stories[activeStoryIndex].music_start_ms != null &&
+                  groups[activeGroupIndex].stories[activeStoryIndex].music_end_ms != null
+                  ? Math.min(30000, Math.max(1000,
+                    groups[activeGroupIndex].stories[activeStoryIndex].music_end_ms! -
+                    groups[activeGroupIndex].stories[activeStoryIndex].music_start_ms!))
+                  : PHOTO_DURATION_MS)
+                : MAX_VIDEO_DURATION_MS)
             }
             mediaReady={mediaReady}
             replayKey={replayKey}
             reelStyle={reelStyle}
+            feedTab={feedTab}
+            onFeedTabChange={(key: 'all' | 'foryou' | 'following') => {
+              if (key === feedTab) return true;
+              if (key === 'following' && !spotlightList.some((g) => g.is_following)) {
+                Toast.show({ type: 'error', text1: 'Follow people to see their posts here' });
+                return false;
+              }
+              setFeedTab(key);
+              setVisibleCount(PAGE_SIZE);
+              setActiveGroupIndex(0);
+              api.get('/stories/reels', {
+                params: { limit: 36, content_type: contentFilter, following: key === 'following' ? 'true' : 'false' },
+              }).then((res) => {
+                const list: StoryGroup[] = res.data || [];
+                setGroups((prev) => mergeGroups(prev, list));
+                if (list.length) setReelList(list);
+              }).catch(() => {});
+              setActiveStoryIndex(0);
+              setMediaReady(false);
+              setReplayKey((k) => k + 1);
+              return true;
+            }}
             onPatch={patchStory}
             onRemoveStory={removeStory}
             onArchive={removeStory}
@@ -2013,8 +2348,13 @@ useFocusEffect(
                 loadedStoryIds.current.add(currentStory.id);
                 if (typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0) {
                   storyDurationsRef.current[currentStory.id] = Math.min(durationMs, MAX_VIDEO_DURATION_MS);
-                } else if (!storyDurationsRef.current[currentStory.id]) {
-                  storyDurationsRef.current[currentStory.id] = PHOTO_DURATION_MS;
+                } else if (currentStory.kind === 'story' && !storyDurationsRef.current[currentStory.id]) {
+                  storyDurationsRef.current[currentStory.id] = currentStory.media_type === 'image' &&
+                    currentStory.music_start_ms != null && currentStory.music_end_ms != null
+                    ? Math.min(30000, Math.max(1000, currentStory.music_end_ms - currentStory.music_start_ms))
+                    : PHOTO_DURATION_MS;
+                } else if (currentStory.kind !== 'story') {
+                  storyDurationsRef.current[currentStory.id] = MAX_VIDEO_DURATION_MS;
                 }
               }
               setMediaReady(true);
@@ -2109,7 +2449,13 @@ function SegmentedRingSvg({
 }
 
 // ─── GRADIENT RING ───────────────────────────────────────────────────
-function GradientRing({
+const GradientRing = memo(GradientRingInner, (a: any, b: any) =>
+  !!a.group && a.group === b.group && a.colors === b.colors &&
+  a.viewed === b.viewed && a.size === b.size && a.segments === b.segments &&
+  a.dashed === b.dashed && a.plan === b.plan &&
+  (a.storiesViewed || []).join() === (b.storiesViewed || []).join());
+
+function GradientRingInner({
   viewed, storiesViewed, plan, colors, children, size = RING_SIZE, segments = 1, group, dashed,
 }: {
   viewed: boolean; storiesViewed?: boolean[]; plan?: 'pro' | 'premium'; colors: any; children?: React.ReactNode;
@@ -2284,7 +2630,13 @@ function SpotlightVideo({ uri }: { uri: string }) {
 }
 
 // ─── STATUS CARD (story preview, half the Spotlight card size) ──────
-function StatusCard({
+const StatusCard = memo(StatusCardInner, (a: any, b: any) =>
+  a.colors === b.colors && a.item.story === b.item.story &&
+  a.item.group.user_name === b.item.group.user_name &&
+  a.item.group.user_avatar === b.item.group.user_avatar &&
+  a.item.group.user_plan === b.item.group.user_plan);
+
+function StatusCardInner({
   item, colors, onPress,
 }: { item: any; colors: any; onPress: () => void }) {
   const { story, group } = item;
@@ -2366,7 +2718,9 @@ function StatusCard({
   );
 }
 
-function ExploreStoryCard({ item, onPress }: { item: any; onPress: () => void }) {
+const ExploreStoryCard = memo(ExploreStoryCardInner, (a: any, b: any) => a.item.story === b.item.story);
+
+function ExploreStoryCardInner({ item, onPress }: { item: any; onPress: () => void }) {
   const { story } = item;
   return (
     <Pressable
@@ -2437,25 +2791,63 @@ function StoryGroupPreview({ group }: { group?: StoryGroup }) {
   );
 }
 
+const focusHub = {
+  subs: new Set<() => void>(),
+  last: 0,
+  trailing: null as any,
+  id: null as string | null,
+  sv: null as Animated.Value | null,
+  add(sv: Animated.Value, fn: () => void) {
+    this.subs.add(fn);
+    if (!this.id) {
+      this.sv = sv;
+      this.id = sv.addListener(() => {
+        const now = Date.now();
+        if (now - this.last >= 100) { this.last = now; this.subs.forEach((f) => f()); }
+        clearTimeout(this.trailing);
+        this.trailing = setTimeout(() => this.subs.forEach((f) => f()), 150);
+      });
+    }
+    return () => {
+      this.subs.delete(fn);
+      if (this.subs.size === 0 && this.id) {
+        this.sv!.removeListener(this.id);
+        this.id = null;
+        clearTimeout(this.trailing);
+      }
+    };
+  },
+};
+
 // ─── FEED POST (one post per person, swipe sideways through their stories) ───
 // ─── FEED POST (one post per person, swipe sideways through their stories) ───
-function FeedPost({
-  item, colors, onOpen, onLike, onChat, isOwn, scrollY, onComments, onExport, onRepost, viewerOpen, onOpenProfile, onFollow, onView,
+function samePost(a: any, b: any) {
+  if (a.colors !== b.colors || a.viewerOpen !== b.viewerOpen || a.isOwn !== b.isOwn || a.h !== b.h) return false;
+  if (a.item.groupIndex !== b.item.groupIndex || a.item.viewerIndex !== b.item.viewerIndex) return false;
+  const ga = a.item.group, gb = b.item.group;
+  if (ga.user_id !== gb.user_id || ga.is_following !== gb.is_following || ga.user_name !== gb.user_name ||
+      ga.user_avatar !== gb.user_avatar || ga.user_plan !== gb.user_plan || ga.is_seller !== gb.is_seller) return false;
+  if (ga.stories.length !== gb.stories.length) return false;
+  return ga.stories.every((s: Story, i: number) => s === gb.stories[i]);
+}
+
+const FeedPost = memo(FeedPostInner, samePost);
+
+function FeedPostInner({
+  item, colors, isOwn, scrollY, viewerOpen, h,
 }: {
-  viewerOpen: boolean;
-  onView: (story: Story) => void;
-  item: any; colors: any; scrollY: Animated.Value;
-  onOpen: (storyIndex: number) => void;
-  onLike: (story: Story) => void;
-  onChat: (story: Story) => void;
-  onComments: (story: Story) => void;
-  onExport: (story: Story) => void;
-  onRepost: (story: Story) => void;
-  onOpenProfile: (group: any) => void;
-  onFollow: (group: any) => void;
-  isOwn: boolean;
+  item: any; colors: any; scrollY: Animated.Value; isOwn: boolean; viewerOpen: boolean; h: any;
 }) {
   const { group } = item;
+  const onOpen = (i: number) => h.openReel(group.stories[i]);
+  const onLike = h.like;
+  const onRepost = h.repost;
+  const onView = h.view;
+  const onComments = h.comments;
+  const onExport = h.export;
+  const onOpenProfile = h.profile;
+  const onFollow = h.follow;
+  const onChat = (s: Story) => h.chat(group, s);
   const router = useRouter();
   const stories: Story[] = group.stories;
   const [index, setIndex] = useState(0);
@@ -2470,7 +2862,7 @@ function FeedPost({
   const CORNER_R = 18;
   const [iconsW, setIconsW] = useState(0);
   const STORE_W = iconsW > 0 ? SCREEN_WIDTH - 16 - iconsW - CORNER_R + 8 : 110;
-  const fullH = SCREEN_WIDTH - 84 + ACTION_H;
+  const fullH = SCREEN_WIDTH - 22 + ACTION_H;
   const [expanded, setExpanded] = useState(false);
     const [repostersOpen, setRepostersOpen] = useState(false);
   const [panelTop, setPanelTop] = useState(0);
@@ -2485,7 +2877,7 @@ function FeedPost({
   };
   const [inFocus, setInFocus] = useState(false);
   const [scrolledAway, setScrolledAway] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const postRef = useRef<View>(null);
   const awayCheckRef = useRef(0);
   const [burst, setBurst] = useState<{ id: number; x: number; y: number } | null>(null);
@@ -2508,27 +2900,20 @@ function FeedPost({
   // a post is "in focus" when its centre sits in the middle band of the screen,
   // so only one post can ever qualify at a time
   useEffect(() => {
-    let trailing: any;
     const measure = () => {
-      postRef.current?.measureInWindow((_x, y, _w, h) => {
-        if (!h) return;
-        const center = y + h / 2;
+      postRef.current?.measureInWindow((_x, y, _w, ph) => {
+        if (!ph) return;
+        const center = y + ph / 2;
         setInFocus(center > SCREEN_HEIGHT * 0.3 && center < SCREEN_HEIGHT * 0.7);
-        setScrolledAway(y + h < -50 || y > SCREEN_HEIGHT + 50);
+        setScrolledAway(y + ph < -50 || y > SCREEN_HEIGHT + 50);
       });
     };
-    const id = scrollY.addListener(() => {
-      const now = Date.now();
-      if (now - awayCheckRef.current >= 100) { awayCheckRef.current = now; measure(); }
-      clearTimeout(trailing);
-      trailing = setTimeout(measure, 150); // catches the final resting position
-    });
-    const init = setTimeout(measure, 300);   // initial check, no scroll needed
-    return () => { scrollY.removeListener(id); clearTimeout(trailing); clearTimeout(init); };
+    const remove = focusHub.add(scrollY, measure);
+    const init = setTimeout(measure, 300);
+    return () => { remove(); clearTimeout(init); };
   }, []);
-
   // each time a video scrolls away, it starts muted again next time
-  useEffect(() => { if (scrolledAway) setMuted(true); }, [scrolledAway]);
+  useEffect(() => { if (scrolledAway) setMuted(false); }, [scrolledAway]);
 
   return (
     <View ref={postRef} collapsable={false} style={{ paddingTop: 20 }}>
@@ -2560,12 +2945,22 @@ function FeedPost({
             <PlanBadge plan={group.user_plan} size={14} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ fontSize: 16, color: colors.textMuted }}>·</Text>
-              <Play size={14} color={colors.textMuted} />
+              <Play size={11} color={colors.textMuted} fill={colors.textMuted} />
               <Text style={{ fontSize: 16, color: colors.textMuted }}>{formatCount(story.view_count ?? 0)}</Text>
             </View>
           </View>
 
-          {!!story.caption && (
+          {!!musicName(story.music_url) && (
+            <CaptionMusicRow
+              caption={story.caption}
+              music={musicName(story.music_url)!}
+              expanded={expanded}
+              onToggle={() => setExpanded((e) => !e)}
+              onMusicPress={() => router.push({ pathname: '/sound/[id]', params: { id: 'music', url: story.music_url! } } as any)}
+              colors={colors}
+            />
+          )}
+          {!!story.caption && !musicName(story.music_url) && (
             <Pressable onPress={() => setExpanded((e) => !e)}>
               <Text
                 numberOfLines={expanded ? undefined : 1}
@@ -2584,6 +2979,7 @@ function FeedPost({
               colors={colors}
               onFollow={() => onFollow(group)}
               onChat={() => onChat(story)}
+              showChat={story.chat_allowed !== false}
             />
           </View>
         )}
@@ -2748,7 +3144,9 @@ function FeedPost({
               color={story.liked ? '#ef4444' : '#fff'}
               fill={story.liked ? '#ef4444' : 'transparent'}
             />
-            <Text style={[stat, story.liked && { color: '#ef4444' }]}>{formatCount(story.like_count ?? 0)}</Text>
+                        {(story.likes_visible !== false || isOwn) && (
+              <Text style={[stat, story.liked && { color: '#ef4444' }]}>{formatCount(story.like_count ?? 0)}</Text>
+            )}
           </Pressable>
           {!story.comments_off && (
             <Pressable onPress={() => onComments(story)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -2756,11 +3154,11 @@ function FeedPost({
               <Text style={stat}>{formatCount(story.comment_count ?? 0)}</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => onRepost(story)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Pressable onPress={() => onRepost(story)} hitSlop={8} style={{ display: story.repost_allowed === false && !isOwn ? 'none' : 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Repeat size={18} color={story.reposted ? '#22c55e' : '#fff'} />
             <Text style={[stat, story.reposted && { color: '#22c55e' }]}>{formatCount(story.repost_count ?? 0)}</Text>
           </Pressable>
-          <Pressable onPress={() => onExport(story)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Pressable onPress={() => onExport(story)} hitSlop={8} style={{ display: story.export_allowed === false && !isOwn ? 'none' : 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Send size={17} color="#fff" />
             <Text style={stat}>{formatCount(story.export_count ?? 0)}</Text>
           </Pressable>
@@ -2791,20 +3189,37 @@ function FeedPost({
 // Overlapping top-4 reposter avatars (feed only)
 function RepostStack({ story, colors, onPress }: { story: Story; colors: any; onPress: () => void }) {
   const list = (story.top_reposters || []).slice(0, 4);
+  const floats = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
+  useEffect(() => {
+    const loops = floats.map((f, i) => {
+      f.setValue(0);
+      return Animated.loop(
+        Animated.timing(f, { toValue: 1, duration: 2400 + i * 450, easing: Easing.linear, useNativeDriver: true })
+      );
+    });
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, []);
   if (list.length === 0) return null;
   const SIZE = 22;
   const OVERLAP = 8;
   return (
     <Pressable onPress={onPress} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Text style={{ fontSize: 13, fontWeight: '800', color: colors.brand, marginRight: 6 }}>Reposted by:</Text>
+      <Text style={{ fontSize: 13, fontWeight: '800', color: colors.brand, marginRight: 6 }}>Reposted :</Text>
       {list.map((p, i) => (
-        <View
+        <Animated.View
           key={p.id}
           style={{
             width: SIZE, height: SIZE, borderRadius: SIZE / 2, overflow: 'hidden',
             marginLeft: i === 0 ? 0 : -OVERLAP, zIndex: list.length - i,
             borderWidth: 2, borderColor: colors.background, backgroundColor: colors.chipBg,
             alignItems: 'center', justifyContent: 'center',
+            transform: [{ translateY: floats[i].interpolate({
+              inputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
+              outputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1].map(
+                (t) => 2 * Math.sin(2 * Math.PI * (t + [0, 0.5, 0.25, 0.75][i]))
+              ),
+            }) }],
           }}
         >
           {p.avatar ? (
@@ -2812,7 +3227,7 @@ function RepostStack({ story, colors, onPress }: { story: Story; colors: any; on
           ) : (
             <Text style={{ fontSize: 11, fontWeight: '800', color: colors.brand }}>{p.name?.[0]?.toUpperCase() || '?'}</Text>
           )}
-        </View>
+        </Animated.View>
       ))}
     </Pressable>
   );
@@ -2962,7 +3377,7 @@ function FeedVideo({
   // already buffering (preloaded) long before it scrolls into view.
   const player = useVideoPlayer({ uri, useCaching: true }, (p) => {
     p.loop = true;
-    p.muted = true;
+    p.muted = false;
   });
   const [appActive, setAppActive] = useState(AppState.currentState === 'active');
   const playingRef = useRef(false);
@@ -3021,11 +3436,13 @@ function FeedVideo({
 
 // ─── REEL ACTION (icon + count, right column in vertical mode) ───────
 function ReelAction({
-  icon, count, onPress,
-}: { icon: React.ReactNode; count?: string; onPress?: () => void }) {
+  icon, count, onPress, hidden,
+}: { icon: React.ReactNode; count?: string; onPress?: () => void; hidden?: boolean }) {
   return (
-    <Pressable onPress={onPress} hitSlop={8} style={{ alignItems: 'center', gap: 4 }}>
-      {icon}
+    <Pressable onPress={onPress} hitSlop={8} style={{ alignItems: 'center', gap: 4, display: hidden ? 'none' : 'flex' }}>
+      <View style={{ shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+        {icon}
+      </View>
       {!!count && (
         <Text
           style={{
@@ -3041,9 +3458,12 @@ function ReelAction({
 }
 
 // ─── SPOTLIGHT PREVIEW MODAL (from feed avatar/name tap) ────────────
+// ─── SPOTLIGHT PREVIEW MODAL (from feed avatar/name tap) ────────────
 function SpotlightPreviewModal({
   group, colors, onClose, onOpenProfile,
 }: { group: any; colors: any; onClose: () => void; onOpenProfile: (g: any) => void }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [followers, setFollowers] = useState(0);
   useEffect(() => {
     if (!group?.user_id) return;
@@ -3053,88 +3473,162 @@ function SpotlightPreviewModal({
   }, [group?.user_id]);
   if (!group) return null;
   const spotlightCount = (group.stories || []).filter((s: any) => (s.kind ?? 'story') === 'spotlight').length;
+
+  const CARD_R = 28;
+
+  // Glass shell: real liquid glass on iOS 26+, frosted blur everywhere else
+  const Shell = ({ children }: { children: React.ReactNode }) =>
+    GLASS ? (
+      <GlassView
+        glassEffectStyle="regular"
+        style={{ borderRadius: CARD_R, overflow: 'hidden' }}
+      >
+        {children}
+      </GlassView>
+    ) : (
+      <View
+        style={{
+          borderRadius: CARD_R, overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.6)',
+          backgroundColor: isDark ? 'rgba(30,30,34,0.55)' : 'rgba(255,255,255,0.55)',
+        }}
+      >
+        <BlurView
+          intensity={isDark ? 60 : 80}
+          tint={isDark ? 'dark' : 'light'}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+        {children}
+      </View>
+    );
+
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
         onPress={onClose}
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}
       >
         <Pressable
           onPress={(e) => e.stopPropagation?.()}
-          style={{
-            width: '100%', maxWidth: 380,
-            backgroundColor: colors.card,
-            borderRadius: 20, overflow: 'hidden',
-            borderWidth: 1, borderColor: colors.border,
-          }}
+          style={{ width: '100%', maxWidth: 380 }}
         >
-          <View style={{ height: 130, position: 'relative', backgroundColor: colors.chipBg }}>
-            {group.user_avatar && (
-              <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-            )}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} />
-            <Pressable
-              onPress={onClose}
-              hitSlop={12}
-              style={{ position: 'absolute', top: 8, right: 8, padding: 6, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.5)' }}
-            >
-              <X size={16} color="#fff" />
-            </Pressable>
-          </View>
-
-          <View style={{ paddingHorizontal: 16, marginTop: -36 }}>
-            <View
-              style={{
-                width: 72, height: 72, borderRadius: 36, overflow: 'hidden',
-                backgroundColor: colors.chipBg, borderWidth: 4, borderColor: colors.card,
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              {group.user_avatar ? (
-                <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-              ) : (
-                <Text style={{ fontSize: 24, fontWeight: '800', color: colors.brand }}>
-                  {group.user_name?.[0]?.toUpperCase() || '?'}
-                </Text>
+          <Shell>
+            {/* Cover: the avatar, softened so the glass reads over it */}
+            <View style={{ height: 130, position: 'relative' }}>
+              {group.user_avatar && (
+                <Image
+                  source={{ uri: group.user_avatar }}
+                  style={{ width: '100%', height: '100%' }}
+                  contentFit="cover"
+                  blurRadius={GLASS ? 0 : 6}
+                />
               )}
-            </View>
-          </View>
+              <LinearGradient
+                colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0)']}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              />
 
-          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text numberOfLines={1} style={{ flex: 1, fontSize: 20, fontWeight: '800', color: colors.text }}>
-                {group.user_name}
+              {/* Glass close button */}
+              <Pressable
+                onPress={onClose}
+                hitSlop={12}
+                style={{ position: 'absolute', top: 10, right: 10 }}
+              >
+                {GLASS ? (
+                  <GlassView
+                    glassEffectStyle="regular"
+                    isInteractive
+                    style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+                  >
+                    <X size={16} color={colors.text} />
+                  </GlassView>
+                ) : (
+                  <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <X size={16} color="#fff" />
+                  </View>
+                )}
+              </Pressable>
+            </View>
+
+            {/* Avatar overlapping the cover */}
+            <View style={{ paddingHorizontal: 18, marginTop: -36 }}>
+              <View
+                style={{
+                  width: 72, height: 72, borderRadius: 36, overflow: 'hidden',
+                  backgroundColor: colors.chipBg,
+                  borderWidth: 3, borderColor: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.85)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {group.user_avatar ? (
+                  <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                ) : (
+                  <Text style={{ fontSize: 24, fontWeight: '800', color: colors.brand }}>
+                    {group.user_name?.[0]?.toUpperCase() || '?'}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            <View style={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 20, fontWeight: '800', color: colors.text }}>
+                  {group.user_name}
+                </Text>
+                <PlanBadge plan={group.user_plan} size={14} />
+              </View>
+              <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 3 }}>
+                {formatCount(followers)} {followers === 1 ? 'follower' : 'followers'}
               </Text>
-              <PlanBadge plan={group.user_plan} size={14} />
+              <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}>
+                {spotlightCount} {spotlightCount === 1 ? 'spotlight post' : 'spotlight posts'}
+              </Text>
             </View>
-            <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 3 }}>
-              {formatCount(followers)} {followers === 1 ? 'follower' : 'followers'}
-            </Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}>
-              {spotlightCount} {spotlightCount === 1 ? 'spotlight post' : 'spotlight posts'}
-            </Text>
-          </View>
 
-          <Pressable
-            onPress={() => onOpenProfile(group)}
-            style={{
-              paddingVertical: 14, backgroundColor: colors.brand,
-              alignItems: 'center', justifyContent: 'center',
-              flexDirection: 'row', gap: 6,
-            }}
-          >
-            <Text style={{ color: colors.textOnGold, fontSize: 16, fontWeight: '800' }}>
-              View full profile
-            </Text>
-            <ChevronRight size={16} color={colors.textOnGold} strokeWidth={2.6} />
-          </Pressable>
+            {/* Glass CTA, inset from the card edges */}
+            <View style={{ paddingHorizontal: 14, paddingBottom: 14 }}>
+              <Pressable onPress={() => onOpenProfile(group)}>
+                {GLASS ? (
+                  <GlassView
+                    glassEffectStyle="regular"
+                    isInteractive
+                    tintColor={colors.brand}
+                    style={{
+                      paddingVertical: 14, borderRadius: 18, overflow: 'hidden',
+                      alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
+                    }}
+                  >
+                    <Text style={{ color: colors.textOnGold, fontSize: 16, fontWeight: '800' }}>
+                      View full profile
+                    </Text>
+                    <ChevronRight size={16} color={colors.textOnGold} strokeWidth={2.6} />
+                  </GlassView>
+                ) : (
+                  <View
+                    style={{
+                      paddingVertical: 14, borderRadius: 18, backgroundColor: colors.brand,
+                      alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
+                    }}
+                  >
+                    <Text style={{ color: colors.textOnGold, fontSize: 16, fontWeight: '800' }}>
+                      View full profile
+                    </Text>
+                    <ChevronRight size={16} color={colors.textOnGold} strokeWidth={2.6} />
+                  </View>
+                )}
+              </Pressable>
+            </View>
+          </Shell>
         </Pressable>
       </Pressable>
     </Modal>
   );
 }
 
-function BoostCard({ item, onPress }: { item: any; onPress: () => void }) {
+const BoostCard = memo(BoostCardInner, (a: any, b: any) => a.item === b.item);
+
+function BoostCardInner({ item, onPress }: { item: any; onPress: () => void }) {
   const colors = useColors();
   const isService = (item.category || item.category_name) === 'Services';
   const min = parseFloat(item.price) || 0;
@@ -3212,7 +3706,6 @@ function BoostedCarousel({ items, onLock, hapticsOn = true }: { items: any[]; on
       listener: (e: any) => {
         const i = Math.max(0, Math.min(data.length - 1, Math.round(e.nativeEvent.contentOffset.x / BOOST_STEP)));
         if (i !== activeRef.current) {
-          if (hapticsOnRef.current && i % n !== activeRef.current % n) Haptics.selectionAsync();
           activeRef.current = i;
           setActive(i);
         }
@@ -3385,12 +3878,14 @@ function RocketLaunch({ color }: { color: string }) {
 // ─── FULL-SCREEN VIEWER ──────────────────────────────────────────────
 export function StoryViewerLocal({
   group, story, durationMs, mediaReady, isOwnStory, onMediaReady, onClose, onBack, onNext,
-  onSwipeNextGroup, onSwipePrevGroup, prevGroup, nextGroup,onReply, onQuickReact, notice, reelStyle, onPatch, onRepost, replayKey, onRemoveStory, onRemoveUser, onFollow, onArchive,
+  onSwipeNextGroup, onSwipePrevGroup, prevGroup, nextGroup,onReply, onQuickReact, notice, reelStyle, feedTab, onFeedTabChange, onPatch, onRepost, replayKey, onRemoveStory, onRemoveUser, onFollow, onArchive,
 }: any) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colors = useColors();
   const isVertical = reelStyle === 'vertical';
+  const isStaticFeedImage = story.kind === 'spotlight' && story.media_type === 'image';
+  const hasSound = story.media_type === 'video' || !!story.sound;
   const [exportOpen, setExportOpen] = useState(false);
   const [followDone, setFollowDone] = useState(false);
 const followTimerRef = useRef<any>(null);
@@ -3403,8 +3898,21 @@ const handleFollowTap = () => {
   followTimerRef.current = setTimeout(() => setFollowDone(false), 1000);
 };
 const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
+const openProfile = () => {
+  const uid = group.user_id;
+  onClose();
+  setTimeout(() => router.push({ pathname: '/SpotlightProfile', params: { userId: uid, guest: '1' } }), 300);
+};
+  const openSound = () => {
+    const sid = story.sound?.id ?? story.id;
+    onClose();
+    setTimeout(() => router.push({ pathname: '/sound/[id]', params: { id: String(sid) } } as any), 300);
+  };
   const [reportOpen, setReportOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [postSettingsOpen, setPostSettingsOpen] = useState(false);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
+  useEffect(() => { setCaptionExpanded(false); }, [story.id]);
   const [captionDraft, setCaptionDraft] = useState(story.caption ?? '');
   const [savingCaption, setSavingCaption] = useState(false);
   const [reportStep, setReportStep] = useState<'menu' | 'reasons'>('menu');
@@ -3421,8 +3929,8 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
     setReportOpen(false);
     try {
       await api.post(`/stories/${story.id}/hide`);
-      onRemoveStory?.(story.id);
-      Toast.show({ type: 'success', text1: "Got it, you'll see less like this" });
+      showToast("Got it, you'll see less like this");
+      setTimeout(() => onRemoveStory?.(story.id), 1000);
     } catch {
       showToast("Couldn't hide post");
     }
@@ -3440,8 +3948,8 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
           onPress: async () => {
             try {
               await api.post(`/stories/block/${group.user_id}`);
-              onRemoveUser?.(group.user_id);
-              Toast.show({ type: 'success', text1: 'User blocked' });
+              showToast('User blocked');
+              setTimeout(() => onRemoveUser?.(group.user_id), 1000);
             } catch {
               showToast("Couldn't block user");
             }
@@ -3460,8 +3968,8 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
         onPress: async () => {
           try {
             await api.delete(`/stories/${story.id}`);
-            onRemoveStory?.(story.id);
-            Toast.show({ type: 'success', text1: 'Post deleted' });
+            showToast('Post deleted');
+            setTimeout(() => onRemoveStory?.(story.id), 1000);
           } catch {
             showToast("Couldn't delete post");
           }
@@ -3479,8 +3987,8 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
         onPress: async () => {
           try {
             await api.patch(`/stories/${story.id}/archive`, { archived: true });
-            onArchive?.(story.id);
-            Toast.show({ type: 'success', text1: 'Post archived' });
+            showToast('Post archived');
+            setTimeout(() => onArchive?.(story.id), 1000);
           } catch {
             showToast("Couldn't archive post");
           }
@@ -3503,13 +4011,22 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
     setSavingCaption(true);
     try {
       const res = await api.patch(`/stories/${story.id}/caption`, { caption: captionDraft });
-      onPatch?.(story.id, { caption: res.data.caption });
+      onPatch?.(story.id, { caption: res.data?.caption ?? captionDraft });
       setEditOpen(false);
       showToast('Caption updated');
     } catch {
       showToast("Couldn't update caption");
     } finally {
       setSavingCaption(false);
+    }
+  };
+
+  const updatePostSetting = async (key: keyof PostSettingsT, value: boolean | undefined) => {
+    try {
+      const res = await api.patch(`/stories/${story.id}/settings`, { [key]: value ?? null });
+      onPatch?.(story.id, res.data);
+    } catch {
+      showToast("Couldn't update setting");
     }
   };
 
@@ -3765,6 +4282,28 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
     onNext();
   };
 
+  // Tell the server how much of each Spotlight post was watched
+  const durForWatchRef = useRef(durationMs);
+  durForWatchRef.current = durationMs;
+  useLayoutEffect(() => {
+    if (!isVertical || story.kind !== 'spotlight') return;
+    const anim = barAnims[currentIndex];
+    if (!anim) return;
+    let frac = 0;
+    const listenerId = anim.addListener(({ value }: { value: number }) => { frac = value; });
+    const storyId = story.id;
+    return () => {
+      anim.removeListener(listenerId);
+      if (frac < 0.02) return;
+      const dur = durForWatchRef.current;
+      api.post(`/stories/${storyId}/watch`, {
+        watched_ms: Math.round(frac * dur),
+        duration_ms: dur,
+        completed: frac >= 0.95,
+      }).catch(() => {});
+    };
+  }, [story.id]);
+
   // useLayoutEffect (not useEffect) so the reset happens before paint —
   // no one-frame flash of a stale fill amount.
   useLayoutEffect(() => {
@@ -3781,6 +4320,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
     if (!current) return;
     current.setValue(0);
     if (!mediaReady) return;
+    if (isStaticFeedImage) return;
 
     currentAnimRef.current = Animated.timing(current, {
       toValue: 1,
@@ -3796,7 +4336,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
       currentAnimRef.current?.stop();
       clearTimeout(advanceTimerRef.current);
     };
-  }, [currentIndex, mediaReady, group.user_id, replayKey]);
+  }, [currentIndex, mediaReady, group.user_id, replayKey, isStaticFeedImage]);
 
   // ── Swipe-down-to-dismiss / swipe left-right to switch story groups ──
   const DISMISS_THRESHOLD = 120;
@@ -3808,7 +4348,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
   const slideY = useRef(new Animated.Value(0)).current;
   useLayoutEffect(() => {
     slideY.setValue(0);
-  }, [group.user_id]);
+  }, [group.user_id, story.id]);
   const HORIZONTAL_TRANSITION_MS = 320;
   const CIRCLE_SIZE = SCREEN_WIDTH * 0.45;
   const shrink = Animated.add(translateY, dragX);
@@ -4158,6 +4698,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
   const seekRef = useRef<((f: number) => void) | null>(null);
   const scrubActiveRef = useRef(false);
   const scrubStartRef = useRef(0);
+  const scrubDxRef = useRef(0);
   const scrubTimerRef = useRef<any>(null);
   const scrubCtx = useRef<any>({});
   const nStories = group.stories.length;
@@ -4166,7 +4707,7 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
   const scrubLeft = isVertical
     ? currentIndex * (vSegW + 3)
     : 10 + currentIndex * (barWidth + BAR_GAP);
-  scrubCtx.current = { segW: scrubSegW, i: currentIndex, anims: barAnims };
+  scrubCtx.current = { segW: scrubSegW, left: scrubLeft, i: currentIndex, anims: barAnims };
 
   const scrubEnd = () => {
     clearTimeout(scrubTimerRef.current);
@@ -4174,33 +4715,68 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
     scrubActiveRef.current = false;
     setIsScrubbing(false); // un-pausing resumes from the bar's current value
   };
+  const scrubXRef = useRef(0);
+  const applyScrub = (x: number) => {
+    const { segW, left, i, anims } = scrubCtx.current;
+    const f = Math.min(1, Math.max(0, (x - left) / segW));
+    anims[i].setValue(f);
+    seekRef.current?.(f);
+  };
   const scrubPan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: () => {
+    onPanResponderGrant: (_e, g) => {
+      scrubXRef.current = g.x0;
       scrubTimerRef.current = setTimeout(() => {
         const { anims, i } = scrubCtx.current;
-        anims[i].stopAnimation((v: number) => { scrubStartRef.current = v; });
+        anims[i].stopAnimation();
         scrubActiveRef.current = true;
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setIsScrubbing(true);
+        applyScrub(scrubXRef.current);
       }, 250);
     },
     onPanResponderMove: (_e, g) => {
+      scrubXRef.current = g.moveX;
       if (!scrubActiveRef.current) return;
-      const { segW, i, anims } = scrubCtx.current;
-      const f = Math.min(1, Math.max(0, scrubStartRef.current + g.dx / segW));
-      anims[i].setValue(f);
-      seekRef.current?.(f);
+      applyScrub(g.moveX);
     },
     onPanResponderRelease: scrubEnd,
     onPanResponderTerminate: scrubEnd,
   })).current;
 
-  const barPaused = isPaused || isTyping || commentsOpen || exportOpen || reportOpen || isScrubbing;
+  const barPaused = isPaused || isTyping || commentsOpen || exportOpen || reportOpen || isScrubbing || postSettingsOpen;
   const barPausedRef = useRef(false);
   barPausedRef.current = barPaused;
+  const VIEWER_TABS = [
+    { key: 'all', label: 'All' },
+    { key: 'foryou', label: 'For You' },
+    { key: 'following', label: 'Following' },
+  ] as const;
+  const [tabsOpen, setTabsOpen] = useState(false);
+  const tabsAnim = useRef(new Animated.Value(0)).current;
+  const tabsCloseTimerRef = useRef<any>(null);
+  useEffect(() => () => clearTimeout(tabsCloseTimerRef.current), []);
+  const setTabsMenu = (open: boolean) => {
+    clearTimeout(tabsCloseTimerRef.current);
+    setTabsOpen(open);
+    Animated.timing(tabsAnim, {
+      toValue: open ? 1 : 0,
+      duration: open ? 220 : 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+  const pickViewerTab = (key: 'all' | 'foryou' | 'following') => {
+    if (key === feedTab) { setTabsMenu(false); return; }
+    const ok = onFeedTabChange?.(key);
+    Haptics.notificationAsync(
+      ok === false ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Success
+    );
+    clearTimeout(tabsCloseTimerRef.current);
+    tabsCloseTimerRef.current = setTimeout(() => setTabsMenu(false), 250);
+  };
   const firstPauseRun = useRef(true);
   useEffect(() => {
     if (firstPauseRun.current) {
@@ -4218,894 +4794,1010 @@ const showFollowBadge = !isOwnStory && (!group.is_following || followDone);
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-    {upcoming
-      .filter((s) => s.media_type === 'video')
-      .slice(0, 3)
-      .map((s) => (
-        <VideoPreloader key={s.id} uri={s.media_url} />
-      ))}
-    <Animated.View
-      {...panResponder.panHandlers}
-      style={{
-        width: maskWidth,
-        height: maskHeight,
-        borderRadius: maskRadius,
-        overflow: 'hidden',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#000',
-        opacity: dragOpacity,
-        transform: [{ translateY }],
-      }}
-    >
-    <Animated.View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, transform: [{ translateY: slideY }] }}>
-      {isVertical && (
-        <>
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: -SCREEN_HEIGHT, width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-            <StoryGroupPreview group={prevGroup} />
-          </View>
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: SCREEN_HEIGHT, width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-            <StoryGroupPreview group={nextGroup} />
-          </View>
-        </>
-      )}
-      <View
-        pointerEvents="none"
-        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Animated.View
-          style={{
-            position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: prevR,
-            opacity: prevOpacity, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
-            transform: [{ translateX: prevShiftX }, { scale: prevScale }],
-          }}
-        >
-          <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-            <StoryGroupPreview group={prevGroup} />
-          </View>
-        </Animated.View>
-        <Animated.View
-          style={{
-            position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: nextR,
-            opacity: nextOpacity, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
-            transform: [{ translateX: nextShiftX }, { scale: nextScale }],
-          }}
-        >
-          <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-            <StoryGroupPreview group={nextGroup} />
-          </View>
-        </Animated.View>
-      </View>
-
-      <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
+      {upcoming
+        .filter((s: any) => s.media_type === 'video')
+        .slice(0, 3)
+        .map((s: any) => (
+          <VideoPreloader key={s.id} uri={s.media_url} />
+        ))}
       <Animated.View
+        {...panResponder.panHandlers}
         style={{
-          width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: curR, opacity: curOpacity,
-          overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
-          transform: [{ translateX: curShiftX }, { scale: curScale }],
-        }}
-      >
-      <AnimatedKeyboardAvoidingView
-        style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, paddingBottom: keyboardHeight }}
-      >
-        {/* Media area — flex:1 so it stops above the reply bar instead of
-            running full-screen underneath it */}
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
-          {story.media_type === 'video' ? (
-           <StoryVideoPlayer
-  key={story.id}
-  uri={story.media_url}
-  onReady={onMediaReady}
-  paused={barPaused}
-  seekRef={seekRef}
-  trimStartMs={story.trim_start_ms}
-  trimEndMs={story.trim_end_ms}
-  crop={story.crop}
-/>
-          ) : (
-            <View key={`${story.id}-${replayKey}`} style={{ width: '100%', height: '100%' }}>
-              <GapFill
-                aspect={imgAspect}
-                render={() => (
-                  <Image source={{ uri: story.media_url }} style={{ width: '100%', height: '100%' }} contentFit="fill" />
-                )}
-              />
-              <Image
-                source={{ uri: story.media_url }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="contain"
-                onLoad={(e: any) => {
-                  if (e?.source?.width && e?.source?.height) setImgAspect(e.source.width / e.source.height);
-                  onMediaReady();
-                }}
-              />
-            </View>
-          )}
-
-          {!!story.text_overlay && <ViewerTextOverlay overlay={story.text_overlay} />}
-
-          {!mediaReady && <DelayedLoader key={story.id} delay={500} />}
-
-          {/* ── Horizontal (stories) mode: top bars + header ── */}
-          {!isVertical && (
-            <>
-              <View
-                onLayout={(e) => setBarRowWidth(e.nativeEvent.layout.width)}
-                style={{
-                  position: 'absolute',
-                  top: insets.top + 10,
-                  left: 10, right: 10,
-                  flexDirection: 'row',
-                  gap: BAR_GAP,
-                  opacity: isPaused ? 0 : 1,
-                }}
-              >
-                {group.stories.map((_: any, i: number) => (
-                  <View
-                    key={i}
-                    style={{
-                      flex: 1, height: isScrubbing && i === currentIndex ? 8 : 3, borderRadius: 4,
-                      backgroundColor: 'rgba(255,255,255,0.3)',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {barWidth > 0 && (
-                      <Animated.View
-                        style={{
-                          width: barWidth,
-                          height: '100%',
-                          backgroundColor: '#fff',
-                          borderRadius: 2,
-                          transform: [{
-                            translateX: barAnims[i].interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [-barWidth, 0],
-                              extrapolate: 'clamp',
-                            }),
-                          }],
-                        }}
-                      />
-                    )}
-                  </View>
-                ))}
-              </View>
-
-              <View
-                style={{
-                  position: 'absolute',
-                  top: insets.top + 24,
-                  left: 16, right: 16,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 10,
-                  opacity: isPaused ? 0 : 1,
-                }}
-              >
-                <LinearGradient
-                  colors={['#f59e0b', '#ef4444', '#a855f7']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{ width: 36, height: 36, borderRadius: 18, padding: 2 }}
-                >
-                  <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000' }}>
-                    {group.user_avatar && (
-                      <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                    )}
-                  </View>
-                </LinearGradient>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, fontWeight: '800', color: '#fff' }}>
-                      {group.user_name}
-                    </Text>
-                    <PlanBadge plan={group.user_plan} size={13} />
-                  </View>
-                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                    {relativeTime(story.created_at)}
-                  </Text>
-                  <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={11} />
-                </View>
-                <Pressable onPress={onClose} style={{ padding: 6 }}>
-                  <X size={22} color="#fff" />
-                </Pressable>
-              </View>
-            </>
-          )}
-
-          {/* Tap zones */}
-          <Pressable
-            onPressIn={() => { handlePressIn(); startHoldWatch(); }}
-            onPressOut={(e) => { clearTimeout(holdTimerRef.current); handlePressOutSide('back', e.nativeEvent.pageX, e.nativeEvent.pageY); }}
-            style={{
-              position: 'absolute',
-              top: insets.top + 70, bottom: 0,
-              left: 0, width: SCREEN_WIDTH * 0.5,
-            }}
-          />
-          <Pressable
-            onPressIn={() => { handlePressIn(); startHoldWatch(); }}
-            onPressOut={(e) => { clearTimeout(holdTimerRef.current); handlePressOutSide('next', e.nativeEvent.pageX, e.nativeEvent.pageY); }}
-            style={{
-              position: 'absolute',
-              top: insets.top + 70, bottom: 0,
-              right: 0, width: SCREEN_WIDTH * 0.5,
-            }}
-          />
-
-          <HeartBurst burst={burst} />
-
-          {story.media_type === 'video' && mediaReady && scrubSegW > 0 && (
-            <View
-              {...scrubPan.panHandlers}
-              style={{
-                position: 'absolute',
-                left: scrubLeft, width: scrubSegW,
-                ...(isVertical
-                  ? { bottom: 0, height: 16 }
-                  : { top: insets.top - 4, height: 28 }),
-              }}
-            />
-          )}
-
-          {!!story.product_tag && (
-            <ViewerProductTag
-              tag={story.product_tag}
-              onPress={() => {
-                const pid = story.product_tag.product_id;
-                onClose();
-                setTimeout(() => router.push(`/product/${pid}`), 300);
-              }}
-            />
-          )}
-
-          {/* Centered caption (horizontal mode only) */}
-          {!isVertical && story.caption && (
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: insets.top + 80,
-                bottom: isOwnStory ? insets.bottom + 20 : 16,
-                left: 24, right: 24,
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: getCaptionFontSize(story.caption),
-                  lineHeight: getCaptionFontSize(story.caption) * 1.3,
-                  fontWeight: '700',
-                  color: '#fff',
-                  textAlign: 'center',
-                  textShadowColor: 'rgba(0,0,0,0.75)',
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 6,
-                }}
-              >
-                {story.caption}
-              </Text>
-            </View>
-          )}
-
-          {/* ── Vertical (Instagram reel) mode overlays ── */}
-          {isVertical && (
-            <View
-              pointerEvents={isHolding ? 'none' : 'box-none'}
-              style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: isHolding ? 0 : 1 }}
-            >
-
-              {/* Paused play icon */}
-              {isPaused && (
-                <View
-                  pointerEvents="none"
-                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Play size={32} color="#fff" fill="#fff" />
-                  </View>
-                </View>
-              )}
-
-{keyboardHeight === 0 && (
-  <View style={{ position: 'absolute', right: 12, bottom: 16, alignItems: 'center', gap: 20 }}>
-    {/* Avatar + follow badge */}
-    <View style={{ marginBottom: 14, width: 38, height: 38 }}>
-      <View
-        style={{
-          width: 38, height: 38, borderRadius: 19, overflow: 'hidden',
-          borderWidth: 2, borderColor: '#fff', backgroundColor: colors.chipBg,
-          alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {group.user_avatar ? (
-          <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-        ) : (
-          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand }}>
-            {group.user_name?.[0]?.toUpperCase() || '?'}
-          </Text>
-        )}
-      </View>
-      {showFollowBadge && (
-        <Pressable
-          onPress={handleFollowTap}
-          hitSlop={8}
-          style={{
-            position: 'absolute', bottom: -9, alignSelf: 'center',
-            width: 22, height: 22, borderRadius: 11,
-            backgroundColor: followDone ? '#22c55e' : colors.brand,
-            borderWidth: 2, borderColor: '#000',
-            alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          {followDone
-            ? <Check size={12} color="#fff" strokeWidth={3.5} />
-            : <Plus size={12} color={colors.textOnGold} strokeWidth={3.5} />}
-        </Pressable>
-      )}
-    </View>
-
-    <ReelAction
-      icon={<Heart size={28} color={liked ? '#ef4444' : '#fff'} fill={liked ? '#ef4444' : 'transparent'} />}
-      count={formatCount(likeCount)}
-      onPress={toggleLike}
-    />
-    {!story.comments_off && (
-      <ReelAction
-        icon={<MessageCircle size={27} color="#fff" />}
-        count={formatCount(commentCount)}
-        onPress={openComments}
-      />
-    )}
-    <ReelAction
-      icon={<Repeat size={27} color={story.reposted ? '#22c55e' : '#fff'} />}
-      count={formatCount(story.repost_count ?? 0)}
-      onPress={() => onRepost?.(story)}
-    />
-    <ReelAction icon={<Send size={26} color="#fff" />} count={formatCount(story.export_count ?? 0)} onPress={openExport} />
-    <ReelAction icon={<MoreHorizontal size={26} color="#fff" />} onPress={() => { setReportStep('menu'); setReportOpen(true); }} />
-  </View>
-)}
-
-              {/* Bottom-left: Watch pill, user row + Follow, caption */}
-              <View
-                pointerEvents="box-none"
-                style={{ position: 'absolute', left: 16, right: 76, bottom: 16, gap: 12 }}
-              >
-<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-  <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 20, fontWeight: '800', color: '#fff' }}>
-    {group.user_name}
-  </Text>
-  <PlanBadge plan={group.user_plan} size={15} />
-  {!isOwnStory && (
-    <Pressable
-      hitSlop={8}
-      onPress={() => onReply('')}
-      style={{
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)',
-        paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10,
-      }}
-    >
-      <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Chat</Text>
-    </Pressable>
-  )}
-</View>
-
-                {!!story.caption && (
-                  <Text
-                    numberOfLines={2}
-                    style={{
-                      fontSize: 16, lineHeight: 19, color: '#fff',
-                      textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
-                    }}
-                  >
-                    {story.caption}
-                  </Text>
-                )}
-
-                                <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={12} />
-              </View>
-
-              {/* Segmented thin progress line */}
-              <View
-                pointerEvents="none"
-                style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 8, flexDirection: 'row', alignItems: 'flex-end', gap: 3 }}
-              >
-                {group.stories.map((_: any, i: number) => {
-                  const segW = (SCREEN_WIDTH - 3 * (group.stories.length - 1)) / group.stories.length;
-                  return (
-                    <View
-                      key={i}
-                      style={{ width: segW, height: isScrubbing && i === currentIndex ? 8 : 2, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.3)' }}
-                    >
-                      <Animated.View
-                        style={{
-                          width: segW, height: '100%', backgroundColor: '#fff',
-                          transform: [{
-                            translateX: barAnims[i].interpolate({
-                              inputRange: [0, 1], outputRange: [-segW, 0], extrapolate: 'clamp',
-                            }),
-                          }],
-                        }}
-                      />
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-        </View>
-
-        {toastMsg && (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: insets.top + 70,
-              left: 0, right: 0,
-              alignItems: 'center',
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: 'rgba(0,0,0,0.8)',
-                borderWidth: 1,
-                borderColor: colors.brand,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 999,
-              }}
-            >
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{toastMsg}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Divider between caption and reply bar (horizontal mode only) */}
-        {!isOwnStory && !isVertical && (
-          <View
-            style={{
-              height: 2,
-              backgroundColor: colors.border,
-              marginHorizontal: 16,
-              marginTop: 10,
-              marginBottom: 6,
-              borderRadius: 1,
-            }}
-          />
-        )}
-
-        {/* Reply bar — a real, solid-background footer, not an overlay */}
-        {(!isOwnStory || isVertical) && (
-  <View
-    style={{
-      backgroundColor: isVertical ? '#0b0d10' : '#000',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 14,
-      paddingTop: isVertical ? 12 : 8,
-      paddingBottom: keyboardHeight > 0 ? 10 : insets.bottom + 10,
-    }}
-  >
-    <View
-      style={{
-        flex: 1,
-        height: isVertical ? 44 : 38,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderRadius: isVertical ? 22 : 19,
-        borderWidth: 1.5,
-        borderColor: colors.brand,
-        backgroundColor: 'transparent',
-        paddingHorizontal: 18,
-      }}
-    >
-      {isVertical && (
-        <Pressable
-          onPress={openComments}
-          style={{ flex: 1, height: '100%', justifyContent: 'center' }}
-        >
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16 }}>{story.comments_off && !isOwnStory ? 'Comments are turned off' : 'Add comment...'}</Text>
-        </Pressable>
-      )}
-      <TextInput
-        ref={replyInputRef}
-        value={replyText}
-        onChangeText={setReplyText}
-        onFocus={handleReplyFocus}
-        onBlur={handleReplyBlur}
-        placeholder={isVertical ? 'Add comment...' : `Send message to ${group.user_name.split(' ')[0]}...`}
-        placeholderTextColor="rgba(255,255,255,0.6)"
-        style={isVertical ? { display: 'none' } : { flex: 1, color: '#fff', fontSize: 16 }}
-        returnKeyType="send"
-        onSubmitEditing={handleSendReply}
-        blurOnSubmit={false}
-      />
-      {!replyText.trim() && !isVertical && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginLeft: 8 }}>
-{['❤️', '😂', '🔥', '👏'].map((emoji) => (
-  <EmojiReact key={emoji} emoji={emoji} onSend={handleQuickReact}/>
-))}
-        </View>
-      )}
-    </View>
-
-    {(!isVertical || !!replyText.trim()) && (
-      <Pressable
-        onPress={handleSendReply}
-        disabled={!replyText.trim()}
-        style={{
-          width: 38, height: 38, borderRadius: 19,
-          alignItems: 'center', justifyContent: 'center',
-          backgroundColor: replyText.trim() ? colors.brand : 'rgba(255,255,255,0.14)',
-        }}
-      >
-        <Send size={18} color={replyText.trim() ? colors.textOnGold : 'rgba(255,255,255,0.5)'} />
-      </Pressable>
-    )}
-  </View>
-)}
-      </AnimatedKeyboardAvoidingView>
-      </Animated.View>
-      </View>
-    </Animated.View>
-    </Animated.View>
-
-    {isVertical && (
-      <Animated.View
-        pointerEvents="box-none"
-        style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 60,
+          width: maskWidth,
+          height: maskHeight,
+          borderRadius: maskRadius,
+          overflow: 'hidden',
+          backgroundColor: '#000',
           opacity: dragOpacity,
+          transform: [{ translateY }],
         }}
       >
-        <View
-          pointerEvents="box-none"
-          style={{ flex: 1, opacity: isHolding ? 0 : 1 }}
-        >
-          <Pressable
-            onPress={onClose}
-            hitSlop={12}
-            style={{ position: 'absolute', top: insets.top + 10, left: 12, padding: 6, zIndex: 2 }}
-          >
-            <ChevronLeft size={28} color="#fff" />
-          </Pressable>
+        <Animated.View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, transform: [{ translateY: slideY }] }}>
           <View
             pointerEvents="none"
-            style={{
-              position: 'absolute', top: insets.top + 10, left: 0, right: 0,
-              height: 40, alignItems: 'center', justifyContent: 'center',
-            }}
+            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text style={{ fontSize: 23, fontWeight: '800', color: '#fff' }}>Feed</Text>
-          </View>
-        </View>
-      </Animated.View>
-    )}
-
-    {!!exportText && (
-      <View
-        pointerEvents="none"
-        style={{ position: 'absolute', top: insets.top + 70, left: 0, right: 0, alignItems: 'center' }}
-      >
-        <View
-          style={{
-            backgroundColor: 'rgba(0,0,0,0.8)', borderWidth: 1, borderColor: colors.brand,
-            paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{exportText}</Text>
-        </View>
-      </View>
-    )}
-
-    {exportOpen && <ExportSheet isImage={story.media_type !== 'video'} onClose={() => setExportOpen(false)} onPick={handleExport} />}
-
-    {reportOpen && reportStep === 'menu' && (
-      <PostOptionsSheet
-        isOwn={isOwnStory}
-        commentsOff={!!story.comments_off}
-        onClose={() => setReportOpen(false)}
-        onReport={() => setReportStep('reasons')}
-        onHide={hidePost}
-        onBlock={blockUser}
-        onDelete={deletePost}
-        onArchive={archivePost}
-        onEdit={editCaption}
-        onToggleComments={toggleComments}
-      />
-    )}
-
-    <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1, justifyContent: 'flex-end' }}
-      >
-        <Pressable
-          onPress={() => setEditOpen(false)}
-          style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        />
-        <Animated.View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingTop: 12, paddingBottom: insets.bottom + 20, transform: [{ translateY: editDrag.translateY }] }}>
-          <View {...editDrag.panHandlers} style={{ paddingTop: 8, paddingBottom: 14 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
-          </View>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 12 }}>Edit caption</Text>
-          <TextInput
-            value={captionDraft}
-            onChangeText={setCaptionDraft}
-            multiline
-            maxLength={500}
-            autoFocus
-            placeholder="Add a caption..."
-            placeholderTextColor={colors.textMuted}
-            style={{ minHeight: 100, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, color: colors.text, fontSize: 16, textAlignVertical: 'top' }}
-          />
-          <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: 5 }}>{captionDraft.length}/500</Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-            <Pressable onPress={() => setEditOpen(false)} style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>Cancel</Text>
-            </Pressable>
-            <Pressable onPress={saveCaption} disabled={savingCaption} style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.brand, alignItems: 'center', opacity: savingCaption ? 0.6 : 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textOnGold }}>{savingCaption ? 'Saving...' : 'Save'}</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
-      </KeyboardAvoidingView>
-    </Modal>
-
-    {reportOpen && reportStep === 'reasons' && (
-      <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' }}>
-        <Pressable
-          onPress={() => setReportOpen(false)}
-          style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        />
-        <Animated.View
-          style={{
-            backgroundColor: colors.card,
-            borderTopLeftRadius: 28, borderTopRightRadius: 28,
-            paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 20,
-            transform: [{ translateY: reportDrag.translateY }],
-          }}
-        >
-          <View {...reportDrag.panHandlers} style={{ paddingTop: 12, paddingBottom: 16, marginTop: -12 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Report this post</Text>
-              <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, marginBottom: 8 }}>
-                Why are you reporting it?
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => setReportStep('menu')}
-              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.brand }}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>Back</Text>
-            </Pressable>
-          </View>
-          {REPORT_REASONS.map((r, i) => (
-            <Pressable
-              key={r}
-              onPress={() => sendReport(r)}
+            <Animated.View
               style={{
-                paddingVertical: 15,
-                borderBottomWidth: i === REPORT_REASONS.length - 1 ? 0 : 1,
-                borderBottomColor: colors.border,
+                position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: prevR,
+                opacity: prevOpacity, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+                transform: [{ translateX: prevShiftX }, { scale: prevScale }],
               }}
             >
-              <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text }}>{r}</Text>
-            </Pressable>
-          ))}
-        </Animated.View>
-      </View>
-    )}
-
-    {commentsOpen && (
-      <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' }}>
-        <Pressable
-          onPress={() => { Keyboard.dismiss(); setCommentsOpen(false); }}
-          style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        />
-        <Animated.View
-          style={{
-            height: SCREEN_HEIGHT * 0.6,
-            backgroundColor: colors.card,
-            borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            paddingTop: 12,
-            paddingBottom: keyboardHeight > 0 ? 10 : insets.bottom + 10,
-            transform: [{ translateY: sheetDrag.translateY }],
-          }}
-        >
-          <View {...sheetDrag.panHandlers} style={{ paddingTop: 12, paddingBottom: 8, marginTop: -12 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 }} />
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, paddingHorizontal: 16 }}>
-              Comments{commentCount > 0 ? ` (${formatCount(commentCount)})` : ''}
-            </Text>
+              <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
+                <StoryGroupPreview group={prevGroup} />
+              </View>
+            </Animated.View>
+            <Animated.View
+              style={{
+                position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: nextR,
+                opacity: nextOpacity, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+                transform: [{ translateX: nextShiftX }, { scale: nextScale }],
+              }}
+            >
+              <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
+                <StoryGroupPreview group={nextGroup} />
+              </View>
+            </Animated.View>
           </View>
-
-          <View style={{ flex: 1 }} onStartShouldSetResponder={() => { Keyboard.dismiss(); return false; }}>
-            {commentsLoading ? (
-              <ActivityIndicator color={colors.brand} style={{ marginTop: 24 }} />
-            ) : comments.length === 0 ? (
-              <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 15, marginTop: 28 }}>
-                No comments yet. Be the first.
-              </Text>
-            ) : (
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingBottom: 8 + keyboardHeight }}
-              >
-                {comments.map((c: any) => (
-                  <View key={c.id} style={{ flexDirection: 'row', gap: 10 }}>
-                    <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.chipBg }}>
-                      {c.user_avatar ? (
-                        <Image source={{ uri: c.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                      ) : (
-                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand }}>
-                            {c.user_name?.[0]?.toUpperCase() || '?'}
-                          </Text>
-                        </View>
+          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View
+              style={{
+                width: SCREEN_WIDTH, height: SCREEN_HEIGHT, borderRadius: curR, opacity: curOpacity,
+                overflow: 'hidden', transform: [{ translateX: curShiftX }, { scale: curScale }],
+              }}
+            >
+              <View style={{ flex: 1, backgroundColor: '#000', paddingBottom: isVertical ? keyboardHeight : 0 }}>
+              <View style={{ flex: 1, backgroundColor: '#000' }}>
+                {story.media_type === 'video' ? (
+                  <StoryVideoPlayer
+                    key={`${story.id}-${replayKey}`}
+                    uri={story.media_url}
+                    onReady={onMediaReady}
+                    paused={barPaused}
+                    seekRef={seekRef} muted={!!story.sound}
+                    trimStartMs={story.trim_start_ms}
+                    trimEndMs={story.trim_end_ms}
+                    crop={story.crop}
+                  />
+                ) : (
+                  <View key={`${story.id}-${replayKey}`} style={{ width: '100%', height: '100%' }}>
+                   <GapFill
+                      aspect={imgAspect}
+                      render={() => (
+                        <Image source={{ uri: story.media_url }} style={{ width: '100%', height: '100%' }} contentFit="fill" />
                       )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
-                        {c.user_name}{String(c.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
-                        <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(c.created_at)}</Text>
-                      </Text>
-                      <Text style={{ fontSize: 16, color: colors.text, marginTop: 2 }}>{c.text}</Text>
-                      {!!c.pinned && (
-                        <View style={{ position: 'absolute', top: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Pin size={11} color={colors.brand} fill={colors.brand} />
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>Pinned</Text>
-                        </View>
-                      )}
-
-                      <Pressable
-                        onPress={() => toggleCommentLike(c)}
-                        hitSlop={8}
-                        style={{ position: 'absolute', right: 0, top: c.pinned ? 18 : 0, alignItems: 'center', gap: 1 }}
+                    />
+                    <Image
+                      source={{ uri: story.media_url }}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="contain"
+                      onLoad={(e: any) => {
+                        if (e?.source?.width && e?.source?.height) setImgAspect(e.source.width / e.source.height);
+                        onMediaReady();
+                      }}
+                    />
+                  </View>
+                )}
+                {!!story.text_overlay && <ViewerTextOverlay overlay={story.text_overlay} />}
+{!!story.sound && mediaReady && (
+  <SoundTrack key={`sound-${story.id}-${replayKey}`} sound={story.sound} paused={barPaused} />
+)}
+{!!story.music_url && mediaReady && (
+  <MusicTrack
+    key={`music-${story.id}-${replayKey}`}
+    url={story.music_url}
+    startMs={story.music_start_ms}
+    endMs={story.music_end_ms}
+    paused={barPaused}
+  />
+)}
+                {!mediaReady && <DelayedLoader delay={500} />}
+                {!isVertical && !isStaticFeedImage && (
+                  <View
+                    onLayout={(e) => setBarRowWidth(e.nativeEvent.layout.width)}
+                    style={{
+                      position: 'absolute',
+                      top: insets.top + 10,
+                      left: 10, right: 10,
+                      flexDirection: 'row',
+                      gap: BAR_GAP,
+                      opacity: isPaused ? 0 : 1,
+                    }}
+                  >
+                    {group.stories.map((_: any, i: number) => (
+                      <View
+                        key={i}
+                        style={{
+                          flex: 1, height: isScrubbing && i === currentIndex ? 8 : 3, borderRadius: 4,
+                          backgroundColor: 'rgba(255,255,255,0.3)',
+                          overflow: 'hidden',
+                        }}
                       >
-                        <Heart size={15} color={c.liked ? '#ef4444' : colors.textMuted} fill={c.liked ? '#ef4444' : 'transparent'} />
-                        {(c.like_count ?? 0) > 0 && (
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: c.liked ? '#ef4444' : colors.textMuted }}>{formatCount(c.like_count)}</Text>
-                        )}
-                      </Pressable>
-
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                        <Pressable
-                          onPress={() => { setReplyTo({ id: c.id, name: c.user_name }); commentInputRef.current?.focus(); }}
-                          hitSlop={8}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                        >
-                          <Reply size={13} color={colors.textMuted} />
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Reply</Text>
-                        </Pressable>
-                        {isOwner && (
-                          <>
-                            <Text style={{ fontSize: 14, color: colors.textMuted }}>·</Text>
-                            <Pressable onPress={() => togglePin(c)} hitSlop={8}>
-                              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>{c.pinned ? 'Unpin' : 'Pin'}</Text>
-                            </Pressable>
-                          </>
-                        )}
-                        {(c.reply_count ?? 0) > 0 && (
-                          <>
-                            <Text style={{ fontSize: 14, color: colors.textMuted }}>·</Text>
-                            <Pressable onPress={() => toggleReplies(c.id)} hitSlop={8}>
-                              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>
-                                {openReplies[c.id]
-                                  ? 'Hide replies'
-                                  : `View ${c.reply_count} ${c.reply_count === 1 ? 'reply' : 'replies'}`}
-                              </Text>
-                            </Pressable>
-                          </>
+                        {barWidth > 0 && (
+                          <Animated.View
+                            style={{
+                              width: barWidth,
+                              height: '100%',
+                              backgroundColor: '#fff',
+                              borderRadius: 2,
+                              transform: [{
+                                translateX: barAnims[i].interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [-barWidth, 0],
+                                  extrapolate: 'clamp',
+                                }),
+                              }],
+                            }}
+                          />
                         )}
                       </View>
-
-                      {openReplies[c.id] && (
-                        <View style={{ marginTop: 10, gap: 12 }}>
-                          {repliesLoading[c.id] && !repliesById[c.id] && (
-                            <ActivityIndicator color={colors.brand} />
-                          )}
-                          {(repliesById[c.id] || []).map((r: any) => (
-                            <View key={r.id} style={{ flexDirection: 'row', gap: 8 }}>
-                              <View style={{ width: 24, height: 24, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.chipBg }}>
-                                {r.user_avatar ? (
-                                  <Image source={{ uri: r.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                                ) : (
-                                  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                                    <Text style={{ fontSize: 12, fontWeight: '800', color: colors.brand }}>
-                                      {r.user_name?.[0]?.toUpperCase() || '?'}
-                                    </Text>
-                                  </View>
-                                )}
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
-                                  {r.user_name}{String(r.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
-                                  <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(r.created_at)}</Text>
-                                </Text>
-                                <Text style={{ fontSize: 16, color: colors.text, marginTop: 2 }}>{r.text}</Text>
-                                <Pressable
-                                  onPress={() => toggleCommentLike(r, c.id)}
-                                  hitSlop={8}
-                                  style={{ position: 'absolute', right: 0, top: 0, alignItems: 'center', gap: 1 }}
-                                >
-                                  <Heart size={14} color={r.liked ? '#ef4444' : colors.textMuted} fill={r.liked ? '#ef4444' : 'transparent'} />
-                                  {(r.like_count ?? 0) > 0 && (
-                                    <Text style={{ fontSize: 14, fontWeight: '700', color: r.liked ? '#ef4444' : colors.textMuted }}>{formatCount(r.like_count)}</Text>
-                                  )}
-                                </Pressable>
-                                <Pressable
-                                  onPress={() => { setReplyTo({ id: r.id, name: r.user_name }); commentInputRef.current?.focus(); }}
-                                  hitSlop={8}
-                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
-                                >
-                                  <Reply size={12} color={colors.textMuted} />
-                                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Reply</Text>
-                                </Pressable>
-                              </View>
-                            </View>
-                          ))}
-                        </View>
-                      )}
+                    ))}
+                  </View>
+                )}
+                {!isVertical && !isStaticFeedImage && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: insets.top + 24,
+                      left: 16, right: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      opacity: isPaused ? 0 : 1,
+                    }}
+                  >
+                    <LinearGradient
+                      colors={['#f59e0b', '#ef4444', '#a855f7']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{ width: 36, height: 36, borderRadius: 18, padding: 2 }}
+                    >
+                      <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000' }}>
+                        {group.user_avatar && (
+                          <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                        )}
+                      </View>
+                    </LinearGradient>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, fontWeight: '800', color: '#fff' }}>
+                          {group.user_name}
+                        </Text>
+                        <PlanBadge plan={group.user_plan} size={13} />
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        {!!musicName(story.music_url) && (
+                          <>
+                            <Music size={12} color="rgba(255,255,255,0.75)" />
+                            <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>
+                              {musicName(story.music_url)}
+                            </Text>
+                            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>·</Text>
+                          </>
+                        )}
+                        <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                          {relativeTime(story.created_at)}
+                        </Text>
+                      </View>
+                      <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={11} />
+                    </View>
+                    <Pressable onPress={onClose} style={{ padding: 6 }}>
+                      <X size={22} color="#fff" />
+                    </Pressable>
+                  </View>
+                )}
+                {!isVertical && !!story.caption && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: insets.top + 80,
+                      bottom: isOwnStory ? insets.bottom + 20 : insets.bottom + 90,
+                      left: 24, right: 24,
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: getCaptionFontSize(story.caption),
+                        fontWeight: '700',
+                        color: '#fff',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {story.caption}
+                    </Text>
+                  </View>
+                )}
+                <Pressable
+                  onPressIn={() => { handlePressIn(); startHoldWatch(); }}
+                  onPressOut={(e) => { clearTimeout(holdTimerRef.current); handlePressOutSide('back', e.nativeEvent.pageX, e.nativeEvent.pageY); }}
+                  style={{ position: 'absolute', top: insets.top + 70, bottom: 0, left: 0, width: SCREEN_WIDTH * 0.5 }}
+                />
+                <Pressable
+                  onPressIn={() => { handlePressIn(); startHoldWatch(); }}
+                  onPressOut={(e) => { clearTimeout(holdTimerRef.current); handlePressOutSide('next', e.nativeEvent.pageX, e.nativeEvent.pageY); }}
+                  style={{ position: 'absolute', top: insets.top + 70, bottom: 0, right: 0, width: SCREEN_WIDTH * 0.5 }}
+                />
+                <HeartBurst burst={burst} />
+                {story.media_type === 'video' && mediaReady && scrubSegW > 0 && (
+                  <View
+                    {...scrubPan.panHandlers}
+                    style={{
+                      position: 'absolute',
+                      left: scrubLeft, width: scrubSegW,
+                      ...(isVertical
+                        ? { bottom: 0, height: 16 }
+                        : { top: insets.top - 4, height: 28 }),
+                    }}
+                  />
+                )}
+                {!!story.product_tag && (
+                  <ViewerProductTag
+                    tag={story.product_tag}
+                    onPress={() => {
+                      const pid = story.product_tag.product_id;
+                      onClose();
+                      setTimeout(() => router.push(`/product/${pid}`), 300);
+                    }}
+                  />
+                )}
+                {!!toastMsg && (
+                  <View
+                    pointerEvents="none"
+                    style={{ position: 'absolute', top: insets.top + 70, left: 0, right: 0, alignItems: 'center' }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        borderWidth: 1, borderColor: colors.brand,
+                        paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{toastMsg}</Text>
                     </View>
                   </View>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-
-          {replyTo && (
-            <View
-              style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                paddingHorizontal: 16, paddingVertical: 6, marginTop: 6, transform: [{ translateY: -keyboardHeight }],
-                backgroundColor: colors.chipBg,
-              }}
-            >
-              <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, color: colors.textMuted }}>
-                Replying to <Text style={{ fontWeight: '800', color: colors.text }}>{replyTo.name}</Text>
-              </Text>
-              <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
-                <X size={16} color={colors.textMuted} />
-              </Pressable>
-            </View>
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: colors.card, transform: [{ translateY: -keyboardHeight }] }}>
-            <TextInput
-              ref={commentInputRef}
-              value={commentText}
-              onChangeText={setCommentText}
-              placeholder={replyTo ? 'Write a reply...' : 'Add a comment...'}
-              placeholderTextColor={colors.textMuted}
-              maxLength={300}
-              returnKeyType="send"
-              onSubmitEditing={sendComment}
-              style={{
-                flex: 1, height: 42, borderRadius: 21, paddingHorizontal: 16,
-                borderWidth: 1.5, borderColor: colors.brand,
-                backgroundColor: 'transparent', color: colors.text, fontSize: 16,
-              }}
-            />
-            <Pressable
-              onPress={sendComment}
-              disabled={!commentText.trim()}
-              style={{
-                width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: commentText.trim() ? colors.brand : colors.chipBg,
-              }}
-            >
-              <Send size={18} color={commentText.trim() ? colors.textOnGold : colors.textMuted} />
-            </Pressable>
+                )}
+                {isVertical && (
+                  <View
+                    pointerEvents={isHolding ? 'none' : 'box-none'}
+                    style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: isHolding ? 0 : 1 }}
+                  >
+                    {isPaused && story.media_type === 'video' && (
+                      <View
+                        pointerEvents="none"
+                        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Play size={32} color="#fff" fill="#fff" />
+                        </View>
+                      </View>
+                    )}
+                    {keyboardHeight === 0 && (
+                      <View style={{ position: 'absolute', right: 12, bottom: 16, alignItems: 'center', gap: 20 }}>
+                        <Pressable onPress={openProfile} hitSlop={6} style={{ marginBottom: 16, width: 44, height: 44 }}>
+                          <View
+                            style={{
+                              width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
+                              borderWidth: 2, borderColor: '#fff', backgroundColor: colors.chipBg,
+                              alignItems: 'center', justifyContent: 'center',
+                            }}
+                          >
+                            {group.user_avatar ? (
+                              <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                            ) : (
+                              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand }}>
+                                {group.user_name?.[0]?.toUpperCase() || '?'}
+                              </Text>
+                            )}
+                          </View>
+                          {showFollowBadge && (
+                            <Pressable
+                              onPress={handleFollowTap}
+                              hitSlop={8}
+                              style={{
+                                position: 'absolute', bottom: -9, alignSelf: 'center',
+                                width: 22, height: 22, borderRadius: 11,
+                                backgroundColor: followDone ? '#22c55e' : colors.brand,
+                                alignItems: 'center', justifyContent: 'center',
+                              }}
+                            >
+                              {followDone
+                                ? <Check size={12} color="#fff" strokeWidth={3.5} />
+                                : <Plus size={12} color={colors.textOnGold} strokeWidth={3.5} />}
+                            </Pressable>
+                          )}
+                        </Pressable>
+                        <ReelAction
+                          icon={<Heart size={28} color={liked ? '#ef4444' : '#fff'} fill={liked ? '#ef4444' : 'transparent'} />}
+                          count={story.likes_visible === false && !isOwnStory ? 'Likes' : formatCount(likeCount)}
+                          onPress={toggleLike}
+                        />
+                        {!story.comments_off && (
+                          <ReelAction
+                            icon={<MessageCircle size={27} color="#fff" />}
+                            count={formatCount(commentCount)}
+                            onPress={openComments}
+                          />
+                        )}
+                        <ReelAction
+                          icon={<Repeat size={27} color={story.reposted ? '#22c55e' : '#fff'} />}
+                          count={formatCount(story.repost_count ?? 0)}
+                          hidden={story.repost_allowed === false && !isOwnStory}
+                          onPress={() => onRepost?.(story)}
+                        />
+                        <ReelAction icon={<Send size={26} color="#fff" />} count={formatCount(story.export_count ?? 0)} onPress={openExport} hidden={story.export_allowed === false && !isOwnStory} />
+                        <ReelAction icon={<MoreHorizontal size={26} color="#fff" />} onPress={() => { setReportStep('menu'); setReportOpen(true); }} />
+{(story.media_type === 'video' || !!story.sound) && (
+  <Pressable onPress={openSound} hitSlop={8}>
+    <SoundSquare avatar={group.user_avatar} name={group.user_name} playing={!barPaused && mediaReady} />
+  </Pressable>
+)}
+                      </View>
+                    )}
+                    <View
+                      pointerEvents="box-none"
+                      style={{ position: 'absolute', left: 16, right: 76, bottom: 16, gap: 12 }}
+                    >
+                      <RepostBubbles story={story} onClose={onClose} />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={{ flex: hasSound ? 1 : 0, flexShrink: 1, minWidth: 0, gap: 4 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Pressable onPress={openProfile} hitSlop={6} style={{ flexShrink: 1 }}>
+                              <Text numberOfLines={1} style={{ fontSize: 20, fontWeight: '800', color: '#fff', ...TEXT_SHADOW }}>
+                                {group.user_name}
+                              </Text>
+                            </Pressable>
+                            <PlanBadge plan={group.user_plan} size={15} />
+                          </View>
+                          {(story.media_type === 'video' || !!story.sound) && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <View style={{ shadowColor: '#000', shadowOpacity: 0.85, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+                                <Music size={14} color="#fff" />
+                              </View>
+                              <Marquee
+                                text={`Original sound · ${story.sound?.owner ?? group.user_name}`}
+                                style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', ...TEXT_SHADOW }}
+                              />
+                            </View>
+                          )}
+                        </View>
+                        {!isOwnStory && story.chat_allowed !== false && (
+                          <Pressable
+                            hitSlop={8}
+                            onPress={() => onReply('')}
+                            style={{
+                              borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)',
+                              paddingHorizontal: 13, paddingVertical: 6, borderRadius: 10,
+                            }}
+                          >
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff', ...TEXT_SHADOW }}>Chat</Text>
+                          </Pressable>
+                        )}
+                        {hasSound && <View style={{ flex: 1 }} />}
+                      </View>
+{!!story.caption && (
+  <Pressable onPress={() => setCaptionExpanded((e) => !e)} hitSlop={6}>
+    <Text
+      numberOfLines={captionExpanded ? undefined : 1}
+      ellipsizeMode="tail"
+      style={{
+        fontSize: 16, lineHeight: 19, color: '#fff',
+        textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+      }}
+    >
+      {story.caption}
+    </Text>
+  </Pressable>
+)}
+                    </View>
+                    <View
+                      pointerEvents="none"
+                      style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 8, flexDirection: 'row', alignItems: 'flex-end', gap: 3, display: story.media_type === 'video' ? 'flex' : 'none' }}
+                    >
+                      {group.stories.map((_: any, i: number) => {
+                        const segW = (SCREEN_WIDTH - 3 * (group.stories.length - 1)) / group.stories.length;
+                        return (
+                          <View
+                            key={i}
+                            style={{ width: segW, height: isScrubbing && i === currentIndex ? 8 : 2, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.3)' }}
+                          >
+                            <Animated.View
+                              style={{
+                                width: segW, height: '100%', backgroundColor: '#fff',
+                                transform: [{
+                                  translateX: barAnims[i].interpolate({
+                                    inputRange: [0, 1], outputRange: [-segW, 0], extrapolate: 'clamp',
+                                  }),
+                                }],
+                              }}
+                            />
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+              {isVertical && (
+                <View style={{ height: 12 + 44 + (keyboardHeight > 0 ? 16 : insets.bottom + 16) }} />
+              )}
+              {!isOwnStory && !isVertical && (
+                <View
+                  style={{
+                    ...(isVertical
+                      ? {}
+                      : { position: 'absolute', left: 0, right: 0, bottom: keyboardHeight }),
+                    backgroundColor: isVertical ? '#0b0d10' : 'transparent',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingHorizontal: 14,
+                    paddingTop: isVertical ? 12 : GLASS ? 14 : 34,
+                    paddingBottom: keyboardHeight > 0 ? 16 : insets.bottom + 16,
+                  }}
+                >
+                  {!isVertical && !GLASS && (
+                    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                      <MaskedView
+                        style={{ flex: 1 }}
+                        maskElement={
+                          <LinearGradient
+                            colors={['transparent', '#000000', '#000000']}
+                            locations={[0, 0.4, 1]}
+                            style={{ flex: 1 }}
+                          />
+                        }
+                      >
+                        <BlurView intensity={40} tint="dark" style={{ flex: 1 }} />
+                      </MaskedView>
+                    </View>
+                  )}
+                  <GlassOrView
+                    glass={GLASS && !isVertical}
+                    style={{
+                      flex: 1,
+                      height: isVertical ? 44 : 46,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderRadius: isVertical ? 22 : 19,
+                      borderWidth: GLASS && !isVertical ? 0 : 1.5,
+                      borderColor: colors.brand,
+                      backgroundColor: 'transparent',
+                      paddingHorizontal: 18,
+                    }}
+                  >
+                    {isVertical && (
+                      <Pressable onPress={openComments} style={{ flex: 1, height: '100%', justifyContent: 'center' }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16 }}>
+                          {story.comments_off && !isOwnStory ? 'Comments are turned off' : 'Add comment...'}
+                        </Text>
+                      </Pressable>
+                    )}
+                    <TextInput
+                      ref={replyInputRef}
+                      value={replyText}
+                      onChangeText={setReplyText}
+                      onFocus={handleReplyFocus}
+                      onBlur={handleReplyBlur}
+                      placeholder={`Send message to ${group.user_name.split(' ')[0]}...`}
+                      placeholderTextColor="rgba(255,255,255,0.6)"
+                      style={isVertical ? { display: 'none' } : { flex: 1, color: '#fff', fontSize: 16 }}
+                      returnKeyType="send"
+                      onSubmitEditing={handleSendReply}
+                      blurOnSubmit={false}
+                    />
+                    {!replyText.trim() && !isVertical && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginLeft: 8 }}>
+                        {['❤️', '😂', '🔥', '👏'].map((emoji) => (
+                          <EmojiReact key={emoji} emoji={emoji} onSend={handleQuickReact} />
+                        ))}
+                      </View>
+                    )}
+                  </GlassOrView>
+                  {(!isVertical || !!replyText.trim()) && (
+                    <Pressable onPress={handleSendReply} disabled={!replyText.trim()}>
+                      <GlassOrView
+                        glass={GLASS && !isVertical}
+                        tint={replyText.trim() ? colors.brand : undefined}
+                        style={{
+                          width: 38, height: 38, borderRadius: 19,
+                          alignItems: 'center', justifyContent: 'center',
+                          backgroundColor: GLASS && !isVertical ? 'transparent' : (replyText.trim() ? colors.brand : 'rgba(255,255,255,0.14)'),
+                        }}
+                      >
+                        <Send size={18} color={replyText.trim() ? colors.textOnGold : 'rgba(255,255,255,0.5)'} />
+                      </GlassOrView>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+              </View>
+            </Animated.View>
           </View>
         </Animated.View>
-      </View>
-    )}
+      </Animated.View>
+      {isVertical && (
+        <Animated.View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 96,
+            opacity: dragOpacity,
+          }}
+        >
+          <View pointerEvents="box-none" style={{ flex: 1, opacity: isHolding ? 0 : 1 }}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              style={{ position: 'absolute', top: insets.top + 10, left: 12, padding: 6, zIndex: 2 }}
+            >
+              <ChevronLeft size={28} color="#fff" />
+            </Pressable>
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: 'absolute', top: insets.top + 10, left: 0, right: 0,
+                height: 40, alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTabsMenu(!tabsOpen); }}
+                hitSlop={8}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              >
+                <View style={{ width: 24 }} />
+                <Text style={{ fontSize: 23, fontWeight: '800', color: '#fff' }}>Feed</Text>
+                <Animated.View
+                  style={{
+                    transform: [{
+                      rotate: tabsAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }),
+                    }],
+                  }}
+                >
+                  <ChevronDown size={20} color="#fff" strokeWidth={2.8} />
+                </Animated.View>
+              </Pressable>
+            </View>
+
+            <Animated.View
+              pointerEvents={tabsOpen ? 'auto' : 'none'}
+              style={{
+                position: 'absolute', top: insets.top + 46, left: 0, right: 0,
+                alignItems: 'center',
+                opacity: tabsAnim,
+                transform: [
+                  { translateY: tabsAnim.interpolate({ inputRange: [0, 1], outputRange: [-14, 0] }) },
+                  { scale: tabsAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) },
+                ],
+              }}
+            >
+              <GlassOrView
+                glass={GLASS}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', padding: 4, borderRadius: 999,
+                  overflow: 'hidden',
+                  backgroundColor: GLASS ? 'transparent' : 'rgba(30,30,34,0.6)',
+                  borderWidth: GLASS ? 0 : 1, borderColor: 'rgba(255,255,255,0.18)',
+                }}
+              >
+                {!GLASS && (
+                  <BlurView
+                    intensity={40}
+                    tint="dark"
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  />
+                )}
+                {VIEWER_TABS.map((t) => {
+                  const active = feedTab === t.key;
+                  return (
+                    <Pressable
+                      key={t.key}
+                      onPress={() => pickViewerTab(t.key)}
+                      hitSlop={4}
+                      style={{
+                        paddingHorizontal: 13, height: 30, borderRadius: 15,
+                        alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: active ? 'rgba(255,255,255,0.22)' : 'transparent',
+                      }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontSize: 15,
+                          fontWeight: active ? '800' : '600',
+                          color: active ? '#ffffff' : 'rgba(255,255,255,0.6)',
+                        }}
+                      >
+                        {t.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </GlassOrView>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      )}
+      {isVertical && (
+        <Animated.View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute', left: 0, right: 0, bottom: keyboardHeight,
+            backgroundColor: colors.background, opacity: dragOpacity,
+            paddingHorizontal: 14, paddingTop: 12,
+            paddingBottom: keyboardHeight > 0 ? 16 : insets.bottom + 16,
+          }}
+        >
+          <Pressable
+            onPress={openComments}
+            style={{
+              height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: colors.brand,
+              justifyContent: 'center', paddingHorizontal: 18,
+            }}
+          >
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16 }}>
+              {story.comments_off && !isOwnStory ? 'Comments are turned off' : 'Add comment...'}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      )}
+      {!!exportText && (
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', top: insets.top + 70, left: 0, right: 0, alignItems: 'center' }}
+        >
+          <View
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.8)', borderWidth: 1, borderColor: colors.brand,
+              paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{exportText}</Text>
+          </View>
+        </View>
+      )}
+      {exportOpen && <ExportSheet isImage={story.media_type !== 'video'} onClose={() => setExportOpen(false)} onPick={handleExport} />}
+      {reportOpen && reportStep === 'menu' && (
+        <PostOptionsSheet
+          isOwn={isOwnStory}
+          commentsOff={!!story.comments_off}
+          onClose={() => setReportOpen(false)}
+          onReport={() => setReportStep('reasons')}
+          onHide={hidePost}
+          onBlock={blockUser}
+          onDelete={deletePost}
+          onArchive={archivePost}
+          onEdit={editCaption}
+          onToggleComments={toggleComments}
+          onSettings={() => { setReportOpen(false); setPostSettingsOpen(true); }}
+        />
+      )}
+      <PostSettingsSheet
+        visible={postSettingsOpen}
+        settings={{
+          allow_chat: story.allow_chat ?? undefined,
+          show_likes: story.show_likes ?? undefined,
+          allow_repost: story.allow_repost ?? undefined,
+          allow_export: story.allow_export ?? undefined,
+        }}
+        onChange={updatePostSetting}
+        onClose={() => setPostSettingsOpen(false)}
+        commentsOff={!!story.comments_off}
+        onToggleComments={async () => {
+          const off = !story.comments_off;
+          onPatch?.(story.id, { comments_off: off });
+          try {
+            await api.patch(`/stories/${story.id}/comments-off`, { off });
+          } catch {
+            onPatch?.(story.id, { comments_off: !off });
+            showToast("Couldn't update comments");
+          }
+        }}
+        onEditCaption={editCaption}
+      />
+      <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
+          <Pressable
+            onPress={() => setEditOpen(false)}
+            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          />
+          <Animated.View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingTop: 12, paddingBottom: insets.bottom + 20, transform: [{ translateY: editDrag.translateY }] }}>
+            <View {...editDrag.panHandlers} style={{ paddingTop: 8, paddingBottom: 14 }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 12 }}>Edit caption</Text>
+            <TextInput
+              value={captionDraft}
+              onChangeText={setCaptionDraft}
+              multiline
+              maxLength={500}
+              autoFocus
+              placeholder="Add a caption..."
+              placeholderTextColor={colors.textMuted}
+              style={{ minHeight: 100, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, color: colors.text, fontSize: 16, textAlignVertical: 'top' }}
+            />
+            <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: 5 }}>{captionDraft.length}/500</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <Pressable onPress={() => setEditOpen(false)} style={{ flex: 1 }}>
+                <GlassOrView
+                  glass={GLASS}
+                  style={{
+                    paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                    borderWidth: GLASS ? 0 : 1, borderColor: colors.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>Cancel</Text>
+                </GlassOrView>
+              </Pressable>
+              <Pressable onPress={saveCaption} disabled={savingCaption} style={{ flex: 1, opacity: savingCaption ? 0.6 : 1 }}>
+                <GlassOrView
+                  glass={GLASS}
+                  tint={colors.brand}
+                  style={{
+                    paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+                    backgroundColor: GLASS ? 'transparent' : colors.brand,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textOnGold }}>{savingCaption ? 'Saving...' : 'Save'}</Text>
+                </GlassOrView>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </Modal>
+      {reportOpen && reportStep === 'reasons' && (
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' }}>
+          <Pressable
+            onPress={() => setReportOpen(false)}
+            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          />
+          <Animated.View
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: 28, borderTopRightRadius: 28,
+              paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 20,
+              transform: [{ translateY: reportDrag.translateY }],
+            }}
+          >
+            <View {...reportDrag.panHandlers} style={{ paddingTop: 12, paddingBottom: 16, marginTop: -12 }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Report this post</Text>
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, marginBottom: 8 }}>
+                  Why are you reporting it?
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setReportStep('menu')}
+                style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.brand }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textOnGold }}>Back</Text>
+              </Pressable>
+            </View>
+            {REPORT_REASONS.map((r, i) => (
+              <Pressable
+                key={r}
+                onPress={() => sendReport(r)}
+                style={{
+                  paddingVertical: 15,
+                  borderBottomWidth: i === REPORT_REASONS.length - 1 ? 0 : 1,
+                  borderBottomColor: colors.border,
+                }}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '600', color: colors.text }}>{r}</Text>
+              </Pressable>
+            ))}
+          </Animated.View>
+        </View>
+      )}
+      {commentsOpen && (
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' }}>
+          <Pressable
+            onPress={() => { Keyboard.dismiss(); setCommentsOpen(false); }}
+            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          />
+          <Animated.View
+            style={{
+              height: SCREEN_HEIGHT * 0.6,
+              backgroundColor: colors.card,
+              borderTopLeftRadius: 24, borderTopRightRadius: 24,
+              paddingTop: 12,
+              paddingBottom: keyboardHeight > 0 ? 10 : insets.bottom + 10,
+              transform: [{ translateY: sheetDrag.translateY }],
+            }}
+          >
+            <View {...sheetDrag.panHandlers} style={{ paddingTop: 12, paddingBottom: 8, marginTop: -12 }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 }} />
+              <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, paddingHorizontal: 16 }}>
+                Comments{commentCount > 0 ? ` (${formatCount(commentCount)})` : ''}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1 }} onStartShouldSetResponder={() => { Keyboard.dismiss(); return false; }}>
+              {commentsLoading ? (
+                <ActivityIndicator color={colors.brand} style={{ marginTop: 24 }} />
+              ) : comments.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 15, marginTop: 28 }}>
+                  No comments yet. Be the first.
+                </Text>
+              ) : (
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingBottom: 8 + keyboardHeight }}
+                >
+                  {comments.map((c: any) => (
+                    <View key={c.id} style={{ flexDirection: 'row', gap: 10 }}>
+                      <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.chipBg }}>
+                        {c.user_avatar ? (
+                          <Image source={{ uri: c.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                        ) : (
+                          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.brand }}>
+                              {c.user_name?.[0]?.toUpperCase() || '?'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
+                          {c.user_name}{String(c.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
+                          <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(c.created_at)}</Text>
+                        </Text>
+                        <Text style={{ fontSize: 16, color: colors.text, marginTop: 2 }}>{c.text}</Text>
+                        {!!c.pinned && (
+                          <View style={{ position: 'absolute', top: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Pin size={11} color={colors.brand} fill={colors.brand} />
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand }}>Pinned</Text>
+                          </View>
+                        )}
+                        <Pressable
+                          onPress={() => toggleCommentLike(c)}
+                          hitSlop={8}
+                          style={{ position: 'absolute', right: 0, top: c.pinned ? 18 : 0, alignItems: 'center', gap: 1 }}
+                        >
+                          <Heart size={15} color={c.liked ? '#ef4444' : colors.textMuted} fill={c.liked ? '#ef4444' : 'transparent'} />
+                          {(c.like_count ?? 0) > 0 && (
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: c.liked ? '#ef4444' : colors.textMuted }}>{formatCount(c.like_count)}</Text>
+                          )}
+                        </Pressable>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                          <Pressable
+                            onPress={() => { setReplyTo({ id: c.id, name: c.user_name }); commentInputRef.current?.focus(); }}
+                            hitSlop={8}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                          >
+                            <Reply size={13} color={colors.textMuted} />
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Reply</Text>
+                          </Pressable>
+                          {isOwner && (
+                            <>
+                              <Text style={{ fontSize: 14, color: colors.textMuted }}>·</Text>
+                              <Pressable onPress={() => togglePin(c)} hitSlop={8}>
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>{c.pinned ? 'Unpin' : 'Pin'}</Text>
+                              </Pressable>
+                            </>
+                          )}
+                          {(c.reply_count ?? 0) > 0 && (
+                            <>
+                              <Text style={{ fontSize: 14, color: colors.textMuted }}>·</Text>
+                              <Pressable onPress={() => toggleReplies(c.id)} hitSlop={8}>
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>
+                                  {openReplies[c.id]
+                                    ? 'Hide replies'
+                                    : `View ${c.reply_count} ${c.reply_count === 1 ? 'reply' : 'replies'}`}
+                                </Text>
+                              </Pressable>
+                            </>
+                          )}
+                        </View>
+                        {openReplies[c.id] && (
+                          <View style={{ marginTop: 10, gap: 12 }}>
+                            {repliesLoading[c.id] && !repliesById[c.id] && (
+                              <ActivityIndicator color={colors.brand} />
+                            )}
+                            {(repliesById[c.id] || []).map((r: any) => (
+                              <View key={r.id} style={{ flexDirection: 'row', gap: 8 }}>
+                                <View style={{ width: 24, height: 24, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.chipBg }}>
+                                  {r.user_avatar ? (
+                                    <Image source={{ uri: r.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                                  ) : (
+                                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                                      <Text style={{ fontSize: 12, fontWeight: '800', color: colors.brand }}>
+                                        {r.user_name?.[0]?.toUpperCase() || '?'}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
+                                    {r.user_name}{String(r.user_id) === String(ownerId) ? <Text style={{ fontWeight: '800', color: colors.brand }}>{' (Creator)'}</Text> : null}
+                                    <Text style={{ fontWeight: '500', color: colors.textMuted }}>  {relativeTime(r.created_at)}</Text>
+                                  </Text>
+                                  <Text style={{ fontSize: 16, color: colors.text, marginTop: 2 }}>{r.text}</Text>
+                                  <Pressable
+                                    onPress={() => toggleCommentLike(r, c.id)}
+                                    hitSlop={8}
+                                    style={{ position: 'absolute', right: 0, top: 0, alignItems: 'center', gap: 1 }}
+                                  >
+                                    <Heart size={14} color={r.liked ? '#ef4444' : colors.textMuted} fill={r.liked ? '#ef4444' : 'transparent'} />
+                                    {(r.like_count ?? 0) > 0 && (
+                                      <Text style={{ fontSize: 14, fontWeight: '700', color: r.liked ? '#ef4444' : colors.textMuted }}>{formatCount(r.like_count)}</Text>
+                                    )}
+                                  </Pressable>
+                                  <Pressable
+                                    onPress={() => { setReplyTo({ id: r.id, name: r.user_name }); commentInputRef.current?.focus(); }}
+                                    hitSlop={8}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
+                                  >
+                                    <Reply size={12} color={colors.textMuted} />
+                                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Reply</Text>
+                                  </Pressable>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
+            {replyTo && (
+              <View
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  paddingHorizontal: 16, paddingVertical: 6, marginTop: 6, transform: [{ translateY: -keyboardHeight }],
+                  backgroundColor: colors.chipBg,
+                }}
+              >
+                <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, color: colors.textMuted }}>
+                  Replying to <Text style={{ fontWeight: '800', color: colors.text }}>{replyTo.name}</Text>
+                </Text>
+                <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
+                  <X size={16} color={colors.textMuted} />
+                </Pressable>
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, backgroundColor: colors.card, transform: [{ translateY: -keyboardHeight }] }}>
+              <TextInput
+                ref={commentInputRef}
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder={replyTo ? 'Write a reply...' : 'Add a comment...'}
+                placeholderTextColor={colors.textMuted}
+                maxLength={300}
+                returnKeyType="send"
+                onSubmitEditing={sendComment}
+                style={{
+                  flex: 1, height: 42, borderRadius: 21, paddingHorizontal: 16,
+                  borderWidth: 1.5, borderColor: colors.brand,
+                  backgroundColor: 'transparent', color: colors.text, fontSize: 16,
+                }}
+              />
+              <Pressable
+                onPress={sendComment}
+                disabled={!commentText.trim()}
+                style={{
+                  width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: commentText.trim() ? colors.brand : colors.chipBg,
+                }}
+              >
+                <Send size={18} color={commentText.trim() ? colors.textOnGold : colors.textMuted} />
+              </Pressable>
+            </View>
+          </Animated.View>
+        </View>
+      )}
     </View>
   );
 }
@@ -5124,11 +5816,11 @@ function GapFill({ aspect, render }: { aspect: number | null; render: () => Reac
       {gap > 1 && (
         <>
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: gap, overflow: 'hidden' }}>
-            <View style={{ position: 'absolute', top: 0, left: 0, width: box.w, height: mediaH }}>{render()}</View>
+           <View style={{ position: 'absolute', top: 0, left: -(box.w * (gap / (0.3 * mediaH)) - box.w) / 2, width: box.w * (gap / (0.3 * mediaH)), height: gap / 0.3 }}>{render()}</View>
             <BlurView intensity={100} tint="dark" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
           </View>
           <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: gap, overflow: 'hidden' }}>
-            <View style={{ position: 'absolute', bottom: 0, left: 0, width: box.w, height: mediaH }}>{render()}</View>
+            <View style={{ position: 'absolute', bottom: 0, left: -(box.w * (gap / (0.3 * mediaH)) - box.w) / 2, width: box.w * (gap / (0.3 * mediaH)), height: gap / 0.3 }}>{render()}</View>
             <BlurView intensity={100} tint="dark" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
           </View>
         </>
@@ -5156,6 +5848,232 @@ function DelayedLoader({ delay = 300 }: { delay?: number }) {
     </View>
   );
 }
+// Scrolls its text sideways only when it's too long for the space it has
+// Scrolls its text in a continuous loop only when it's too long for the space it has.
+// When the start of the sentence comes back around, it pauses briefly, then continues.
+// Scrolls its text in a continuous loop only when it's too long for the space it has.
+// When the start of the sentence comes back around, it pauses briefly, then continues.
+function Marquee({ text, style }: { text: string; style?: any }) {
+  const GAP = 40;
+  const [boxW, setBoxW] = useState(0);
+  const [textW, setTextW] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+  const overflow = boxW > 0 && textW > boxW + 1;
+
+  useEffect(() => {
+    x.setValue(0);
+    if (!overflow) return;
+    const dist = textW + GAP;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1500),
+        Animated.timing(x, { toValue: -dist, duration: dist * 30, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(x, { toValue: 0, duration: 1, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [overflow, textW, boxW, text]);
+
+  return (
+    <View
+      style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}
+      onLayout={(e) => setBoxW(e.nativeEvent.layout.width)}
+    >
+      {/* invisible copy, only used to measure the real text width */}
+      <Text
+        style={[style, { position: 'absolute', left: 0, top: 0, width: 5000, opacity: 0 }]}
+        onTextLayout={(e) => {
+          const w = e.nativeEvent.lines?.[0]?.width ?? 0;
+          if (w > 0) setTextW(w);
+        }}
+      >
+        {text}
+      </Text>
+      <Animated.View style={{ flexDirection: 'row', width: 5000, transform: [{ translateX: x }] }}>
+        <Text numberOfLines={1} style={style}>{text}</Text>
+        {overflow && <Text numberOfLines={1} style={[style, { marginLeft: GAP }]}>{text}</Text>}
+      </Animated.View>
+    </View>
+  );
+}
+
+const musicName = (url?: string | null) =>
+  url ? (STORY_MUSIC.find((t) => t.uri === url)?.title ?? null) : null;
+
+// Marquee that scrolls the text ONE round (only if too long), pauses, then calls onDone
+function MarqueeOnce({ text, style, onDone }: { text: string; style?: any; onDone: () => void }) {
+  const GAP = 40;
+  const [boxW, setBoxW] = useState(0);
+  const [textW, setTextW] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+  const ready = boxW > 0 && textW > 0;
+  const overflow = ready && textW > boxW + 1;
+
+  useEffect(() => {
+    if (!ready) return;
+    x.setValue(0);
+    let t: any;
+    let anim: Animated.CompositeAnimation | null = null;
+    if (overflow) {
+      const dist = textW + GAP;
+      anim = Animated.sequence([
+        Animated.delay(1200),
+        Animated.timing(x, { toValue: -dist, duration: dist * 30, easing: Easing.linear, useNativeDriver: true }),
+      ]);
+      anim.start(({ finished }) => { if (finished) t = setTimeout(() => doneRef.current(), 2500); });
+    } else {
+      t = setTimeout(() => doneRef.current(), 3500);
+    }
+    return () => { anim?.stop(); clearTimeout(t); };
+  }, [ready, overflow, textW, boxW, text]);
+
+  return (
+    <View style={{ flex: 1, minWidth: 0, overflow: 'hidden' }} onLayout={(e) => setBoxW(e.nativeEvent.layout.width)}>
+      <Text
+        style={[style, { position: 'absolute', left: 0, top: 0, width: 5000, opacity: 0 }]}
+        onTextLayout={(e) => { const w = e.nativeEvent.lines?.[0]?.width ?? 0; if (w > 0) setTextW(w); }}
+      >
+        {text}
+      </Text>
+      <Animated.View style={{ flexDirection: 'row', width: 5000, transform: [{ translateX: x }] }}>
+        <Text numberOfLines={1} style={style}>{text}</Text>
+        {overflow && <Text numberOfLines={1} style={[style, { marginLeft: GAP }]}>{text}</Text>}
+      </Animated.View>
+    </View>
+  );
+}
+
+// Feed: caption marquee, then the music row rolls in from the top, then back again
+function CaptionMusicRow({
+  caption, music, expanded, onToggle, onMusicPress, colors,
+}: {
+  caption?: string | null; music: string; expanded: boolean;
+  onToggle: () => void; onMusicPress: () => void; colors: any;
+}) {
+  const H = 20;
+  const [phase, setPhase] = useState<'caption' | 'music'>('caption');
+  const roll = useRef(new Animated.Value(0)).current;
+  const textStyle = { fontSize: 16, lineHeight: H, color: colors.textMuted };
+
+  const go = (to: 'caption' | 'music') => {
+    setPhase(to);
+    Animated.timing(roll, {
+      toValue: to === 'music' ? 1 : 0, duration: 400,
+      easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    }).start();
+  };
+  useEffect(() => { if (expanded) { roll.setValue(0); setPhase('caption'); } }, [expanded]);
+
+  const musicRow = (
+    <Pressable onPress={onMusicPress} hitSlop={6} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <Music size={14} color={colors.textMuted} />
+      {phase === 'music'
+        ? <MarqueeOnce key="m" text={music} style={textStyle} onDone={() => go('caption')} />
+        : <Text numberOfLines={1} style={[textStyle, { flex: 1 }]}>{music}</Text>}
+    </Pressable>
+  );
+
+  if (!caption) {
+    return (
+      <Pressable onPress={onMusicPress} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+        <Music size={14} color={colors.textMuted} />
+        <Marquee text={music} style={textStyle} />
+      </Pressable>
+    );
+  }
+
+  if (expanded) {
+    return (
+      <View style={{ marginTop: 2 }}>
+        <Pressable onPress={onToggle}>
+          <Text style={textStyle}>{caption}</Text>
+        </Pressable>
+        <Pressable onPress={onMusicPress} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <Music size={14} color={colors.textMuted} />
+          <Text numberOfLines={1} style={[textStyle, { flex: 1 }]}>{music}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ height: H, overflow: 'hidden', marginTop: 2 }}>
+      <Animated.View
+        style={{
+          position: 'absolute', left: 0, right: 0, top: 0, height: H,
+          opacity: roll.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+          transform: [{ translateY: roll.interpolate({ inputRange: [0, 1], outputRange: [0, H] }) }],
+        }}
+      >
+        <Pressable onPress={onToggle} style={{ flex: 1 }}>
+          {phase === 'caption'
+            ? <MarqueeOnce key="c" text={caption} style={textStyle} onDone={() => go('music')} />
+            : <Text numberOfLines={1} style={textStyle}>{caption}</Text>}
+        </Pressable>
+      </Animated.View>
+      <Animated.View
+        pointerEvents={phase === 'music' ? 'auto' : 'none'}
+        style={{
+          position: 'absolute', left: 0, right: 0, top: 0, height: H,
+          opacity: roll,
+          transform: [{ translateY: roll.interpolate({ inputRange: [0, 1], outputRange: [-H, 0] }) }],
+        }}
+      >
+        {musicRow}
+      </Animated.View>
+    </View>
+  );
+}
+
+// Plays the reused sound (the original post's audio) under a post that uses it.
+function SoundTrack({ sound, paused }: { sound: { url: string; start?: number | null; end?: number | null }; paused: boolean }) {
+  const player = useVideoPlayer({ uri: sound.url, useCaching: true }, (p) => { p.loop = false; });
+  useEffect(() => { try { player.currentTime = (sound.start ?? 0) / 1000; } catch {} }, [player]);
+  useEffect(() => {
+    try { if (paused) player.pause(); else player.play(); } catch {}
+  }, [paused, player]);
+  useEffect(() => {
+    const t = setInterval(() => {
+      try { if (sound.end && player.currentTime * 1000 >= sound.end) player.pause(); } catch {}
+    }, 200);
+    return () => clearInterval(t);
+  }, [player]);
+  return null;
+}
+
+function MusicTrack({
+  url, startMs, endMs, paused,
+}: { url: string; startMs?: number | null; endMs?: number | null; paused: boolean }) {
+  const player = useAudioPlayer(url);
+  const start = Math.max(0, startMs ?? 0);
+  const end = endMs != null ? Math.max(start + 1000, endMs) : null;
+
+  useEffect(() => {
+    try {
+      player.loop = false;
+      player.currentTime = start / 1000;
+      if (!paused) player.play();
+    } catch {}
+    return () => { try { player.pause(); } catch {} };
+  }, [player, start, paused]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        if (end != null && player.currentTime * 1000 >= end) {
+          player.pause();
+          player.currentTime = start / 1000;
+        }
+      } catch {}
+    }, 100);
+    return () => clearInterval(timer);
+  }, [player, start, end]);
+
+  return null;
+}
 
 // Invisible player that just buffers/caches an upcoming video.
 function VideoPreloader({ uri }: { uri: string }) {
@@ -5165,6 +6083,253 @@ function VideoPreloader({ uri }: { uri: string }) {
   });
   useEffect(() => () => { try { player.pause(); } catch {} }, [player]);
   return null;
+}
+
+function SoundSquare({ avatar, name, playing }: { avatar?: string | null; name?: string; playing: boolean }) {
+  const bars = useRef([0, 1, 2, 3].map(() => new Animated.Value(0.3))).current;
+  useEffect(() => {
+    if (!playing) { bars.forEach((b) => b.setValue(0.3)); return; }
+    const loops = bars.map((b, i) => Animated.loop(Animated.sequence([
+      Animated.timing(b, { toValue: 1, duration: 280 + i * 110, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(b, { toValue: 0.25, duration: 260 + i * 90, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ])));
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, [playing]);
+
+  return (
+    <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: '#333', shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 }}>
+    <View style={{ width: 32, height: 32, borderRadius: 9, overflow: 'hidden', borderWidth: 1.5, borderColor: '#fff', backgroundColor: '#333' }}>
+      {avatar ? (
+        <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" blurRadius={3} />
+      ) : (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#fff', fontWeight: '800' }}>{name?.[0]?.toUpperCase() || '?'}</Text>
+        </View>
+      )}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, height: 16 }}>
+          {bars.map((b, i) => (
+            <Animated.View key={i} style={{ width: 2, height: 16, borderRadius: 1, backgroundColor: '#fff', transform: [{ scaleY: b }] }} />
+          ))}
+        </View>
+      </View>
+    </View>
+    </View>
+  );
+}
+
+function RepostBubbles({ story, onClose }: { story: Story; onClose: () => void }) {
+  const colors = useColors();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [open, setOpen] = useState(false);
+  const [people, setPeople] = useState<any[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const list = useMemo(() => {
+    const base = story.top_reposters?.length
+      ? story.top_reposters
+      : story.reposted_by
+      ? [{ id: 'by', ...story.reposted_by }]
+      : [];
+    return base.slice(0, 4);
+  }, [story.top_reposters, story.reposted_by]);
+
+  const n = story.repost_count ?? 0;
+  const enter = useRef(new Animated.Value(0)).current;
+  const pops = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
+  const floats = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    enter.setValue(0);
+    pops.forEach((p) => p.setValue(0));
+    Animated.parallel([
+      Animated.spring(enter, { toValue: 1, friction: 7, tension: 70, useNativeDriver: true }),
+      Animated.stagger(90, pops.map((p) =>
+        Animated.spring(p, { toValue: 1, friction: 4, tension: 90, useNativeDriver: true })
+      )),
+    ]).start();
+    const loops = floats.map((f, i) => {
+      f.setValue(0);
+      return Animated.loop(
+        Animated.timing(f, { toValue: 1, duration: 2400 + i * 450, easing: Easing.linear, useNativeDriver: true })
+      );
+    });
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  }, [story.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    setPeople(null);
+    setFailed(false);
+    api.get(`/stories/${story.id}/reposters`)
+      .then((r) => setPeople(r.data || []))
+      .catch(() => setFailed(true));
+  }, [open, story.id]);
+
+  if (n < 1 || list.length === 0) return null;
+
+  const first = list[0].name?.split(' ')[0] || 'Someone';
+  const others = Math.max(0, n - list.length);
+  const overflowLabel = others > 99 ? '99+' : `+${others}`;
+  const AVATAR = 30;
+  const OVERLAP = -11;
+  const textShadow = {
+    textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5,
+  } as const;
+
+  const goProfile = (uid: string) => {
+    setOpen(false);
+    onClose();
+    setTimeout(() => router.push({ pathname: '/SpotlightProfile', params: { userId: uid, guest: '1' } }), 300);
+  };
+
+  const onAvatarPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <Animated.View
+        style={{
+          alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center',
+          opacity: enter,
+          transform: [{ translateX: enter.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }) }],
+        }}
+      >
+        {/* text */}
+        <Pressable onPress={onAvatarPress} hitSlop={8} style={{ maxWidth: 150, justifyContent: 'center' }}>
+          <Text style={[{ fontSize: 9, fontWeight: '900', letterSpacing: 1.6, color: colors.brand, marginBottom: 1 }, textShadow]}>
+            REPOSTED BY
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <Text numberOfLines={1} style={[{ fontSize: 14, fontWeight: '800', color: '#fff', flexShrink: 1 }, textShadow]}>
+              {first}
+            </Text>
+            {others > 0 && (
+              <Text style={[{ fontSize: 11, fontWeight: '800', color: colors.brand, marginLeft: 5 }, textShadow]}>
+                {overflowLabel}
+              </Text>
+            )}
+          </View>
+        </Pressable>
+
+        {/* divider */}
+        <View
+          style={{
+            width: 1.5, height: 46, borderRadius: 1, marginLeft: 10,
+            backgroundColor: colors.brand, opacity: 0.9,
+          }}
+        />
+
+        {/* avatars (right of text, tappable) */}
+        <Pressable onPress={onAvatarPress} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10 }}>
+          {list.map((p, i) => (
+            <Animated.View
+              key={p.id}
+              style={{
+                width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2,
+                marginLeft: i === 0 ? 0 : OVERLAP, zIndex: list.length - i,
+                alignItems: 'center', justifyContent: 'center',
+                opacity: pops[i],
+                transform: [
+                  { scale: pops[i] },
+                  { translateY: floats[i].interpolate({
+                    inputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
+                    outputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1].map(
+                      (t) => 3 * Math.sin(2 * Math.PI * (t + [0, 0.5, 0.25, 0.75][i]))
+                    ),
+                  }) },
+                ],
+              }}
+            >
+              <View
+                style={{
+                  width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, overflow: 'hidden',
+                  borderWidth: 2, borderColor: '#fff', backgroundColor: '#333',
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {p.avatar ? (
+                  <Image source={{ uri: p.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                ) : (
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{p.name?.[0]?.toUpperCase() || '?'}</Text>
+                )}
+              </View>
+              {i === list.length - 1 && others > 0 && (
+                <View
+                  style={{
+                    position: 'absolute', top: -4, right: -6, minWidth: 18, height: 18, borderRadius: 9,
+                    backgroundColor: colors.brand, borderWidth: 1.5, borderColor: '#fff',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 9.5, fontWeight: '900', color: colors.textOnGold }}>{overflowLabel}</Text>
+                </View>
+              )}
+            </Animated.View>
+          ))}
+        </Pressable>
+      </Animated.View>
+
+      {/* list of everyone who reposted */}
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Pressable
+            onPress={() => setOpen(false)}
+            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          />
+          <View
+            style={{
+              backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+              paddingHorizontal: 16, paddingTop: 14, paddingBottom: insets.bottom + 16, maxHeight: SCREEN_HEIGHT * 0.6,
+            }}
+          >
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 }} />
+            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 12 }}>
+              Reposted by
+            </Text>
+            {failed ? (
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>Couldn't load reposts</Text>
+            ) : people === null ? (
+              <ActivityIndicator color={colors.brand} />
+            ) : people.length === 0 ? (
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>No reposts yet</Text>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={{ gap: 14 }}>
+                  {people.map((p) => (
+                    <Pressable key={p.id} onPress={() => goProfile(String(p.id))} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, overflow: 'hidden', backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
+                        {p.avatar ? (
+                          <Image source={{ uri: p.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                        ) : (
+                          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand }}>{p.name?.[0]?.toUpperCase() || '?'}</Text>
+                        )}
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 16, fontWeight: '700', color: colors.text }}>{p.name}</Text>
+                          <PlanBadge plan={p.plan} size={12} />
+                        </View>
+                        <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 1 }}>
+                          {formatCount(p.followers ?? 0)} followers · {formatCount(p.following ?? 0)} following
+                        </Text>
+                      </View>
+                      <ChevronRight size={18} color={colors.textMuted} />
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
 }
 
 function EmojiReact({ emoji, onSend }: { emoji: string; onSend: (e: string) => void }) {
@@ -5185,7 +6350,10 @@ function EmojiReact({ emoji, onSend }: { emoji: string; onSend: (e: string) => v
 }
 
 // Shows a person's latest story inside their ring (photo, or a paused video frame)
-function StoryCircleThumb({ group, colors }: { group: StoryGroup; colors: any }) {
+const StoryCircleThumb = memo(StoryCircleThumbInner, (a: any, b: any) =>
+  a.group.stories === b.group.stories && a.group.user_name === b.group.user_name && a.colors === b.colors);
+
+function StoryCircleThumbInner({ group, colors }: { group: StoryGroup; colors: any }) {
   const latest = useMemo(
     () => [...group.stories].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -5237,7 +6405,11 @@ function PlanBadge({ plan, size = 12 }: { plan?: string | null; size?: number })
   return null;
 }
 
-function RingName({ group, colors }: { group: StoryGroup; colors: any }) {
+const RingName = memo(RingNameInner, (a: any, b: any) =>
+  a.colors === b.colors && a.group.user_name === b.group.user_name &&
+  a.group.allViewed === b.group.allViewed && a.group.user_plan === b.group.user_plan);
+
+function RingNameInner({ group, colors }: { group: StoryGroup; colors: any }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 6, maxWidth: RING_SIZE }}>
 <Text
@@ -5265,7 +6437,7 @@ function RepostedBy({ story, color, nameColor, fontSize = 10 }: { story: Story; 
   const av = fontSize + 8;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-      <Text style={{ fontSize: fontSize + 1, fontWeight: '800', color }}>Reposted by: </Text>
+      <Text style={{ fontSize: fontSize + 1, fontWeight: '800', color }}>Reposted : </Text>
       <View style={{ width: av, height: av, borderRadius: av / 2, overflow: 'hidden', backgroundColor: 'rgba(128,128,128,0.35)', alignItems: 'center', justifyContent: 'center' }}>
         {by.avatar ? (
           <Image source={{ uri: by.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
@@ -5308,18 +6480,20 @@ function relativeTime(dateStr: string) {
 }
 
 function StoryVideoPlayer({
-  uri, onReady, paused, trimStartMs, trimEndMs, crop, seekRef,
+  uri, onReady, paused, trimStartMs, trimEndMs, crop, seekRef, muted,
 }: {
   seekRef?: React.MutableRefObject<((f: number) => void) | null>;
   uri: string; onReady: (durationMs?: number) => void; paused: boolean;
-  trimStartMs?: number | null; trimEndMs?: number | null;
+  trimStartMs?: number | null; trimEndMs?: number | null; muted?: boolean;
   crop?: VideoCropT | null;
 }) {
   const player = useVideoPlayer({ uri, useCaching: true }, (p) => {
     p.loop = false; // duration is capped/advanced manually now
+    if (!paused) p.play(); // start right away, don't wait for readyToPlay
   });
   const readyRef = useRef(false);
   const durRef = useRef(0);
+  useEffect(() => { try { player.muted = !!muted; } catch {} }, [muted, player]);
   const [aspect, setAspect] = useState<number | null>(null);
 
   useEffect(() => {
@@ -5609,11 +6783,19 @@ function ExportSheet({
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>{isImage ? 'Export photo' : 'Export video'}</Text>
-            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, marginBottom: 18 }}>
-              {isImage || noWatermark
-                ? 'Your export will have no watermark.'
-                : 'Exports include the Tre-X watermark. Upgrade to Premium to remove it.'}
-            </Text>
+            <View style={{ marginTop: 4, marginBottom: 18 }}>
+              {noWatermark && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>You're on Premium</Text>
+                  <PlanBadge plan="premium" size={13} />
+                </View>
+              )}
+              <Text style={{ fontSize: 13, color: colors.textMuted }}>
+                {isImage || noWatermark
+                  ? 'Your exports will have no watermark.'
+                  : 'Exports include the Tre-X watermark. Upgrade to Premium to remove it.'}
+              </Text>
+            </View>
           </View>
           <Pressable
             onPress={onClose}
@@ -6070,6 +7252,257 @@ function ViewerTextOverlay({ overlay }: { overlay: { text: string; y: number } }
   );
 }
 
+function PullLine({ scrollY, refreshing, colors }: { scrollY: Animated.Value; refreshing: boolean; colors: any }) {
+  const sweep = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+  const [w, setW] = useState(0);
+
+  useEffect(() => {
+    Animated.timing(fade, { toValue: refreshing ? 1 : 0, duration: 120, useNativeDriver: true }).start();
+    if (!refreshing) return;
+    sweep.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(sweep, { toValue: 1, duration: 650, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [refreshing]);
+
+  const pull = scrollY.interpolate({ inputRange: [-70, 0], outputRange: [1, 0], extrapolate: 'clamp' });
+  const pullOpacity = fade.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  const barW = w * 0.4;
+
+  return (
+    <View pointerEvents="none" onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ height: 3, overflow: 'hidden' }}>
+      {/* pull layer: grows from the centre while dragging */}
+      <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: pullOpacity }}>
+        <Animated.View style={{ height: 3, width: w, borderRadius: 2, backgroundColor: colors.brand, transform: [{ scaleX: pull }] }} />
+      </Animated.View>
+
+      {/* refreshing layer: faint track + moving bar, loops until the refresh ends */}
+      <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: fade }}>
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: colors.brand, opacity: 0.25 }} />
+        <Animated.View
+          style={{
+            position: 'absolute', top: 0, bottom: 0, width: barW, borderRadius: 2, backgroundColor: colors.brand,
+            transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-barW, w] }) }],
+          }}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+function MainTabs({ mainTab, onChange, colors }: { mainTab: string; onChange: (k: 'stories' | 'feed' | 'podcast') => void; colors: any }) {
+  const tabs = [
+    { key: 'stories', label: 'Stories', Icon: Sparkles },
+    { key: 'feed', label: 'Feed', Icon: Flame },
+    { key: 'podcast', label: 'Podcast', Icon: Music },
+  ] as const;
+  return (
+    <View style={{ flex: 1, flexDirection: 'row', height: 32 }}>
+      {tabs.map((t) => {
+        const active = mainTab === t.key;
+        return (
+          <Pressable
+            key={t.key}
+            onPress={() => onChange(t.key)}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingBottom: active ? 10 : 0 }}
+          >
+            <t.Icon size={active ? 18 : 12} color={active ? colors.brand : colors.textFaint} />
+            <Text style={{ fontSize: active ? 14 : 11.5, fontWeight: active ? '800' : '500', color: active ? colors.brand : colors.textFaint }}>
+              {t.label}
+            </Text>
+            {active && (
+              <View
+                style={{
+                  position: 'absolute', bottom: -1, alignSelf: 'center',
+                  height: 3, width: 33, borderRadius: 999, backgroundColor: colors.brand,
+                }}
+              />
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+type Podcast = { video_id: string; title: string; thumbnail: string; channel: string; published_at: string };
+
+function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: string; onChange: (k: 'stories' | 'feed' | 'podcast') => void }) {
+  const [items, setItems] = useState<Podcast[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [sub, setSub] = useState<'all' | 'fav' | 'later'>('all');
+  const [channel, setChannel] = useState('All');
+  const [favs, setFavs] = useState<Podcast[]>([]);
+  const [later, setLater] = useState<Podcast[]>([]);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get('/podcasts')
+      .then((r) => setItems(r.data || []))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
+    AsyncStorage.getItem('podcast_favs').then((v) => v && setFavs(JSON.parse(v))).catch(() => {});
+    AsyncStorage.getItem('podcast_later').then((v) => v && setLater(JSON.parse(v))).catch(() => {});
+  }, []);
+
+  const toggle = (
+    list: Podcast[], setList: (l: Podcast[]) => void, key: string, p: Podcast,
+  ) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = list.some((x) => x.video_id === p.video_id)
+      ? list.filter((x) => x.video_id !== p.video_id)
+      : [...list, p];
+    setList(next);
+    AsyncStorage.setItem(key, JSON.stringify(next)).catch(() => {});
+  };
+
+  const channels = ['All', ...Array.from(new Set(items.map((i) => i.channel)))];
+  const data =
+    sub === 'fav' ? favs :
+    sub === 'later' ? later :
+    channel === 'All' ? items : items.filter((i) => i.channel === channel);
+
+  const SUBS = [
+    { key: 'all', label: 'All' },
+    { key: 'fav', label: 'Favourites' },
+    { key: 'later', label: 'Watch Later' },
+  ] as const;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, marginTop: 20 }}>
+        <Music size={22} color={colors.brand} strokeWidth={2.2} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>Podcast</Text>
+          <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
+            Talks on how to grow your business
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ marginTop: 14, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <MainTabs mainTab={mainTab} colors={colors} onChange={onChange} />
+      </View>
+
+      {/* sub tabs */}
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+        {SUBS.map((t) => {
+          const active = sub === t.key;
+          return (
+            <Pressable
+              key={t.key}
+              onPress={() => setSub(t.key)}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999,
+                backgroundColor: active ? colors.brand : colors.chipBg,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '800', color: active ? colors.textOnGold : colors.textMuted }}>{t.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* channel chips */}
+      {sub === 'all' && channels.length > 2 && (
+        <View style={{ paddingTop: 10 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+            {channels.map((c) => {
+              const active = channel === c;
+              return (
+                <Pressable
+                  key={c}
+                  onPress={() => setChannel(c)}
+                  style={{
+                    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, borderWidth: 1,
+                    borderColor: active ? colors.brand : colors.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: active ? colors.brand : colors.textMuted }}>{c}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* inline player */}
+      {!!playingId && (
+        <View style={{ marginTop: 12 }}>
+          <YoutubePlayer
+            height={(SCREEN_WIDTH * 9) / 16}
+            width={SCREEN_WIDTH}
+            play
+            videoId={playingId}
+            onChangeState={(s: string) => { if (s === 'ended') setPlayingId(null); }}
+          />
+        </View>
+      )}
+
+      {loading ? (
+        <ActivityIndicator color={colors.brand} style={{ marginTop: 40 }} />
+      ) : failed ? (
+        <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 40 }}>Couldn't load podcasts</Text>
+      ) : (
+        <FlatList
+          data={data}
+          keyExtractor={(i) => i.video_id}
+          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 40 }}>
+              {sub === 'fav' ? 'No favourites yet' : sub === 'later' ? 'Nothing in Watch Later' : 'No podcasts yet'}
+            </Text>
+          }
+          renderItem={({ item }) => {
+            const isFav = favs.some((x) => x.video_id === item.video_id);
+            const isLater = later.some((x) => x.video_id === item.video_id);
+            const playing = playingId === item.video_id;
+            return (
+              <View
+                style={{
+                  flexDirection: 'row', alignItems: 'center', marginBottom: 14, padding: 4, borderRadius: 12,
+                  backgroundColor: playing ? colors.brandSoft : 'transparent',
+                }}
+              >
+                <Pressable onPress={() => setPlayingId(item.video_id)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View style={{ width: 120, height: 90, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.chipBg, marginRight: 12 }}>
+                    <Image source={{ uri: item.thumbnail }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                    <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Play size={12} color="#fff" fill="#fff" />
+                      </View>
+                    </View>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={2} style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>{item.title}</Text>
+                    <Text numberOfLines={1} style={{ fontSize: 13, color: colors.brand, marginTop: 4 }}>{item.channel}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                      {item.published_at ? new Date(item.published_at).toLocaleDateString() : ''}
+                    </Text>
+                  </View>
+                </Pressable>
+                <View style={{ alignItems: 'center', gap: 14, marginLeft: 8 }}>
+                  <Pressable hitSlop={8} onPress={() => toggle(favs, setFavs, 'podcast_favs', item)}>
+                    <Heart size={22} color={isFav ? '#ef4444' : colors.textMuted} fill={isFav ? '#ef4444' : 'transparent'} />
+                  </Pressable>
+                  <Pressable hitSlop={8} onPress={() => toggle(later, setLater, 'podcast_later', item)}>
+                    <Clock size={22} color={isLater ? colors.brand : colors.textMuted} />
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
 function FeedTabs({ feedTab, onChange, colors }: { feedTab: string; onChange: (k: 'all' | 'foryou' | 'following') => void; colors: any }) {
   const tabs = [
     { key: 'all', label: 'All', outline: GridOutline, solid: GridSolid },
@@ -6077,7 +7510,7 @@ function FeedTabs({ feedTab, onChange, colors }: { feedTab: string; onChange: (k
     { key: 'following', label: 'Following', outline: UsersOutline, solid: UsersSolid },
   ] as const;
   return (
-    <View style={{ flex: 1, flexDirection: 'row', height: 32 }}>
+    <View style={{ flex: 1, flexDirection: 'row', height: 24 }}>
       {tabs.map((t) => {
         const active = feedTab === t.key;
         const Icon = active ? t.solid : t.outline;
@@ -6085,9 +7518,9 @@ function FeedTabs({ feedTab, onChange, colors }: { feedTab: string; onChange: (k
           <Pressable
             key={t.key}
             onPress={() => onChange(t.key)}
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingBottom: active ? 10 : 0 }}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingBottom: active ? 4 : 0 }}
           >
-            <Icon size={active ? 18 : 12} color={active ? colors.brand : colors.textFaint} />
+            <Icon size={active ? 14 : 11} color={active ? colors.brand : colors.textFaint} />
             <Text style={{ fontSize: active ? 13 : 10.5, fontWeight: active ? '800' : '500', color: active ? colors.brand : colors.textFaint }}>
               {t.label}
             </Text>
@@ -6132,11 +7565,11 @@ function useSheetDrag(onClose: () => void) {
   return { translateY, panHandlers: pan.panHandlers };
 }
 function PostOptionsSheet({
-  isOwn, commentsOff, onClose, onReport, onHide, onBlock, onDelete, onArchive, onEdit, onToggleComments,
+  isOwn, commentsOff, onClose, onReport, onHide, onBlock, onDelete, onArchive, onEdit, onToggleComments, onSettings,
 }: {
   isOwn: boolean; commentsOff: boolean; onClose: () => void;
   onReport: () => void; onHide: () => void; onBlock: () => void;
-  onDelete: () => void; onArchive: () => void; onEdit: () => void; onToggleComments: () => void;
+  onDelete: () => void; onArchive: () => void; onEdit: () => void; onToggleComments: () => void; onSettings?: () => void;
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -6144,7 +7577,7 @@ function PostOptionsSheet({
 
   const rows: { key: string; label: string; Icon: any; danger?: boolean; onPress: () => void }[] = isOwn
     ? [
-        { key: 'comments', label: commentsOff ? 'Turn on comments' : 'Turn off comments', Icon: MessageCircle, onPress: onToggleComments },
+        { key: 'settings', label: 'Post settings', Icon: Settings, onPress: () => onSettings?.() },
         { key: 'edit', label: 'Edit caption', Icon: Pencil, onPress: onEdit },
         { key: 'archive', label: 'Archive post', Icon: Archive, onPress: onArchive },
         { key: 'delete', label: 'Delete post', Icon: Trash2, danger: true, onPress: onDelete },

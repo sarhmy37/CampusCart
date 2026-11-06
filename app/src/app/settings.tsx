@@ -16,6 +16,7 @@ import {
 import { CheckBadgeIcon as BadgeCheck } from 'react-native-heroicons/outline';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { FontAwesome6 } from '@expo/vector-icons';
 import { SETTINGS_VIDEO } from '@/data/media';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -26,6 +27,24 @@ import StorePage from '@/app/seller/[id]';
 
 const BUYER_SERVICE_FEE_RATE = 2;
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
+
+function GlassSecondaryButton({ onPress, children, style, fallbackStyle }: any) {
+  const Wrapper: any = GLASS ? GlassView : View;
+  return (
+    <Pressable onPress={onPress}>
+      <Wrapper
+        {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
+        style={[
+          { borderRadius: 12, overflow: 'hidden' },
+          GLASS ? {} : fallbackStyle,
+          style,
+        ]}
+      >
+        {children}
+      </Wrapper>
+    </Pressable>
+  );
+}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -58,6 +77,14 @@ export default function SettingsScreen() {
   const API_ORIGIN = ((api.defaults.baseURL || '') as string).replace(/\/api\/?$/, '');
   const referralLink = `${API_ORIGIN}/register?ref=${user?.referral_code || ''}`;
   const businessProfileUrl = user?.id ? `${API_ORIGIN}/store/${user.id}` : '';
+  const shareUrl = businessProfileUrl
+    ? `${businessProfileUrl}${theme === 'dark' ? '?theme=dark' : ''}`
+    : '';
+  const warmPreview = () => {
+    if (!businessProfileUrl) return;
+    fetch(`${businessProfileUrl}/og-image.png?theme=${theme === 'dark' ? 'dark' : 'light'}`).catch(() => {});
+  };
+  useEffect(() => { warmPreview(); }, [businessProfileUrl, theme]);
 
   const [nowTs, setNowTs] = useState(Date.now());
   const discountExpiry = user?.plan_discount_expires_at
@@ -222,36 +249,58 @@ export default function SettingsScreen() {
   const [notifyListings, setNotifyListings] = useState(true);
   const [notifyMessages, setNotifyMessages] = useState(user?.notify_messages !== false);
 
+  const spotlightPrefs = [
+    { key: 'spotlight_allow_chat', label: 'Allow chat', desc: 'Let people message you from your Feed profile and search' },
+    { key: 'spotlight_show_likes', label: 'Show like counts', desc: 'Show likes on your Feed posts' },
+    { key: 'spotlight_allow_repost', label: 'Allow reposts', desc: 'Let others repost your Feed posts' },
+    { key: 'spotlight_allow_export', label: 'Allow downloads', desc: 'Let others save or share your Feed posts' },
+  ];
+  const setSpotlightPref = async (key: string, value: boolean) => {
+    setUser({ ...user, [key]: value } as any);
+    try {
+      await api.patch('/spotlight/profile', { [key]: value });
+    } catch {
+      setUser({ ...user, [key]: !value } as any);
+      Toast.show({ type: 'error', text1: "Couldn't save" });
+    }
+  };
+
   const copyReferralLink = async () => {
     await Clipboard.setStringAsync(referralLink);
     Toast.show({ type: 'success', text1: 'Referral link copied' });
   };
   const copyBusinessLink = async () => {
-    if (!businessProfileUrl) return;
-    await Clipboard.setStringAsync(businessProfileUrl);
+    if (!shareUrl) return;
+    warmPreview();
+    await Clipboard.setStringAsync(shareUrl);
     Toast.show({ type: 'success', text1: 'Profile link copied!' });
   };
   const shareOnSocial = (platform: string) => {
-    if (!businessProfileUrl) return;
-    const url = encodeURIComponent(businessProfileUrl);
-    const text = encodeURIComponent('Check out my store on TreX! 🛍️');
+    if (!shareUrl) return;
+    warmPreview();
+    const url = encodeURIComponent(shareUrl);
+    const text = encodeURIComponent(
+      user?.name ? `Come see what ${user.name} is selling on TreX! 🛍️` : 'Come see what I\'m selling on TreX! 🛍️'
+    );
     const shareUrls: Record<string, string> = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
       twitter: `https://twitter.com/intent/tweet?url=${url}&text=${text}`,
-      whatsapp: `https://wa.me/?text=${text} ${url}`,
+      whatsapp: `whatsapp://send?text=${text}%20${url}`,
       linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
       telegram: `https://t.me/share/url?url=${url}&text=${text}`,
     };
     if (shareUrls[platform]) Linking.openURL(shareUrls[platform]);
   };
   const shareInstagram = async () => {
-    if (!businessProfileUrl) return;
-    await Clipboard.setStringAsync(businessProfileUrl);
+    if (!shareUrl) return;
+    warmPreview();
+    await Clipboard.setStringAsync(shareUrl);
     Toast.show({ type: 'success', text1: 'Link copied! Paste it in your Instagram bio.' });
   };
   const shareSnapchat = async () => {
-    if (!businessProfileUrl) return;
-    await Clipboard.setStringAsync(businessProfileUrl);
+    if (!shareUrl) return;
+    warmPreview();
+    await Clipboard.setStringAsync(shareUrl);
     Toast.show({ type: 'success', text1: 'Link copied! Paste it in Snapchat.' });
   };
 
@@ -303,12 +352,23 @@ export default function SettingsScreen() {
         pointerEvents="box-none"
         style={{ position: 'absolute', top: 16, left: 16, zIndex: 20, opacity: backButtonOpacity }}
       >
-        <Pressable
-          onPress={() => router.replace('/profile')}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' }}
-        >
-          <ArrowLeft size={14} color="white" />
-          <AppText style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Back</AppText>
+        <Pressable onPress={() => router.replace('/profile')} hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+          {(() => {
+            const Wrapper: any = GLASS ? GlassView : View;
+            return (
+              <Wrapper
+                {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                  paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden',
+                  ...(GLASS ? {} : { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }),
+                }}
+              >
+                <ArrowLeft size={14} color="white" />
+                <AppText style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Back</AppText>
+              </Wrapper>
+            );
+          })()}
         </Pressable>
       </Animated.View>
 
@@ -432,9 +492,7 @@ export default function SettingsScreen() {
                 }}
               >
                 <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                    <Store size={16} color={colors.brand} />
-                  </View>
+                  <Store size={20} color={colors.brand} />
                   <View style={{ flex: 1 }}>
                     <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Business Profile</AppText>
                     <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
@@ -451,29 +509,29 @@ export default function SettingsScreen() {
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <TextInput value={businessProfileUrl} editable={false} style={[inputStyle, { flex: 1, fontSize: 15, color: colors.textMuted }]} />
-                      <Pressable onPress={copyBusinessLink} style={{ padding: 12, borderRadius: 12, backgroundColor: colors.chipBg }}>
+                      <GlassSecondaryButton onPress={copyBusinessLink} fallbackStyle={{ backgroundColor: colors.chipBg }} style={{ padding: 12 }}>
                         <Copy size={16} color={colors.textSecondary} />
-                      </Pressable>
+                      </GlassSecondaryButton>
                     </View>
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
                       <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>Share on:</AppText>
                     </View>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      <SocialBtn bg="#1877F2" label="f" onPress={() => shareOnSocial('facebook')} />
-                      <SocialBtn bg={colors.text} label="X" textColor={colors.card} onPress={() => shareOnSocial('twitter')} />
-                      <SocialBtn bg="#25D366" label="W" onPress={() => shareOnSocial('whatsapp')} />
-                      <SocialBtn bg="#0A66C2" label="in" onPress={() => shareOnSocial('linkedin')} />
+                      <SocialBtn bg="#1877F2" icon="facebook-f" onPress={() => shareOnSocial('facebook')} />
+                      <SocialBtn bg={colors.text} icon="x-twitter" textColor={colors.card} onPress={() => shareOnSocial('twitter')} />
+                      <SocialBtn bg="#25D366" icon="whatsapp" onPress={() => shareOnSocial('whatsapp')} />
+                      <SocialBtn bg="#0A66C2" icon="linkedin-in" onPress={() => shareOnSocial('linkedin')} />
                       {socialsExpanded && (
                         <>
-                          <SocialBtn bg="#26A5E4" label="Tg" onPress={() => shareOnSocial('telegram')} />
-                          <SocialBtn bg="#d62976" label="Ig" onPress={shareInstagram} />
-                          <SocialBtn bg="#FFFC00" label="Sc" textColor="#000" onPress={shareSnapchat} />
+                          <SocialBtn bg="#26A5E4" icon="telegram" onPress={() => shareOnSocial('telegram')} />
+                          <SocialBtn bg="#d62976" icon="instagram" onPress={shareInstagram} />
+                          <SocialBtn bg="#FFFC00" icon="snapchat" textColor="#000" onPress={shareSnapchat} />
                         </>
                       )}
-                      <Pressable onPress={() => setSocialsExpanded((v) => !v)} style={{ padding: 10, borderRadius: 8, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
+                      <GlassSecondaryButton onPress={() => setSocialsExpanded((v) => !v)} fallbackStyle={{ backgroundColor: colors.chipBg }} style={{ padding: 10, alignItems: 'center', justifyContent: 'center' }}>
                         {socialsExpanded ? <ChevronLeft size={16} color={colors.textMuted} /> : <ChevronRight size={16} color={colors.textMuted} />}
-                      </Pressable>
+                      </GlassSecondaryButton>
                     </View>
 
                     <Pressable onPress={() => setShowHandlesModal(true)} style={{ marginTop: 12 }}>
@@ -491,9 +549,7 @@ export default function SettingsScreen() {
           <View style={{ padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  {theme === 'dark' ? <Moon size={16} color={colors.brand} /> : <Sun size={16} color={colors.brand} />}
-                </View>
+                {theme === 'dark' ? <Moon size={20} color={colors.brand} /> : <Sun size={20} color={colors.brand} />}
                 <View>
                   <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Appearance</AppText>
                   <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
@@ -529,9 +585,7 @@ export default function SettingsScreen() {
           <Card colors={colors}>
             <Pressable onPress={() => setTermsOpen((o) => !o)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Shield size={16} color={colors.brand} />
-                </View>
+                <Shield size={20} color={colors.brand} />
                 <View style={{ flex: 1 }}>
                   <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Buyer Terms of Service</AppText>
                   <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Your shopping rights and protections</AppText>
@@ -565,9 +619,7 @@ export default function SettingsScreen() {
         <Card colors={colors}>
           <View style={{ padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Lock size={16} color={colors.brand} />
-              </View>
+              <Lock size={20} color={colors.brand} />
               <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Change password</AppText>
             </View>
 
@@ -616,13 +668,37 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
+        {/* SPOTLIGHT PRIVACY */}
+        <Card colors={colors}>
+          <View style={{ padding: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <Eye size={20} color={colors.brand} />
+              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Spotlight privacy</AppText>
+            </View>
+            <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>
+              Defaults for your Feed posts. You can override them on any single post.
+            </AppText>
+            {spotlightPrefs.map((p) => (
+              <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>{p.label}</AppText>
+                  <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>{p.desc}</AppText>
+                </View>
+                <IOSToggle
+                  value={(user as any)?.[p.key] ?? true}
+                  onToggle={() => setSpotlightPref(p.key, !((user as any)?.[p.key] ?? true))}
+                  colors={colors}
+                />
+              </View>
+            ))}
+          </View>
+        </Card>
+
         {/* NOTIFICATIONS */}
         <Card colors={colors}>
           <View style={{ padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Bell size={16} color={colors.brand} />
-              </View>
+              <Bell size={20} color={colors.brand} />
               <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Notifications</AppText>
             </View>
 
@@ -648,9 +724,7 @@ export default function SettingsScreen() {
         <Card colors={colors}>
           <View style={{ padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Gift size={16} color={colors.brand} />
-              </View>
+              <Gift size={20} color={colors.brand} />
               <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Refer a friend</AppText>
             </View>
             <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
@@ -695,9 +769,7 @@ export default function SettingsScreen() {
         <Card colors={colors} borderColor={colors.error}>
           <View style={{ padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <AlertTriangle size={16} color={colors.error} />
-              </View>
+              <AlertTriangle size={20} color={colors.error} />
               <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Danger zone</AppText>
             </View>
             <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
@@ -935,9 +1007,7 @@ function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: an
     <Card colors={colors}>
       <View style={{ padding: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <MapPin size={16} color={colors.brand} />
-          </View>
+          <MapPin size={20} color={colors.brand} />
           <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Delivery Locations</AppText>
         </View>
         <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
@@ -1110,10 +1180,10 @@ function IOSToggle({
   );
 }
 
-function SocialBtn({ bg, label, onPress, textColor = 'white' }: { bg: string; label: string; onPress: () => void; textColor?: string }) {
+function SocialBtn({ bg, icon, onPress, textColor = 'white' }: { bg: string; icon: string; onPress: () => void; textColor?: string }) {
   return (
     <Pressable onPress={onPress} style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      <AppText style={{ color: textColor, fontSize: 14, fontWeight: '700' }}>{label}</AppText>
+      <FontAwesome6 name={icon as any} brand size={16} color={textColor} />
     </Pressable>
   );
 }

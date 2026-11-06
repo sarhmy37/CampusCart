@@ -9,6 +9,7 @@ import {
   ScrollView,
   Modal,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -22,19 +23,21 @@ import Animated, {
 import StoryViewer from '@/components/StoryViewer';
 import StoryRing from '@/components/StoryRing';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { parseWallpaper } from '@/data/wallpapers';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Search, ChevronLeft, X, BellOff, Star, Sparkles } from 'lucide-react-native';
+import { Search, ChevronLeft, X, BellOff, Star, Sparkles, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed } from 'lucide-react-native';
+import { useCall } from '@/context/CallContext';
 import {
   InboxIcon as InboxOutline,
   EnvelopeIcon as EnvelopeOutline,
   ShoppingBagIcon as BagOutline,
   TagIcon as TagOutline,
   BellSlashIcon as BellSlashOutline,
-  FlagIcon as FlagOutline,
+  PhoneIcon as PhoneOutline,
 } from 'react-native-heroicons/outline';
 import {
   InboxIcon as InboxSolid,
@@ -42,7 +45,7 @@ import {
   ShoppingBagIcon as BagSolid,
   TagIcon as TagSolid,
   BellSlashIcon as BellSlashSolid,
-  FlagIcon as FlagSolid,
+  PhoneIcon as PhoneSolid,
 } from 'react-native-heroicons/solid';
 import api from '@/api/client';
 import { useChat } from '@/context/ChatContext';
@@ -51,6 +54,8 @@ import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { SCREEN_PADDING_X } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
+
+const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
 const GREETINGS: { start: number; end: number; options: string[] }[] = [
   { start: 5, end: 12, options: ['Good morning', 'Rise and shine', 'Morning, champ', 'Fresh day, fresh chats'] },
@@ -125,15 +130,13 @@ function BubbleTail({ isMine, color }: { isMine: boolean; color: string }) {
   );
 }
 
-type Filter = 'all' | 'unread' | 'buying' | 'selling' | 'muted' | 'reports';
+type Filter = 'all' | 'unread' | 'buying' | 'selling' | 'muted' | 'calls';
 
-const REPORT_REASONS: Record<string, string> = {
-  scam: 'Scam or fraud',
-  fake_listing: 'Fake or misleading listing',
-  inappropriate: 'Inappropriate content',
-  harassment: 'Harassment or unsafe behavior',
-  other: 'Something else',
-};
+function formatDuration(s?: number | null) {
+  if (!s) return '';
+  const m = Math.floor(s / 60);
+  return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
+}
 
 function PlanBadge({ plan, expiresAt }: { plan?: string | null; expiresAt?: string | null; colors?: any }) {
   const active = plan && plan !== 'free' && expiresAt && new Date(expiresAt) > new Date();
@@ -170,11 +173,13 @@ function Avatar({ convo, size, colors, storyGroup, onPressStory }: any) {
 
 export default function Messages() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 const { conversations, openConversation, unreadCount, isMuted, openChat, sendQuickMessage } = useChat() as any;
   const colors = useColors();
 
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { startCall } = useCall() as any;
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [previewConvo, setPreviewConvo] = useState<any>(null);
@@ -237,8 +242,8 @@ const { conversations, openConversation, unreadCount, isMuted, openChat, sendQui
 
   const all = useMemo(() => conversations || [], [conversations]);
 
-  const [reports, setReports] = useState<any[]>([]);
-  const [reportsLoading, setReportsLoading] = useState(false);
+  const [calls, setCalls] = useState<any[]>([]);
+  const [callsLoading, setCallsLoading] = useState(false);
 const [storyMap, setStoryMap] = useState<Record<string, any>>({});
 
 useFocusEffect(
@@ -297,24 +302,31 @@ const markViewed = (s: any) => {
 };
 
   useEffect(() => {
-    if (filter !== 'reports') return;
-    setReportsLoading(true);
-    api.get('/reports/mine')
-      .then((res) => setReports(res.data))
-      .catch(() => setReports([]))
-      .finally(() => setReportsLoading(false));
+    if (filter !== 'calls') return;
+    setCallsLoading(true);
+    api.get('/calls/mine')
+      .then((res) => setCalls(res.data || []))
+      .catch(() => setCalls([]))
+      .finally(() => setCallsLoading(false));
   }, [filter]);
 
-  const chatReports = useMemo(() => {
-    let list = reports.filter(
-      (r: any) => r.reported_user_id && !r.product_id && String(r.reported_user_id) !== String(r.reporter_id)
-    );
+  const [callHistoryFor, setCallHistoryFor] = useState<any>(null);
+
+  const chatCalls = useMemo(() => {
+    const map = new Map<string, any>();
+    calls.forEach((c: any) => {
+      const key = String(c.other_user_id);
+      const g = map.get(key);
+      if (g) g.history.push(c);
+      else map.set(key, { ...c, history: [c] });
+    });
+    let list = Array.from(map.values());
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter((r: any) => (r.reported_user_name || '').toLowerCase().includes(q));
+      list = list.filter((c: any) => (c.other_user_name || '').toLowerCase().includes(q));
     }
     return list;
-  }, [reports, search]);
+  }, [calls, search]);
 
   const counts = useMemo(
     () => ({
@@ -346,6 +358,7 @@ const markViewed = (s: any) => {
   const [previewLastActive, setPreviewLastActive] = useState<string | null>(null);
   const [previewWallpaper, setPreviewWallpaper] = useState<any>(null);
   const pvParsed = parseWallpaper(previewWallpaper);
+  const PreviewWrap: any = GLASS ? GlassView : View;
   const pvBg =
     pvParsed.kind === 'none'
       ? { backgroundColor: '#EFEAFB' }
@@ -402,12 +415,13 @@ const openStory = (g: any) => {
     { key: 'all', label: 'All', outline: InboxOutline, solid: InboxSolid },
     { key: 'unread', label: 'Unread', outline: EnvelopeOutline, solid: EnvelopeSolid, count: counts.unread },
     { key: 'muted', label: 'Muted', outline: BellSlashOutline, solid: BellSlashSolid },
-    { key: 'reports', label: 'Reports', outline: FlagOutline, solid: FlagSolid },
+    { key: 'calls', label: 'Calls', outline: PhoneOutline, solid: PhoneSolid },
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: bodyBg }} edges={[]}>
+    <View style={{ flex: 1, backgroundColor: bodyBg }}>
       {/* Header */}
+      <View style={{ backgroundColor: colors.card, paddingTop: insets.top }}>
       <View style={{ paddingHorizontal: SCREEN_PADDING_X, paddingTop: 10, paddingBottom: 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 2 }}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginLeft: -4, padding: 4 }}>
@@ -467,7 +481,7 @@ const openStory = (g: any) => {
                 onChangeText={setSearch}
                 placeholder="Search contacts"
                 placeholderTextColor={colors.textFaint}
-                style={{ paddingVertical: 0, color: colors.text, fontSize: 16 }}
+                style={{ paddingVertical: 0, color: colors.text, fontSize: 15 }}
               />
             </Animated.View>
             {search.length > 0 && (
@@ -483,13 +497,15 @@ const openStory = (g: any) => {
         </Animated.View>
       </View>
 
+      </View>
+
       {/* Filter tabs */}
       <View
         style={{
           flexDirection: 'row',
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          marginTop: 6,
+          backgroundColor: colors.card,
           paddingHorizontal: 6,
         }}
       >
@@ -562,13 +578,13 @@ const openStory = (g: any) => {
 
       {/* List */}
       <FlatList
-        data={filter === 'reports' ? chatReports : filtered}
+        data={filter === 'calls' ? chatCalls : filtered}
         keyExtractor={(item: any) => String(item.id)}
         contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 120, paddingTop: 4 }}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingVertical: 80, paddingHorizontal: 24 }}>
-            <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>
+            <Text style={{ fontSize: 15, color: colors.textMuted, textAlign: 'center' }}>
               {search
                 ? `No results for "${search}"`
                 : filter === 'unread'
@@ -577,10 +593,10 @@ const openStory = (g: any) => {
                 ? 'No buying chats'
                 : filter === 'selling'
                 ? 'No selling chats'
-                : filter === 'reports'
-                ? reportsLoading
+                : filter === 'calls'
+                ? callsLoading
                   ? 'Loading…'
-                  : "You haven't reported anyone"
+                  : 'No calls yet'
                 : filter === 'muted'
                 ? 'No muted chats'
                 : 'No messages yet'}
@@ -588,39 +604,49 @@ const openStory = (g: any) => {
           </View>
         }
         renderItem={({ item: convo }: any) => {
-          if (filter === 'reports') {
-            const pending = (convo.status || 'pending') === 'pending';
+          if (filter === 'calls') {
+            const missed = ['missed', 'declined', 'ringing', 'delivered'].includes(convo.status);
+            const outgoing = String(convo.caller_id) === String(user?.id);
+            const CallIcon = missed ? PhoneMissed : outgoing ? PhoneOutgoing : PhoneIncoming;
+            const tone = missed ? colors.error : colors.success;
             return (
-              <View
+              <Pressable
+                onPress={() => setCallHistoryFor(convo)}
                 style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 14,
                   paddingHorizontal: 12,
                   paddingVertical: 14,
                   borderBottomWidth: 1,
                   borderBottomColor: colors.border,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <Text numberOfLines={1} style={{ flex: 1, fontSize: 17, fontWeight: '600', color: colors.text }}>
-                    {convo.reported_user_name || 'Unknown user'}
+                <Avatar convo={convo} size={52} colors={colors} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: missed ? colors.error : colors.text }}>
+                    {convo.other_user_name || 'Unknown user'}
                   </Text>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: pending ? colors.warning : colors.success }}>
-                      {pending ? 'Pending' : 'Completed'}
-                    </Text>
-                    <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
-                      {new Date(convo.created_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                    <CallIcon size={13} color={tone} />
+                    <Text style={{ fontSize: 13, color: colors.textMuted }}>
+                      {missed ? 'Missed' : outgoing ? 'Outgoing' : 'Incoming'}
+                      {convo.duration_seconds ? ` · ${formatDuration(convo.duration_seconds)}` : ''}
                     </Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 3 }}>
-                  {REPORT_REASONS[convo.reason] || convo.reason}
-                </Text>
-                {!!convo.details && (
-                  <Text numberOfLines={2} style={{ fontSize: 14, color: colors.textFaint, marginTop: 3 }}>
-                    {convo.details}
+                <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                  <Text style={{ fontSize: 13, color: colors.textFaint }}>
+                    {formatChatTime(convo.created_at)}
                   </Text>
-                )}
-              </View>
+                  <Pressable
+                    onPress={() => startCall(convo.other_user_id, convo.other_user_name, convo.other_user_avatar)}
+                    hitSlop={12}
+                  >
+                    <Phone size={20} color={colors.brand} />
+                  </Pressable>
+                </View>
+              </Pressable>
             );
           }
           const muted = isMuted(convo.id);
@@ -679,7 +705,7 @@ const openStory = (g: any) => {
                       numberOfLines={1}
                       style={{
                         flexShrink: 1,
-                        fontSize: 17,
+                        fontSize: 15,
                         fontWeight: unread ? '800' : '600',
                         color: colors.text,
                       }}
@@ -723,7 +749,7 @@ const openStory = (g: any) => {
                     numberOfLines={1}
                     style={{
                       flex: 1,
-                      fontSize: 15,
+                      fontSize: 13,
                       fontWeight: unread ? '600' : '400',
                       color: unread ? colors.text : colors.textMuted,
                     }}
@@ -764,6 +790,77 @@ const openStory = (g: any) => {
         }}
       />
       <Modal
+        visible={!!callHistoryFor}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCallHistoryFor(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+          onPress={() => setCallHistoryFor(null)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: colors.card,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: '70%',
+              paddingBottom: insets.bottom + 12,
+            }}
+          >
+            {callHistoryFor && (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: colors.borderMuted }}>
+                  <Avatar convo={callHistoryFor} size={44} colors={colors} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>
+                      {callHistoryFor.other_user_name}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                      {callHistoryFor.history.length} {callHistoryFor.history.length === 1 ? 'call' : 'calls'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      const c = callHistoryFor;
+                      setCallHistoryFor(null);
+                      startCall(c.other_user_id, c.other_user_name, c.other_user_avatar);
+                    }}
+                    hitSlop={12}
+                  >
+                    <Phone size={22} color={colors.brand} />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+                  {callHistoryFor.history.map((h: any) => {
+                    const missed = ['missed', 'declined', 'ringing', 'delivered'].includes(h.status);
+                    const outgoing = String(h.caller_id) === String(user?.id);
+                    const Icon = missed ? PhoneMissed : outgoing ? PhoneOutgoing : PhoneIncoming;
+                    const tone = missed ? colors.error : colors.success;
+                    return (
+                      <View
+                        key={h.id}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderMuted }}
+                      >
+                        <Icon size={16} color={tone} />
+                        <Text style={{ flex: 1, fontSize: 15, color: missed ? colors.error : colors.text }}>
+                          {missed ? 'Missed' : outgoing ? 'Outgoing' : 'Incoming'}
+                        </Text>
+                        <Text style={{ fontSize: 13, color: colors.textFaint }}>
+                          {new Date(h.created_at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
         visible={!!previewConvo}
         transparent
         animationType="fade"
@@ -786,11 +883,16 @@ const openStory = (g: any) => {
                 maxWidth: 380,
                 borderRadius: 20,
                 overflow: 'hidden',
-                backgroundColor: colors.background,
-                borderWidth: 1,
-                borderColor: colors.border,
               }}
             >
+              <PreviewWrap
+                {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}
+                style={{
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  ...(GLASS ? {} : { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }),
+                }}
+              >
               {/* Header */}
               <View
                 style={{
@@ -799,7 +901,7 @@ const openStory = (g: any) => {
                   gap: 10,
                   paddingHorizontal: 14,
                   paddingVertical: 12,
-                  backgroundColor: colors.card,
+                  backgroundColor: GLASS ? 'transparent' : colors.card,
                   borderBottomWidth: 1,
                   borderBottomColor: colors.borderMuted,
                 }}
@@ -812,14 +914,14 @@ const openStory = (g: any) => {
                   />
                 ) : (
                   <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontWeight: '700', color: colors.brand, fontSize: 16 }}>
+                    <Text style={{ fontWeight: '700', color: colors.brand, fontSize: 15 }}>
                       {previewConvo.other_user_name?.[0]?.toUpperCase() || '?'}
                     </Text>
                   </View>
                 )}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Text numberOfLines={1} style={{ flexShrink: 1, fontWeight: '700', color: colors.text, fontSize: 16 }}>
+                    <Text numberOfLines={1} style={{ flexShrink: 1, fontWeight: '700', color: colors.text, fontSize: 15 }}>
                       {previewConvo.other_user_name}
                     </Text>
                     <PlanBadge
@@ -839,8 +941,8 @@ const openStory = (g: any) => {
               </View>
 
               {/* Latest 6 messages */}
-              <View style={[{ padding: 14, minHeight: 120 }, pvBg]}>
-                {pvParsed.kind === 'gradient' && (
+              <View style={[{ padding: 14, minHeight: 120 }, GLASS ? null : pvBg]}>
+                {!GLASS && pvParsed.kind === 'gradient' && (
                   <LinearGradient
                     colors={pvParsed.colors as any}
                     start={{ x: 0, y: 0 }}
@@ -848,7 +950,7 @@ const openStory = (g: any) => {
                     style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                   />
                 )}
-                {pvParsed.kind === 'image' && (
+                {!GLASS && pvParsed.kind === 'image' && (
                   <Image
                     source={{ uri: pvParsed.uri }}
                     style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
@@ -907,6 +1009,7 @@ const openStory = (g: any) => {
                   })
                 )}
               </View>
+              </PreviewWrap>
             </Pressable>
           )}
         </View>
@@ -972,6 +1075,6 @@ const openStory = (g: any) => {
           />
         )}
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

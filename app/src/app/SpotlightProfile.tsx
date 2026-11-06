@@ -36,6 +36,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { StoryViewerLocal } from './stories';
 import { useChat } from '@/context/ChatContext';
+import PostSettingsSheet, { PostSettingsT } from '@/components/PostSettingsSheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -142,6 +143,7 @@ export default function SpotlightProfile() {
   const durationsRef = useRef<Record<string, number>>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const sheetY = useRef(new Animated.Value(0)).current;
   const sheetPan = useRef(
     PanResponder.create({
@@ -164,7 +166,7 @@ export default function SpotlightProfile() {
   ).current;
 
   // Guest profile data (name/avatar/followers of the visited user)
-  const [guestData, setGuestData] = useState<{ name: string; avatar: string | null; followers: number; plan?: string | null } | null>(null);
+  const [guestData, setGuestData] = useState<{ name: string; avatar: string | null; followers: number; plan?: string | null; allowChat?: boolean } | null>(null);
   const [followStats, setFollowStats] = useState<{ followers: number; following: number; i_follow: boolean } | null>(null);
 
   // Profile info (bio) edit
@@ -219,6 +221,7 @@ export default function SpotlightProfile() {
             avatar: group.user_avatar ?? null,
             followers: Number(group.activity_count) || 0,
             plan: group.user_plan ?? null,
+            allowChat: group.user_allow_chat !== false,
           });
         }
         setReposts([]);
@@ -317,6 +320,18 @@ export default function SpotlightProfile() {
       Toast.show({ type: 'success', text1: 'Cover photo updated' });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err?.response?.data?.error || 'Could not update cover photo' });
+    }
+  };
+
+  const updateAccountSetting = async (key: keyof PostSettingsT, value: boolean | undefined) => {
+    if (value === undefined) return;
+    const field = `spotlight_${key}`;
+    setUser({ ...user, [field]: value } as any);
+    try {
+      await api.patch('/spotlight/profile', { [field]: value });
+    } catch {
+      setUser({ ...user, [field]: !value } as any);
+      Toast.show({ type: 'error', text1: "Couldn't save" });
     }
   };
 
@@ -714,10 +729,11 @@ export default function SpotlightProfile() {
               disabled={!followStats}
               active={!!followStats?.i_follow}
               colors={colors}
-              style={{ borderTopLeftRadius: 999, borderBottomLeftRadius: 999 }}
+              style={guestData?.allowChat === false ? { borderRadius: 999 } : { borderTopLeftRadius: 999, borderBottomLeftRadius: 999 }}
             />
             <GlassActionButton
               label="Chat"
+              hidden={guestData?.allowChat === false}
               onPress={() => openChat({ sellerId: targetUserId, sellerName: displayName || '', draftMessage: '' })}
               colors={colors}
               active
@@ -1056,6 +1072,12 @@ export default function SpotlightProfile() {
                 onPress={openEditInfo}
               />
               <MenuRow
+                icon={<Eye size={18} color={colors.text} />}
+                label="Spotlight privacy"
+                colors={colors}
+                onPress={() => { setMenuOpen(false); setTimeout(() => setPrivacyOpen(true), 250); }}
+              />
+              <MenuRow
                 icon={<Share2 size={18} color={colors.text} />}
                 label="Share profile"
                 colors={colors}
@@ -1066,6 +1088,20 @@ export default function SpotlightProfile() {
           </View>
         </Modal>
       )}
+
+      <PostSettingsSheet
+        visible={privacyOpen}
+        title="Spotlight privacy"
+        allowDefault={false}
+        settings={{
+          allow_chat: (user as any)?.spotlight_allow_chat ?? true,
+          show_likes: (user as any)?.spotlight_show_likes ?? true,
+          allow_repost: (user as any)?.spotlight_allow_repost ?? true,
+          allow_export: (user as any)?.spotlight_allow_export ?? true,
+        }}
+        onChange={updateAccountSetting}
+        onClose={() => setPrivacyOpen(false)}
+      />
 
       {/* Edit profile info sheet */}
       <Modal visible={editInfoOpen} transparent animationType="slide" onRequestClose={() => setEditInfoOpen(false)}>
@@ -1236,8 +1272,8 @@ function GlassIconButton({
 }
 
 function GlassActionButton({
-  label, onPress, colors, style, disabled, active,
-}: { label: string; onPress: () => void; colors: any; style?: any; disabled?: boolean; active?: boolean }) {
+  label, onPress, colors, style, disabled, active, hidden,
+}: { label: string; onPress: () => void; colors: any; style?: any; disabled?: boolean; active?: boolean; hidden?: boolean }) {
   const Wrapper: any = GLASS ? GlassView : View;
   return (
     <Pressable
@@ -1246,7 +1282,7 @@ function GlassActionButton({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onPress();
       }}
-      style={{ flex: 1, opacity: disabled ? 0.5 : 1 }}
+      style={{ flex: 1, opacity: disabled ? 0.5 : 1, display: hidden ? 'none' : 'flex' }}
     >
       <Wrapper
         {...(GLASS ? { glassEffectStyle: 'regular', isInteractive: true } : {})}

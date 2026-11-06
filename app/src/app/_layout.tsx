@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { Dimensions, Pressable, View } from 'react-native';
+import { Dimensions, Pressable, View, Text, TextInput, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -20,6 +20,8 @@ import { NotificationProvider } from '@/context/NotificationContext';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/context/ThemeContext';
 import { FontProvider } from '@/context/FontContext';
 import { ReviewPromptProvider } from '@/context/ReviewPromptContext';
+import { PullRefreshProvider, usePullRefreshState } from '@/context/PullRefreshContext';
+import PullRefreshBar from '@/components/PullRefreshBar';
 import { Colors } from '@/constants/theme';
 import '../global.css';
 import SessionRevokedModal from '@/components/SessionRevokedModal';
@@ -30,6 +32,34 @@ import * as Linking from 'expo-linking';
 import { useRouter, usePathname } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
+
+const ANDROID_FONT_FACTOR = Platform.OS === 'ios' ? 0.7 : 0.6;
+
+const patchJsx = (mod: any, keys: string[]) => {
+  keys.forEach((k) => {
+    const orig = mod[k];
+    if (typeof orig !== 'function') return;
+    mod[k] = (type: any, props: any, ...rest: any[]) => {
+      if ((type === Text || type === TextInput) && props) {
+        const f: any = StyleSheet.flatten(props.style) || {};
+        props = {
+          ...props,
+          allowFontScaling: false,
+          style: [
+            props.style,
+            {
+              ...(f.fontSize ? { fontSize: f.fontSize * ANDROID_FONT_FACTOR } : null),
+              ...(f.lineHeight ? { lineHeight: f.lineHeight * ANDROID_FONT_FACTOR } : null),
+            },
+          ],
+        };
+      }
+      return orig(type, props, ...rest);
+    };
+  });
+};
+patchJsx(require('react/jsx-runtime'), ['jsx', 'jsxs']);
+patchJsx(require('react/jsx-dev-runtime'), ['jsxDEV']);
 
 function ThemedToast({ ToastComponent, ...props }: any) {
   const { theme } = useTheme();
@@ -96,7 +126,7 @@ function ThemedToast({ ToastComponent, ...props }: any) {
             fontWeight: '700',
           }}
           text2Style={{
-            color: isDark ? colors.brandDark : '#000000',
+            color: colors.textSecondary,
             fontSize: 12.5,
           }}
         />
@@ -126,6 +156,15 @@ Toast.show = (options: any) => {
   return originalShow({ visibilityTime: time, ...options });
 };
 
+function PullBarOverlay() {
+  const { scrollY, refreshing, armed } = usePullRefreshState();
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', zIndex: 10 }}>
+      <PullRefreshBar scrollY={scrollY} refreshing={refreshing} armed={armed} />
+    </View>
+  );
+}
+
 const TAB_BAR_HEIGHT = 56;
 
 function ThemedShell() {
@@ -136,7 +175,9 @@ function ThemedShell() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
-  const hideTabs = pathname?.toLowerCase().startsWith('/spotlightprofile');
+  const lowerPath = pathname?.toLowerCase() ?? '';
+const hideTabs = lowerPath.startsWith('/spotlightprofile');
+const hideHeader = hideTabs || lowerPath === '/chat' || lowerPath === '/dashboard';
 
   useEffect(() => {
     const handle = (url: string | null) => {
@@ -176,7 +217,7 @@ function ThemedShell() {
       <AnimatedSplashOverlay />
       <SessionRevokedModal />
 
-      {!hideTabs && (
+      {!hideHeader && (
         <SafeAreaView edges={['top']} style={{ backgroundColor: colors.card }}>
           <Header />
         </SafeAreaView>
@@ -224,6 +265,7 @@ function ThemedShell() {
           <Stack.Screen name="sellers" />
           <Stack.Screen name="admin" />
         </Stack>
+        <PullBarOverlay />
       </View>
 
       {user && !isAdmin && !hideTabs && <BottomTabBar />}
@@ -257,7 +299,9 @@ export default function RootLayout() {
                   <NotificationProvider>
                     <CallProvider>
                       <ReviewPromptProvider>
-                        <ThemedShell />
+                        <PullRefreshProvider>
+                          <ThemedShell />
+                        </PullRefreshProvider>
                       </ReviewPromptProvider>
                     </CallProvider>
                   </NotificationProvider>

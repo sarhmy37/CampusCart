@@ -267,10 +267,10 @@ export default function Admin() {
                 {earnings && (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-                      2% Buyer: <Text style={{ color: 'white', fontWeight: '700' }}>GHS {earnings.totalBuyerFees}</Text>
+                      Buyer fees: <Text style={{ color: 'white', fontWeight: '700' }}>GHS {earnings.totalBuyerFees}</Text>
                     </Text>
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-                      1.5% Seller: <Text style={{ color: 'white', fontWeight: '700' }}>GHS {earnings.totalSellerFees}</Text>
+                      Seller fees: <Text style={{ color: 'white', fontWeight: '700' }}>GHS {earnings.totalSellerFees}</Text>
                     </Text>
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
                       Paystack: <Text style={{ color: 'white', fontWeight: '700' }}>-GHS {earnings.paystackDeduction}</Text>

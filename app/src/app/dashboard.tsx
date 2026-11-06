@@ -25,6 +25,7 @@ import { useColors } from '@/hooks/useColors';
 import { usePageReady } from '@/hooks/usePageReady';
 import FullPageLoader from '@/components/FullPageLoader';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
@@ -73,6 +74,7 @@ export default function Dashboard() {
   const colors = useColors();
   const router = useRouter();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
 useEffect(() => {
@@ -194,11 +196,11 @@ useEffect(() => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* HEADER with video */}
-      <View style={{ position: 'relative', overflow: 'hidden', height: 260 }}>
+      <View style={{ position: 'relative', overflow: 'hidden', height: 260 + insets.top }}>
         <DashboardVideo uri={DASHBOARD_VIDEO} />
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.headerOverlay }} />
 
-        <View style={{ paddingHorizontal: 16, paddingTop: 24 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 24 + insets.top }}>
           {/* Back + greeting */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <GlassButton
@@ -419,6 +421,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 function PeriodDropdown({ colors, period, onSelect }: { colors: any; period: string; onSelect: (v: string) => void }) {
+  const insets = useSafeAreaInsets();
   const items = PERIODS.map((p) => {
     const active = p.value === period;
     return (
@@ -437,7 +440,7 @@ function PeriodDropdown({ colors, period, onSelect }: { colors: any; period: str
     );
   });
 
-  const box = { position: 'absolute' as const, top: 146, left: 16, zIndex: 100, minWidth: 190 };
+  const box = { position: 'absolute' as const, top: 146 + insets.top, left: 16, zIndex: 100, minWidth: 190 };
 
   if (GLASS) {
     return (

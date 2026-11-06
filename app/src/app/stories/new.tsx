@@ -1,17 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import {
   View, Text, Pressable, ScrollView, TextInput, Dimensions,
   ActivityIndicator, Modal, Alert, Platform, KeyboardAvoidingView, Keyboard, PanResponder, Animated,
 } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
+import { BlurView } from 'expo-blur';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   X, Plus, Trash2, ArrowLeft, Eye, Heart, Play, Pause, Tag, ChevronLeft, ChevronRight,
-  Crop, Pencil, Music, Smile, ShoppingBag, RotateCw,
+  Crop, Pencil, Music, Smile, ShoppingBag, RotateCw, Settings,
 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import Toast from 'react-native-toast-message';
@@ -22,11 +25,16 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '@/context/AuthContext';
 import StorePage from '@/app/seller/[id]';
 import api from '@/api/client';
+import PostSettingsSheet, { PostSettingsT } from '@/components/PostSettingsSheet';
+import { STORY_MUSIC } from '@/data/storyMusic';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 const MAX_ITEMS = 10;
+const MAX_MUSIC_MS = 30_000;
 const SPOTLIGHT_PROFILE_ROUTE = '/SpotlightProfile' as const;
+const hasPostSettings = (s?: Partial<PostSettingsT>) =>
+  !!s && Object.values(s).some((v) => v !== undefined);
 
 type PlayerControl = {
   seek: (ms: number) => void;
@@ -53,7 +61,8 @@ const TOOLS = [
   { key: 'pencil', label: 'Text', Icon: Pencil },
   { key: 'music', label: 'Music', Icon: Music },
   { key: 'emoji', label: 'Emoji', Icon: Smile },
-  { key: 'product', label: 'Product', Icon: ShoppingBag }, // sellers only
+    { key: 'product', label: 'Product', Icon: ShoppingBag }, // sellers only
+  { key: 'settings', label: 'Settings', Icon: Settings }, // feed posts only
 ] as const;
 
 type TextOverlayT = { text: string; y: number }; // y = 0 (top) … 1 (bottom) of the preview
@@ -79,7 +88,17 @@ type PickedItem = {
   cropped?: boolean;
   crop?: { x: number; y: number; w: number; h: number };
   textOverlay?: TextOverlayT;
-  productTag?: ProductTagT;
+    productTag?: ProductTagT;
+  settings?: Partial<PostSettingsT>;
+  music?: {
+    key: string;
+    title: string;
+    artist: string;
+    uri: string;
+    startMs: number;
+    endMs: number;
+    avatar?: string | null;
+  } | null;
 };
 
 // Heroicons adjustments-horizontal (outline)
@@ -95,23 +114,228 @@ function AdjustmentsHorizontalIcon({ size = 16, color }: { size?: number; color:
   );
 }
 
+const PICKER_BARS = 56;
+const PICKER_PAD = 8;
+const PICKER_H = 48;
+
+function MusicRangePicker({
+  startMs, endMs, durationMs, onChange, onDragStart, onDragEnd,
+}: {
+  startMs: number; endMs: number; durationMs: number;
+  onChange: (startMs: number, endMs: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+}) {
+  const [outerW, setOuterW] = useState(0);
+  const width = Math.max(0, outerW - PICKER_PAD * 2);
+  const range = Math.max(durationMs, 1000);
+  const latest = useRef({ startMs, endMs, range, width, onChange, onDragStart, onDragEnd });
+  latest.current = { startMs, endMs, range, width, onChange, onDragStart, onDragEnd };
+  const grab = useRef({ s: 0, e: 0 });
+
+  const heights = useMemo(
+    () => Array.from({ length: PICKER_BARS }, (_, i) => {
+      const x = Math.sin((Math.round(durationMs / 1000) + 1) * (i + 1) * 12.9898) * 43758.5453;
+      return 8 + (x - Math.floor(x)) * 28;
+    }),
+    [durationMs],
+  );
+
+  const makeResponder = (handle: 'start' | 'end' | 'move') => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      grab.current = { s: latest.current.startMs, e: latest.current.endMs };
+      latest.current.onDragStart?.();
+    },
+    onPanResponderMove: (_, g) => {
+      const { range, width, onChange } = latest.current;
+      if (width <= 0) return;
+      const dMs = (g.dx / width) * range;
+      const { s, e } = grab.current;
+      const len = e - s;
+      const atMax = len >= MAX_MUSIC_MS - 50;
+      if (handle === 'move' || atMax) {
+        // slide the whole section
+        const ns = Math.max(0, Math.min(s + dMs, range - len));
+        onChange(Math.round(ns), Math.round(ns + len));
+      } else if (handle === 'start') {
+        const ns = Math.max(0, Math.min(s + dMs, e - 1000));
+        const ne = e - ns > MAX_MUSIC_MS ? ns + MAX_MUSIC_MS : e;
+        onChange(Math.round(ns), Math.round(ne));
+      } else {
+        const ne = Math.min(range, Math.max(e + dMs, s + 1000));
+        const ns = ne - s > MAX_MUSIC_MS ? ne - MAX_MUSIC_MS : s;
+        onChange(Math.round(ns), Math.round(ne));
+      }
+    },
+    onPanResponderRelease: () => latest.current.onDragEnd?.(),
+    onPanResponderTerminate: () => latest.current.onDragEnd?.(),
+  });
+
+  const startResponder = useRef(makeResponder('start')).current;
+  const endResponder = useRef(makeResponder('end')).current;
+  const moveResponder = useRef(makeResponder('move')).current;
+
+  const startX = PICKER_PAD + Math.max(0, Math.min(width, (startMs / range) * width));
+  const endX = PICKER_PAD + Math.max(0, Math.min(width, (endMs / range) * width));
+  const HIT = 32;
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View
+        onLayout={(e) => setOuterW(e.nativeEvent.layout.width)}
+        style={{ height: PICKER_H, justifyContent: 'center' }}
+      >
+        {/* waveform */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute', left: PICKER_PAD, width, height: PICKER_H,
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          }}
+        >
+          {heights.map((h, i) => {
+            const frac = (i + 0.5) / PICKER_BARS;
+            const inside = frac >= startMs / range && frac <= endMs / range;
+            return (
+              <View
+                key={i}
+                style={{
+                  width: 3, height: h, borderRadius: 2,
+                  backgroundColor: inside ? '#f5b301' : 'rgba(255,255,255,0.3)',
+                }}
+              />
+            );
+          })}
+        </View>
+
+        {/* selected frame, drag to slide the whole section */}
+        <View
+          {...moveResponder.panHandlers}
+          style={{
+            position: 'absolute', left: startX, width: Math.max(8, endX - startX), height: PICKER_H,
+            borderTopWidth: 3, borderBottomWidth: 3, borderColor: '#f5b301',
+            backgroundColor: 'rgba(245,179,1,0.12)',
+          }}
+        />
+
+        {/* handles */}
+        <View
+          {...startResponder.panHandlers}
+          style={{ position: 'absolute', left: startX - HIT / 2, width: HIT, height: PICKER_H, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <View style={{ width: 14, height: PICKER_H, borderTopLeftRadius: 8, borderBottomLeftRadius: 8, backgroundColor: '#f5b301', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: '#000' }} />
+          </View>
+        </View>
+        <View
+          {...endResponder.panHandlers}
+          style={{ position: 'absolute', left: endX - HIT / 2, width: HIT, height: PICKER_H, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <View style={{ width: 14, height: PICKER_H, borderTopRightRadius: 8, borderBottomRightRadius: 8, backgroundColor: '#f5b301', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: '#000' }} />
+          </View>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: PICKER_PAD, marginTop: 6 }}>
+        <Text style={{ color: '#fff', fontSize: 12 }}>{Math.round(startMs / 1000)}s</Text>
+        <Text style={{ color: '#fff', fontSize: 12 }}>{Math.round((endMs - startMs) / 1000)}s selected</Text>
+        <Text style={{ color: '#fff', fontSize: 12 }}>{Math.round(endMs / 1000)}s</Text>
+      </View>
+    </View>
+  );
+}
+
+function DraggableSheet({ colors, insets, onClose, children, maxHeight = '70%' }: {
+  colors: any; insets: any; onClose: () => void; children: ReactNode; maxHeight?: string | number;
+}) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const drag = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 2,
+    onPanResponderMove: (_, gesture) => translateY.setValue(Math.max(0, gesture.dy)),
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy > 120 || gesture.vy > 0.8) {
+        Animated.timing(translateY, { toValue: 700, duration: 180, useNativeDriver: true }).start(onClose);
+      } else {
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 20 }).start();
+      }
+    },
+  })).current;
+  return (
+    <Animated.View style={{ backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingBottom: insets.bottom + 18, maxHeight, transform: [{ translateY }] }}>
+      <View {...drag.panHandlers} style={{ paddingVertical: 8, marginTop: -8 }}>
+        <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 10 }} />
+      </View>
+      {children}
+    </Animated.View>
+  );
+}
+
 export default function NewStory() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
+  const { soundId, soundOwner } = useLocalSearchParams<{ soundId?: string; soundOwner?: string }>();
+  const [useSound, setUseSound] = useState(true);
+  const [soundInfo, setSoundInfo] = useState<any>(null);
+  const [selectedSoundId, setSelectedSoundId] = useState(soundId || '');
+  const [musicOpen, setMusicOpen] = useState(false);
+  const [musicTab, setMusicTab] = useState<'sounds' | 'mine'>('sounds');
+  const [items, setItems] = useState<PickedItem[]>([]);
+  const [mode, setMode] = useState<'story' | 'spotlight'>('story');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = items[activeIndex];
+  const selectedMusic = active?.music ?? null;
+  const musicPlayer = useAudioPlayer(selectedMusic?.uri ?? null);
+  const musicStatus = useAudioPlayerStatus(musicPlayer);
+  useEffect(() => {
+    if (selectedMusic) {
+      musicPlayer.loop = false;
+      musicPlayer.seekTo(selectedMusic.startMs / 1000);
+      musicPlayer.play();
+    }
+    return () => musicPlayer.pause();
+  }, [selectedMusic?.key, musicPlayer]);
+  useEffect(() => {
+    if (!selectedMusic) return;
+    const timer = setInterval(() => {
+      if (musicPlayer.currentTime * 1000 >= selectedMusic.endMs) {
+        musicPlayer.pause();
+        musicPlayer.seekTo(selectedMusic.startMs / 1000);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [selectedMusic, musicPlayer]);
+  useEffect(() => {
+    if (!selectedSoundId) {
+      setSoundInfo(null);
+      return;
+    }
+    api.get(`/stories/sound/${selectedSoundId}`)
+      .then((r) => setSoundInfo(r.data.original))
+      .catch(() => {
+        setSoundInfo(null);
+        setSelectedSoundId('');
+        setUseSound(false);
+        Toast.show({ type: 'error', text1: 'This sound is no longer available' });
+      });
+  }, [selectedSoundId]);
+  // arriving from "Use audio": open the picker straight away, as a feed post
+  useEffect(() => { if (soundId) pickMedia('spotlight'); }, [soundId]);
   // only sellers see the product tag tool
   const isSeller = user?.account_type === 'seller';
 
-  const [items, setItems] = useState<PickedItem[]>([]);
-  const [mode, setMode] = useState<'story' | 'spotlight'>('story');
   const [cropIndex, setCropIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (cropIndex !== null) playerControl.current?.pause();
     else playerControl.current?.play();
   }, [cropIndex]);
-  const [activeIndex, setActiveIndex] = useState(0);
   const [posting, setPosting] = useState(false);
   const [myStories, setMyStories] = useState<any[]>([]);
   const [loadingMine, setLoadingMine] = useState(true);
@@ -119,7 +343,8 @@ export default function NewStory() {
   const playerControl = useRef<PlayerControl | null>(null);
   const [typeModal, setTypeModal] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [storeOpen, setStoreOpen] = useState(false);
+    const [storeOpen, setStoreOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [textEditing, setTextEditing] = useState(false);
   const [previewH, setPreviewH] = useState(0);
   const missCount = useRef(0);
@@ -344,6 +569,12 @@ export default function NewStory() {
         trim_start_ms: number | null; trim_end_ms: number | null;
         crop: { x: number; y: number; w: number; h: number } | null;
         text_overlay: { text: string; y: number } | null;
+        sound_story_id: number | null;
+        music_url: string | null;
+        music_start_ms: number | null;
+        music_end_ms: number | null;
+        allow_chat: boolean | null; show_likes: boolean | null;
+        allow_repost: boolean | null; allow_export: boolean | null;
         product_tag: { product_id: string; title: string; price: number; image: string | null; x: number; y: number; rot: number } | null;
       }[] = [];
 
@@ -370,6 +601,14 @@ export default function NewStory() {
           trim_end_ms: item.type === 'video' ? Math.round(item.trimEnd ?? 0) : null,
           crop: item.type === 'video' ? (item.crop ?? null) : null,
           text_overlay: overlayText ? { text: overlayText, y: item.textOverlay!.y } : null,
+          sound_story_id: useSound && selectedSoundId ? Number(selectedSoundId) : null,
+          music_url: item.music?.uri || null,
+          music_start_ms: item.music ? Math.round(item.music.startMs) : null,
+          music_end_ms: item.music ? Math.round(item.music.endMs) : null,
+          allow_chat: mode === 'spotlight' ? (item.settings?.allow_chat ?? null) : null,
+          show_likes: mode === 'spotlight' ? (item.settings?.show_likes ?? null) : null,
+          allow_repost: mode === 'spotlight' ? (item.settings?.allow_repost ?? null) : null,
+          allow_export: mode === 'spotlight' ? (item.settings?.allow_export ?? null) : null,
           product_tag: item.productTag
             ? {
                 product_id: item.productTag.id,
@@ -542,8 +781,6 @@ export default function NewStory() {
   }
 
   // ── Preview modal ──
-  const active = items[activeIndex];
-
   // patch (or clear, with null) the active item's text overlay
   const setOverlay = (patch: Partial<TextOverlayT> | null) => {
     setItems((prev) => prev.map((x, i) => {
@@ -558,8 +795,40 @@ export default function NewStory() {
     if (!items[activeIndex]?.textOverlay?.text.trim()) setOverlay(null);
   };
 
+    const setPostSetting = (key: keyof PostSettingsT, value: boolean | undefined) => {
+    setItems((prev) => prev.map((x, i) => (
+      i === activeIndex ? { ...x, settings: { ...(x.settings ?? {}), [key]: value } } : x
+    )));
+  };
+
   const setTag = (next: ProductTagT | null) => {
     setItems((prev) => prev.map((x, i) => (i === activeIndex ? { ...x, productTag: next ?? undefined } : x)));
+  };
+
+  const setActiveMusic = (track: (typeof STORY_MUSIC)[number] | null) => {
+    setItems((prev) => prev.map((item, index) => (
+      index === activeIndex
+        ? {
+            ...item,
+            music: track
+              ? { ...track, startMs: 0, endMs: Math.min(track.durationMs, MAX_MUSIC_MS) }
+              : null,
+          }
+        : item
+    )));
+  };
+
+  const setMusicRange = (startMs: number, endMs: number) => {
+    if (!active?.music) return;
+    const maxDuration = Math.max(active.music.durationMs, 1000);
+    const nextStart = Math.max(0, Math.min(startMs, maxDuration - 1000));
+    const nextEnd = Math.min(Math.max(endMs, nextStart + 1000), Math.min(maxDuration, nextStart + MAX_MUSIC_MS));
+    setItems((prev) => prev.map((item, index) => (
+      index === activeIndex && item.music
+        ? { ...item, music: { ...item.music, startMs: nextStart, endMs: nextEnd } }
+        : item
+    )));
+    musicPlayer.seekTo(nextStart / 1000);
   };
 
   const moveTag = (patch: Partial<ProductTagT>) => {
@@ -576,8 +845,12 @@ export default function NewStory() {
     } else if (key === 'pencil') {
       if (!active.textOverlay) setOverlay({ text: '', y: 0.5 });
       setTimeout(() => setTextEditing(true), 250);
+        } else if (key === 'settings') {
+      setTimeout(() => setSettingsOpen(true), 250);
     } else if (key === 'product') {
       setTimeout(() => setStoreOpen(true), 250);
+    } else if (key === 'music') {
+      setTimeout(() => setMusicOpen(true), 250);
     } else {
       Toast.show({ position: 'top', text1: 'Coming soon' });
     }
@@ -604,6 +877,7 @@ export default function NewStory() {
               crop={active.crop}
               playhead={playhead}
               control={playerControl}
+              muted={!!soundId && useSound}
             />
           ) : (
             <Image
@@ -611,6 +885,10 @@ export default function NewStory() {
               style={{ width: SCREEN_WIDTH, height: '100%' }}
               contentFit="contain"
             />
+          )}
+
+          {!!selectedSoundId && useSound && !!soundInfo && (
+            <PreviewSound url={soundInfo.media_url} start={soundInfo.trim_start_ms} end={soundInfo.trim_end_ms} />
           )}
 
           {!!active.textOverlay && previewH > 0 && (
@@ -636,6 +914,25 @@ export default function NewStory() {
               onChange={moveTag}
               onRemove={() => setTag(null)}
             />
+          )}
+
+          {!!selectedMusic && (
+            <Pressable
+              onPress={() => { setMusicTab('sounds'); setMusicOpen(true); }}
+              hitSlop={6}
+              style={{
+                position: 'absolute', top: insets.top + 12, right: mode === 'spotlight' ? 160 : 112,
+                width: 34, height: 34, borderRadius: 17, overflow: 'hidden',
+                backgroundColor: '#333', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              {!!selectedMusic.avatar && (
+                <Image source={{ uri: selectedMusic.avatar }} style={{ position: 'absolute', width: '100%', height: '100%' }} contentFit="cover" />
+              )}
+              <BlurView intensity={25} tint="dark" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                <Music size={16} color="#fff" />
+              </BlurView>
+            </Pressable>
           )}
 
           <Animated.View
@@ -736,6 +1033,18 @@ export default function NewStory() {
             gap: 12,
           }}
         >
+          {!!soundId && useSound && (
+            <Pressable
+              onPress={() => setUseSound(false)}
+              hitSlop={8}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              <Text style={{ color: '#f5b301', fontSize: 13, fontWeight: '700' }}>
+                ♪ Using sound from {soundOwner}
+              </Text>
+              <X size={14} color="#f5b301" strokeWidth={3} />
+            </Pressable>
+          )}
           {active.type === 'video' && !!active.durationMs && (
             <View style={{ marginHorizontal: -16 }}>
               <TrimBar
@@ -840,37 +1149,139 @@ export default function NewStory() {
         >
           <Pressable
             onPress={() => setToolsOpen(false)}
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
           >
-            <Pressable
-              onPress={() => {}}
-              style={{
-                backgroundColor: '#1a1a1a', borderRadius: 20,
-                paddingVertical: 18, paddingHorizontal: 14,
-                flexDirection: 'row', gap: 18,
-              }}
-            >
-              {TOOLS.filter((t) => t.key !== 'product' || isSeller).map(({ key, label, Icon }) => {
+            <DraggableSheet colors={colors} insets={insets} onClose={() => setToolsOpen(false)} maxHeight="70%">
+              {TOOLS.filter((t) => (t.key !== 'product' || isSeller) && (t.key !== 'settings' || mode === 'spotlight')).map(({ key, label, Icon }) => {
                 const on = (key === 'crop' && !!active.cropped) || (key === 'pencil' && !!active.textOverlay)
-                  || (key === 'product' && !!active.productTag);
+                  || (key === 'product' && !!active.productTag)
+                  || (key === 'settings' && hasPostSettings(active.settings));
                 return (
-                  <Pressable key={key} onPress={() => pickTool(key)} style={{ alignItems: 'center', gap: 8, width: 56 }}>
-                    <View
-                      style={{
-                        width: 48, height: 48, borderRadius: 24,
-                        backgroundColor: on ? '#f5b301' : 'rgba(255,255,255,0.1)',
-                        alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      <Icon size={20} color={on ? '#000' : '#fff'} />
-                    </View>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{label}</Text>
+                  <Pressable key={key} onPress={() => pickTool(key)} style={{ minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <Icon size={20} color={on ? colors.brand : colors.textMuted} />
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{label}</Text>
                   </Pressable>
                 );
               })}
-            </Pressable>
+            </DraggableSheet>
           </Pressable>
         </Modal>
+
+        <Modal
+          visible={musicOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setMusicOpen(false)}
+        >
+          <Pressable
+            onPress={() => setMusicOpen(false)}
+            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' }}
+          >
+            <DraggableSheet colors={colors} insets={insets} onClose={() => setMusicOpen(false)}>
+              <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800' }}>Music & sounds</Text>
+              <Text style={{ color: colors.textMuted, marginTop: 6, marginBottom: 14 }}>
+                Choose a temporary demo track or reuse an available video sound.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 6 }}>
+                {([['sounds', 'Sounds'], ['mine', 'My sounds']] as const).map(([k, label]) => (
+                  <Pressable
+                    key={k}
+                    onPress={() => setMusicTab(k)}
+                    style={{ flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center', backgroundColor: musicTab === k ? colors.brand : colors.chipBg }}
+                  >
+                    <Text style={{ fontWeight: '800', color: musicTab === k ? colors.textOnGold : colors.text }}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                onPress={() => { setSelectedSoundId(''); setSoundInfo(null); setUseSound(false); setActiveMusic(null); setMusicOpen(false); }}
+                style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}
+              >
+                <Text style={{ color: colors.text, fontWeight: '700' }}>No sound</Text>
+              </Pressable>
+              {musicTab === 'sounds' && STORY_MUSIC.map((track) => (
+                <Pressable
+                  key={track.key}
+                  onPress={() => { setActiveMusic(track); setSelectedSoundId(''); setSoundInfo(null); setUseSound(false); }}
+                  style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                >
+                  <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {track.avatar ? <Image source={{ uri: track.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <Music size={18} color={colors.brand} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontWeight: '700' }}>{track.title}</Text>
+                    <Text style={{ color: colors.textMuted, marginTop: 3 }}>{track.artist}</Text>
+                  </View>
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => {
+                      if (selectedMusic?.key === track.key) {
+                        if (musicStatus.playing) musicPlayer.pause();
+                        else musicPlayer.play();
+                      } else {
+                        setActiveMusic(track); setSelectedSoundId(''); setSoundInfo(null); setUseSound(false);
+                      }
+                    }}
+                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: selectedMusic?.key === track.key ? colors.brand : colors.chipBg, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    {selectedMusic?.key === track.key && musicStatus.playing
+                      ? <Pause size={16} color={colors.textOnGold} fill={colors.textOnGold} />
+                      : <Play size={16} color={selectedMusic?.key === track.key ? colors.textOnGold : colors.text} fill={selectedMusic?.key === track.key ? colors.textOnGold : colors.text} />}
+                  </Pressable>
+                </Pressable>
+              ))}
+              <ScrollView style={{ display: musicTab === 'mine' ? 'flex' : 'none' }}>
+                {(myStories || []).filter((s: any) => s.media_type === 'video' && s.id).map((s: any) => (
+                  <Pressable
+                    key={String(s.id)}
+                    onPress={() => { setSelectedSoundId(String(s.id)); setActiveMusic(null); setUseSound(true); }}
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                  >
+                    <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      {s.user_avatar || s.media_url ? <Image source={{ uri: s.user_avatar || s.media_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <Music size={18} color={colors.brand} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.text, fontWeight: '700' }}>{s.caption?.trim() || 'My video sound'}</Text>
+                      <Text style={{ color: colors.textMuted, marginTop: 3 }}>Your original audio</Text>
+                    </View>
+                    {String(selectedSoundId) === String(s.id) && <Text style={{ color: colors.brand, fontWeight: '800' }}>Selected</Text>}
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {selectedMusic && (
+                <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ color: colors.text, fontWeight: '800' }}>Choose music section</Text>
+                    <Pressable onPress={() => setActiveMusic(null)} hitSlop={8}>
+                      <Text style={{ color: colors.brand, fontWeight: '800' }}>Remove</Text>
+                    </Pressable>
+                  </View>
+                  <MusicRangePicker
+                    startMs={selectedMusic.startMs}
+                    endMs={selectedMusic.endMs}
+                    durationMs={selectedMusic.durationMs}
+                    onChange={setMusicRange}
+                    onDragStart={() => musicPlayer.pause()}
+                    onDragEnd={() => musicPlayer.play()}
+                  />
+                </View>
+              )}
+              <Pressable
+                onPress={() => { musicPlayer.pause(); setMusicOpen(false); }}
+                style={{ backgroundColor: colors.brand, borderRadius: 999, paddingVertical: 14, alignItems: 'center', marginTop: 14 }}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textOnGold }}>Done</Text>
+              </Pressable>
+            </DraggableSheet>
+          </Pressable>
+        </Modal>
+
+        <PostSettingsSheet
+          visible={settingsOpen}
+          settings={active.settings ?? {}}
+          onChange={setPostSetting}
+          onClose={() => setSettingsOpen(false)}
+        />
 
         <StorePicker
           visible={storeOpen}
@@ -1207,8 +1618,9 @@ function CropOverlay({
 }
 
 function StoryPreviewVideo({
-  uri, startMs, endMs, playhead, control, crop,
+  uri, startMs, endMs, playhead, control, crop, muted,
 }: {
+  muted?: boolean;
   crop?: any;
   uri: string; startMs: number; endMs: number; playhead: Animated.Value;
   control: React.MutableRefObject<PlayerControl | null>;
@@ -1217,6 +1629,7 @@ function StoryPreviewVideo({
     p.loop = false;
     p.play();
   });
+  useEffect(() => { try { player.muted = !!muted; } catch {} }, [muted, player]);
   const rangeRef = useRef({ startMs, endMs });
   rangeRef.current = { startMs, endMs };
 
@@ -1311,6 +1724,28 @@ function StoryPreviewVideo({
       </Pressable>
     </View>
   );
+}
+
+// Plays the reused sound under the preview, looping inside its trimmed range.
+function PreviewSound({ url, start, end }: { url: string; start?: number | null; end?: number | null }) {
+  const player = useVideoPlayer({ uri: url, useCaching: true }, (p) => {
+    p.loop = !end;
+    p.currentTime = (start ?? 0) / 1000;
+    p.play();
+  });
+  useEffect(() => {
+    if (!end) return;
+    const t = setInterval(() => {
+      try {
+        if (player.currentTime * 1000 >= end) {
+          player.currentTime = (start ?? 0) / 1000;
+          player.play();
+        }
+      } catch {}
+    }, 200);
+    return () => clearInterval(t);
+  }, [player]);
+  return null;
 }
 
 function GlassActionButton({

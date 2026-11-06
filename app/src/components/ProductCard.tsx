@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
-import { View, Text, Pressable, Platform } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, Platform, Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 
-import { Tag, Star, Heart, AlertTriangle, MapPin, Sparkles, Rocket, BadgeCheck } from 'lucide-react-native';
+import { Tag, Star, Heart, AlertTriangle, Sparkles, Rocket, BadgeCheck } from 'lucide-react-native';
+import Svg, { Path, Defs, Mask, Rect } from 'react-native-svg';
 import { useWishlist } from '@/context/WishlistContext';
+import { useCart } from '@/context/CartContext';
 import { useColors } from '@/hooks/useColors';
 
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
@@ -26,6 +29,17 @@ export default function ProductCard({
   const router = useRouter();
   const { isWishlisted, toggleItem } = useWishlist();
   const wishlisted = isWishlisted(product.id);
+  const { addItem } = useCart();
+
+  const scale = useRef(new Animated.Value(1)).current;
+  const pressIn = () =>
+    Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
+  const pressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 14 }).start();
+  const openCard = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/product/${product.id}`);
+  };
 
   const rating = product.rating || 0;
   const reviewCount = product.review_count || 0;
@@ -81,7 +95,7 @@ export default function ProductCard({
         overflow: 'hidden',
       }}
     >
-      <View style={{ aspectRatio: 1, backgroundColor: colors.cardAlt, position: 'relative' }}>
+      <View style={{ aspectRatio: 0.85, backgroundColor: colors.cardAlt, position: 'relative' }}>
         {product.primary_image ? (
           <Image
             source={{ uri: product.primary_image }}
@@ -104,7 +118,7 @@ export default function ProductCard({
 
         {/* Boosted badge */}
         {isBoosted && (
-          <View style={{ position: 'absolute', top: 6, right: 6, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#38bdf8', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+          <View style={{ position: 'absolute', top: 6, right: 50, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#38bdf8', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
             <Rocket size={10} color="#fff" />
             <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Product</Text>
           </View>
@@ -126,7 +140,7 @@ export default function ProductCard({
 
         {/* Discount badge */}
         {discountPercent !== null && !isBoosted && (
-          <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+          <View style={{ position: 'absolute', top: 6, right: 50, backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
             <Text style={{ fontSize: 11, fontWeight: '700', color: 'white' }}>-{discountPercent}%</Text>
           </View>
         )}
@@ -144,6 +158,35 @@ export default function ProductCard({
           >
             {boostSelected && <Text style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</Text>}
           </View>
+        )}
+
+        {/* Add to cart */}
+        {!boostMode && !(stock !== null && stock <= 0) && (
+          <>
+            <Svg width={52} height={52} viewBox="0 0 52 52" style={{ position: 'absolute', top: 0, right: 0 }} pointerEvents="none">
+              <Defs>
+                <Mask id="plusCut" x="0" y="0" width="52" height="52">
+                  <Rect x="0" y="0" width="52" height="52" fill="#fff" />
+                  <Path d="M23 20H41M32 11V29" stroke="#000" strokeWidth={3.5} strokeLinecap="round" />
+                </Mask>
+              </Defs>
+              <Path
+                d="M0 0 H52 V52 A12 12 0 0 0 40 40 H28 A16 16 0 0 1 12 24 V12 A12 12 0 0 0 0 0 Z"
+                fill={colors.brand}
+                mask="url(#plusCut)"
+              />
+            </Svg>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation?.();
+                if (addItem(product)) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              }}
+              style={{ position: 'absolute', top: 0, right: 0, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+              hitSlop={4}
+            >
+            </Pressable>
+          </>
         )}
 
         {/* Wishlist */}
@@ -198,10 +241,6 @@ export default function ProductCard({
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
-          <MapPin size={10} color={colors.textFaint} />
-          <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: colors.textFaint }}>
-            {product.seller_location || product.seller_meeting_place || 'Location not set'}
-          </Text>
           {product.seller_verified && <BadgeCheck size={10} color="#10b981" />}
           {sellerPlan === 'premium' && <Sparkles size={10} color="#a855f7" />}
           {sellerPlan === 'pro' && <Star size={10} color="#3b82f6" fill="#3b82f6" />}
@@ -226,15 +265,23 @@ export default function ProductCard({
 
   if (boostMode) {
     return (
-      <Pressable onPress={() => onBoostSelect?.(product)} style={{ width: '100%' }}>
-        {CardInner}
-      </Pressable>
+      <Animated.View style={{ width: '100%', transform: [{ scale }] }}>
+        <Pressable
+          onPressIn={pressIn}
+          onPressOut={pressOut}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onBoostSelect?.(product); }}
+        >
+          {CardInner}
+        </Pressable>
+      </Animated.View>
     );
   }
 
   return (
-    <Pressable onPress={() => router.push(`/product/${product.id}`)} style={{ width: '100%' }}>
-      {CardInner}
-    </Pressable>
+    <Animated.View style={{ width: '100%', transform: [{ scale }] }}>
+      <Pressable onPressIn={pressIn} onPressOut={pressOut} onPress={openCard}>
+        {CardInner}
+      </Pressable>
+    </Animated.View>
   );
 }

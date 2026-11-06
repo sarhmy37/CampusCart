@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { ShieldAlert } from 'lucide-react-native';
+import { ShieldExclamationIcon } from 'react-native-heroicons/solid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import ReportModal from './ReportModal';
@@ -69,24 +69,18 @@ export default function SessionRevokedModal() {
           alignItems: 'center',
         }}
       >
-        <View
-          style={{
-            width: 56, height: 56, borderRadius: 28,
-            backgroundColor: colors.errorSoft,
-            alignItems: 'center', justifyContent: 'center',
-            marginBottom: 16,
-          }}
-        >
-          <ShieldAlert size={26} color={colors.error} />
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+          <ShieldExclamationIcon size={28} color={colors.error} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>
+              Signed out — new login detected
+            </Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, lineHeight: 19 }}>
+              Your account was accessed on another device, so this session was signed out.
+              If this wasn't you, report it immediately.
+            </Text>
+          </View>
         </View>
-
-        <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
-          Signed out — new login detected
-        </Text>
-        <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 8, textAlign: 'center', lineHeight: 19 }}>
-          Your account was accessed on another device, so this session was signed out.
-          If this wasn't you, report it immediately.
-        </Text>
 
         <Pressable
           onPress={() => setShowReport(true)}

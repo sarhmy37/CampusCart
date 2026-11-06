@@ -63,36 +63,7 @@ export default function ExclusiveOffers({ active = false, onHasOffers }: { activ
   const typedCount = useTypewriter(DESCRIPTION, active);
 
   if (offers.length === 0) {
-    const steps = [
-      { title: 'Verify with your university email', desc: 'Sign up in seconds. Your university email confirms you’re a real student — no strangers, no spam accounts.' },
-      { title: 'Chat, ask, agree', desc: 'Message the seller directly. Ask about condition, haggle a little, agree a spot on campus.' },
-      { title: 'Meet up & swap', desc: 'Pay however you’ve agreed, hand it over, leave a review. Simple as that.' },
-    ];
-    return (
-      <View style={{ paddingHorizontal: 16, paddingVertical: 24, backgroundColor: colors.card }}>
-        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.brand, letterSpacing: 0.7, textTransform: 'uppercase' }}>
-          How it works
-        </Text>
-        <Text style={{ fontSize: 25, fontWeight: '800', color: colors.text, marginTop: 4 }}>
-          From listing to handshake, in three steps
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-          {steps.map((s, i) => (
-            <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontSize: 31, fontWeight: '900', color: colors.textFaint, lineHeight: 30, marginBottom: 4 }}>
-                {i + 1}
-              </Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 4, textAlign: 'center' }}>
-                {s.title}
-              </Text>
-              <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4, lineHeight: 14, textAlign: 'center', maxWidth: 110 }}>
-                {s.desc}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
+    return null;
   }
 
   return (

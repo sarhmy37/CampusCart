@@ -1,17 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { View, Text, Pressable, Animated, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Location from 'expo-location';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Toast from 'react-native-toast-message';
 
 import {
-  Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck,
+  Trash2, Minus, Plus, ShoppingBag, ArrowLeft, MapPin, Truck, Link2,
 } from 'lucide-react-native';
+import { ShoppingBagIcon as ShoppingBagSolid } from 'react-native-heroicons/solid';
 import api from '@/api/client';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -41,7 +41,7 @@ function ContinueBrowsingButton({ onPress, colors }: { onPress: () => void; colo
         }}
       >
         <ArrowLeft size={14} color="white" />
-        <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Continue browsing</Text>
+        <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Browse</Text>
       </Wrapper>
     </Pressable>
   );
@@ -82,14 +82,16 @@ export default function CartScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <CartHeader count={0} colors={colors} onBack={() => router.push('/browse')} />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 60 }}>
-          <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-            <ShoppingBag size={28} color={colors.brand} />
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 60 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
+            <ShoppingBagSolid size={28} color={colors.brand} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>Your cart is empty</Text>
+              <Text style={{ fontSize: 16, color: colors.textFaint, marginTop: 6, lineHeight: 22 }}>
+                Browse listings from students on your campus and add something you like.
+              </Text>
+            </View>
           </View>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>Your cart is empty</Text>
-          <Text style={{ fontSize: 16, color: colors.textFaint, marginTop: 6, textAlign: 'center', maxWidth: 260 }}>
-            Browse listings from students on your campus and add something you like.
-          </Text>
           <Pressable
             onPress={() => router.push('/browse')}
             style={{ marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}
@@ -112,23 +114,43 @@ export default function CartScreen() {
     return groups;
   }, {});
 
+  const keyOf = (i: any) => i.seller_id || i.seller_name || 'unknown';
+  const orderedItems: any[] = Object.values(sellerGroups).flatMap((g: any) => g.items);
+
+  const u0: any = user;
+  const w0: any = items.find((i: any) => i.buyer_lat != null && i.buyer_lng != null);
+  const feeCoords = buyerCoords
+    || (w0 ? { lat: Number(w0.buyer_lat), lng: Number(w0.buyer_lng) }
+    : u0?.location_lat != null && u0?.location_lng != null ? { lat: Number(u0.location_lat), lng: Number(u0.location_lng) }
+    : null);
+  const groupMethod = (group: any): 'on_campus' | 'delivery' => {
+    if (!feeCoords) return deliveryMethod;
+    return getDistanceTier(feeCoords.lat, feeCoords.lng, group.school).tier === 'on_campus'
+      ? 'on_campus'
+      : 'delivery';
+  };
+  const hasMixed = new Set(Object.values(sellerGroups).map(groupMethod)).size > 1;
+
   let deliveryFee = 0;
-  if (deliveryMethod === 'on_campus' || deliveryMethod === 'delivery') {
+  {
     Object.values(sellerGroups).forEach((group: any) => {
+      const method = groupMethod(group);
       const sellerPrices = {
         delivery_fee_on_campus: Math.max(...group.items.map((i: any) => i.delivery_fee_on_campus || 0)),
         delivery_fee_near_campus: Math.max(...group.items.map((i: any) => i.delivery_fee_near_campus || 0)),
         delivery_fee_far_campus: Math.max(...group.items.map((i: any) => i.delivery_fee_far_campus || 0)),
       };
 
-      if (deliveryMethod === 'on_campus') {
-        deliveryFee += sellerPrices.delivery_fee_on_campus;
-      } else if (buyerCoords) {
-        const distance = getDistanceTier(buyerCoords.lat, buyerCoords.lng, group.school);
-        const { fee } = calcDeliveryFee(buyerCoords.lat, buyerCoords.lng, group.school, sellerPrices);
+      if (method === 'on_campus') {
+        group.fee = sellerPrices.delivery_fee_on_campus;
+        deliveryFee += group.fee;
+      } else if (feeCoords) {
+        const { fee } = calcDeliveryFee(feeCoords.lat, feeCoords.lng, group.school, sellerPrices);
+        group.fee = fee;
         deliveryFee += fee;
       } else {
-        deliveryFee += sellerPrices.delivery_fee_far_campus || FALLBACK_DELIVERY_FEE;
+        group.fee = sellerPrices.delivery_fee_far_campus || FALLBACK_DELIVERY_FEE;
+        deliveryFee += group.fee;
       }
     });
   }
@@ -146,40 +168,32 @@ export default function CartScreen() {
   const handleAction = async () => {
     if (!user) return router.push('/login');
 
+    const u: any = user;
+    const withLoc: any = items.find((i: any) => i.buyer_lat != null && i.buyer_lng != null);
+    const coords = withLoc
+      ? { lat: Number(withLoc.buyer_lat), lng: Number(withLoc.buyer_lng) }
+      : u.location_lat != null && u.location_lng != null
+        ? { lat: Number(u.location_lat), lng: Number(u.location_lng) }
+        : null;
+    if (!coords) {
+      Toast.show({ type: 'error', text1: 'Set your delivery location on a product page first' });
+      return;
+    }
     setLocating(true);
     setPaying(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Toast.show({ type: 'error', text1: 'Location permission is required to choose delivery' });
-        return;
-      }
-
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setBuyerCoords(coords);
 
-      const tiers = Object.values(sellerGroups).map((group: any) =>
-        getDistanceTier(coords.lat, coords.lng, group.school).tier
-      );
-      const isOnCampusOrder = deliveryMethod === 'on_campus';
-      const isOnCampus = tiers.length > 0 && tiers.every((tier) => tier === 'on_campus');
-      const hasOnCampusSeller = tiers.some((tier) => tier === 'on_campus');
-
-      if (isOnCampusOrder && !isOnCampus) {
-        Toast.show({ type: 'error', text1: 'You are not on the seller campus', text2: 'Choose outside-campus delivery instead' });
-        return;
-      }
-      if (!isOnCampusOrder && hasOnCampusSeller) {
-        Toast.show({ type: 'error', text1: 'You are on campus', text2: 'Choose on-campus delivery instead' });
-        return;
-      }
-
       const res = await api.post('/orders', {
-        items: items.map((i: any) => ({ product_id: i.product_id, quantity: i.quantity })),
-        delivery_method: deliveryMethod,
+        items: items.map((i: any) => ({
+          product_id: i.product_id,
+          quantity: i.quantity,
+          delivery_method: groupMethod(sellerGroups[i.seller_id || i.seller_name || 'unknown']),
+        })),
+        delivery_method: hasMixed ? 'mixed' : groupMethod(Object.values(sellerGroups)[0]),
         buyer_lat: coords.lat,
         buyer_lng: coords.lng,
+        buyer_location: withLoc?.buyer_location ?? u.location ?? null,
       });
       setCheckoutUrl(res.data.authorization_url);
     } catch (err: any) {
@@ -270,15 +284,41 @@ export default function CartScreen() {
         >
         {/* ITEMS */}
         <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 10 }}>
-        {items.map((item: any, index: number) => (
+        {orderedItems.map((item: any, index: number) => {
+          const sKey = keyOf(item);
+          const prev = orderedItems[index - 1];
+          const sameAsPrev = !!prev && keyOf(prev) === sKey;
+          const fee = sellerGroups[sKey]?.fee || 0;
+          const posInGroup = orderedItems.slice(0, index).filter((i: any) => keyOf(i) === sKey).length;
+          return (
+          <Fragment key={item.product_id}>
+          {index > 0 && !(sameAsPrev && posInGroup > 1) && (sameAsPrev ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+              <View style={{ alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Link2 size={12} color={colors.textFaint} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textFaint }}>Same seller</Text>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 1 }}>
+                  {fee > 0 ? `Delivery GHS ${fee.toFixed(2)}` : 'Free delivery'}
+                </Text>
+              </View>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+            </View>
+          ) : (
+            <View style={{ height: 1, backgroundColor: colors.border }} />
+          ))}
           <View
-            key={item.product_id}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 12,
-              paddingVertical: 10,
-              borderTopWidth: index === 0 ? 0 : 1, borderTopColor: colors.border,
+              paddingVertical: sameAsPrev ? 6 : 10,
             }}
           >
+            <Pressable
+              onPress={() => router.push(`/product/${item.product_id}` as any)}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 }}
+            >
             <View style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: colors.cardAlt, overflow: 'hidden' }}>
                         {item.image && <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} cachePolicy="disk" />}
             </View>
@@ -287,30 +327,55 @@ export default function CartScreen() {
               <Text style={{ fontSize: 15, fontWeight: '700', color: colors.brand, marginTop: 2 }}>
                 GHS {parseFloat(item.price).toFixed(2)}
               </Text>
+              {(() => {
+                const grp = sellerGroups[item.seller_id || item.seller_name || 'unknown'];
+                if (grp?.items.length > 1) return null;
+                const fee = grp?.fee || 0;
+                return (
+                  <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }}>
+                    {fee > 0 ? `Delivery GHS ${fee.toFixed(2)}` : 'Free delivery'}
+                  </Text>
+                );
+              })()}
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.cardAlt, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 4 }}>
-              <Pressable onPress={() => updateQuantity(item.product_id, item.quantity - 1)} style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
-                <Minus size={12} color={colors.textSecondary} />
-              </Pressable>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, minWidth: 16, textAlign: 'center' }}>{item.quantity}</Text>
-              <Pressable onPress={() => updateQuantity(item.product_id, item.quantity + 1)} style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
-                <Plus size={12} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-            <Pressable onPress={() => removeItem(item.product_id)} style={{ padding: 4 }}>
-              <Trash2 size={16} color={colors.textFaint} />
             </Pressable>
+            <View style={{ alignItems: 'flex-end', gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {feeCoords && (() => {
+                  const on = groupMethod(sellerGroups[item.seller_id || item.seller_name || 'unknown']) === 'on_campus';
+                  return (
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: on ? colors.success : colors.warning }}>
+                      {on ? 'On campus' : 'Off campus'}
+                    </Text>
+                  );
+                })()}
+                <Pressable onPress={() => removeItem(item.product_id)} hitSlop={8}>
+                  <Trash2 size={16} color={colors.textFaint} />
+                </Pressable>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.cardAlt, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 4 }}>
+                <Pressable onPress={() => updateQuantity(item.product_id, item.quantity - 1)} style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+                  <Minus size={12} color={colors.textSecondary} />
+                </Pressable>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, minWidth: 16, textAlign: 'center' }}>{item.quantity}</Text>
+                <Pressable onPress={() => updateQuantity(item.product_id, item.quantity + 1)} style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+                  <Plus size={12} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+            </View>
           </View>
-        ))}
+          </Fragment>
+          );
+        })}
         </View>
 
         {/* SUMMARY */}
         <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginTop: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, lineHeight: 22 }}>{'Order\nsummary'}</Text>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, lineHeight: 22 }}>Order summary</Text>
 
           {/* Delivery method toggle */}
-          <View style={{ flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, gap: 4 }}>
+          <View style={{ display: feeCoords ? 'none' : 'flex', flexDirection: 'row', backgroundColor: colors.chipBg, padding: 4, borderRadius: 12, gap: 4 }}>
             {(['on_campus', 'delivery'] as const).map((m) => (
               <Pressable
                 key={m}
@@ -325,10 +390,6 @@ export default function CartScreen() {
             ))}
           </View>
           </View>
-
-          {deliveryMethod === 'delivery' && (
-            <Text style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8, textAlign: 'right' }}>Delivered within 1–3 working days.</Text>
-          )}
 
           {/* Subtotal */}
           <View style={{ borderTopWidth: 1, borderTopColor: colors.borderMuted, paddingTop: 12, gap: 8 }}>
@@ -368,11 +429,9 @@ export default function CartScreen() {
             <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }}>GHS {grandTotal.toFixed(2)}</Text>
           </View>
 
-          {deliveryMethod === 'delivery' && (
-            <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>
-              Paystack charges a 2% payment processing fee at checkout.
-            </Text>
-          )}
+          <Text style={{ fontSize: 14, color: colors.textFaint, marginTop: 6 }}>
+            Paystack charges a 2% payment processing fee at checkout.
+          </Text>
 
           {/* Action button */}
           <Pressable

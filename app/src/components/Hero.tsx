@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, Animated, Easing, Platform, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { View, Text, Pressable, Animated, Easing, Platform, StyleSheet, useWindowDimensions } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import { Sparkles, ArrowRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,21 +25,26 @@ const CTA_TYPE_CHAR_MS = 45;
 
 const SELL_LABEL_DEFAULT = 'Start Selling';
 const SELL_LABEL_ALT = 'Offer Services';
-const BROWSE_LABEL_DEFAULT = 'Browse Products';
-const BROWSE_LABEL_ALT = 'Browse Services';
+const SUPPORT_LABEL_DEFAULT = 'Contact Support';
+const SUPPORT_LABEL_ALT = 'Message People';
+
+const RIGHT_R = 20; // bottom-right corner of the hero
+const LEFT_R = 32;  // how far the hero curves down on the left
 
 function GlassButton({ onPress, style, tint, children, allowGlass = true }: any) {
   if (allowGlass && Platform.OS === 'ios' && isLiquidGlassAvailable()) {
-    const { backgroundColor, borderWidth, borderColor, ...rest } = StyleSheet.flatten(style) as any;
+    const { backgroundColor, borderWidth, borderColor, width, borderRadius, ...inner } = StyleSheet.flatten(style) as any;
     return (
       <Pressable onPress={onPress}>
         <GlassView
           glassEffectStyle="regular"
           isInteractive
           tintColor={tint}
-          style={{ ...rest, paddingVertical: (rest.paddingVertical || 0) + (borderWidth || 0) }}
+          style={{ width, borderRadius, overflow: 'hidden' }}
         >
-          {children}
+          <View style={{ ...inner, paddingVertical: (inner.paddingVertical || 0) + (borderWidth || 0) }}>
+            {children}
+          </View>
         </GlassView>
       </Pressable>
     );
@@ -46,17 +52,27 @@ function GlassButton({ onPress, style, tint, children, allowGlass = true }: any)
   return <Pressable onPress={onPress} style={style}>{children}</Pressable>;
 }
 
-export default function Hero() {
+export default function Hero({ fillViewport = false }: { fillViewport?: boolean }) {
   const colors = useColors();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const sellFg = isDark ? '#0D0C0A' : colors.brandDark;
+  // Must match ValueStrip's background exactly. Change this if ValueStrip uses another color.
+  const stripBg = colors.card;
+  const { width: W } = useWindowDimensions();
   const { user } = useAuth();
   const router = useRouter();
 
+  const [glassKey, setGlassKey] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      setGlassKey((k) => k + 1);
+    }, [])
+  );
+
   const [sellIsAlt, setSellIsAlt] = useState(false);
-  const [browseDisplay, setBrowseDisplay] = useState(BROWSE_LABEL_DEFAULT);
-  const browseIsAltRef = useRef(false);
+  const [supportDisplay, setSupportDisplay] = useState(SUPPORT_LABEL_DEFAULT);
+  const supportIsAltRef = useRef(false);
 
   const arrowScale = useRef(new Animated.Value(1)).current;
   const arrowRotate = useRef(new Animated.Value(0)).current;
@@ -73,7 +89,7 @@ export default function Hero() {
       while (current.length > 0) {
         if (cancelled) return;
         current = current.slice(0, -1);
-        setBrowseDisplay(current);
+        setSupportDisplay(current);
         await sleep(CTA_DELETE_CHAR_MS);
       }
     };
@@ -82,7 +98,7 @@ export default function Hero() {
       while (current.length < text.length) {
         if (cancelled) return;
         current = text.slice(0, current.length + 1);
-        setBrowseDisplay(current);
+        setSupportDisplay(current);
         await sleep(CTA_TYPE_CHAR_MS);
       }
     };
@@ -147,15 +163,15 @@ export default function Hero() {
         oldLabelX.setValue(0);
         newLabelX.setValue(100);
 
-        const currentBrowseLabel = browseIsAltRef.current ? BROWSE_LABEL_ALT : BROWSE_LABEL_DEFAULT;
-        const nextBrowseLabel = browseIsAltRef.current ? BROWSE_LABEL_DEFAULT : BROWSE_LABEL_ALT;
+        const currentSupportLabel = supportIsAltRef.current ? SUPPORT_LABEL_ALT : SUPPORT_LABEL_DEFAULT;
+        const nextSupportLabel = supportIsAltRef.current ? SUPPORT_LABEL_DEFAULT : SUPPORT_LABEL_ALT;
 
-        await deleteText(currentBrowseLabel);
+        await deleteText(currentSupportLabel);
         if (cancelled) return;
-        await typeText(nextBrowseLabel);
+        await typeText(nextSupportLabel);
         if (cancelled) return;
 
-        browseIsAltRef.current = !browseIsAltRef.current;
+        supportIsAltRef.current = !supportIsAltRef.current;
       }
     };
 
@@ -193,126 +209,149 @@ export default function Hero() {
     }
     router.push(sellIsAlt ? { pathname: '/sell', params: { type: 'service' } } : '/sell');
   };
-  const handleBrowseClick = () => {
-    if (!user) {
-      router.push('/register');
-      return;
-    }
-    if (browseIsAltRef.current) {
-      router.push({ pathname: '/(browse)/all', params: { category: 'Services' } });
+  const handleSupportClick = () => {
+    if (supportIsAltRef.current) {
+      // "Message People" opens the chat screen (needs an account)
+      if (!user) {
+        router.push('/register');
+        return;
+      }
+      router.push('/chat' as any);
     } else {
-      router.push('/browse');
+      // "Contact Support" opens the support page
+      router.push('/support' as any);
     }
   };
 
   return (
-    <View style={{ height: 400, position: 'relative', overflow: 'hidden' }}>
-      <HeroSlideshow images={HERO_IMAGES} />
+    <View style={fillViewport ? { flex: 1, minHeight: 320 } : { height: 400 + LEFT_R }}>
+      <View
+        style={
+          fillViewport
+            ? { flex: 1, position: 'relative', overflow: 'hidden' }
+            : { height: 400 + LEFT_R, position: 'relative', overflow: 'hidden' }
+        }
+      >
+        <HeroSlideshow images={HERO_IMAGES} />
 
-      <LinearGradient
-        colors={['rgba(13,12,10,0.6)', 'rgba(22,20,17,0.35)', 'rgba(184,117,21,0.3)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
+        <LinearGradient
+          colors={['rgba(13,12,10,0.6)', 'rgba(22,20,17,0.35)', 'rgba(184,117,21,0.3)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
 
-      <View style={{ paddingHorizontal: SCREEN_PADDING_X, paddingTop: 64, paddingBottom: 64, position: 'relative', zIndex: 10 }}>
-        <Reveal>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
-            <Sparkles size={13} color="white" />
-            <Text style={{ color: 'white', fontSize: 14, fontWeight: '700' }}>Students sell. Everyone buys.</Text>
-          </View>
-        </Reveal>
+        <View style={{ paddingHorizontal: SCREEN_PADDING_X, paddingTop: 64, paddingBottom: 64, position: 'relative', zIndex: 10 }}>
+          <Reveal>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+              <Sparkles size={13} color="white" />
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: '700' }}>Students sell. Everyone buys.</Text>
+            </View>
+          </Reveal>
 
-        <Reveal delay={100}>
-          <Text style={{ marginTop: 20, fontSize: 45, fontWeight: '800', lineHeight: 48, color: 'white' }}>
-            Buy and Sell within your campus,Safely.
-          </Text>
-        </Reveal>
+          <Reveal delay={100}>
+            <Text style={{ marginTop: 20, fontSize: 45, fontWeight: '800', lineHeight: 48, color: 'white' }}>
+              Buy and Sell within your campus,Safely.
+            </Text>
+          </Reveal>
 
-        <Reveal delay={200}>
-          <Text style={{ marginTop: 20, color: 'rgba(255,255,255,0.85)', fontSize: 19, fontWeight: '500' }}>
-            Verified university students only. Textbooks, gadgets, furniture and more — right on campus, no middlemen, no scams.
-          </Text>
-        </Reveal>
+          <Reveal delay={200}>
+            <Text style={{ marginTop: 20, color: 'rgba(255,255,255,0.85)', fontSize: 19, fontWeight: '500' }}>
+              Shop products, book services and buy data from verified students. Payments are held safely until you confirm delivery.
+            </Text>
+          </Reveal>
 
-        <Reveal delay={300}>
-          <View style={{ marginTop: 32, flexDirection: 'row', gap: 8 }}>
-            <GlassButton
-              onPress={handleStartSellingClick}
-              tint={isDark ? colors.brand : 'rgba(255,255,255,0.85)'}
-              style={{
-                position: 'relative',
-                overflow: 'hidden',
-                width: 140,
-                backgroundColor: isDark ? colors.brand : 'white',
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 999,
-              }}
-            >
-              <Animated.View
+          <Reveal delay={300}>
+            <View key={glassKey} style={{ marginTop: 32, flexDirection: 'row', gap: 8 }}>
+              <GlassButton
+                onPress={handleStartSellingClick}
+                tint={isDark ? colors.brand : 'rgba(255,255,255,0.85)'}
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  flexDirection: 'row',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  width: 140,
+                  backgroundColor: isDark ? colors.brand : 'white',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 8,
-                  transform: [{ translateX: oldTranslate }],
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 999,
                 }}
               >
-                <Text style={{ color: sellFg, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
-                <Animated.View style={{ transform: [{ scale: arrowScale }, { rotate: rotateInterpolate }] }}>
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    transform: [{ translateX: oldTranslate }],
+                  }}
+                >
+                  <Text style={{ color: sellFg, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
+                  <Animated.View style={{ transform: [{ scale: arrowScale }, { rotate: rotateInterpolate }] }}>
+                    <ArrowRight size={16} color={sellFg} />
+                  </Animated.View>
+                </Animated.View>
+
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    transform: [{ translateX: newTranslate }],
+                  }}
+                >
+                  <Text style={{ color: sellFg, fontWeight: '700', fontSize: 14 }}>{sellNextLabel}</Text>
                   <ArrowRight size={16} color={sellFg} />
                 </Animated.View>
-              </Animated.View>
 
-              <Animated.View
+                <Text style={{ opacity: 0, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
+              </GlassButton>
+
+              <GlassButton
+                onPress={handleSupportClick}
+                allowGlass={isDark}
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  flexDirection: 'row',
+                  width: 140,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.3)',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 8,
-                  transform: [{ translateX: newTranslate }],
+                  paddingHorizontal: 16,
+                  paddingVertical: 7,
+                  borderRadius: 999,
                 }}
               >
-                <Text style={{ color: sellFg, fontWeight: '700', fontSize: 14 }}>{sellNextLabel}</Text>
-                <ArrowRight size={16} color={sellFg} />
-              </Animated.View>
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>{supportDisplay}</Text>
+              </GlassButton>
+            </View>
+          </Reveal>
+        </View>
 
-              <Text style={{ opacity: 0, fontWeight: '700', fontSize: 14 }}>{sellCurrentLabel}</Text>
-            </GlassButton>
-
-            <GlassButton
-              onPress={handleBrowseClick}
-              allowGlass={isDark}
-              style={{
-                width: 140,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.3)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingHorizontal: 16,
-                paddingVertical: 7,
-                borderRadius: 999,
-              }}
-            >
-              <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>{browseDisplay}</Text>
-            </GlassButton>
-          </View>
-        </Reveal>
+        {/* Bottom edge: rounded-out on the right, strip's rounded top-left corner on the left */}
+        <Svg
+          pointerEvents="none"
+          width={W}
+          height={RIGHT_R + LEFT_R}
+          style={{ position: 'absolute', left: 0, bottom: 0, zIndex: 20 }}
+        >
+          <Path
+            fill={stripBg}
+            d={`M${W} 0 A${RIGHT_R} ${RIGHT_R} 0 0 1 ${W - RIGHT_R} ${RIGHT_R} L${LEFT_R} ${RIGHT_R} A${LEFT_R} ${LEFT_R} 0 0 0 0 ${RIGHT_R + LEFT_R} L0 ${RIGHT_R + LEFT_R} L${W} ${RIGHT_R + LEFT_R} Z`}
+          />
+        </Svg>
       </View>
     </View>
   );

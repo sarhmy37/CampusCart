@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
-import { View, Text, Pressable, Platform } from 'react-native';
+import { useMemo, useRef } from 'react';
+import { View, Text, Pressable, Platform, Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
-import { MapPin, Star, ShieldCheck, Sparkles, ArrowRight, Check, Rocket } from 'lucide-react-native';
+import { MapPin, Star, ShieldCheck, Sparkles, Check, Rocket } from 'lucide-react-native';
+import Svg, { Path, Defs, Mask, Rect } from 'react-native-svg';
 import { useColors } from '@/hooks/useColors';
 
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
@@ -41,6 +43,12 @@ export default function ServiceCard({
 }) {
   const colors = useColors();
   const router = useRouter();
+
+  const scale = useRef(new Animated.Value(1)).current;
+  const pressIn = () =>
+    Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
+  const pressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 14 }).start();
 
   const hasRating = service.rating && parseFloat(service.rating) > 0;
 
@@ -82,8 +90,8 @@ export default function ServiceCard({
         overflow: 'hidden',
       }}
     >
-      {/* IMAGE (4:3 like web) */}
-      <View style={{ aspectRatio: 4 / 3, backgroundColor: colors.cardAlt, overflow: 'hidden' }}>
+      {/* IMAGE */}
+      <View style={{ aspectRatio: 0.85, backgroundColor: colors.cardAlt, overflow: 'hidden' }}>
         {service.primary_image ? (
           <Image
             source={{ uri: service.primary_image }}
@@ -125,6 +133,21 @@ export default function ServiceCard({
             <Rocket size={9} color="#fff" />
             <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>Service</Text>
           </View>
+        )}
+        {!boostMode && (
+          <Svg width={52} height={52} viewBox="0 0 52 52" style={{ position: 'absolute', top: 0, right: 0 }} pointerEvents="none">
+            <Defs>
+              <Mask id="arrowCut" x="0" y="0" width="52" height="52">
+                <Rect x="0" y="0" width="52" height="52" fill="#fff" />
+                <Path d="M25 27L39 13M28 13H39V24" stroke="#000" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </Mask>
+            </Defs>
+            <Path
+              d="M0 0 H52 V52 A12 12 0 0 0 40 40 H28 A16 16 0 0 1 12 24 V12 A12 12 0 0 0 0 0 Z"
+              fill={colors.brand}
+              mask="url(#arrowCut)"
+            />
+          </Svg>
         )}
       </View>
 
@@ -174,33 +197,23 @@ export default function ServiceCard({
             </View>
           </View>
         </View>
-
-        {/* CTA */}
-        <View
-          style={{
-            marginTop: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            paddingVertical: 10,
-            borderRadius: 8,
-            backgroundColor: colors.brand,
-          }}
-        >
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textOnGold }}>Book now</Text>
-          <ArrowRight size={10} color={colors.textOnGold} />
-        </View>
       </View>
     </Wrapper>
   );
 
   return (
-    <Pressable
-      onPress={() => (boostMode && onBoostSelect ? onBoostSelect(service) : router.push(`/service/${service.id}`))}
-      style={{ width: '100%' }}
-    >
-      {CardInner}
-    </Pressable>
+    <Animated.View style={{ width: '100%', transform: [{ scale }] }}>
+      <Pressable
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (boostMode && onBoostSelect) onBoostSelect(service);
+          else router.push(`/service/${service.id}`);
+        }}
+      >
+        {CardInner}
+      </Pressable>
+    </Animated.View>
   );
 }

@@ -40,6 +40,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withFixedScale",
       [
         "expo-splash-screen",
         {
@@ -64,7 +65,11 @@
           "color": "#000000"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

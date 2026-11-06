@@ -329,27 +329,18 @@ export default function NotificationsPanel({ visible, onClose }: { visible: bool
 
           {/* body */}
           {displayed.length === 0 ? (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
-              <View
-                style={{
-                  width: 64, height: 64, borderRadius: 32,
-                  backgroundColor: colors.chipBg,
-                  alignItems: 'center', justifyContent: 'center', marginBottom: 14,
-                }}
-              >
-                <Bell size={28} color={colors.textFaint} />
+            <View style={{ paddingVertical: 60, paddingHorizontal: 40 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <BellSolid size={26} color={colors.textFaint} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                    {tab === 'unread' ? 'Nothing unread' : 'Nothing yet'}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 4, lineHeight: 18 }}>
+                    {tab === 'unread' ? "You've seen it all." : 'We check every minute.'}
+                  </Text>
+                </View>
               </View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, textAlign: 'center' }}>
-                {tab === 'unread' ? 'Nothing unread' : 'Nothing yet'}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14, color: colors.textMuted,
-                  textAlign: 'center', marginTop: 4, lineHeight: 18,
-                }}
-              >
-                {tab === 'unread' ? "You've seen it all." : 'We check every minute.'}
-              </Text>
             </View>
           ) : (
             <SectionList

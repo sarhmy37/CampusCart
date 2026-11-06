@@ -64,7 +64,6 @@ const PLANS = [
       '18% off delivery fees',
       'Support replies within a few hours',
       'Saved searches with new-listing alerts',
-      'Export videos with no watermark',
     ],
     sellerBenefits: [
       'No service commission on booked orders',
@@ -73,7 +72,6 @@ const PLANS = [
       'Listings shown first in search',
       'Premium Seller badge',
       'Upgraded store page with social sharing',
-      'Export videos with no watermark',
       'Views & sales statistics',
     ],
   },
@@ -136,7 +134,7 @@ export default function HomePlans() {
     if (isCurrentPlanActive && targetPlan !== currentPlan && !isPaidSwitch) {
       Toast.show({
         type: 'error',
-        text1: `You're on the ${user.plan} plan until it expires — you can switch once it ends.`,
+        text1: `You're on the ${user.plan} plan until it expires, you can switch once it ends.`,
       });
       return;
     }
