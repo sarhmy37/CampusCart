@@ -335,7 +335,7 @@ router.post('/withdraw', requireAuth, async (req, res) => {
         const t = await initiateTransfer({
             recipient_code: recipientCode,
             amountGHS,
-            reason: 'Tre-X seller payout',
+            reason: 'Antika seller payout',
             reference: withdrawal.transfer_reference,
         });
 

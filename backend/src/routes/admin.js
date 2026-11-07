@@ -883,16 +883,16 @@ router.post('/support/:id/reply', async (req, res) => {
     }
 });
 
-// ─── Tre-X broadcast / direct messaging ────────────────────────────────
+// ─── Antika broadcast / direct messaging ────────────────────────────────
 const TREX_ID = '09dabd6c-c9ea-440d-b42a-0ba1d9011e8a';
 
-// Send a Tre-X message to one user. Creates the conversation if it doesn't
-// exist, then inserts the message from Tre-X.
+// Send an Antika message to one user. Creates the conversation if it doesn't
+// exist, then inserts the message from Antika.
 async function sendTrexMessage(client, recipientId, content, allowReplies = false) {
   const trimmed = content.trim();
   if (!trimmed) throw new Error('Message is empty');
 
-  // Find or create the Tre-X ↔ recipient conversation
+  // Find or create the Antika ↔ recipient conversation
   let convoId;
   const existing = await client.query(
     `SELECT id FROM conversations
@@ -977,12 +977,12 @@ router.post('/message/individual', async (req, res) => {
     insertNotification(
       userId,
       'new_message',
-      `Tre-X: ${content.trim().slice(0, 100)}`,
+      `Antika: ${content.trim().slice(0, 100)}`,
       convoId,
       `/chat/${convoId}`,
-      'Tre-X',
+      'Antika',
       content.trim().slice(0, 100)
-    ).catch((err) => console.error('Tre-X push error:', err));
+    ).catch((err) => console.error('Antika push error:', err));
 
     res.json({ success: true, conversationId: convoId });
   } catch (err) {
@@ -1013,10 +1013,10 @@ router.post('/message/group', async (req, res) => {
         insertNotification(
           row.id,
           'new_message',
-          `Tre-X: ${content.trim().slice(0, 100)}`,
+          `Antika: ${content.trim().slice(0, 100)}`,
           convoId,
           `/chat/${convoId}`,
-          'Tre-X',
+          'Antika',
           content.trim().slice(0, 100)
         ).catch(() => {});
         sent++;

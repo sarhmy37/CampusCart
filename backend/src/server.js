@@ -206,8 +206,8 @@ pool.query(`SET TIME ZONE 'UTC'`)
     `))
     .then(() => {
         app.listen(PORT, '0.0.0.0', () => {
-            console.log(`🚀 Tre-X API running on http://localhost:${PORT}`);
-            console.log(`🚀 Tre-X API running on network: http://0.0.0.0:${PORT}`);
+            console.log(`🚀 Antika API running on http://localhost:${PORT}`);
+            console.log(`🚀 Antika API running on network: http://0.0.0.0:${PORT}`);
         });
     })
     .catch((err) => {

@@ -1,5 +1,5 @@
 -- ============================================================
--- Tre-X full schema (rebuilt from the Oct 20 2026 production dump
+-- Antika full schema (rebuilt from the Oct 20 2026 production dump
 -- ). Safe to run on a fresh Postgres database:
 --   psql "$DATABASE_URL" -f schema.sql
 -- ============================================================

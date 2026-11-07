@@ -38,7 +38,7 @@ async function getConversationOrForbid(conversationId, userId, res) {
 }
 
 // Returns true if the requesting user is allowed to send in this conversation.
-// Tre-X conversations are read-only for the recipient unless allow_replies is on.
+// Antika conversations are read-only for the recipient unless allow_replies is on.
 function isSendBlockedByTrexLock(convoRow, userId) {
     if (!convoRow) return false;
     const isTrexConvo = convoRow.seller_id === TREX_ID;
@@ -393,7 +393,7 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
             return res.status(403).json({ error: 'Not part of this conversation' });
         }
 
-        // Tre-X lock
+        // Antika lock
         if (isSendBlockedByTrexLock(convo.rows[0], req.userId)) {
             return res.status(403).json({ error: 'This conversation is read-only' });
         }
@@ -462,7 +462,7 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
             return res.status(403).json({ error: 'Not part of this conversation' });
         }
 
-        // Tre-X lock
+        // Antika lock
         if (isSendBlockedByTrexLock(convo.rows[0], req.userId)) {
             return res.status(403).json({ error: 'This conversation is read-only' });
         }

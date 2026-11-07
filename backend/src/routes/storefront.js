@@ -73,10 +73,10 @@ router.get('/store/:id', async (req, res) => {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Opening TreX…</title>
+<title>Opening Antika…</title>
 </head>
 <body style="font-family:sans-serif;text-align:center;padding-top:40px">
-<p>Opening TreX…</p>
+<p>Opening Antika…</p>
 <p><a href="${appUrl}">Open in app</a> · <a href="${pageUrl}">Continue on web</a></p>
 <script>
   var t = setTimeout(function () { window.location.href = ${JSON.stringify(pageUrl)}; }, 1500);
@@ -100,8 +100,8 @@ router.get('/store/:id', async (req, res) => {
 <html>
 <head>
 <meta charset="utf-8" />
-<title>TreX</title>
-<meta property="og:title" content="TreX" />
+<title>Antika</title>
+<meta property="og:title" content="Antika" />
 <meta property="og:image" content="${imageUrl}" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />

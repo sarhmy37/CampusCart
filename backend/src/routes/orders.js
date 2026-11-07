@@ -708,7 +708,7 @@ router.post('/:id/mark-delivered', requireAuth, async (req, res) => {
         await insertNotification(order.buyer_id, 'order_delivered_buyer', message, order.id, '/dashboard?tab=orders');
 
         if (buyerSmsNumber) {
-            sendOrderSMS(buyerSmsNumber, `Tre-X: Your order has been marked as delivered to ${buyerLocation}. Open the app to confirm you've received it.`)
+            sendOrderSMS(buyerSmsNumber, `Antika: Your order has been marked as delivered to ${buyerLocation}. Open the app to confirm you've received it.`)
                 .catch((err) => console.error('Delivery SMS failed:', err));
         }
 
@@ -841,7 +841,7 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
             '/dashboard?tab=deliveries'
         );
         if (buyerSmsNumber) {
-           sendOrderSMS(buyerSmsNumber, `Tre-X: ${titles} was cancelled by the seller. Your refund of GHS ${refundTotal.toFixed(2)} should reach you within 30 minutes.`)
+           sendOrderSMS(buyerSmsNumber, `Antika: ${titles} was cancelled by the seller. Your refund of GHS ${refundTotal.toFixed(2)} should reach you within 30 minutes.`)
                 .catch((err) => console.error('Cancel SMS failed:', err));
         }
 
@@ -973,7 +973,7 @@ router.post('/order-items/:itemId/confirm', requireAuth, async (req, res) => {
             await sendFundsNotification();
         }
         if (sellerSmsNumber) {
-            sendOrderSMS(sellerSmsNumber, `Tre-X: Buyer confirmed receipt of "${item.title}". GHS ${sellerEarnings.toFixed(2)} is now available in your Payouts tab.`)
+            sendOrderSMS(sellerSmsNumber, `Antika: Buyer confirmed receipt of "${item.title}". GHS ${sellerEarnings.toFixed(2)} is now available in your Payouts tab.`)
                 .catch((err) => console.error('Delivery confirm SMS failed:', err));
         }
 
@@ -1128,7 +1128,7 @@ router.post('/:id/report', requireAuth, async (req, res) => {
             [req.userId, String(orderId)]
         );
 
-        // After 1m30s, send an automatic "under review" message from Tre-X (replies allowed).
+        // After 1m30s, send an automatic "under review" message from Antika (replies allowed).
         // Skipped if the report is gone by then (e.g. the buyer confirmed receipt).
         const buyerId = req.userId;
         setTimeout(async () => {
@@ -1139,7 +1139,7 @@ router.post('/:id/report', requireAuth, async (req, res) => {
                 );
                 if (still.rows.length === 0) return;
 
-                const TREX_ID = '8b4d43dd-9ecb-4bef-83c8-975fd172adae'; // Tre-X Support account
+                const TREX_ID = '8b4d43dd-9ecb-4bef-83c8-975fd172adae'; // Antika Support account
                 const text = `Hi! We've received your report on Order #${orderId}. Our team is reviewing it and will contact you soon. There's nothing you need to do right now.`;
 
                 const convo = await pool.query(
@@ -1165,8 +1165,8 @@ router.post('/:id/report', requireAuth, async (req, res) => {
                     [convoId, TREX_ID, text]
                 );
                 await insertNotification(
-                    buyerId, 'new_message', `Tre-X Support: ${text.slice(0, 100)}`,
-                    convoId, `/chat/${convoId}`, 'Tre-X Support', text.slice(0, 100)
+                    buyerId, 'new_message', `Antika Support: ${text.slice(0, 100)}`,
+                    convoId, `/chat/${convoId}`, 'Antika Support', text.slice(0, 100)
                 );
             } catch (e) {
                 console.error('Auto review message failed:', e);
@@ -1238,7 +1238,7 @@ router.post('/run-delivery-reminders', async (req, res) => {
             // SMS only once more, on day 2 (the first SMS already goes out when the seller marks delivered).
             const twoDaysOld = new Date(o.delivered_at).getTime() < Date.now() - 2 * 24 * 60 * 60 * 1000;
             if (twoDaysOld && !o.delivery_sms_reminder_sent && o.sms_number) {
-                sendOrderSMS(o.sms_number, `Tre-X: Did Order #${o.id} arrive? Open the app and confirm it, or report a problem.`)
+                sendOrderSMS(o.sms_number, `Antika: Did Order #${o.id} arrive? Open the app and confirm it, or report a problem.`)
                     .catch((err) => console.error('Reminder SMS failed:', err));
                 await pool.query('UPDATE orders SET delivery_sms_reminder_sent = true WHERE id = $1', [o.id]);
             }

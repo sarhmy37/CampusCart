@@ -1,11 +1,11 @@
-// Parses "Tre-X <samavih45@gmail.com>" into { name, email }
+// Parses "Antika <samavih45@gmail.com>" into { name, email }
 // Falls back gracefully if EMAIL_FROM is just a plain address.
 function parseFromAddress(raw) {
     const match = raw && raw.match(/^(.*)<(.+)>$/);
     if (match) {
         return { name: match[1].trim().replace(/^"|"$/g, ''), email: match[2].trim() };
     }
-    return { name: 'Tre-X', email: raw };
+    return { name: 'Antika', email: raw };
 }
 
 async function sendBrevoEmail({ to, subject, html }) {
@@ -36,10 +36,10 @@ async function sendBrevoEmail({ to, subject, html }) {
 async function sendVerificationEmail(toEmail, code) {
     await sendBrevoEmail({
         to: toEmail,
-        subject: 'Your Tre-X verification code',
+        subject: 'Your Antika verification code',
         html: `
             <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto;">
-                <h2 style="color:#1e293b;">Verify your Tre-X account</h2>
+                <h2 style="color:#1e293b;">Verify your Antika account</h2>
                 <p style="color:#475569;">Enter this code to verify your account:</p>
                 <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color:#4f46e5;">${code}</p>
                 <p style="color:#94a3b8; font-size: 13px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
@@ -51,10 +51,10 @@ async function sendVerificationEmail(toEmail, code) {
 async function sendPasswordResetEmail(toEmail, code) {
     await sendBrevoEmail({
         to: toEmail,
-        subject: 'Your Tre-X password reset code',
+        subject: 'Your Antika password reset code',
         html: `
             <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto;">
-                <h2 style="color:#1e293b;">Reset your Tre-X password</h2>
+                <h2 style="color:#1e293b;">Reset your Antika password</h2>
                 <p style="color:#475569;">Enter this code to change your password:</p>
                 <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color:#4f46e5;">${code}</p>
                 <p style="color:#94a3b8; font-size: 13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email — your password won't be changed.</p>
@@ -75,7 +75,7 @@ async function sendOrderSMS(phoneNumber, message) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                sender: 'Tre-X',
+                sender: 'Antika',
                 recipient: normalized,
                 content: message,
                 type: 'transactional',
@@ -97,7 +97,7 @@ async function sendOrderSMS(phoneNumber, message) {
 async function sendSupportReplyEmail(toEmail, userMessage, reply) {
     await sendBrevoEmail({
         to: toEmail,
-        subject: 'Reply from Tre-X Support',
+        subject: 'Reply from Antika Support',
         html: `
             <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
                 <h2 style="color:#1e293b;">We replied to your message</h2>

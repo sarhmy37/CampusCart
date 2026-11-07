@@ -27,8 +27,8 @@ const NOTIFICATION_TITLES = {
     order_reported_buyer: 'Report received',
     order_reported_seller: 'Order reported',
     subscription_activated: 'Plan activated',
-    story_like: 'Tre-X',
-    story_comment: 'Tre-X',
+    story_like: 'Antika',
+    story_comment: 'Antika',
     follow_post: 'New post',
     donation_received: 'Thank you for your support',
     booking_soon: 'Your service starts soon',
@@ -38,7 +38,7 @@ const NOTIFICATION_TITLES = {
 };
 
 function getPushTitle(type) {
-    return NOTIFICATION_TITLES[type] || 'Tre-X';
+    return NOTIFICATION_TITLES[type] || 'Antika';
 }
 
 const API_BASE = process.env.PUBLIC_API_URL || 'https://campuscart-tdfn.onrender.com';
