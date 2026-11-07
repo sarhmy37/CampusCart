@@ -103,7 +103,7 @@ export default function HomeFooter() {
       {/* Row 2: copyright + prices note */}
       <View style={{ gap: 6 }}>
         <Text style={{ fontSize: 12, color: colors.textFaint }}>
-          © {new Date().getFullYear()} Tre-X. All rights reserved.
+          © {new Date().getFullYear()} Antika. All rights reserved.
         </Text>
         <Text style={{ fontSize: 12, color: colors.textFaint }}>
           Made for university students, across Ghana.

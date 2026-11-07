@@ -118,11 +118,21 @@ export default function ServiceDetail() {
   });
   const [message, setMessage] = useState('');
   const [messageOpen, setMessageOpen] = useState(false);
+  const [replyDeadlineHours, setReplyDeadlineHours] = useState(6);
   const [submitting, setSubmitting] = useState(false);
   const [bookingBlocked, setBookingBlocked] = useState(false);
   const [checkout, setCheckout] = useState<{ id: string; url: string } | null>(null);
   const serviceOptions = parseServiceOptions(service?.service_options, service?.price);
   const [selectedServiceOption, setSelectedServiceOption] = useState<{ name: string; price: number } | null>(null);
+  const deadlineOptions = useMemo(() => {
+    const start = new Date(`${toYMD(bookingDate)}T${toHM(bookingTime)}:00`).getTime();
+    return [6, 12, 24].filter((hours) => start - hours * 60 * 60 * 1000 > Date.now());
+  }, [bookingDate, bookingTime]);
+  useEffect(() => {
+    if (deadlineOptions.length && !deadlineOptions.includes(replyDeadlineHours)) {
+      setReplyDeadlineHours(deadlineOptions[0]);
+    }
+  }, [deadlineOptions, replyDeadlineHours]);
 
   const [buyerLocation, setBuyerLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingBuyer, setLocatingBuyer] = useState(false);
@@ -217,10 +227,11 @@ export default function ServiceDetail() {
     const serviceLat = hasExactLocation ? exactLat : schoolCoords?.lat;
     const serviceLng = hasExactLocation ? exactLng : schoolCoords?.lng;
     const hasServiceLocation = typeof serviceLat === 'number' && typeof serviceLng === 'number';
+    const providerPaused = service.services_paused_until && new Date(service.services_paused_until) > new Date();
 
     return {
       images, availability, hasScheduledHours, allSameHours, availabilitySummary,
-      hasExactLocation, serviceLat, serviceLng, hasServiceLocation,
+      hasExactLocation, serviceLat, serviceLng, hasServiceLocation, providerPaused,
     };
   }, [service]);
 
@@ -235,6 +246,7 @@ export default function ServiceDetail() {
   const {
     images, availability, hasScheduledHours, allSameHours, availabilitySummary,
     hasExactLocation, serviceLat, serviceLng, hasServiceLocation,
+    providerPaused,
   } = view;
 
   const isOwner = !!user && user.id === service.seller_id;
@@ -301,6 +313,7 @@ export default function ServiceDetail() {
         booking_date: dateStr,
         booking_time: timeStr,
         message: message || '',
+        reply_deadline_hours: replyDeadlineHours,
       });
       if (data.queued) {
         Toast.show({ type: 'info', text1: 'Provider is busy', text2: `You're in the queue. Your start time is ${formatTime12(data.booking_time)}.` });
@@ -319,6 +332,7 @@ export default function ServiceDetail() {
     try {
       await api.post(`/bookings/${checkout.id}/verify`, { reference });
       Toast.show({ type: 'success', text1: 'Booking confirmed' });
+      router.replace({ pathname: '/dashboard', params: { tab: 'orders', highlightOrder: `booking-${checkout.id}` } });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || 'Could not verify booking payment.' });
     } finally {
@@ -344,7 +358,7 @@ export default function ServiceDetail() {
     ? { latitude: serviceLat as number, longitude: serviceLng as number, latitudeDelta: 0.01, longitudeDelta: 0.01 }
     : undefined;
 
-  const bookDisabled = submitting || !user || bookingBlocked;
+  const bookDisabled = submitting || !user || bookingBlocked || deadlineOptions.length === 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -557,16 +571,52 @@ export default function ServiceDetail() {
           </View>
 
           {/* AVAILABILITY */}
-          <View style={{ ...card, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 14 }}>
-            <Clock size={20} color={colors.brand} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontSize: 12, color: colors.textFaint, fontWeight: '600', textTransform: 'uppercase' }}>Availability</Text>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 2 }}>{availabilitySummary}</Text>
+          <View style={{ ...card, padding: 18, borderRadius: 18, overflow: 'hidden' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View
+                style={{
+                  width: 42, height: 42, borderRadius: 14,
+                  backgroundColor: providerPaused ? colors.warningSoft : colors.successSoft,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Clock size={20} color={providerPaused ? colors.warning : colors.success} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontSize: 12, color: colors.textFaint, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Availability
+                </Text>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text, marginTop: 3 }}>
+                  {providerPaused ? 'Taking a short break' : availabilitySummary}
+                </Text>
+              </View>
+              <View style={{ paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: providerPaused ? colors.warningSoft : colors.successSoft }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: providerPaused ? colors.warning : colors.success }}>
+                  {providerPaused ? 'PAUSED' : 'OPEN'}
+                </Text>
+              </View>
             </View>
+            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 14 }} />
+            <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textSecondary }}>
+              {providerPaused
+                ? 'The provider is not taking new bookings right now. Please check back later.'
+                : hasScheduledHours
+                  ? allSameHours
+                    ? `Usually available ${availability.days.map((d: any) => d.day).join(', ')} from ${formatTime12(availability.days[0].open)} to ${formatTime12(availability.days[0].close)}.`
+                    : 'Hours vary by day. Choose a time that works for both of you.'
+                  : 'Flexible timing — choose a time and the provider will reply.'}
+            </Text>
           </View>
 
           {/* BOOKING */}
-          <View style={{ ...card, padding: 20 }}>
+          {providerPaused ? (
+            <View style={{ ...card, padding: 20, borderColor: colors.warning, backgroundColor: colors.warningSoft }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>Booking is paused</Text>
+              <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginTop: 6 }}>
+                There is nothing you need to do — try again when the provider is available.
+              </Text>
+            </View>
+          ) : <View style={{ ...card, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Calendar size={16} color={colors.success} />
@@ -664,6 +714,33 @@ export default function ServiceDetail() {
                   )}
                 </View>
 
+                <View style={{ marginTop: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+                    Provider reply deadline
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {deadlineOptions.map((hours) => (
+                      <Pressable
+                        key={hours}
+                        onPress={() => setReplyDeadlineHours(hours)}
+                        style={{
+                          flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+                          borderWidth: 1,
+                          borderColor: replyDeadlineHours === hours ? colors.brand : colors.border,
+                          backgroundColor: replyDeadlineHours === hours ? colors.brandSoft : colors.card,
+                        }}
+                      >
+                        <Text style={{ color: replyDeadlineHours === hours ? colors.brand : colors.text, fontWeight: '700' }}>
+                          {hours}h
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={{ fontSize: 12, color: colors.textFaint, marginTop: 6 }}>
+                    GHS 2 is refunded only if the provider doesn’t reply in time.
+                  </Text>
+                </View>
+
                 <Pressable
                   onPress={handleBook}
                   disabled={bookDisabled}
@@ -697,7 +774,7 @@ export default function ServiceDetail() {
                 </Text>
               </View>
             )}
-          </View>
+          </View>}
 
           {/* REVIEWS */}
           <ReviewsSection reviewsData={reviews} productId={service.id} />

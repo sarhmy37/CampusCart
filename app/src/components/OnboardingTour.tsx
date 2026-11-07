@@ -46,8 +46,8 @@ const SHOTS = {
 const ARRIVAL_STEP = {
   icon: Sparkles,
   stamp: 'Arrival',
-  title: (n: string) => `Welcome to Tre-X, ${n}`,
-  body: 'Tre-X is where students on your campus buy, sell and book services. This short tour collects stamps in your passport.',
+  title: (n: string) => `Welcome to Antika, ${n}`,
+  body: 'Antika is where students on your campus buy, sell and book services. This short tour collects stamps in your passport.',
 };
 
 const REFER_STEP = {

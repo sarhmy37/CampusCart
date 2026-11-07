@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import { LOGO_LIGHT, LOGO_DARK } from '@/data/media';
+import { triggerLogoBounce } from '@/utils/logoBounce';
 import { useTheme } from '@/context/ThemeContext';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
@@ -695,6 +696,7 @@ const { openChat, sendQuickMessage } = useChat();
     refreshingRef.current = true;
     setRefreshing(true);
     const t0 = Date.now();
+    triggerLogoBounce();
     await refreshFeed();
     setTimeout(() => {
       refreshingRef.current = false;
@@ -954,6 +956,8 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
   const PULL_FACTOR = 0.8; // lower = need to drag further
   const pullY = useRef(new Animated.Value(0)).current; // 0 → -70, same shape PullLine expects
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pullBlockRef = useRef(false);
+  const pullBlockTimerRef = useRef<any>(null);
 
   const resetPull = () => {
     Animated.timing(pullY, {
@@ -986,6 +990,10 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
       return;
     }
     pullY.setValue(-Math.min(PULL_THRESHOLD, dy * PULL_FACTOR));
+    if (dy > 12) {
+      pullBlockRef.current = true;
+      clearTimeout(pullBlockTimerRef.current);
+    }
     const reached = dy * PULL_FACTOR >= PULL_THRESHOLD;
     if (reached && !pullArmedRef.current) {
       pullArmedRef.current = true;
@@ -996,6 +1004,10 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
   };
 
   const onPullTouchEnd = () => {
+    if (pullBlockRef.current) {
+      clearTimeout(pullBlockTimerRef.current);
+      pullBlockTimerRef.current = setTimeout(() => { pullBlockRef.current = false; }, 400);
+    }
     if (!touchStartRef.current) return;
     const shouldRefresh = pullArmedRef.current;
     touchStartRef.current = null;
@@ -1285,6 +1297,7 @@ useFocusEffect(
   };
 
   const goToStory = (groupIdx: number, storyIdx: number, source: 'story' | 'spotlight' = viewerSource) => {
+    if (pullBlockRef.current) return;
     setViewerSource(source);
     const list = source === 'spotlight' ? viewerSpotlight : statusList;
     const nextStory = list[groupIdx]?.stories[storyIdx];
@@ -1991,7 +2004,7 @@ const feedHandlers = useMemo(() => ({
           {/* Reel feed (vertical mode) */}
           {reelStyle === 'vertical' && (
             <View
-              style={{ marginTop: 20 }}
+              style={{ marginTop: 6 }}
             >
 <View style={{ flexDirection: 'row', marginBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
   <FeedTabs
@@ -6793,7 +6806,7 @@ function ExportSheet({
               <Text style={{ fontSize: 13, color: colors.textMuted }}>
                 {isImage || noWatermark
                   ? 'Your exports will have no watermark.'
-                  : 'Exports include the Tre-X watermark. Upgrade to Premium to remove it.'}
+                  : 'Exports include the Antika watermark. Upgrade to Premium to remove it.'}
               </Text>
             </View>
           </View>
@@ -7389,19 +7402,29 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
       </View>
 
       {/* sub tabs */}
-      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
+      <View style={{ flexDirection: 'row', height: 34, marginTop: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         {SUBS.map((t) => {
           const active = sub === t.key;
+          const color = active ? colors.brand : colors.textFaint;
+          const Icon: any = t.key === 'all' ? (active ? GridSolid : GridOutline) : t.key === 'fav' ? Heart : Clock;
           return (
             <Pressable
               key={t.key}
               onPress={() => setSub(t.key)}
-              style={{
-                paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999,
-                backgroundColor: active ? colors.brand : colors.chipBg,
-              }}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingBottom: active ? 4 : 0 }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '800', color: active ? colors.textOnGold : colors.textMuted }}>{t.label}</Text>
+              <Icon size={active ? 18 : 15} color={color} />
+              <Text style={{ fontSize: active ? 15 : 13, fontWeight: active ? '800' : '500', color }}>
+                {t.label}
+              </Text>
+              {active && (
+                <View
+                  style={{
+                    position: 'absolute', bottom: -1, alignSelf: 'center',
+                    height: 3, width: 30, borderRadius: 999, backgroundColor: colors.brand,
+                  }}
+                />
+              )}
             </Pressable>
           );
         })}
@@ -7510,7 +7533,7 @@ function FeedTabs({ feedTab, onChange, colors }: { feedTab: string; onChange: (k
     { key: 'following', label: 'Following', outline: UsersOutline, solid: UsersSolid },
   ] as const;
   return (
-    <View style={{ flex: 1, flexDirection: 'row', height: 24 }}>
+    <View style={{ flex: 1, flexDirection: 'row', height: 34 }}>
       {tabs.map((t) => {
         const active = feedTab === t.key;
         const Icon = active ? t.solid : t.outline;
@@ -7520,8 +7543,8 @@ function FeedTabs({ feedTab, onChange, colors }: { feedTab: string; onChange: (k
             onPress={() => onChange(t.key)}
             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingBottom: active ? 4 : 0 }}
           >
-            <Icon size={active ? 14 : 11} color={active ? colors.brand : colors.textFaint} />
-            <Text style={{ fontSize: active ? 13 : 10.5, fontWeight: active ? '800' : '500', color: active ? colors.brand : colors.textFaint }}>
+            <Icon size={active ? 18 : 15} color={active ? colors.brand : colors.textFaint} />
+            <Text style={{ fontSize: active ? 15 : 13, fontWeight: active ? '800' : '500', color: active ? colors.brand : colors.textFaint }}>
               {t.label}
             </Text>
             {active && (

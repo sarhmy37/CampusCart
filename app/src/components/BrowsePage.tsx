@@ -849,6 +849,20 @@ useEffect(() => {
     });
   };
   const gridData = inStock;
+    const GAP = 8;
+  const SCREEN_W = Dimensions.get('window').width;
+  // alternate rows: 3 small cards, then 2 bigger ones
+  const rows = useMemo(() => {
+    const out: { key: string; n: number; items: any[] }[] = [];
+    let i = 0, r = 0;
+    while (i < gridData.length) {
+      const n = 3;
+      out.push({ key: `r${r}-${gridData[i].id}`, n, items: gridData.slice(i, i + n) });
+      i += n;
+      r++;
+    }
+    return out;
+  }, [gridData]);
 
   const headerTitle =
     itemCategory === 'Services' ? 'Browse Services'
@@ -950,6 +964,7 @@ useEffect(() => {
                 <Text
                   style={{
                     fontSize: 11.5,
+                    textAlign: 'center',
                     fontWeight: active ? '700' : '500',
                     color: active ? colors.brand : colors.textFaint,
                   }}
@@ -1127,8 +1142,8 @@ useEffect(() => {
           ref={listRef}
           onContentSizeChange={(_w, h) => { contentH.current = h; }}
           onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
-          data={gridData}
-          keyExtractor={(p) => String(p.id)}
+          data={rows}
+          keyExtractor={(r) => r.key}
           ListFooterComponent={
             !boostMode && outOfStock.length > 0 ? (
               <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
@@ -1140,7 +1155,7 @@ useEffect(() => {
                 </View>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, opacity: 0.6 }}>
                   {outOfStock.map((item) => (
-                    <View key={`oos-${item.id}`} style={{ width: '31.5%' }}>
+                   <View key={`oos-${item.id}`} style={{ width: '31.5%' }}>
                       {(item.category || item.category_name) === 'Services'
                         ? <ServiceCard service={item} />
                         : <ProductCard product={item} />}
@@ -1150,16 +1165,16 @@ useEffect(() => {
               </View>
             ) : loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: 20 }} /> : null
           }
-          numColumns={3}
-          columnWrapperStyle={{ gap: 8, paddingHorizontal: 16 }}
           contentContainerStyle={{ gap: 8, paddingTop: 12, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleListScroll}
           onEndReached={loadMoreProducts}
           onEndReachedThreshold={0.6}
           scrollEventThrottle={16}
-          renderItem={({ item }) => (
-            <View style={{ width: '31.5%' }}>
+          renderItem={({ item: row }) => (
+            <View style={{ flexDirection: 'row', gap: GAP, paddingHorizontal: 16 }}>
+              {row.items.map((item: any) => (
+              <View key={item.id} style={{ width: (SCREEN_W - 32 - GAP * (row.n - 1)) / row.n }}>
               <Dangle active={!!isBoosted(item)}>
                 {needsLocation(item) && (
                   <Pressable
@@ -1195,6 +1210,8 @@ useEffect(() => {
                     />
                   )}
               </Dangle>
+              </View>
+              ))}
             </View>
           )}
         />

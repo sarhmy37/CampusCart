@@ -11,6 +11,7 @@ import ExclusiveOffers from '@/components/ExclusiveOffers';
 import HomePlans from '@/components/HomePlans';
 import TopSellers from '@/components/TopSellers';
 import { LinearGradient } from 'expo-linear-gradient';
+import { triggerLogoBounce } from '@/utils/logoBounce';
 
 function InsetShadow({ direction, red = false }: { direction: 'down' | 'up'; red?: boolean }) {
   const { theme } = useTheme();
@@ -104,6 +105,7 @@ export default function HomeScreen() {
     setRefreshing(true);
     const t0 = Date.now();
     setRefreshKey((k) => k + 1);
+    triggerLogoBounce();
     await new Promise((r) => setTimeout(r, 800));
     setTimeout(() => {
       refreshingRef.current = false;

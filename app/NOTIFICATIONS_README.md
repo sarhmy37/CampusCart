@@ -1,4 +1,4 @@
-# Tre-X Push Notifications: Progress README
+# Antika Push Notifications: Progress README
 
 Last updated: Oct 8, 2026. Status: **PAUSED** (nothing testable yet, see "Blockers").
 
@@ -6,7 +6,7 @@ Last updated: Oct 8, 2026. Status: **PAUSED** (nothing testable yet, see "Blocke
 Catch the user up from this file, then tell them which files to send (see "Files needed to continue"). The user wants short, direct answers, copy-paste-ready code, and surgical find-and-replace edits (not full rewrites unless asked). Do not ask "what next" after each task.
 
 ## Project context
-- Tre-X (formerly CampusCart): campus marketplace, 12 Ghanaian universities.
+- Antika (formerly CampusCart): campus marketplace, 12 Ghanaian universities.
 - Backend: Node/Express/PostgreSQL on Render (`https://campuscart-tdfn.onrender.com`), routes mounted under `/api/...`.
 - App: React Native + Expo SDK 57 (`expo ~57.0.24`, RN 0.86.3, Expo Router, NativeWind). `expo-dev-client` and `expo-notifications ~57.0.21` are installed. Android package: `com.sammy45.trex`. EAS projectId is in `app.json`.
 - Media (avatars, chat media) is stored as **Base64 data URIs in Postgres**, not as hosted files.
@@ -14,7 +14,7 @@ Catch the user up from this file, then tell them which files to send (see "Files
 ## Goal
 Make push notifications look like WhatsApp / Snapchat chat notifications:
 - Sender's avatar is the main (left) icon.
-- Tre-X app icon is a small badge at the bottom-right of the avatar.
+- Antika app icon is a small badge at the bottom-right of the avatar.
 - Title = sender name, body = message text.
 - Image thumbnail on the far right when the message is a picture (with or without text).
 - Both iOS and Android (their styles differ).

@@ -8,7 +8,7 @@ import Payouts from '@/components/dashboard/Payouts';
 import Sales from '@/components/dashboard/Sales';
 import Saved from '@/components/dashboard/Saved';
 import Reports from '@/components/dashboard/Reports';
-import Deliveries from '@/components/dashboard/Deliveries';
+import Tasks from '@/components/dashboard/Tasks';
 import { useRouter, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Overview from '@/components/dashboard/Overview';
@@ -61,7 +61,7 @@ const TAB_LABELS: Record<string, string> = {
   listings: 'Listings',
   payouts: 'Payouts',
   orders: 'Orders',
-  deliveries: 'Deliveries',
+  tasks: 'Tasks',
   completed: 'Completed\nOrders',
   sales: 'Sales',
   reports: 'Reports',
@@ -90,7 +90,7 @@ useEffect(() => {
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
 
   const tabs = isSeller
-    ? ['overview', 'listings', 'payouts', 'orders', 'completed', 'deliveries', 'sales', 'reports']
+    ? ['overview', 'listings', 'payouts', 'orders', 'completed', 'tasks', 'sales', 'reports']
     : [...(isPlanActive ? ['saved'] : []), 'orders', 'completed', 'reports'];
 
   const { tab: paramTab, highlightOrder } = useLocalSearchParams<{ tab?: string; highlightOrder?: string }>();
@@ -345,8 +345,8 @@ useEffect(() => {
       >
         {tabs.map((t) => (
           <View key={t} style={{ width: SCREEN_WIDTH, flex: 1 }}>
-            <ScrollView ref={t === 'deliveries' ? deliveriesScrollRef : undefined} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-              {visitedTabs.has(t) ?<TabPanel tab={t} period={period} isSeller={isSeller} active={t === tab} onScrollToY={(y: number) => deliveriesScrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true })} highlightOrder={(t === 'deliveries' || t === 'orders') ? (highlightOrder ? String(highlightOrder) : undefined) : undefined} /> : <View style={{ height: 200 }} />}
+            <ScrollView ref={t === 'tasks' ? deliveriesScrollRef : undefined} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+              {visitedTabs.has(t) ?<TabPanel tab={t} period={period} isSeller={isSeller} active={t === tab} onScrollToY={(y: number) => deliveriesScrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true })} highlightOrder={(t === 'tasks' || t === 'orders') ? (highlightOrder ? String(highlightOrder) : undefined) : undefined} /> : <View style={{ height: 200 }} />}
             </ScrollView>
           </View>
         ))}
@@ -403,7 +403,7 @@ const TAB_ICONS: Record<string, any> = {
   listings: Tag,
   payouts: Wallet,
   orders: ShoppingBag,
-  deliveries: Truck,
+  tasks: Truck,
   completed: CheckCircle,
   sales: TrendingUp,
   reports: Flag,
@@ -476,7 +476,7 @@ function TabPanel({ tab, period, isSeller, active, highlightOrder, onScrollToY }
   if (tab === 'payouts') return <Payouts period={period} active={active} />;
   if (tab === 'orders') return <Orders period={period} isSeller={isSeller} highlightOrder={highlightOrder} />;
   if (tab === 'completed') return <Orders period={period} isSeller={isSeller} mode="completed" />;
-  if (tab === 'deliveries') return <Deliveries highlightOrder={highlightOrder} onScrollToY={onScrollToY} />;
+  if (tab === 'tasks') return <Tasks highlightOrder={highlightOrder} onScrollToY={onScrollToY} />;
   if (tab === 'sales') return <Sales />;
   if (tab === 'reports') return <Reports />;
   if (tab === 'saved') return <Saved />;

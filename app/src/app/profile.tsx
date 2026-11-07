@@ -669,7 +669,7 @@ export default function ProfileScreen() {
               {supportOpen && (
                 <View style={{ paddingHorizontal: 8, paddingBottom: 8, gap: 2 }}>
                   <SupportLink icon={<Mail size={15} color={colors.textFaint} />} label="Contact support" colors={colors} onPress={() => router.replace('/contact')} />
-                  <SupportLink icon={<Gift size={15} color={colors.textFaint} />} label="Donate to Tre-X" colors={colors} onPress={() => { setDonationAmount(''); setDonateOpen(true); }} />
+                  <SupportLink icon={<Gift size={15} color={colors.textFaint} />} label="Donate to Antika" colors={colors} onPress={() => { setDonationAmount(''); setDonateOpen(true); }} />
                   <SupportLink icon={<FileText size={15} color={colors.textFaint} />} label="Terms of Service" colors={colors} onPress={() => router.replace('/terms')} />
                   <SupportLink icon={<Shield size={15} color={colors.textFaint} />} label="Privacy Policy" colors={colors} onPress={() => router.replace('/privacy')} />
                 </View>
@@ -718,7 +718,7 @@ export default function ProfileScreen() {
         >
           <Pressable onPress={() => setDonateOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)' }} />
           <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: insets.bottom + 20 }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Donate to Tre-X</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Donate to Antika</Text>
             <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 6 }}>Support the continued growth of our campus marketplace.</Text>
             <TextInput
               value={donationAmount}

@@ -28,7 +28,7 @@ function GlassButton({ onPress, style, tint, children, disabled }: any) {
   return <Pressable onPress={onPress} disabled={disabled} style={style}>{children}</Pressable>;
 }
 
-const LOGO_FULL = 'Tre-X';
+const LOGO_FULL = 'Antika';
 const TAGLINE_FULL = 'Redefining Campus Shopping';
 const TYPE_SPEED_MS = 50;
 const PULSE_ALONE_MS = 800;

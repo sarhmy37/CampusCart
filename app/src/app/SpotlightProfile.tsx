@@ -580,7 +580,7 @@ export default function SpotlightProfile() {
     setMenuOpen(false);
     try {
       await Share.share({
-        message: `Check out ${displayName} on Tre-X`,
+        message: `Check out ${displayName} on Antika`,
       });
     } catch {}
   };

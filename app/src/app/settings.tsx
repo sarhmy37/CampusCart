@@ -280,7 +280,7 @@ export default function SettingsScreen() {
     warmPreview();
     const url = encodeURIComponent(shareUrl);
     const text = encodeURIComponent(
-      user?.name ? `Come see what ${user.name} is selling on TreX! 🛍️` : 'Come see what I\'m selling on TreX! 🛍️'
+      user?.name ? `Come see what ${user.name} is selling on Antika! 🛍️` : 'Come see what I\'m selling on Antika! 🛍️'
     );
     const shareUrls: Record<string, string> = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,

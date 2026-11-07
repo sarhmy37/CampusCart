@@ -74,16 +74,11 @@ export default function Orders({ period, isSeller, highlightOrder, mode = 'activ
   useEffect(loadDataOrders, []);
 
   const loadServiceOrders = () => {
-    Promise.all([
-      api.get('/bookings/buyer').then((r) => r.data.map((b: any) => ({ ...b, _seller: false }))).catch(() => []),
-      isSeller
-        ? api.get('/bookings/seller').then((r) => r.data.map((b: any) => ({ ...b, _seller: true }))).catch(() => [])
-        : Promise.resolve([]),
-    ]).then(([asBuyer, asSeller]) => {
-      const all = [...asBuyer, ...asSeller];
+    api.get('/bookings/buyer').then((r) => {
+      const all = (r.data || []).map((b: any) => ({ ...b, _seller: false }));
       all.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setServiceOrders(all);
-    });
+    }).catch(() => setServiceOrders([]));
   };
   useEffect(loadServiceOrders, [isSeller]);
 
@@ -491,7 +486,7 @@ const q = search.trim().toLowerCase();
         <>
           <SectionHeader label={isCompletedTab ? 'Completed Services' : 'Service Bookings'} color={colors.success} colors={colors} />
           {modeServiceOrders.map((b) => (
-            <View key={b.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
+            <View key={`booking-${b.id}`} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: activeHighlight === `booking-${b.id}` ? colors.brand : colors.border, borderRadius: 16, padding: 16 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>{b.service_title}</Text>
@@ -501,13 +496,18 @@ const q = search.trim().toLowerCase();
                   <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
                     📅 {new Date(b.booking_date).toLocaleDateString()} · ⏰ {b.booking_time?.slice(0, 5)}
                   </Text>
+                  {b.reply_deadline_at && b.status === 'confirmed' && !b.provider_first_reply_at && (
+                    <Text style={{ fontSize: 13, color: colors.warning, marginTop: 4 }}>
+                      Awaiting reply until {new Date(b.reply_deadline_at).toLocaleString()}
+                    </Text>
+                  )}
                   {b.message && (
                     <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 4, fontStyle: 'italic' }}>"{b.message}"</Text>
                   )}
                 </View>
                 <View style={{ backgroundColor: b.status === 'pending_payment' ? colors.warningSoft : colors.successSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
                   <Text style={{ fontSize: 12, fontWeight: '600', color: b.status === 'pending_payment' ? colors.warning : colors.success }}>
-                    {b.status === 'completed' ? 'Completed ✅' : b.status === 'no_show' ? 'No-show reported' : b.status === 'confirmed' ? 'Confirmed ✅' : 'Awaiting payment'}
+                    {b.status === 'completed' ? 'Completed ✅' : b.status === 'no_show' ? 'No-show reported' : b.status === 'expired_no_reply' ? 'Refunded' : b.status === 'declined' ? 'Declined' : b.status === 'confirmed' ? (b.provider_first_reply_at ? 'Active' : 'Awaiting reply') : 'Awaiting payment'}
                   </Text>
                 </View>
               </View>
@@ -541,6 +541,17 @@ const q = search.trim().toLowerCase();
               )}
               {!b._seller && b.status === 'confirmed' && (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <Pressable
+                    onPress={() => openChat({
+                      sellerId: b.seller_id,
+                      sellerName: b.seller_name,
+                      productId: b.service_id,
+                      bookingId: b.id,
+                    })}
+                    style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.brand }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textOnGold }}>Message seller</Text>
+                  </Pressable>
                   <Pressable
                     onPress={() => { setRescheduling(b); setNewDate(new Date()); setNewTime(new Date()); }}
                     style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.brand }}
@@ -623,7 +634,7 @@ const q = search.trim().toLowerCase();
           )}
           {filteredOrders.map((o: any) => {
             const sStyle = statusStyle(o.status);
-            const isHighlighted = activeHighlight && String(activeHighlight) === String(o.id);
+            const isHighlighted = activeHighlight && String(activeHighlight) === `order-${o.id}`;
             return (
               <Pressable
                 key={o.id}

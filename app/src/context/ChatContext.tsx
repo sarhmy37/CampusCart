@@ -134,7 +134,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [conversation]);
 
-  const openChat = useCallback(async ({ sellerId, sellerName, productId, draftMessage, storyId, storyMediaUrl, storyMediaType, storyCaption , autoRecord }: any) => {
+  const openChat = useCallback(async ({ sellerId, sellerName, productId, bookingId, draftMessage, storyId, storyMediaUrl, storyMediaType, storyCaption , autoRecord }: any) => {
     setIsOpen(true);
     setLoading(true);
     setMessages([]);
@@ -143,7 +143,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setPendingDraft(draftMessage || null);
     setPendingStoryReply(storyId ? { id: storyId, mediaUrl: storyMediaUrl, mediaType: storyMediaType, caption: storyCaption } : null);
     try {
-      const res = await api.post('/chat/start', { sellerId, productId });
+      const res = await api.post('/chat/start', { sellerId, productId, bookingId });
       const convo = {
         id: res.data.id,
         otherUserId: sellerId,

@@ -95,7 +95,7 @@ export default function ProductCard({
         overflow: 'hidden',
       }}
     >
-      <View style={{ aspectRatio: 0.85, backgroundColor: colors.cardAlt, position: 'relative' }}>
+      <View style={{ aspectRatio: 1.15, backgroundColor: colors.cardAlt, position: 'relative' }}>
         {product.primary_image ? (
           <Image
             source={{ uri: product.primary_image }}
@@ -203,7 +203,7 @@ export default function ProductCard({
         </Pressable>
       </View>
 
-      <View style={{ padding: 10 }}>
+      <View style={{ padding: 8 }}>
         <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: '600', color: colors.text, lineHeight: 15 }}>
           {product.title}
         </Text>

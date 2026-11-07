@@ -167,7 +167,7 @@ const BANK_ACCOUNT_MAX = 16;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const LOGO_FULL = 'Tre-X';
+const LOGO_FULL = 'Antika';
 const TAGLINE_FULL = 'Redefining Campus Shopping';
 const TYPE_SPEED_MS = 50;
 const PULSE_ALONE_MS = 800;
@@ -467,7 +467,7 @@ export default function RegisterScreen() {
         payload.payout_method = payoutMethod;
       }
       const newUser = await register(payload);
-      Toast.show({ type:'success', text1:`Account created! Welcome to Tre-X, ${newUser.name}` });
+      Toast.show({ type:'success', text1:`Account created! Welcome to Antika, ${newUser.name}` });
       router.replace('/');
     } catch (err: any) {
       Toast.show({ type:'error', text1:'Registration failed', text2: err?.response?.data?.error || '' });

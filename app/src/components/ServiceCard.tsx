@@ -91,7 +91,7 @@ export default function ServiceCard({
       }}
     >
       {/* IMAGE */}
-      <View style={{ aspectRatio: 0.85, backgroundColor: colors.cardAlt, overflow: 'hidden' }}>
+      <View style={{ aspectRatio: 1.15, backgroundColor: colors.cardAlt, overflow: 'hidden' }}>
         {service.primary_image ? (
           <Image
             source={{ uri: service.primary_image }}

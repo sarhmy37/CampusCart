@@ -72,7 +72,7 @@ function getNotifRoute(n: any) {
     case 'payment_received_seller':
       return {
         pathname: '/dashboard',
-        params: { tab: 'deliveries', ...(n.related_id ? { highlightOrder: String(n.related_id) } : {}) },
+        params: { tab: 'tasks', ...(n.related_id ? { highlightOrder: String(n.related_id).startsWith('booking-') ? String(n.related_id) : `order-${n.related_id}` } : {}) },
       };
     case 'order_cancelled_seller':
     case 'payment_flagged':
@@ -87,7 +87,7 @@ function getNotifRoute(n: any) {
     case 'order_completed_buyer':
       return {
         pathname: '/dashboard',
-        params: { tab: 'completed', ...(n.related_id ? { highlightOrder: String(n.related_id) } : {}) },
+        params: { tab: 'completed', ...(n.related_id ? { highlightOrder: `order-${n.related_id}` } : {}) },
       };
     case 'delivery_reminder_buyer':
     case 'order_cancelled_buyer':
@@ -95,12 +95,12 @@ function getNotifRoute(n: any) {
     case 'payment_success_buyer':
       return {
         pathname: '/dashboard',
-        params: { tab: 'orders', ...(n.related_id ? { highlightOrder: String(n.related_id) } : {}) },
+        params: { tab: 'orders', ...(n.related_id ? { highlightOrder: `order-${n.related_id}` } : {}) },
       };
     case 'data_order_delivered':
       return { pathname: '/dashboard', params: { tab: 'completed' } };
     case 'new_data_order':
-      return { pathname: '/dashboard', params: { tab: 'deliveries' } };
+      return { pathname: '/dashboard', params: { tab: 'tasks' } };
     case 'subscription_activated':
       return '/benefits';
     default:
@@ -456,7 +456,7 @@ export default function NotificationsPanel({ visible, onClose }: { visible: bool
                           color: colors.text,
                         }}
                       >
-                        {n.title || meta.title || 'Tre-X'}
+                        {n.title || meta.title || 'Antika'}
                       </Text>
                       {n.message ? (
                         <Text

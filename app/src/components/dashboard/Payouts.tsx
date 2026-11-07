@@ -373,69 +373,34 @@ export default function Payouts({ period, active }: { period: string; active?: b
               )}
             </View>
           </View>
-        </ImageBackground>
-      </View>
-
-      {/* PLATFORM FEES OWED */}
-      {(fees.owed > 0 || fees.thisMonth > 0) && (
-        <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: fees.overdue ? colors.error : colors.border, borderRadius: 16, padding: 20 }}>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Platform fees</Text>
-          <Text style={{ fontSize: 26, fontWeight: '800', color: fees.owed > 0 ? colors.error : colors.text, marginTop: 6 }}>
-            GHS {money(fees.owed)}
+          <Text style={{ color: 'rgba(255,255,255,0.9)', marginTop: 16, fontWeight: '700' }}>
+            Fees owed: GHS {money(fees.owed)}
           </Text>
-          <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>
-            {fees.overdue
-              ? 'Overdue. Your listings are hidden until you pay in full.'
-              : fees.owed > 0
-                ? 'Due by the 5th of this month.'
-                : 'Nothing due right now.'}
-          </Text>
-          {fees.thisMonth > 0 && (
-            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 6 }}>
-              Building this month: GHS {money(fees.thisMonth)}
+          {fees.overdue && (
+            <Text style={{ color: '#fecaca', fontSize: 12, marginTop: 4 }}>
+              Overdue. Your listings are hidden until you pay in full.
             </Text>
           )}
-
           {fees.owed > 0 && (
-            <>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-                <Pressable
-                  onPress={() => startFeePayment()}
-                  disabled={payingFee}
-                  style={[primaryBtn, { flex: 1, opacity: payingFee ? 0.6 : 1 }]}
-                >
-                  <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>Pay full</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setShowFlex((v) => !v)}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.brand, alignItems: 'center' }}
-                >
-                  <Text style={{ color: colors.brand, fontWeight: '700', fontSize: 15 }}>Pay part</Text>
-                </Pressable>
-              </View>
-              {showFlex && (
-                <View style={{ marginTop: 12, gap: 8 }}>
-                  <TextInput
-                    value={flexAmount}
-                    onChangeText={setFlexAmount}
-                    placeholder={`1.00 – ${fees.owed.toFixed(2)}`}
-                    placeholderTextColor={colors.textFaint}
-                    keyboardType="decimal-pad"
-                    style={inputStyle}
-                  />
-                  <Pressable
-                    onPress={() => startFeePayment(parseFloat(flexAmount))}
-                    disabled={payingFee || !parseFloat(flexAmount)}
-                    style={[primaryBtn, { opacity: payingFee || !parseFloat(flexAmount) ? 0.5 : 1 }]}
-                  >
-                    <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>Pay this amount</Text>
-                  </Pressable>
-                </View>
-              )}
-            </>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+              <Pressable onPress={() => startFeePayment()} disabled={payingFee} style={[primaryBtn, { flex: 1, backgroundColor: 'white' }]}>
+                <Text style={{ color: colors.brand, fontWeight: '700' }}>Pay full</Text>
+              </Pressable>
+              <Pressable onPress={() => setShowFlex((v) => !v)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'white', alignItems: 'center' }}>
+                <Text style={{ color: 'white', fontWeight: '700' }}>Pay part</Text>
+              </Pressable>
+            </View>
           )}
-        </View>
-      )}
+          {showFlex && fees.owed > 0 && (
+            <View style={{ marginTop: 10 }}>
+              <TextInput value={flexAmount} onChangeText={setFlexAmount} placeholder={`1.00 – ${fees.owed.toFixed(2)}`} placeholderTextColor="rgba(255,255,255,0.7)" keyboardType="decimal-pad" style={[inputStyle, { color: 'white', borderColor: 'rgba(255,255,255,0.5)' }]} />
+              <Pressable onPress={() => startFeePayment(parseFloat(flexAmount))} disabled={payingFee || !parseFloat(flexAmount)} style={[primaryBtn, { marginTop: 8, backgroundColor: 'white' }]}>
+                <Text style={{ color: colors.brand, fontWeight: '700' }}>Pay this amount</Text>
+              </Pressable>
+            </View>
+          )}
+        </ImageBackground>
+      </View>
 
       {/* WITHDRAW FUNDS */}
       <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 20 }}>

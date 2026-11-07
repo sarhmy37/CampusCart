@@ -21,7 +21,7 @@ const DRAFTS: { label: string; text: string }[] = [
   },
   {
     label: 'Refund approved',
-    text: "Good news, we've approved your refund for Order [order #]. It's been added as credit to your Tre-X account, so you can use it on your next order. Sorry again for the hassle.",
+    text: "Good news, we've approved your refund for Order [order #]. It's been added as credit to your Antika account, so you can use it on your next order. Sorry again for the hassle.",
   },
   {
     label: 'Payment released',
@@ -37,7 +37,7 @@ const DRAFTS: { label: string; text: string }[] = [
   },
   {
     label: 'Account warning',
-    text: "Hi, we've had a report about your account and wanted to reach out first. Please keep things respectful and honest on Tre-X. If it happens again, we may have to restrict your account.",
+    text: "Hi, we've had a report about your account and wanted to reach out first. Please keep things respectful and honest on Antika. If it happens again, we may have to restrict your account.",
   },
   {
     label: 'Ban lifted',
@@ -127,7 +127,7 @@ export default function MessagesTab() {
 
   return (
     <View style={{ gap: 16 }}>
-      {/* Tre-X header preview */}
+      {/* Antika header preview */}
       <View
         style={{
           flexDirection: 'row',
@@ -149,10 +149,10 @@ export default function MessagesTab() {
         />
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>
-            Send as Tre-X
+            Send as Antika
           </Text>
           <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}>
-            Messages appear from the official Tre-X account
+            Messages appear from the official Antika account
           </Text>
         </View>
       </View>

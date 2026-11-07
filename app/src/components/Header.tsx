@@ -1,5 +1,6 @@
-import { useRef } from 'react';
-import { View, Text, Pressable, Platform, Alert } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, Pressable, Platform, Alert, Animated, Easing } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter, usePathname } from 'expo-router';
 import { Search, Heart, Bell, BellOff, LayoutDashboard } from 'lucide-react-native';
@@ -14,6 +15,7 @@ import { SCREEN_PADDING_X } from '@/constants/theme';
 import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
 import AuthRollBall from './AuthRollBall';
+import { onLogoBounce } from '@/utils/logoBounce';
 import { useState } from 'react';
 
 function formatBadgeCount(n: number) {
@@ -72,6 +74,92 @@ export default function Header() {
   const logoClickCount = useRef(0);
   const logoClickTimeout = useRef<any>(null);
 
+  // Logo animation values
+  const logoY = useRef(new Animated.Value(0)).current;
+  const logoSX = useRef(new Animated.Value(1)).current;
+  const logoSY = useRef(new Animated.Value(1)).current;
+  const logoRot = useRef(new Animated.Value(0)).current;
+  const logoBusy = useRef(false);
+
+  const playLogoAnimation = () => {
+    if (logoBusy.current) return;
+    logoBusy.current = true;
+
+    const t = (v: Animated.Value, to: number, duration: number, easing?: (n: number) => number) =>
+      Animated.timing(v, { toValue: to, duration, easing, useNativeDriver: true });
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}), 140);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}), 560);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}), 790);
+    setTimeout(() => Haptics.selectionAsync().catch(() => {}), 900);
+
+    Animated.sequence([
+      // 1. anticipation: squash down
+      Animated.parallel([
+        t(logoSY, 0.65, 120, Easing.out(Easing.quad)),
+        t(logoSX, 1.25, 120, Easing.out(Easing.quad)),
+        t(logoY, 4, 120, Easing.out(Easing.quad)),
+      ]),
+      // 2. launch: stretch up and tilt
+      Animated.parallel([
+        t(logoY, -34, 230, Easing.out(Easing.cubic)),
+        t(logoSY, 1.25, 230, Easing.out(Easing.cubic)),
+        t(logoSX, 0.82, 230, Easing.out(Easing.cubic)),
+        t(logoRot, 1, 230, Easing.out(Easing.cubic)),
+      ]),
+      // 3. fall: tilt the other way
+      Animated.parallel([
+        t(logoY, 0, 200, Easing.in(Easing.quad)),
+        t(logoSY, 1, 200, Easing.in(Easing.quad)),
+        t(logoSX, 1, 200, Easing.in(Easing.quad)),
+        t(logoRot, -1, 200, Easing.in(Easing.quad)),
+      ]),
+      // 4. landing squash
+      Animated.parallel([
+        t(logoSY, 0.72, 70, Easing.out(Easing.quad)),
+        t(logoSX, 1.22, 70, Easing.out(Easing.quad)),
+        t(logoRot, 0.5, 70),
+      ]),
+      // 5. small rebound
+      Animated.parallel([
+        t(logoY, -12, 130, Easing.out(Easing.quad)),
+        t(logoSY, 1.1, 130, Easing.out(Easing.quad)),
+        t(logoSX, 0.94, 130, Easing.out(Easing.quad)),
+        t(logoRot, -0.6, 130),
+      ]),
+      Animated.parallel([
+        t(logoY, 0, 110, Easing.in(Easing.quad)),
+        t(logoSY, 0.88, 110, Easing.in(Easing.quad)),
+        t(logoSX, 1.1, 110, Easing.in(Easing.quad)),
+        t(logoRot, 0.3, 110),
+      ]),
+      // 6. settle with jelly wobble
+      Animated.parallel([
+        Animated.spring(logoSY, { toValue: 1, friction: 3, tension: 120, useNativeDriver: true }),
+        Animated.spring(logoSX, { toValue: 1, friction: 3, tension: 120, useNativeDriver: true }),
+        Animated.spring(logoRot, { toValue: 0, friction: 3, tension: 120, useNativeDriver: true }),
+      ]),
+    ]).start(() => {
+      logoBusy.current = false;
+    });
+  };
+
+  // Play the animation every time the app loads / reloads
+  useEffect(() => {
+    const id = setTimeout(playLogoAnimation, 500);
+    const unsub = onLogoBounce(playLogoAnimation);
+    return () => {
+      clearTimeout(id);
+      unsub();
+    };
+  }, []);
+
+  const logoRotate = logoRot.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: ['-14deg', '0deg', '14deg'],
+  });
+
   const resetLogoCounter = () => {
     if (logoClickTimeout.current) clearTimeout(logoClickTimeout.current);
     logoClickTimeout.current = setTimeout(() => {
@@ -110,15 +198,15 @@ export default function Header() {
         return;
       }
     } else {
-      // Regular user (or logged out): 5 taps → admin login, else → home
+      // Regular user (or logged out): 5 taps → admin login
       if (next === 5) {
         logoClickCount.current = 0;
         router.push('/admin-login');
         return;
       }
-      router.push('/');
     }
 
+    playLogoAnimation();
     resetLogoCounter();
   };
 
@@ -154,14 +242,26 @@ export default function Header() {
         {/* Logo */}
         <Pressable onPress={handleLogoPress} style={{ flexDirection: 'row', alignItems: 'center' }}>
           {logoSrc && (
-            <Image
-              source={logoSrc}
-              style={{ width: 42, height: 42, marginRight: 10 }}
-              contentFit="contain"
-              cachePolicy="disk" 
-            />
+            <Animated.View
+              style={{
+                zIndex: 10,
+                transform: [
+                  { translateY: logoY },
+                  { rotate: logoRotate },
+                  { scaleX: logoSX },
+                  { scaleY: logoSY },
+                ],
+              }}
+            >
+              <Image
+                source={logoSrc}
+                style={{ width: 44, height: 44, marginRight: 8 }}
+                contentFit="contain"
+                cachePolicy="disk"
+              />
+            </Animated.View>
           )}
-       </Pressable>
+        </Pressable>
 
         {/* Search bar — hidden on /search screen */}
         {isSearchScreen ? (

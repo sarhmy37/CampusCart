@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, Pressable, Modal, Animated, PanResponder, Dimensions, Platform, TextInput, ScrollView, Image,
+  View, Text, Pressable, Modal, Animated, Easing, PanResponder, Dimensions, Platform, TextInput, ScrollView, Image,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -35,8 +35,8 @@ const PERIODS = [
 const money = (n: number | string) =>
   (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// Change if your browse route is named differently
-const BROWSE_PATH = '/browse';
+// Same route the hero and tab bar use
+const BROWSE_PATH = '/(browse)/all';
 
 // Unsplash images per category. Missing/failed ones fall back to the icon.
 const CATEGORY_IMAGES: Record<string, any> = {
@@ -88,6 +88,11 @@ const CATEGORY_CHIPS: { label: string; Icon: any }[] = [
 ];
 
 const CIRCLE = 60;
+const ITEM_W = 76;
+const DIVIDER_W = 1.5;
+const LOOP_W = CATEGORY_CHIPS.length * (ITEM_W + DIVIDER_W); // width of one full copy of the list
+const AUTO_SPEED = 28;      // pixels per second
+const RESUME_AFTER_MS = 2500;
 
 function CategoryItem({
   label, Icon, first, colors, onGo,
@@ -113,34 +118,35 @@ function CategoryItem({
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      {!first && <View style={{ width: 1.5, height: 56, borderRadius: 1, backgroundColor: colors.border }} />}
-      <Pressable onPress={press} style={{ width: 76, alignItems: 'center', paddingVertical: 6, gap: 5 }}>
-        <Animated.View
-          style={{
-            width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden',
-            alignItems: 'center', justifyContent: 'center',
-            backgroundColor: colors.inputBg ?? `${colors.border}30`,
-            borderWidth: 2, borderColor: on ? colors.brand : 'transparent',
-            transform: [{ scale }],
-          }}
-        >
-          {source && !failed ? (
-            <Image
-              source={source}
-              onError={() => setFailed(true)}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
-          ) : (
-            <Icon size={28} color={colors.brand} />
-          )}
+      <View style={{ width: DIVIDER_W, height: 56, borderRadius: 1, backgroundColor: first ? 'transparent' : colors.border }} />
+      <Pressable onPress={press} style={{ width: ITEM_W, alignItems: 'center', paddingVertical: 6 }}>
+        <Animated.View style={{ alignItems: 'center', transform: [{ scale }] }}>
+          <View
+            style={{
+              width: CIRCLE,
+              height: CIRCLE,
+              borderRadius: CIRCLE / 2,
+              overflow: 'hidden',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.inputBg ?? `${colors.border}30`,
+              borderWidth: on ? 2 : 0,
+              borderColor: colors.brand,
+            }}
+          >
+            {source && !failed ? (
+              <Image source={source} style={{ width: CIRCLE, height: CIRCLE }} onError={() => setFailed(true)} />
+            ) : (
+              <Icon size={26} color={colors.brand} />
+            )}
+          </View>
+          <Text
+            numberOfLines={2}
+            style={{ marginTop: 6, fontSize: 11.5, fontWeight: '700', color: colors.text, textAlign: 'center' }}
+          >
+            {label}
+          </Text>
         </Animated.View>
-        <Text
-          numberOfLines={2}
-          style={{ fontSize: 11.5, fontWeight: '700', color: colors.text, textAlign: 'center', lineHeight: 14 }}
-        >
-          {label}
-        </Text>
       </Pressable>
     </View>
   );
@@ -166,7 +172,7 @@ const VALUES = [
     label: 'Free to List, Low Fees',
     title: 'Free to List, Low Fees',
     details:
-      'Listing products or services on Tre-X costs nothing. A transparent 1.5% fee is applied only when a sale is completed, with instant transfer options right to your Payouts tab.',
+      'Listing products or services on Antika costs nothing. A transparent 1.5% fee is applied only when a sale is completed, with instant transfer options right to your Payouts tab.',
   },
 ];
 
@@ -319,11 +325,132 @@ export default function ValueStrip() {
     );
   };
 
+  // ── Auto-sliding categories ──
+  const catRef = useRef<ScrollView>(null);
+  const catX = useRef(LOOP_W);
+  const catPaused = useRef(false);
+  const catDir = useRef(1); // 1 = slides left (default), -1 = slides right
+  const catResumeTimer = useRef<any>(null);
+
+  const pauseCats = () => {
+    clearTimeout(catResumeTimer.current);
+    catPaused.current = true;
+  };
+  const resumeCatsLater = () => {
+    clearTimeout(catResumeTimer.current);
+    catResumeTimer.current = setTimeout(() => { catPaused.current = false; }, RESUME_AFTER_MS);
+  };
+
+  useEffect(() => {
+    const t = setTimeout(() => catRef.current?.scrollTo({ x: LOOP_W, animated: false }), 0);
+    let raf = 0;
+    let last = Date.now();
+    const tick = () => {
+      const now = Date.now();
+      const dt = (now - last) / 1000;
+      last = now;
+      if (!catPaused.current) {
+        let x = catX.current + catDir.current * AUTO_SPEED * dt;
+        if (x >= LOOP_W * 2) x -= LOOP_W;
+        else if (x < LOOP_W) x += LOOP_W;
+        catX.current = x;
+        catRef.current?.scrollTo({ x, animated: false });
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); clearTimeout(catResumeTimer.current); };
+  }, []);
+
+  const onCatScroll = (e: any) => {
+    let x = e.nativeEvent.contentOffset.x;
+    if (catPaused.current) {
+      const delta = x - catX.current;
+      if (Math.abs(delta) > 0.5 && Math.abs(delta) < LOOP_W / 2) catDir.current = delta > 0 ? 1 : -1;
+      // the user is driving: keep the loop seamless in both directions
+      if (x >= LOOP_W * 2) { x -= LOOP_W; catRef.current?.scrollTo({ x, animated: false }); }
+      else if (x <= 10) { x += LOOP_W; catRef.current?.scrollTo({ x, animated: false }); }
+    }
+    catX.current = x;
+  };
+
+  // ── Background circles: idle = gold, tint appears only while moving ──
+  const orb = useRef(new Animated.Value(0)).current;      // drives position/scale 0 -> 1 -> 0
+  const orbTint = useRef(new Animated.Value(0)).current;  // 0 = gold, 1 = tier color (only during motion)
+  const [cardSize, setCardSize] = useState({ w: Dimensions.get('window').width - SCREEN_PADDING_X * 2, h: 170 });
+
+  useEffect(() => {
+    if (!isSeller) return;
+    const ease = Easing.inOut(Easing.cubic);
+    const HOLD_MS = 10000;   // idle time at rest (gold)
+    const MOVE_MS = 1700;   // one-way motion duration
+    const TINT_IN_MS = 400; // how fast the color blends in when motion starts
+    const TINT_OUT_MS = 400; // how fast it fades back to gold after motion ends
+
+    const cycle = () =>
+      Animated.sequence([
+        Animated.delay(HOLD_MS),
+        Animated.parallel([
+          Animated.timing(orbTint, { toValue: 1, duration: TINT_IN_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+          Animated.timing(orb, { toValue: 1, duration: MOVE_MS, easing: ease, useNativeDriver: false }),
+        ]),
+        Animated.parallel([
+          Animated.timing(orbTint, { toValue: 0, duration: TINT_OUT_MS, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+          Animated.timing(orb, { toValue: 0, duration: MOVE_MS, easing: ease, useNativeDriver: false }),
+        ]),
+      ]).start(({ finished }) => {
+        if (finished) cycle();
+      });
+
+    const first = setTimeout(cycle, 1000); // let layout settle before the first hold
+    return () => { clearTimeout(first); orb.stopAnimation(); orbTint.stopAnimation(); };
+  }, [isSeller]);
+
+  // circle A sits top-right (center ≈ w-60, 40), circle B bottom-left (center ≈ 50, h-30)
+  const swapDx = 110 - cardSize.w;
+  const swapDy = cardSize.h - 70;
+
+  const orbAStyle = {
+    opacity: orb.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.08, 0.2, 0.08] }),
+    transform: [
+      { translateX: orb.interpolate({ inputRange: [0, 1], outputRange: [0, swapDx] }) },
+      { translateY: orb.interpolate({ inputRange: [0, 1], outputRange: [0, swapDy] }) },
+      { scale: orb.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.55, 1.1] }) },
+    ],
+  };
+  const orbBStyle = {
+    opacity: orb.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.05, 0.16, 0.05] }),
+    transform: [
+      { translateX: orb.interpolate({ inputRange: [0, 1], outputRange: [0, -swapDx] }) },
+      { translateY: orb.interpolate({ inputRange: [0, 1], outputRange: [0, -swapDy] }) },
+      { scale: orb.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.3, 0.85] }) },
+    ],
+  };
+
+  // Color blend: gold at rest, tier color during motion
+  const orbColor = orbTint.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.brand, tierColor],
+  });
+
   const up = (changePct ?? 0) >= 0;
-  const changeColor = up ? '#22c55e' : '#ef4444';
-  const pillColor = changePct === null ? colors.textMuted : changeColor;
-  const pillBg = changePct === null ? (colors.inputBg ?? `${colors.border}30`) : up ? '#22c55e14' : '#ef444414';
-  const pillBorder = changePct === null ? colors.border : up ? '#22c55e30' : '#ef444430';
+
+  // slightly lighter shade of the plan color for text/icon on the glass chip
+  const chipFg = planTier === 'premium' ? '#c084fc' : planTier === 'pro' ? '#60a5fa' : tierColor;
+  const planChip = (fg: string) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 6 }}>
+      {planTier === 'premium' ? (
+        <Sparkles size={13} color={fg} fill={fg} />
+      ) : planTier === 'pro' ? (
+        <Star size={13} color={fg} fill={fg} />
+      ) : (
+        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: fg }} />
+      )}
+      <Text style={{ fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: fg }}>
+        {tierLabel}
+      </Text>
+    </View>
+  );
 
   const periodContent = (
     <View>
@@ -352,20 +479,97 @@ export default function ValueStrip() {
     </View>
   );
 
+  const pwContent = (
+    <View>
+      <Pressable onPress={() => setPwOpen(false)} hitSlop={10} style={{ position: 'absolute', top: 0, right: 0, zIndex: 2 }}>
+        <X size={18} color={colors.textFaint} />
+      </Pressable>
+      <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Confirm it's you</Text>
+      <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>
+        Enter your password to continue.
+      </Text>
+      <TextInput
+        value={pw}
+        onChangeText={setPw}
+        placeholder="••••••••••"
+        placeholderTextColor={colors.textFaint}
+        secureTextEntry
+        style={{
+          marginTop: 16, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
+          borderWidth: 1, borderColor: colors.border, fontSize: 15, color: colors.text,
+          backgroundColor: colors.inputBg,
+        }}
+      />
+      <Pressable onPress={verify} disabled={verifying} style={{ marginTop: 16, opacity: verifying ? 0.6 : 1 }}>
+        {useGlass ? (
+          <GlassView
+            glassEffectStyle="regular"
+            isInteractive
+            tintColor={colors.brand}
+            style={{ paddingVertical: 12, borderRadius: 14, alignItems: 'center', overflow: 'hidden' }}
+          >
+            <Text style={{ color: colors.textOnGold, fontWeight: '800', fontSize: 15 }}>
+              {verifying ? 'Verifying…' : 'Continue'}
+            </Text>
+          </GlassView>
+        ) : (
+          <View style={{ paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: colors.brand }}>
+            <Text style={{ color: colors.textOnGold, fontWeight: '800', fontSize: 15 }}>
+              {verifying ? 'Verifying…' : 'Continue'}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+
   return (
     <View
       style={{
         backgroundColor: colors.card,
         paddingHorizontal: SCREEN_PADDING_X,
-        paddingTop: 4,
         paddingBottom: 8,
       }}
     >
+      {/* Category chips (auto-sliding loop), first for everyone */}
+      <ScrollView
+        ref={catRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={onCatScroll}
+        onTouchStart={pauseCats}
+        onTouchEnd={resumeCatsLater}
+        onTouchCancel={resumeCatsLater}
+        onScrollBeginDrag={pauseCats}
+        onScrollEndDrag={resumeCatsLater}
+        onMomentumScrollBegin={pauseCats}
+        onMomentumScrollEnd={resumeCatsLater}
+        style={{ marginHorizontal: -SCREEN_PADDING_X, marginTop: 4 }}
+      >
+        {[0, 1, 2].flatMap((copy) =>
+          CATEGORY_CHIPS.map(({ label, Icon }, i) => (
+            <CategoryItem
+              key={`${label}-${copy}`}
+              label={label}
+              Icon={Icon}
+              first={copy === 0 && i === 0}
+              colors={colors}
+              onGo={() => router.push({ pathname: BROWSE_PATH, params: { category: label } } as any)}
+            />
+          ))
+        )}
+      </ScrollView>
+
+      <View style={{ height: 1, backgroundColor: colors.border, marginTop: 6, marginBottom: 10 }} />
+
+      {/* SELLER: balance card */}
       {isSeller && (
         <Reveal>
           <View
+            onLayout={(e) => setCardSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
             style={{
-              marginTop: 6,
+              marginTop: 0,
               marginBottom: 2,
               borderRadius: 20,
               overflow: 'hidden',
@@ -377,17 +581,19 @@ export default function ValueStrip() {
             }}
           >
             <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.card }} />
-            <View
-              style={{
-                position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100,
-                backgroundColor: colors.brand, opacity: 0.08,
-              }}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                { position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: orbColor },
+                orbAStyle,
+              ]}
             />
-            <View
-              style={{
-                position: 'absolute', bottom: -80, left: -60, width: 220, height: 220, borderRadius: 110,
-                backgroundColor: colors.brand, opacity: 0.05,
-              }}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                { position: 'absolute', bottom: -80, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: orbColor },
+                orbBStyle,
+              ]}
             />
             <View
               style={{
@@ -399,38 +605,32 @@ export default function ValueStrip() {
             <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
               {/* Plan chip (left) + payout (far right) */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingHorizontal: 11,
-                    paddingVertical: 6,
-                    borderRadius: 999,
-                    backgroundColor: `${tierColor}14`,
-                    borderWidth: 1,
-                    borderColor: `${tierColor}30`,
-                  }}
-                >
-                  {planTier === 'premium' ? (
-                    <Sparkles size={13} color={tierColor} fill={tierColor} />
-                  ) : planTier === 'pro' ? (
-                    <Star size={13} color={tierColor} fill={tierColor} />
+                <Pressable onPress={() => router.push('/benefits' as any)} hitSlop={8}>
+                  {useGlass ? (
+                    <GlassView
+                      glassEffectStyle="regular"
+                      isInteractive
+                      tintColor={`${tierColor}33`}
+                      style={{ borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: `${tierColor}30` }}
+                    >
+                      {planChip(chipFg)}
+                    </GlassView>
                   ) : (
-                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: tierColor }} />
+                    <BlurView
+                      intensity={30}
+                      tint={theme === 'dark' ? 'dark' : 'light'}
+                      style={{
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        backgroundColor: `${tierColor}1f`,
+                        borderWidth: 1,
+                        borderColor: `${tierColor}40`,
+                      }}
+                    >
+                      {planChip(tierColor)}
+                    </BlurView>
                   )}
-                  <Text
-                    style={{
-                      fontSize: 11.5,
-                      fontWeight: '800',
-                      letterSpacing: 0.8,
-                      textTransform: 'uppercase',
-                      color: tierColor,
-                    }}
-                  >
-                    {tierLabel}
-                  </Text>
-                </View>
+                </Pressable>
                 <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.text }}>
                   {isPlanActive ? '100% payout' : '98.5% payout'}
                 </Text>
@@ -493,36 +693,37 @@ export default function ValueStrip() {
                 </View>
               </View>
 
-              {/* Trend pill (left, tap to change period) + Withdraw (far right) */}
+              {/* Trend tag (left, tap to change period) + Withdraw (far right) */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
                 <Pressable
                   onPress={() => setPeriodOpen(true)}
                   hitSlop={8}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 5,
-                    paddingHorizontal: 9,
-                    paddingVertical: 5,
-                    borderRadius: 999,
-                    backgroundColor: pillBg,
-                    borderWidth: 1,
-                    borderColor: pillBorder,
-                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
                 >
-                  {changePct !== null && (up ? (
-                    <ChevronUp size={13} color={pillColor} strokeWidth={3} />
-                  ) : (
-                    <ChevronDown size={13} color={pillColor} strokeWidth={3} />
-                  ))}
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: pillColor }}>
-                    {changePct === null ? '—' : `${Math.abs(changePct).toFixed(1)}%`}
-                  </Text>
-                  <View style={{ width: 1, height: 10, backgroundColor: pillColor, opacity: 0.35 }} />
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: pillColor, opacity: 0.85 }}>
-                    {period.label}
-                  </Text>
-                  <ChevronDown size={11} color={pillColor} strokeWidth={3} />
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 2,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      backgroundColor: changePct === null ? (colors.inputBg ?? `${colors.border}30`) : up ? '#22c55e' : '#ef4444',
+                    }}
+                  >
+                    {changePct !== null && (up ? (
+                      <ChevronUp size={13} color="#fff" strokeWidth={3} />
+                    ) : (
+                      <ChevronDown size={13} color="#fff" strokeWidth={3} />
+                    ))}
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: changePct === null ? colors.textMuted : '#fff' }}>
+                      {changePct === null ? '—' : `${Math.abs(changePct).toFixed(1)}%`}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>{period.label}</Text>
+                    <ChevronDown size={12} color={colors.textMuted} strokeWidth={2.5} />
+                  </View>
                 </Pressable>
 
                 <GlassPill small label="Withdraw" onPress={handleWithdraw} />
@@ -532,29 +733,9 @@ export default function ValueStrip() {
         </Reveal>
       )}
 
-      {isSeller && <View style={{ height: 1, backgroundColor: colors.border, marginTop: 10, marginBottom: 4 }} />}
-
-      {/* Category chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -SCREEN_PADDING_X, marginTop: 4 }}
-        contentContainerStyle={{ paddingHorizontal: SCREEN_PADDING_X - 4 }}
-      >
-        {CATEGORY_CHIPS.map(({ label, Icon }, i) => (
-          <CategoryItem
-            key={label}
-            label={label}
-            Icon={Icon}
-            first={i === 0}
-            colors={colors}
-            onGo={() => router.push({ pathname: BROWSE_PATH, params: { category: label } } as any)}
-          />
-        ))}
-      </ScrollView>
-
-      {/* VALUE ROW (disabled for now)
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {/* BUYER: value row */}
+      {!isSeller && (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {VALUES.map((v, i) => (
             <View key={v.label} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
               {i > 0 && (
@@ -578,8 +759,8 @@ export default function ValueStrip() {
               </View>
             </View>
           ))}
-      </View>
-      */}
+        </View>
+      )}
 
       {/* Value detail sheet */}
       <Modal
@@ -663,47 +844,29 @@ export default function ValueStrip() {
         </Pressable>
       </Modal>
 
-      {/* Password modal (reveal balance) */}
+      {/* Password modal (glass) */}
       <Modal visible={pwOpen} transparent animationType="fade" onRequestClose={() => setPwOpen(false)}>
         <Pressable
           style={{ flex: 1, backgroundColor: colors.overlay ?? 'rgba(0,0,0,0.6)', justifyContent: 'center', paddingHorizontal: 20 }}
           onPress={() => setPwOpen(false)}
         >
-          <Pressable
-            onPress={() => {}}
-            style={{ backgroundColor: colors.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.border }}
-          >
-            <Pressable onPress={() => setPwOpen(false)} style={{ position: 'absolute', top: 16, right: 16 }}>
-              <X size={18} color={colors.textFaint} />
-            </Pressable>
-            <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text }}>Confirm it's you</Text>
-            <Text style={{ fontSize: 15, color: colors.textMuted, marginTop: 4 }}>
-              Enter your password to view your available balance.
-            </Text>
-            <TextInput
-              value={pw}
-              onChangeText={setPw}
-              placeholder="••••••••••"
-              placeholderTextColor={colors.textFaint}
-              secureTextEntry
-              style={{
-                marginTop: 16, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
-                borderWidth: 1, borderColor: colors.border, fontSize: 15, color: colors.text,
-                backgroundColor: colors.inputBg,
-              }}
-            />
-            <Pressable
-              onPress={verify}
-              disabled={verifying}
-              style={{
-                marginTop: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.brand,
-                alignItems: 'center', opacity: verifying ? 0.6 : 1,
-              }}
-            >
-              <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>
-                {verifying ? 'Verifying…' : 'Show balance'}
-              </Text>
-            </Pressable>
+          <Pressable onPress={() => {}} style={{ borderRadius: 22, overflow: 'hidden' }}>
+            {useGlass ? (
+              <GlassView glassEffectStyle="regular" style={{ padding: 24 }}>
+                {pwContent}
+              </GlassView>
+            ) : (
+              <BlurView
+                intensity={60}
+                tint={theme === 'dark' ? 'dark' : 'light'}
+                style={{
+                  padding: 24,
+                  backgroundColor: theme === 'dark' ? 'rgba(22,20,17,0.78)' : 'rgba(255,255,255,0.78)',
+                }}
+              >
+                {pwContent}
+              </BlurView>
+            )}
           </Pressable>
         </Pressable>
       </Modal>

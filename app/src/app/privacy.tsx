@@ -42,7 +42,7 @@ export default function Privacy() {
           Your information is used to verify your identity, process orders and payments, connect buyers and sellers, and send order-related notifications by app, email, or SMS.
         </Section>
         <Section colors={colors} title="3. Payment information">
-          Payments are processed by our third-party provider, Paystack. Tre-X does not store your full card or mobile money credentials on our servers.
+          Payments are processed by our third-party provider, Paystack. Antika does not store your full card or mobile money credentials on our servers.
         </Section>
         <Section colors={colors} title="4. Sharing of information">
           Your name and contact details are shared with the other party in a transaction (e.g. your WhatsApp number is shared with a buyer or seller) so they can coordinate pickup or delivery. We do not sell your personal data to third parties.
@@ -61,6 +61,9 @@ export default function Privacy() {
         </Section>
         <Section colors={colors} title="9. Contact">
           Questions about this policy can be directed to our support team via the contact options in Settings.
+        </Section>
+        <Section colors={colors} title="10. Messages">
+          Messages may be reviewed for safety and support.
         </Section>
       </ScrollView>
     </View>

@@ -17,7 +17,7 @@ export function buildOrderMessage(
   const lines = [
     `Hello ${sellerName || 'there'} 👋`,
     '',
-    `I found the following on Tre-X and I'd love to place an order:`,
+    `I found the following on Antika and I'd love to place an order:`,
     '',
     ...items.map(
       (i) => `🛍️ ${i.title} × ${i.quantity} — GHS ${(parseFloat(i.price) * i.quantity).toFixed(2)}`

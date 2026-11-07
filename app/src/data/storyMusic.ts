@@ -7,7 +7,7 @@ export type StoryMusicTrack = {
   avatar?: string | null;
 };
 
-// Temporary demo tracks. Replace these URLs with Tre-X-cleared audio later.
+// Temporary demo tracks. Replace these URLs with Antika-cleared audio later.
 export const STORY_MUSIC: StoryMusicTrack[] = [
   {
     key: 'demo-1',

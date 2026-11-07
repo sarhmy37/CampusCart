@@ -8,11 +8,14 @@ import { usePageReady } from '@/hooks/usePageReady';
 import { SkeletonList, ErrorState, EmptyState } from './shared';
 import { useColors } from '@/hooks/useColors';
 import { useChat } from '@/context/ChatContext';
+import { useAuth } from '@/context/AuthContext';
 import RouteMapModal from '@/components/RouteMapModal';
 
-export default function Deliveries({ highlightOrder, onScrollToY }: { highlightOrder?: string; onScrollToY?: (y: number) => void }) {
+export default function Tasks({ highlightOrder, onScrollToY }: { highlightOrder?: string; onScrollToY?: (y: number) => void }) {
   const colors = useColors();
   const { openChat } = useChat();
+  const { user } = useAuth();
+  const [bookings, setBookings] = useState<any[]>([]);
   const [dataOrders, setDataOrders] = useState<any[]>([]);
   const [activeHighlight, setActiveHighlight] = useState<string | null>(null);
   const orderYRef = useRef<Record<string, number>>({});
@@ -82,6 +85,10 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
     api.get('/data-orders/pending').then((res) => setDataOrders(res.data || [])).catch(() => setDataOrders([]));
   };
   useEffect(loadDataOrders, []);
+  const loadBookings = () => {
+    api.get('/bookings/seller').then((res) => setBookings(res.data || [])).catch(() => setBookings([]));
+  };
+  useEffect(loadBookings, []);
 
   const handleMarkDelivered = async () => {
     if (!confirmTarget) return;
@@ -128,8 +135,8 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
 
   if (status === 'loading') return <SkeletonList />;
   if (status === 'error') return <ErrorState icon={Truck} text="Couldn't load your deliveries right now." onRetry={retry} />;
-  if (deliveries.length === 0 && dataOrders.length === 0) {
-    return <EmptyState icon={Truck} text="No deliveries pending right now." />;
+  if (deliveries.length === 0 && dataOrders.length === 0 && bookings.length === 0) {
+    return <EmptyState icon={Truck} text="No tasks pending right now." />;
   }
 
   const cardStyle = {
@@ -139,8 +146,59 @@ export default function Deliveries({ highlightOrder, onScrollToY }: { highlightO
 
   return (
     <View style={{ gap: 12 }}>
+      {bookings.map((b) => {
+        const pro = user?.plan && user.plan !== 'free' && user.plan_expires_at && new Date(user.plan_expires_at) > new Date();
+        const status = b.status === 'confirmed' ? 'Awaiting service' : b.status.replaceAll('_', ' ');
+        return (
+          <View key={`booking-${b.id}`} style={[cardStyle, activeHighlight === `booking-${b.id}` && { borderColor: colors.brand, borderWidth: 2 }]}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{b.service_title}</Text>
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+              Buyer: {b.buyer_name} · {b.buyer_email || 'Contact hidden until you reply'}
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
+              {new Date(b.booking_date).toLocaleDateString()} · {String(b.booking_time).slice(0, 5)} · {status}
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 6 }}>
+              Your fee: GHS {pro ? '0.00 (Pro)' : Number(b.seller_fee || 0).toFixed(2)}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+              {b.status === 'confirmed' && (
+                <>
+                  <Pressable onPress={() => openChat({ sellerId: b.buyer_id, sellerName: b.buyer_name, productId: b.service_id, bookingId: b.id })} style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.brand }}>
+                    <Text style={{ color: colors.textOnGold, fontWeight: '700' }}>Message buyer</Text>
+                  </Pressable>
+                  <Pressable onPress={async () => { try { await api.post(`/bookings/${b.id}/decline`); loadBookings(); } catch (e: any) { Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Could not decline booking' }); } }} style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: colors.error }}>
+                    <Text style={{ color: colors.error, fontWeight: '700' }}>Decline</Text>
+                  </Pressable>
+                  <Pressable onPress={async () => { try { await api.patch(`/bookings/${b.id}/confirm`); loadBookings(); } catch (e: any) { Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Could not complete booking' }); } }} style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.info }}>
+                    <Text style={{ color: 'white', fontWeight: '700' }}>Mark Completed</Text>
+                  </Pressable>
+                  <Pressable onPress={async () => { try { await api.patch(`/bookings/${b.id}/extend`, { minutes: 30 }); loadBookings(); Toast.show({ type: 'success', text1: 'Service time extended by 30 minutes' }); } catch (e: any) { Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Could not extend time' }); } }} style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: colors.brand }}>
+                    <Text style={{ color: colors.brand, fontWeight: '700' }}>Extend time</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          </View>
+        );
+      })}
+      {bookings.some((b) => b.status === 'confirmed') && (
+        <Pressable
+          onPress={async () => {
+            try {
+              await api.put('/bookings/pause', { until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() });
+              Toast.show({ type: 'success', text1: 'Bookings paused for 24 hours' });
+            } catch (e: any) {
+              Toast.show({ type: 'error', text1: e?.response?.data?.error || 'Could not pause bookings' });
+            }
+          }}
+          style={{ paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
+        >
+          <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Pause bookings</Text>
+        </Pressable>
+      )}
       {deliveries.map((d: any) => {
-        const isHighlighted = activeHighlight && String(activeHighlight) === String(d.order_id);
+        const isHighlighted = activeHighlight && String(activeHighlight) === `order-${d.order_id}`;
         const deadline = new Date(d.created_at);
         deadline.setDate(deadline.getDate() + 3);
         const msLeft = deadline.getTime() - now;

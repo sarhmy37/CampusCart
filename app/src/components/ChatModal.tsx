@@ -242,7 +242,7 @@ const {
 
   const handleOpenOrder = (orderId: string) => {
     closeChat();
-    router.push({ pathname: '/dashboard', params: { tab: 'deliveries', highlightOrder: orderId } });
+    router.push({ pathname: '/dashboard', params: { tab: 'tasks', highlightOrder: `order-${orderId}` } });
   };
 
   const handlePickPicture = async () => {
@@ -1148,7 +1148,7 @@ onPress={() => {
                       textAlign: 'center',
                     }}
                   >
-                    This is an announcement from Tre-X.
+                    This is an announcement from Antika.
                   </Text>
                 </View>
               ) : isRecording && recordingLocked ? (
