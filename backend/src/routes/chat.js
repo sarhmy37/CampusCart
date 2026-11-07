@@ -49,10 +49,30 @@ function isSendBlockedByTrexLock(convoRow, userId) {
 
 // POST /api/chat/start — find or create a conversation with a seller
 router.post('/start', requireAuth, async (req, res) => {
-    const { sellerId, productId } = req.body;
+    const { sellerId, productId, bookingId } = req.body;
     if (!sellerId) return res.status(400).json({ error: 'sellerId is required' });
 
     try {
+        let bookingParty = null;
+        if (bookingId) {
+            const bookingCheck = await pool.query(
+                `SELECT buyer_id, seller_id, service_id, status
+                 FROM bookings WHERE id = $1`,
+                [bookingId]
+            );
+            const booking = bookingCheck.rows[0];
+            if (!booking ||
+                (String(booking.buyer_id) !== String(req.userId) &&
+                    String(booking.seller_id) !== String(req.userId)) ||
+                (String(booking.buyer_id) !== String(sellerId) &&
+                    String(booking.seller_id) !== String(sellerId))) {
+                return res.status(403).json({ error: 'This booking conversation is not available to you.' });
+            }
+            if (!['confirmed', 'completed'].includes(booking.status)) {
+                return res.status(409).json({ error: 'This booking is not active.' });
+            }
+            bookingParty = booking;
+        }
         // 👇 Check if the seller is banned
         const sellerCheck = await pool.query(
             'SELECT id, banned, name FROM users WHERE id = $1',
@@ -70,20 +90,32 @@ router.post('/start', requireAuth, async (req, res) => {
 
         await touchLastActive(req.userId);
 
-        const existing = await pool.query(
-            `SELECT id FROM conversations
-             WHERE (buyer_id = $1 AND seller_id = $2)
-                OR (buyer_id = $2 AND seller_id = $1)`,
-            [req.userId, sellerId]
-        );
+        const existing = bookingId
+            ? await pool.query(
+                `SELECT id FROM conversations
+                 WHERE booking_id = $1 AND (buyer_id = $2 OR seller_id = $2)`,
+                [bookingId, req.userId]
+            )
+            : await pool.query(
+                `SELECT id FROM conversations
+                 WHERE (buyer_id = $1 AND seller_id = $2)
+                    OR (buyer_id = $2 AND seller_id = $1)`,
+                [req.userId, sellerId]
+            );
 
         let conversationId;
         if (existing.rows.length > 0) {
             conversationId = existing.rows[0].id;
         } else {
             const inserted = await pool.query(
-                `INSERT INTO conversations (buyer_id, seller_id, product_id) VALUES ($1, $2, $3) RETURNING id`,
-                [req.userId, sellerId, productId || null]
+                `INSERT INTO conversations (buyer_id, seller_id, product_id, booking_id, allow_replies)
+                 VALUES ($1, $2, $3, $4, true) RETURNING id`,
+                [
+                    bookingParty?.buyer_id || req.userId,
+                    bookingParty?.seller_id || sellerId,
+                    bookingParty?.service_id || productId || null,
+                    bookingId || null,
+                ]
             );
             conversationId = inserted.rows[0].id;
         }
@@ -352,7 +384,7 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
 
     try {
         const convo = await pool.query(
-            `SELECT buyer_id, seller_id, allow_replies FROM conversations WHERE id = $1`,
+            `SELECT buyer_id, seller_id, allow_replies, booking_id FROM conversations WHERE id = $1`,
             [id]
         );
         if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
@@ -367,6 +399,14 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
         }
 
         await touchLastActive(req.userId);
+
+        if (req.userId === seller_id && convo.rows[0].booking_id) {
+            await pool.query(
+                `UPDATE bookings SET provider_first_reply_at = COALESCE(provider_first_reply_at, NOW())
+                 WHERE id = $1 AND provider_first_reply_at IS NULL`,
+                [convo.rows[0].booking_id]
+            );
+        }
 
         const mediaUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         const mediaType = req.file.mimetype.startsWith('audio/') ? 'audio'
@@ -413,7 +453,7 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
 
     try {
         const convo = await pool.query(
-            `SELECT buyer_id, seller_id, allow_replies FROM conversations WHERE id = $1`,
+            `SELECT buyer_id, seller_id, allow_replies, booking_id FROM conversations WHERE id = $1`,
             [id]
         );
         if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
@@ -428,6 +468,14 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
         }
 
         await touchLastActive(req.userId);
+
+        if (req.userId === seller_id && convo.rows[0].booking_id) {
+            await pool.query(
+                `UPDATE bookings SET provider_first_reply_at = COALESCE(provider_first_reply_at, NOW())
+                 WHERE id = $1 AND provider_first_reply_at IS NULL`,
+                [convo.rows[0].booking_id]
+            );
+        }
 
         const recipientId = req.userId === buyer_id ? seller_id : buyer_id;
         const recipientPrefs = await pool.query(`SELECT notify_messages FROM users WHERE id = $1`, [recipientId]);

@@ -111,6 +111,10 @@ async function refundTransaction(reference, amountGHS) {
     return data;
 }
 
+async function getRefundStatus(reference) {
+    return paystackRequest(`/refund?transaction=${encodeURIComponent(reference)}`);
+}
+
 const PAYSTACK_MOMO_CODES = { MTN: 'MTN', VOD: 'VOD', AT: 'ATL' };
 
 function toPaystackBankCode(code) {
@@ -136,6 +140,7 @@ module.exports = {
     initiateTransfer,
     chargeAuthorization,
     refundTransaction,
+    getRefundStatus,
     resolvePayoutName,
     toPaystackBankCode,
 };

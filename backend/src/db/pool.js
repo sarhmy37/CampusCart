@@ -7,4 +7,10 @@ const pool = new Pool({
     ssl: useSSL ? { rejectUnauthorized: false } : false,
 });
 
+pool.on('connect', (client) => {
+    client.query(`SET TIME ZONE 'UTC'`).catch((err) => {
+        console.error('Failed to set database timezone:', err);
+    });
+});
+
 module.exports = pool;

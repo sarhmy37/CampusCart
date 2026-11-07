@@ -33,7 +33,14 @@ CREATE TABLE IF NOT EXISTS bookings (
     seller_earnings numeric(10,2) DEFAULT 0 NOT NULL,
     duration_minutes integer,
     starting_notified boolean DEFAULT false,
-    CONSTRAINT bookings_status_check CHECK ((status = ANY (ARRAY['pending_payment'::text, 'confirmed'::text, 'completed'::text, 'cancelled'::text, 'no_show'::text])))
+    reply_deadline_at timestamp without time zone,
+    reply_deadline_hours integer,
+    provider_first_reply_at timestamp without time zone,
+    refund_status text DEFAULT 'not_requested'::text NOT NULL,
+    refund_target_status text,
+    reminder_sent_at timestamp without time zone,
+    fee_billed_at timestamp without time zone,
+    CONSTRAINT bookings_status_check CHECK ((status = ANY (ARRAY['pending_payment'::text, 'confirmed'::text, 'completed'::text, 'cancelled'::text, 'no_show'::text, 'expired_no_reply'::text, 'declined'::text])))
 );
 CREATE TABLE IF NOT EXISTS boosts (
     id integer NOT NULL,
@@ -102,7 +109,8 @@ CREATE TABLE IF NOT EXISTS conversations (
     last_active_at timestamp without time zone DEFAULT now(),
     deleted_for_everyone_at timestamp with time zone,
     deleted_for_everyone_by uuid,
-    allow_replies boolean DEFAULT false NOT NULL
+    allow_replies boolean DEFAULT false NOT NULL,
+    booking_id integer
 );
 CREATE TABLE IF NOT EXISTS data_bundles (
     id uuid DEFAULT gen_random_uuid() NOT NULL,

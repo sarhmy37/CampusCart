@@ -3,18 +3,22 @@ const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { initializeTransaction, paystackRequest } = require('../utils/paystack');
 const { insertNotification } = require('../utils/notifications');
-const { getSellerFeeRate } = require('../utils/plans');
 const { isSellerRestricted } = require('./sellers');
+const { refundBooking, billBookingFee } = require('../utils/bookingJobs');
 
 const router = express.Router();
 
 // ─── POST /api/bookings ──────────────────────────────────────────────
 router.post('/', requireAuth, async (req, res) => {
-    const { service_id, service_option_name, booking_date, booking_time, message } = req.body;
+    const { service_id, service_option_name, booking_date, booking_time, message, reply_deadline_hours } = req.body;
     const buyer_id = req.userId;
 
     if (!service_id || !booking_date || !booking_time) {
         return res.status(400).json({ error: 'Service ID, date, and time are required.' });
+    }
+    const deadlineHours = Number(reply_deadline_hours);
+    if (![6, 12, 24].includes(deadlineHours)) {
+        return res.status(400).json({ error: 'Choose a 6, 12, or 24 hour reply deadline.' });
     }
 
     try {
@@ -54,8 +58,8 @@ router.post('/', requireAuth, async (req, res) => {
         }
         const serviceAmount = Math.round(Number(selectedOption.price) * 100) / 100;
         const buyerFee = 2;
-        const sellerFee = Math.round(serviceAmount * 0.015 * 100) / 100;
-        const sellerEarnings = Math.round((serviceAmount - sellerFee) * 100) / 100;
+        const sellerFee = 0;
+        const sellerEarnings = serviceAmount;
 
         // 3. Check for overlapping bookings — duration-aware, not just exact-time match.
         // The seller sets how long one booking takes (duration_minutes, stored in the
@@ -132,6 +136,11 @@ router.post('/', requireAuth, async (req, res) => {
             return res.status(409).json({ error: 'This provider has no more free slots on this day. Pick another day.' });
         }
         const finalTime = minutesToTime(startMin);
+        const serviceStart = new Date(`${booking_date}T${finalTime}:00`);
+        const replyDeadline = new Date(serviceStart.getTime() - deadlineHours * 60 * 60 * 1000);
+        if (replyDeadline <= new Date()) {
+            return res.status(400).json({ error: 'Choose a deadline that ends before the booked time.' });
+        }
 
         // 4. Insert booking with pending_payment status
         const platformFee = buyerFee;
@@ -140,11 +149,12 @@ router.post('/', requireAuth, async (req, res) => {
         const bookingResult = await pool.query(
             `INSERT INTO bookings
                 (service_id, buyer_id, seller_id, booking_date, booking_time, message, service_option_name,
-                 service_amount, buyer_fee, seller_fee, seller_earnings, platform_fee, payment_reference, duration_minutes, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'pending_payment')
+                 service_amount, buyer_fee, seller_fee, seller_earnings, platform_fee, payment_reference, duration_minutes,
+                 reply_deadline_hours, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'pending_payment')
              RETURNING id`,
             [service_id, buyer_id, service.seller_id, booking_date, finalTime, message || '', selectedOption.name,
-             serviceAmount, buyerFee, sellerFee, sellerEarnings, platformFee, reference, durationMinutes]
+             serviceAmount, buyerFee, sellerFee, sellerEarnings, platformFee, reference, durationMinutes, deadlineHours]
         );
         const bookingId = bookingResult.rows[0].id;
 
@@ -196,11 +206,12 @@ async function processBookingWebhookEvent(event) {
 
     try {
         const bookingResult = await pool.query(
-            `SELECT * FROM bookings WHERE payment_reference = $1 AND status = 'pending_payment'`,
+            `SELECT * FROM bookings WHERE payment_reference = $1`,
             [reference]
         );
         const booking = bookingResult.rows[0];
         if (!booking) return; // Already processed or not found
+        if (booking.status !== 'pending_payment') return;
 
         const expectedAmount = Math.round(parseFloat(booking.buyer_fee) * 100) / 100;
         if (Math.abs(amountPaidGHS - expectedAmount) > 0.05) {
@@ -210,9 +221,23 @@ async function processBookingWebhookEvent(event) {
         }
 
         // Update booking status to confirmed
-        await pool.query(
-            `UPDATE bookings SET status = 'confirmed', paid_at = NOW() WHERE id = $1`,
+        const claimed = await pool.query(
+            `UPDATE bookings
+             SET status = 'confirmed', paid_at = COALESCE(paid_at, NOW()),
+                 reply_deadline_at = (booking_date + booking_time::time) -
+                     (COALESCE(reply_deadline_hours, 6) || ' hours')::interval,
+                 refund_status = 'not_requested', updated_at = NOW()
+             WHERE id = $1 AND status = 'pending_payment'
+             RETURNING *`,
             [booking.id]
+        );
+        if (claimed.rowCount !== 1) return;
+        const confirmed = claimed.rows[0];
+        await pool.query(
+            `INSERT INTO conversations (buyer_id, seller_id, product_id, booking_id, allow_replies)
+             VALUES ($1, $2, $3, $4, true)
+             ON CONFLICT (booking_id) DO NOTHING`,
+            [confirmed.buyer_id, confirmed.seller_id, confirmed.service_id, confirmed.id]
         );
 
         // Send notifications
@@ -224,19 +249,19 @@ async function processBookingWebhookEvent(event) {
 
         // Notify seller
         await insertNotification(
-            booking.seller_id,
+            confirmed.seller_id,
             'booking_confirmed',
             `You have a new booking for "${serviceTitle}" on ${booking.booking_date} at ${booking.booking_time}. Please check the booking details.`,
-            booking.id,
-            `/dashboard?tab=orders`
+            confirmed.id,
+            `/dashboard?tab=tasks`
         );
 
         // Notify buyer
         await insertNotification(
-            booking.buyer_id,
+            confirmed.buyer_id,
             'booking_confirmed',
             `Your booking for "${serviceTitle}" is confirmed! Date: ${booking.booking_date}, Time: ${booking.booking_time}.`,
-            booking.id,
+            confirmed.id,
             `/dashboard?tab=orders`
         );
 
@@ -289,11 +314,12 @@ router.get('/buyer', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT b.*, p.title as service_title, u.name as seller_name,
-                    COALESCE(u.personal_email, u.university_email) as seller_email
+                    CASE WHEN b.provider_first_reply_at IS NOT NULL THEN COALESCE(u.personal_email, u.university_email) END as seller_email,
+                    CASE WHEN b.provider_first_reply_at IS NOT NULL THEN u.whatsapp END as seller_whatsapp
              FROM bookings b
              JOIN products p ON p.id = b.service_id
              JOIN users u ON u.id = b.seller_id
-             WHERE b.buyer_id = $1 AND b.status IN ('pending_payment', 'confirmed', 'completed', 'no_show')
+             WHERE b.buyer_id = $1 AND b.status IN ('pending_payment', 'confirmed', 'completed', 'no_show', 'expired_no_reply', 'declined')
              ORDER BY b.created_at DESC`,
             [req.userId]
         );
@@ -309,11 +335,12 @@ router.get('/seller', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT b.*, p.title as service_title, u.name as buyer_name,
-                    COALESCE(u.personal_email, u.university_email) as buyer_email
+                    CASE WHEN b.provider_first_reply_at IS NOT NULL THEN COALESCE(u.personal_email, u.university_email) END as buyer_email,
+                    CASE WHEN b.provider_first_reply_at IS NOT NULL THEN u.whatsapp END as buyer_whatsapp
              FROM bookings b
              JOIN products p ON p.id = b.service_id
              JOIN users u ON u.id = b.buyer_id
-             WHERE b.seller_id = $1 AND b.status IN ('pending_payment', 'confirmed', 'completed', 'no_show')
+             WHERE b.seller_id = $1 AND b.status IN ('pending_payment', 'confirmed', 'completed', 'no_show', 'expired_no_reply', 'declined')
              ORDER BY b.created_at DESC`,
             [req.userId]
         );
@@ -335,15 +362,16 @@ router.patch('/:id/confirm', requireAuth, async (req, res) => {
             `SELECT b.*, p.title as service_title
              FROM bookings b
              JOIN products p ON p.id = b.service_id
-             WHERE b.id = $1 AND b.seller_id = $2 AND b.status = 'confirmed'`,
+             WHERE b.id = $1 AND b.seller_id = $2 AND b.status = 'confirmed'
+               AND b.provider_first_reply_at IS NOT NULL`,
             [id, sellerId]
         );
         const booking = bookingResult.rows[0];
         if (!booking) {
-            return res.status(404).json({ error: 'Booking not found, already completed, or you are not the seller.' });
+            return res.status(409).json({ error: 'Reply in the booking chat before marking it completed.' });
         }
 
-        // Update status to 'completed'
+        await billBookingFee(booking);
         await pool.query(
             `UPDATE bookings SET status = 'completed', updated_at = NOW() WHERE id = $1`,
             [id]
@@ -354,7 +382,7 @@ router.patch('/:id/confirm', requireAuth, async (req, res) => {
             booking.buyer_id,
             'booking_completed',
             `Your booking for "${booking.service_title}" on ${booking.booking_date} at ${booking.booking_time} has been marked as completed by the seller. You can now leave a review.`,
-            booking.id,
+            `booking-${booking.id}`,
             `/dashboard?tab=orders`
         );
 
@@ -362,6 +390,31 @@ router.patch('/:id/confirm', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Confirm booking error:', err);
         res.status(500).json({ error: 'Failed to confirm booking.' });
+    }
+});
+
+// POST /api/bookings/:id/decline — provider declines and refunds the booking fee.
+router.post('/:id/decline', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM bookings
+             WHERE id = $1 AND seller_id = $2 AND status = 'confirmed'`,
+            [req.params.id, req.userId]
+        );
+        const booking = result.rows[0];
+        if (!booking) return res.status(404).json({ error: 'Booking not found or already handled.' });
+        if (booking.provider_first_reply_at) {
+            return res.status(409).json({ error: 'You have already replied to this booking.' });
+        }
+        await refundBooking(booking, 'declined');
+        const updated = await pool.query('SELECT status, refund_status FROM bookings WHERE id = $1', [booking.id]);
+        if (updated.rows[0]?.status !== 'declined') {
+            return res.status(502).json({ error: 'Refund could not be completed yet. Please try again.' });
+        }
+        res.json({ success: true, status: 'declined' });
+    } catch (err) {
+        console.error('Decline booking error:', err);
+        res.status(500).json({ error: 'Could not decline this booking.' });
     }
 });
 

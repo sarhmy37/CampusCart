@@ -1,4 +1,5 @@
 require('dotenv').config();
+process.env.TZ = 'UTC';
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -184,7 +185,25 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-pool.query('ALTER TABLE stories ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ')
+pool.query(`SET TIME ZONE 'UTC'`)
+    .then(() => pool.query('ALTER TABLE stories ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ'))
+    .then(() => pool.query(`
+        ALTER TABLE bookings
+            ADD COLUMN IF NOT EXISTS reply_deadline_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS reply_deadline_hours INTEGER,
+            ADD COLUMN IF NOT EXISTS provider_first_reply_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS refund_status TEXT NOT NULL DEFAULT 'not_requested',
+            ADD COLUMN IF NOT EXISTS refund_target_status TEXT,
+            ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS fee_billed_at TIMESTAMP;
+        ALTER TABLE conversations ADD COLUMN IF NOT EXISTS booking_id INTEGER;
+        ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
+        ALTER TABLE bookings ADD CONSTRAINT bookings_status_check CHECK (
+            status IN ('pending_payment', 'confirmed', 'completed', 'cancelled', 'no_show', 'expired_no_reply', 'declined')
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS conversations_booking_id_unique
+            ON conversations (booking_id) WHERE booking_id IS NOT NULL;
+    `))
     .then(() => {
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Tre-X API running on http://localhost:${PORT}`);
