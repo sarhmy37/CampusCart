@@ -27,6 +27,8 @@ const NOTIFICATION_TITLES = {
     order_reported_buyer: 'Report received',
     order_reported_seller: 'Order reported',
     subscription_activated: 'Plan activated',
+    plan_gifted: 'Antika',
+    admin_fee_overdue: 'Platform fee overdue',
     story_like: 'Antika',
     story_comment: 'Antika',
     follow_post: 'New post',

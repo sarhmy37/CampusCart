@@ -71,12 +71,32 @@ async function reconcilePayments(sellerId) {
         );
     }
 
-    await pool.query(
+    const overdueUpdate = await pool.query(
         `UPDATE seller_payments
          SET status = 'overdue'
-         WHERE seller_id = $1 AND status = 'pending' AND period_end + interval '6 days' < now() AND amount_paid < amount_due`,
+         WHERE seller_id = $1 AND status = 'pending' AND period_end + interval '6 days' < now() AND amount_paid < amount_due
+         RETURNING amount_due - amount_paid AS amount_owed`,
         [sellerId]
     );
+    if (overdueUpdate.rows.length > 0) {
+        const sellerResult = await pool.query('SELECT name, university_email FROM users WHERE id = $1', [sellerId]);
+        const adminResult = await pool.query(`SELECT id FROM users WHERE role = 'admin'`);
+        const amount = overdueUpdate.rows
+            .reduce((sum, row) => sum + parseFloat(row.amount_owed || 0), 0)
+            .toFixed(2);
+        const sellerName = sellerResult.rows[0]?.name || 'A seller';
+        const sellerEmail = sellerResult.rows[0]?.university_email || 'email unavailable';
+        const message = `${sellerName} (${sellerEmail}) owes GHS ${amount} in overdue platform fees. Their services can be hidden from the Users tab.`;
+        await Promise.all(adminResult.rows.map((admin) => insertNotification(
+            admin.id,
+            'admin_fee_overdue',
+            message,
+            sellerId,
+            null,
+            'Antika',
+            message
+        )));
+    }
 }
 
 async function checkAndCreditRewards(sellerId) {

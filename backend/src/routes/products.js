@@ -38,7 +38,10 @@ router.get('/', optionalAuth, async (req, res) => {
     const categoryFilter = category || itemCategory;
 
     const { network } = req.query;
-    const conditions = [`p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')`];
+    const conditions = [
+        `p.status IS DISTINCT FROM 'hidden'`,
+        `p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')`,
+    ];
     const values = [];
 
     // Early-access window: Pro/Premium buyers see brand-new listings immediately;
@@ -182,7 +185,8 @@ router.get('/boosted', async (req, res) => {
              FROM products p
              JOIN users u ON u.id = p.seller_id
              LEFT JOIN categories c ON c.id = p.category_id
-             WHERE p.boosted_until > now() AND p.stock > 0
+             WHERE p.status IS DISTINCT FROM 'hidden'
+               AND p.boosted_until > now() AND p.stock > 0
                AND p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
              ORDER BY
                 CASE WHEN u.plan = 'premium' AND u.plan_expires_at > now() THEN 0
@@ -295,7 +299,8 @@ router.get('/showcase', async (req, res) => {
              FROM products p
              JOIN users u ON u.id = p.seller_id
              LEFT JOIN categories c ON c.id = p.category_id
-             WHERE p.boosted_until IS NOT NULL AND p.boosted_until > now()
+             WHERE p.status IS DISTINCT FROM 'hidden'
+               AND p.boosted_until IS NOT NULL AND p.boosted_until > now()
                AND (c.name IS NULL OR c.name != 'Services')
              ORDER BY p.boosted_until ASC
              LIMIT 8`
@@ -310,7 +315,8 @@ router.get('/showcase', async (req, res) => {
             FROM products p
             JOIN users u ON u.id = p.seller_id
             LEFT JOIN categories c ON c.id = p.category_id
-            WHERE (c.name IS NULL OR c.name != 'Services')
+            WHERE p.status IS DISTINCT FROM 'hidden'
+              AND (c.name IS NULL OR c.name != 'Services')
               AND p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
         `;
 
@@ -406,7 +412,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
              FROM products p
              JOIN users u ON u.id = p.seller_id
              LEFT JOIN categories c ON c.id = p.category_id
-             WHERE p.id = $1`,
+             WHERE p.id = $1
+               AND p.status IS DISTINCT FROM 'hidden'`,
             [req.params.id]
         );
 

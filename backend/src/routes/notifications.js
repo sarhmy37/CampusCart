@@ -9,7 +9,7 @@ router.get('/', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT
-                n.id, n.type, n.message, n.related_id, n.link, n.read, n.created_at, n.sender_id, au.avatar_url AS actor_avatar,
+                n.id, n.type, n.message, n.push_title AS title, n.related_id, n.link, n.read, n.created_at, n.sender_id, au.avatar_url AS actor_avatar,
                 CASE
                   WHEN n.type = 'new_message' AND n.related_id IS NOT NULL
                   THEN (

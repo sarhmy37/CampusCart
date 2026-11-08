@@ -80,6 +80,32 @@ router.post('/', requireAuth, async (req, res) => {
     }
 });
 
+// PATCH /api/reports/:id — admin updates the moderation state
+router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
+    const { status } = req.body;
+    const allowedStatuses = ['pending', 'reviewed', 'dismissed', 'actioned'];
+    if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid report status' });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE reports
+             SET status = $1
+             WHERE id = $2
+             RETURNING *`,
+            [status, req.params.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Update report status error:', err);
+        res.status(500).json({ error: 'Failed to update report status' });
+    }
+});
+
 // GET /api/reviews/seller/:sellerId — reviews for a seller, with like/comment data
 router.get('/seller/:sellerId', async (req, res) => {
     const { sellerId } = req.params;

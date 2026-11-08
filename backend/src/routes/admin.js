@@ -120,7 +120,7 @@ router.get('/net-earnings', async (req, res) => {
 router.get('/users', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, name, university_email, account_type, role, verified, banned, is_data_seller, created_at, plan, plan_expires_at
+            `SELECT id, name, university_email, account_type, role, verified, banned, is_data_seller, avatar_url, created_at, plan, plan_expires_at
              FROM users ORDER BY created_at DESC`
         );
         res.json(result.rows);
@@ -322,9 +322,11 @@ router.get('/users/:id/orders', async (req, res) => {
 router.get('/users/:id/listings', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, title, price, stock, status, created_at
-             FROM products
-             WHERE seller_id = $1
+            `SELECT p.id, p.title, p.price, p.stock, p.status, p.created_at,
+                    c.name AS category
+             FROM products p
+             LEFT JOIN categories c ON c.id = p.category_id
+             WHERE p.seller_id = $1
              ORDER BY created_at DESC
              LIMIT 50`,
             [req.params.id]
@@ -333,6 +335,25 @@ router.get('/users/:id/listings', async (req, res) => {
     } catch (err) {
         console.error('Admin get user listings error:', err);
         res.status(500).json({ error: 'Failed to fetch user listings' });
+    }
+});
+
+// POST /api/admin/users/:id/listings-visibility
+router.post('/users/:id/listings-visibility', async (req, res) => {
+    const { hidden } = req.body;
+    if (typeof hidden !== 'boolean') return res.status(400).json({ error: 'hidden must be true or false' });
+    try {
+        const result = await pool.query(
+            `UPDATE products
+             SET status = $1, updated_at = now()
+             WHERE seller_id = $2
+             RETURNING id`,
+            [hidden ? 'hidden' : 'active', req.params.id]
+        );
+        res.json({ hidden, updated: result.rowCount });
+    } catch (err) {
+        console.error('Admin listings visibility error:', err);
+        res.status(500).json({ error: 'Failed to update listing visibility' });
     }
 });
 
@@ -770,24 +791,24 @@ router.post('/users/:id/set-data-seller', async (req, res) => {
 });
 
 // POST /api/admin/users/:id/set-plan — manually grant/revoke Pro or Premium.
-// Uses the same durations as a normal purchase (Pro = 1 month, Premium = 1 year).
-// Passing 'free' clears the plan back to free immediately.
+// Paid-plan gifts require an explicit duration in months. Passing 'free'
+// clears the plan back to free immediately.
 router.post('/users/:id/set-plan', async (req, res) => {
     const { id } = req.params;
-    const { plan } = req.body; // 'free' | 'pro' | 'premium'
+    const { plan, durationMonths } = req.body; // 'free' | 'pro' | 'premium'
 
     if (!['free', 'pro', 'premium'].includes(plan)) {
         return res.status(400).json({ error: 'Invalid plan' });
     }
+    if (plan !== 'free' && (!Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 24)) {
+        return res.status(400).json({ error: 'Choose a plan duration from 1 to 24 months' });
+    }
 
     try {
         let expiresAt = null;
-        if (plan === 'pro') {
+        if (plan !== 'free') {
             expiresAt = new Date();
-            expiresAt.setMonth(expiresAt.getMonth() + 1);
-        } else if (plan === 'premium') {
-            expiresAt = new Date();
-            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+            expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
         }
 
         const result = await pool.query(
@@ -796,10 +817,71 @@ router.post('/users/:id/set-plan', async (req, res) => {
             [plan, expiresAt, id]
         );
         if (!result.rows[0]) return res.status(404).json({ error: 'User not found' });
+        if (plan !== 'free') {
+            const giftedDate = new Date(expiresAt).toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'long', year: 'numeric',
+            });
+            const planName = plan === 'premium' ? 'Premium' : 'Pro';
+            const message = `Antika has gifted you ${planName}. Your ${planName} access is valid until ${giftedDate}.`;
+            await insertNotification(
+                id,
+                'plan_gifted',
+                message,
+                null,
+                null,
+                'Antika',
+                message
+            );
+        }
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Admin set plan error:', err);
         res.status(500).json({ error: 'Something went wrong updating this user\'s plan' });
+    }
+});
+
+// GET /api/admin/users/:id/fee-status
+router.get('/users/:id/fee-status', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                COALESCE(SUM(sp.amount_due - sp.amount_paid) FILTER (WHERE sp.status != 'paid'), 0) AS amount_owed,
+                COUNT(*) FILTER (WHERE sp.status = 'overdue')::int AS overdue_periods,
+                COUNT(p.id) FILTER (WHERE c.name = 'Services' AND p.status = 'active')::int AS visible_services,
+                COUNT(p.id) FILTER (WHERE c.name = 'Services' AND p.status = 'hidden')::int AS hidden_services
+             FROM users u
+             LEFT JOIN seller_payments sp ON sp.seller_id = u.id
+             LEFT JOIN products p ON p.seller_id = u.id
+             LEFT JOIN categories c ON c.id = p.category_id
+             WHERE u.id = $1
+             GROUP BY u.id`,
+            [req.params.id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ error: 'User not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Admin fee status error:', err);
+        res.status(500).json({ error: 'Failed to fetch fee status' });
+    }
+});
+
+// POST /api/admin/users/:id/services-visibility
+router.post('/users/:id/services-visibility', async (req, res) => {
+    const { hidden } = req.body;
+    if (typeof hidden !== 'boolean') return res.status(400).json({ error: 'hidden must be true or false' });
+    try {
+        const result = await pool.query(
+            `UPDATE products p
+             SET status = $1, updated_at = now()
+             WHERE p.seller_id = $2
+               AND p.category_id IN (SELECT id FROM categories WHERE name = 'Services')
+             RETURNING p.id`,
+            [hidden ? 'hidden' : 'active', req.params.id]
+        );
+        res.json({ hidden, updated: result.rowCount });
+    } catch (err) {
+        console.error('Admin services visibility error:', err);
+        res.status(500).json({ error: 'Failed to update service visibility' });
     }
 });
 
@@ -1029,6 +1111,61 @@ router.post('/message/group', async (req, res) => {
   } catch (err) {
     console.error('Admin group message error:', err);
     res.status(500).json({ error: 'Failed to send group message' });
+  }
+});
+
+// POST /api/admin/notification/broadcast
+// body: { audience: 'all' | 'sellers' | 'buyers' | 'premium' | 'pro' | 'free', title, message }
+router.post('/notification/broadcast', async (req, res) => {
+  const { audience, title, message } = req.body;
+  const validAudiences = ['all', 'sellers', 'buyers', 'premium', 'pro', 'free'];
+  const trimmedTitle = String(title || '').trim() || 'Antika';
+  const trimmedMessage = String(message || '').trim();
+
+  if (!validAudiences.includes(audience) || !trimmedMessage) {
+    return res.status(400).json({ error: 'Valid audience and notification text are required' });
+  }
+  if (trimmedTitle.length > 80) {
+    return res.status(400).json({ error: 'Notification header must be 80 characters or less' });
+  }
+  if (trimmedMessage.length > 500) {
+    return res.status(400).json({ error: 'Notification text must be 500 characters or less' });
+  }
+
+  try {
+    let where = `WHERE role != 'system' AND banned = FALSE`;
+    if (audience === 'sellers') where += ` AND account_type = 'seller'`;
+    if (audience === 'buyers') where += ` AND account_type = 'buyer'`;
+    if (audience === 'premium') where += ` AND plan = 'premium' AND plan_expires_at > NOW()`;
+    if (audience === 'pro') where += ` AND plan = 'pro' AND plan_expires_at > NOW()`;
+    if (audience === 'free') {
+      where += ` AND (plan IS NULL OR plan = 'free' OR plan_expires_at IS NULL OR plan_expires_at <= NOW())`;
+    }
+
+    const recipients = await pool.query(`SELECT id FROM users ${where}`);
+    let sent = 0;
+
+    for (const row of recipients.rows) {
+      try {
+        await insertNotification(
+          row.id,
+          'admin_broadcast',
+          trimmedMessage,
+          null,
+          null,
+          trimmedTitle,
+          trimmedMessage
+        );
+        sent++;
+      } catch (err) {
+        console.error(`Failed to notify user ${row.id}:`, err.message);
+      }
+    }
+
+    res.json({ success: true, sent, total: recipients.rows.length, title: trimmedTitle });
+  } catch (err) {
+    console.error('Admin notification broadcast error:', err);
+    res.status(500).json({ error: 'Failed to send notification broadcast' });
   }
 });
 

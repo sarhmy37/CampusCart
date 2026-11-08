@@ -75,7 +75,7 @@ router.post('/start', requireAuth, async (req, res) => {
         }
         // 👇 Check if the seller is banned
         const sellerCheck = await pool.query(
-            'SELECT id, banned, name FROM users WHERE id = $1',
+            'SELECT id, banned, name, role FROM users WHERE id = $1',
             [sellerId]
         );
         if (sellerCheck.rows.length === 0) {
@@ -86,6 +86,9 @@ router.post('/start', requireAuth, async (req, res) => {
                 error: 'This seller\'s account has been banned.',
                 banned: true
             });
+        }
+        if (req.userRole !== 'admin' && ['admin', 'system'].includes(sellerCheck.rows[0].role)) {
+            return res.status(403).json({ error: 'This account is not available in chat.' });
         }
 
         await touchLastActive(req.userId);
@@ -179,13 +182,14 @@ router.get('/conversations', requireAuth, async (req, res) => {
                  WHERE m.conversation_id = c.id AND m.sender_id != $1 AND m.read = FALSE
              ) uc ON true
              WHERE (c.buyer_id = $1 OR c.seller_id = $1)
+               AND ($2 = 'admin' OR (bu.role NOT IN ('admin', 'system') AND su.role NOT IN ('admin', 'system')))
                AND NOT EXISTS (
                    SELECT 1 FROM conversation_deletions cd
                    WHERE cd.conversation_id = c.id AND cd.user_id = $1
                      AND (lm.created_at IS NULL OR lm.created_at <= cd.deleted_at)
                )
              ORDER BY lm.created_at DESC NULLS LAST`,
-            [req.userId]
+            [req.userId, req.userRole]
         );
         res.json(result.rows);
     } catch (err) {
@@ -329,13 +333,23 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
         const convo = await pool.query(
-            `SELECT buyer_id, seller_id FROM conversations WHERE id = $1`,
+            `SELECT c.buyer_id, c.seller_id, bu.role AS buyer_role, su.role AS seller_role
+             FROM conversations c
+             JOIN users bu ON bu.id = c.buyer_id
+             JOIN users su ON su.id = c.seller_id
+             WHERE c.id = $1`,
             [id]
         );
         if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
         const { buyer_id, seller_id } = convo.rows[0];
         if (req.userId !== buyer_id && req.userId !== seller_id) {
             return res.status(403).json({ error: 'Not part of this conversation' });
+        }
+        if (
+            req.userRole !== 'admin' &&
+            [convo.rows[0].buyer_role, convo.rows[0].seller_role].some((role) => ['admin', 'system'].includes(role))
+        ) {
+            return res.status(403).json({ error: 'This conversation is not available.' });
         }
 
         await touchLastActive(req.userId);
@@ -384,13 +398,24 @@ router.post('/:id/media', requireAuth, uploadChatMedia.single('media'), async (r
 
     try {
         const convo = await pool.query(
-            `SELECT buyer_id, seller_id, allow_replies, booking_id FROM conversations WHERE id = $1`,
+            `SELECT c.buyer_id, c.seller_id, c.allow_replies, c.booking_id,
+                    bu.role AS buyer_role, su.role AS seller_role
+             FROM conversations c
+             JOIN users bu ON bu.id = c.buyer_id
+             JOIN users su ON su.id = c.seller_id
+             WHERE c.id = $1`,
             [id]
         );
         if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
         const { buyer_id, seller_id } = convo.rows[0];
         if (req.userId !== buyer_id && req.userId !== seller_id) {
             return res.status(403).json({ error: 'Not part of this conversation' });
+        }
+        if (
+            req.userRole !== 'admin' &&
+            [convo.rows[0].buyer_role, convo.rows[0].seller_role].some((role) => ['admin', 'system'].includes(role))
+        ) {
+            return res.status(403).json({ error: 'This conversation is not available.' });
         }
 
         // Antika lock
@@ -453,13 +478,24 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
 
     try {
         const convo = await pool.query(
-            `SELECT buyer_id, seller_id, allow_replies, booking_id FROM conversations WHERE id = $1`,
+            `SELECT c.buyer_id, c.seller_id, c.allow_replies, c.booking_id,
+                    bu.role AS buyer_role, su.role AS seller_role
+             FROM conversations c
+             JOIN users bu ON bu.id = c.buyer_id
+             JOIN users su ON su.id = c.seller_id
+             WHERE c.id = $1`,
             [id]
         );
         if (convo.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
         const { buyer_id, seller_id } = convo.rows[0];
         if (req.userId !== buyer_id && req.userId !== seller_id) {
             return res.status(403).json({ error: 'Not part of this conversation' });
+        }
+        if (
+            req.userRole !== 'admin' &&
+            [convo.rows[0].buyer_role, convo.rows[0].seller_role].some((role) => ['admin', 'system'].includes(role))
+        ) {
+            return res.status(403).json({ error: 'This conversation is not available.' });
         }
 
         // Antika lock
