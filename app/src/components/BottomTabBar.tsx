@@ -7,6 +7,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
 import { useCart } from '@/context/CartContext';
 import { useChat } from '@/context/ChatContext';
+import { lightHaptic } from '@/utils/haptics';
 
 const TABS = [
   { key: 'cart', label: 'Cart', outline: CartOutline, solid: CartSolid, route: '/cart' },
@@ -51,7 +52,10 @@ export default function BottomTabBar() {
           <Pressable
             key={tab.key}
             onPress={() => {
-              if (!active) router.navigate(tab.route as any);
+              if (!active) {
+                lightHaptic();
+                router.navigate(tab.route as any);
+              }
             }}
             style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 }}
           >

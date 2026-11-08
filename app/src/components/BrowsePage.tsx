@@ -867,7 +867,7 @@ useEffect(() => {
   const headerTitle =
     itemCategory === 'Services' ? 'Browse Services'
     : search ? `Results for "${search}"`
-    : 'Browse listings';
+    : 'Browse Products';
 
   return (
     <View
@@ -1849,6 +1849,13 @@ function FloatingBoostButton({
     })
   ).current;
   const scale = useRef(new Animated.Value(1)).current;
+  const cur = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const id = pan.addListener((v) => { cur.current = v; });
+    return () => pan.removeListener(id);
+  }, []);
+  const onPressRef = useRef(onPress);
+  onPressRef.current = onPress;
   const rx = useRef(new Animated.Value(0)).current;
   const rsx = useRef(new Animated.Value(1)).current;
   const rshake = useRef(new Animated.Value(0)).current;
@@ -1877,7 +1884,7 @@ function FloatingBoostButton({
         t(rsx, 1.3, 260, Easing.in(Easing.cubic)),
         t(rx, 40, 260, Easing.in(Easing.cubic)),
       ]).start(() => {
-        onPress();
+        onPressRef.current();
         rx.setValue(-40);
         rsx.setValue(1);
         t(rx, 0, 450, Easing.out(Easing.cubic)).start(() => {
@@ -1936,20 +1943,20 @@ function FloatingBoostButton({
   // Re-clamp when the real limits are known, so a saved or old spot can't sit under the tab bar.
   useEffect(() => {
     if (!positionLoaded || containerHeight <= 0) return;
-    pan.stopAnimation((v) => pan.setValue({ x: v.x, y: clampY(v.y) }));
+    pan.setValue({ x: cur.current.x, y: clampY(cur.current.y) });
   }, [containerHeight, bottomGap, positionLoaded]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
       onMoveShouldSetPanResponderCapture: (_, gesture) =>
         Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4,
       onPanResponderGrant: () => {
         moved.current = false;
-        pan.stopAnimation((value) => {
-          startPos.current = value;
-        });
-        Animated.spring(scale, { toValue: 1.1, useNativeDriver: true, friction: 5 }).start();
+        pan.stopAnimation();
+        startPos.current = { ...cur.current };
+        Animated.spring(scale, { toValue: 1.1, useNativeDriver: false, friction: 5 }).start();
       },
       onPanResponderMove: (_, gesture) => {
         if (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4) moved.current = true;
@@ -1959,7 +1966,7 @@ function FloatingBoostButton({
         });
       },
       onPanResponderRelease: (_, gesture) => {
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
+        Animated.spring(scale, { toValue: 1, useNativeDriver: false, friction: 5 }).start();
 
         if (!moved.current) {
           playLaunch();
@@ -1976,7 +1983,7 @@ function FloatingBoostButton({
 
         Animated.spring(pan, {
           toValue: { x: snappedX, y: snappedY },
-          useNativeDriver: true,
+          useNativeDriver: false,
           friction: 7,
         }).start();
 

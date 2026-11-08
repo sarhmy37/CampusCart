@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import Toast from 'react-native-toast-message';
-import { Trash2, X, Search, Filter } from 'lucide-react-native';
+import { Trash2, X, Search, Filter, Eye, EyeOff } from 'lucide-react-native';
 import api from '@/api/client';
 import { useColors } from '@/hooks/useColors';
 import {
@@ -16,19 +16,15 @@ export default function ListingsTab() {
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
+  const [subcategoryFilter, setSubcategoryFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-
-  const [categories, setCategories] = useState<string[]>([]);
 
   const load = () => {
     setLoading(true);
     Promise.all([
       api.get('/admin/listings').then((res) => res.data).catch(() => []),
-      api.get('/categories').then((res) => res.data.map((c: any) => c.name)).catch(() => []),
-    ]).then(([rows, cats]) => {
+    ]).then(([rows]) => {
       setListings(rows);
-      setCategories(cats);
     }).finally(() => setLoading(false));
   };
   useEffect(load, []);
@@ -42,15 +38,18 @@ export default function ListingsTab() {
         p.seller_name?.toLowerCase().includes(q)
       );
     }
-    if (categoryFilter) {
-      result = result.filter((p) => p.category === categoryFilter);
-    }
-    if (sortBy === 'newest') result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    else if (sortBy === 'oldest') result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    else if (sortBy === 'stock_high') result.sort((a, b) => (b.stock || 0) - (a.stock || 0));
-    else if (sortBy === 'stock_low') result.sort((a, b) => (a.stock || 0) - (b.stock || 0));
+    if (categoryFilter === 'Services') result = result.filter((p) => p.category === 'Services');
+    if (categoryFilter === 'Products') result = result.filter((p) => p.category !== 'Services');
+    if (subcategoryFilter) result = result.filter((p) => p.subcategory === subcategoryFilter);
     return result;
-  }, [listings, search, categoryFilter, sortBy]);
+  }, [listings, search, categoryFilter, subcategoryFilter]);
+
+  const subcategories = useMemo(() => Array.from(new Set(
+    listings
+      .filter((p) => categoryFilter === 'Services' ? p.category === 'Services' : categoryFilter === 'Products' ? p.category !== 'Services' : false)
+      .map((p) => p.subcategory)
+      .filter(Boolean)
+  )).sort(), [listings, categoryFilter]) as string[];
 
   const remove = async (id: string, title: string) => {
     const ok = await confirmAsync('Remove listing?', `"${title}" will be permanently deleted.`, 'Remove');
@@ -67,10 +66,28 @@ export default function ListingsTab() {
   const clearFilters = () => {
     setSearch('');
     setCategoryFilter('');
-    setSortBy('newest');
+    setSubcategoryFilter('');
   };
 
-  const activeFilterCount = [!!categoryFilter, sortBy !== 'newest'].filter(Boolean).length;
+  const activeFilterCount = [!!categoryFilter, !!subcategoryFilter].filter(Boolean).length;
+
+  const changeCategory = (value: string) => {
+    setCategoryFilter(value);
+    setSubcategoryFilter('');
+  };
+
+  const toggleVisibility = async (listing: any) => {
+    const hidden = listing.status !== 'hidden';
+    try {
+      await api.post(`/admin/listings/${listing.id}/visibility`, { hidden });
+      setListings((current) => current.map((item) => item.id === listing.id
+        ? { ...item, status: hidden ? 'hidden' : 'active' }
+        : item));
+      Toast.show({ type: 'success', text1: hidden ? 'Listing hidden' : 'Listing restored' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to update listing visibility' });
+    }
+  };
 
   if (loading) return <SkeletonList />;
 
@@ -120,18 +137,17 @@ export default function ListingsTab() {
 
       {showFilters && (
         <View style={{ ...cardStyle(colors), marginBottom: 12, gap: 10 }}>
-          {categories.length > 0 && (
-            <View>
+          <View>
               <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Category
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                {[{ value: '', label: 'All' }, ...categories.map((c) => ({ value: c, label: c }))].map((opt) => {
+                {[{ value: '', label: 'All' }, { value: 'Products', label: 'Products' }, { value: 'Services', label: 'Services' }].map((opt) => {
                   const active = categoryFilter === opt.value;
                   return (
                     <Pressable
                       key={opt.value || 'all'}
-                      onPress={() => setCategoryFilter(opt.value)}
+                      onPress={() => changeCategory(opt.value)}
                       style={{
                         paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
                         borderWidth: 1,
@@ -146,40 +162,25 @@ export default function ListingsTab() {
                   );
                 })}
               </ScrollView>
+          </View>
+
+          {categoryFilter && subcategories.length > 0 && (
+            <View>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                Subcategory
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                {[{ value: '', label: 'All' }, ...subcategories.map((value) => ({ value, label: value }))].map((opt) => {
+                  const active = subcategoryFilter === opt.value;
+                  return (
+                    <Pressable key={opt.value || 'all-subcategory'} onPress={() => setSubcategoryFilter(opt.value)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: active ? colors.brand : colors.border, backgroundColor: active ? colors.brandSoft : 'transparent' }}>
+                      <Text style={{ fontSize: 15, fontWeight: active ? '700' : '500', color: active ? colors.brand : colors.textMuted }}>{opt.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
-
-          <View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-              Sort by
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              {[
-                { value: 'newest', label: 'Newest' },
-                { value: 'oldest', label: 'Oldest' },
-                { value: 'stock_high', label: 'Stock: high' },
-                { value: 'stock_low', label: 'Stock: low' },
-              ].map((opt) => {
-                const active = sortBy === opt.value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    onPress={() => setSortBy(opt.value)}
-                    style={{
-                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: active ? colors.brand : colors.border,
-                      backgroundColor: active ? colors.brandSoft : 'transparent',
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: active ? '700' : '500', color: active ? colors.brand : colors.textMuted }}>
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
 
           {activeFilterCount > 0 && (
             <Pressable onPress={clearFilters} style={{ alignSelf: 'flex-start', paddingVertical: 4 }}>
@@ -234,6 +235,14 @@ export default function ListingsTab() {
                 </Text>
               </View>
 
+              <View style={{ alignItems: 'center', gap: 4 }}>
+                <IconButton onPress={() => toggleVisibility(p)} active={p.status !== 'hidden'}>
+                  {(tint: string) => p.status === 'hidden' ? <EyeOff size={15} color={tint} /> : <Eye size={15} color={tint} />}
+                </IconButton>
+                <Text style={{ fontSize: 10, color: p.status === 'hidden' ? colors.error : colors.success }}>
+                  {p.status === 'hidden' ? 'Hidden' : 'Visible'}
+                </Text>
+              </View>
               <IconButton onPress={() => remove(p.id, p.title)} danger>
                 {(tint: string) => <Trash2 size={15} color={tint} />}
               </IconButton>

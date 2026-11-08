@@ -2,6 +2,7 @@ import { View, Text, Pressable } from 'react-native';
 import { ExclamationTriangleIcon, InboxIcon } from 'react-native-heroicons/solid';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { lightHaptic } from '@/utils/haptics';
 
 export function SkeletonList() {
   const colors = useColors();
@@ -26,7 +27,7 @@ export function ErrorState({
         <ExclamationTriangleIcon size={24} color={colors.error} />
         <Text style={{ flex: 1, fontSize: 15, color: colors.textFaint }}>{text}</Text>
       </View>
-      <Pressable onPress={onRetry} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
+      <Pressable onPress={() => { lightHaptic(); onRetry(); }} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
         <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>Try again</Text>
       </Pressable>
     </View>
@@ -47,7 +48,7 @@ export function EmptyState({
         <Text style={{ flex: 1, fontSize: 15, color: colors.textFaint }}>{text}</Text>
       </View>
       {cta && ctaLink && (
-        <Pressable onPress={() => router.push(ctaLink as any)} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
+        <Pressable onPress={() => { lightHaptic(); router.push(ctaLink as any); }} style={{ marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
           <Text style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{cta} →</Text>
         </Pressable>
       )}

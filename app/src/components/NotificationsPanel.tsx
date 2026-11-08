@@ -62,12 +62,15 @@ const NOTIF_META: Record<string, { emoji: string; tint: string; title?: string }
   story_repost: { emoji: '🔁', tint: '#22c55e', title: 'New repost' },
   comment_like: { emoji: '❤️', tint: '#ec4899', title: 'Comment liked' },
   new_message: { emoji: '💬', tint: '#3b82f6', title: 'New message' },
+  admin_broadcast: { emoji: '📣', tint: '#f59e0b' },
   donation_received: { emoji: '', tint: '#E6AB2B', title: 'Thank you for your support' },
   default: { emoji: '🔔', tint: '#64748b' },
 };
 
 function getNotifRoute(n: any) {
   switch (n.type) {
+    case 'admin_broadcast':
+      return null;
     case 'order_reported_seller':
     case 'payment_received_seller':
       return {
@@ -380,6 +383,11 @@ export default function NotificationsPanel({ visible, onClose }: { visible: bool
                         onClose();
                         if (convo) openConversation(convo);
                         else router.push('/chat' as any);
+                        return;
+                      }
+                      if (n.type === 'admin_broadcast') {
+                        removeNotification(n.id);
+                        onClose();
                         return;
                       }
                       const target = getNotifRoute(n);

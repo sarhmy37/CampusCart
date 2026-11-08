@@ -7,8 +7,10 @@ import { Search, Send, Users, ShoppingBag, User as UserIcon, X } from 'lucide-re
 import Toast from 'react-native-toast-message';
 import api from '@/api/client';
 import { useColors } from '@/hooks/useColors';
+import { LOGO_BLACK_BACKGROUND } from '@/data/media';
 
 type Group = 'all' | 'sellers' | 'buyers';
+type NotificationAudience = Group | 'premium' | 'pro' | 'free';
 
 const DRAFTS: { label: string; text: string }[] = [
   {
@@ -52,8 +54,11 @@ const DRAFTS: { label: string; text: string }[] = [
 export default function MessagesTab() {
   const colors = useColors();
 
-  const [mode, setMode] = useState<'group' | 'individual'>('group');
+  const [mode, setMode] = useState<'group' | 'individual' | 'notification'>('group');
   const [group, setGroup] = useState<Group>('all');
+  const [notificationAudience, setNotificationAudience] = useState<NotificationAudience>('all');
+  const [notificationTitle, setNotificationTitle] = useState('Antika');
+  const [notificationBody, setNotificationBody] = useState('');
   const [search, setSearch] = useState('');
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
@@ -125,6 +130,30 @@ export default function MessagesTab() {
     }
   };
 
+  const sendNotification = async () => {
+    if (!notificationBody.trim()) return;
+    setSending(true);
+    try {
+      const res = await api.post('/admin/notification/broadcast', {
+        audience: notificationAudience,
+        title: notificationTitle.trim() || 'Antika',
+        message: notificationBody.trim(),
+      });
+      Toast.show({
+        type: 'success',
+        text1: `Notification sent to ${res.data.sent} users`,
+      });
+      setNotificationBody('');
+    } catch (err: any) {
+      Toast.show({
+        type: 'error',
+        text1: err.response?.data?.error || 'Failed to send notification',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <View style={{ gap: 16 }}>
       {/* Antika header preview */}
@@ -141,9 +170,7 @@ export default function MessagesTab() {
         }}
       >
         <Image
-          source={{
-            uri: 'https://cdn.sanity.io/images/aypd5e7o/production/d7ca1ef11350ce1f20f723c6890094ae3514861f-1254x1254.png',
-          }}
+          source={LOGO_BLACK_BACKGROUND}
           style={{ width: 44, height: 44, borderRadius: 22 }}
           contentFit="cover"
         />
@@ -203,7 +230,125 @@ export default function MessagesTab() {
             Individual {selected ? `· ${selected.name}` : ''}
           </Text>
         </Pressable>
+        <Pressable
+          onPress={() => { setMode('notification'); setSelected(null); }}
+          style={{
+            flex: 1,
+            paddingVertical: 10,
+            borderRadius: 12,
+            alignItems: 'center',
+            backgroundColor: mode === 'notification' ? colors.brandSoft : colors.card,
+            borderWidth: 1,
+            borderColor: mode === 'notification' ? colors.brand : colors.border,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: '700',
+              color: mode === 'notification' ? colors.brand : colors.textMuted,
+            }}
+          >
+            Notification
+          </Text>
+        </Pressable>
       </View>
+
+      {mode === 'notification' && (
+        <View style={{ gap: 12 }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>
+            Send a notification without opening Chat
+          </Text>
+          <Text style={{ fontSize: 13, color: colors.textMuted }}>
+            It will appear in the Notifications screen and can also arrive as a push notification.
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {([
+              ['all', 'Everyone'],
+              ['sellers', 'Sellers'],
+              ['buyers', 'Buyers'],
+              ['premium', 'Premium'],
+              ['pro', 'Pro'],
+              ['free', 'Free'],
+            ] as const).map(([key, label]) => {
+              const active = notificationAudience === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setNotificationAudience(key)}
+                  style={{
+                    paddingHorizontal: 13,
+                    paddingVertical: 9,
+                    borderRadius: 999,
+                    backgroundColor: active ? colors.brandSoft : colors.card,
+                    borderWidth: 1,
+                    borderColor: active ? colors.brand : colors.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: active ? colors.brand : colors.textMuted }}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <TextInput
+            value={notificationTitle}
+            onChangeText={setNotificationTitle}
+            placeholder="Header (defaults to Antika)"
+            placeholderTextColor={colors.textFaint}
+            maxLength={80}
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              color: colors.text,
+              backgroundColor: colors.card,
+              fontSize: 16,
+              fontWeight: '700',
+            }}
+          />
+          <TextInput
+            value={notificationBody}
+            onChangeText={setNotificationBody}
+            placeholder="Notification subtext…"
+            placeholderTextColor={colors.textFaint}
+            maxLength={500}
+            multiline
+            textAlignVertical="top"
+            style={{
+              minHeight: 110,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              color: colors.text,
+              backgroundColor: colors.card,
+              fontSize: 16,
+            }}
+          />
+          <Pressable
+            onPress={sendNotification}
+            disabled={sending || !notificationBody.trim()}
+            style={{
+              paddingVertical: 13,
+              borderRadius: 12,
+              alignItems: 'center',
+              backgroundColor: colors.brand,
+              opacity: sending || !notificationBody.trim() ? 0.55 : 1,
+            }}
+          >
+            {sending ? <ActivityIndicator color={colors.textOnGold} /> : (
+              <Text style={{ color: colors.textOnGold, fontWeight: '800', fontSize: 16 }}>
+                Send notification
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      )}
 
       {/* GROUP MODE */}
       {mode === 'group' && (

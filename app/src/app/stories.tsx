@@ -353,7 +353,11 @@ function FollowChatButtonsFull({
   if (group.is_following) {
     if (GLASS) {
       return (
-        <Pressable onPress={onChat} hitSlop={6}>
+        <Pressable
+          onPress={onChat}
+          hitSlop={6}
+          style={{ borderRadius: 10, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}
+        >
           <GlassView
             glassEffectStyle="regular"
             isInteractive
@@ -599,20 +603,7 @@ const { openChat, sendQuickMessage } = useChat();
     // Name alone is too long even bare — hard truncate as a last resort.
     return first.slice(0, GREETING_MAX_CHARS);
   }, [user?.name]);
-
-  const subtitle = useMemo(() => {
-    const lines = [
-      "See what's happening around campus right now",
-      "Fresh drops from students near you",
-      "Find your next steal on campus",
-      "Something new is always going on here",
-      "Your campus marketplace, live",
-      "Catch the latest before it's gone",
-      "Deals, stories and more, all in one place",
-    ];
-    return lines[Math.floor(Math.random() * lines.length)];
-  }, []);
-
+  
   const [contentFilter, setContentFilter] = useState('all');
   const [viewerNotice, setViewerNotice] = useState<{ text: string; id: number } | null>(null);
 
@@ -679,10 +670,12 @@ const { openChat, sendQuickMessage } = useChat();
       stat.forEach((g, i) => { orderMap[String(g.user_id)] = i; });
       setStatusOrder(orderMap);
       feedShuffleRef.current = {};
+      shuffleRef.current = {};
       setShuffleKey((k) => k + 1);
       releasePins();
       setVisibleCount(PAGE_SIZE);
       setGroups(mergeGroups(mergeGroups(spot, stat), folRes.data || []));
+      api.get('/products/boosted').then((res) => setBoostedProducts(res.data || [])).catch(() => {});
     } catch {
       Toast.show({ type: 'error', text1: "Couldn't refresh" });
     }
@@ -716,6 +709,7 @@ const { openChat, sendQuickMessage } = useChat();
     }, 400);
   };
   const [filterOpen, setFilterOpen] = useState(false);
+  const bodyBg = theme === 'dark' ? colors.background : '#ffffff';
   const filterDrag = useSheetDrag(() => setFilterOpen(false));
   useEffect(() => {
     if (filterOpen) filterDrag.translateY.setValue(0);
@@ -729,6 +723,54 @@ const { openChat, sendQuickMessage } = useChat();
   const [exportStory, setExportStory] = useState<Story | null>(null);
   const [mainTab, setMainTab] = useState<'stories' | 'feed' | 'podcast'>('stories');
 const reelStyle: 'horizontal' | 'vertical' = mainTab === 'feed' ? 'vertical' : 'horizontal';
+  const subtitle = useMemo(() => {
+    const SUBTITLES: Record<string, string[]> = {
+      stories: [
+        "See what's happening around campus right now",
+        "Quick moments from people around you",
+        "Catch a story before it disappears",
+        "Peek into your campus day",
+        "Fresh moments, 24 hours only",
+        "Who's posting on campus right now?",
+        "Tap a circle and see their day",
+        "Real moments from real students",
+        "Don't miss what your friends shared",
+        "Campus life, one story at a time",
+        "New stories are dropping, take a look",
+        "Your campus, happening live",
+      ],
+      feed: [
+        "Fresh posts from your campus",
+        "Scroll the best of campus life",
+        "Videos and photos worth stopping for",
+        "See what everyone is talking about",
+        "Trending moments from students near you",
+        "Your daily dose of campus content",
+        "Find something that makes you smile",
+        "Discover creators on your campus",
+        "Likes, laughs and good vibes",
+        "What's new in the Spotlight today",
+        "Posts picked just for you",
+        "Watch, like and share the best posts",
+      ],
+      podcast: [
+        "Talks on how to grow your business",
+        "Learn from people who built it",
+        "Press play and level up your hustle",
+        "Smart ideas for student entrepreneurs",
+        "Business lessons in your earbuds",
+        "Listen, learn and start selling",
+        "Stories of founders who started small",
+        "Grow your brand one episode at a time",
+        "Tips to turn your side hustle into a business",
+        "Save an episode for later",
+        "Your next big idea might be one talk away",
+        "Make every walk to class count",
+      ],
+    };
+    const lines = SUBTITLES[mainTab] || SUBTITLES.stories;
+    return lines[Math.floor(Math.random() * lines.length)];
+  }, [mainTab]);
 const changeMainTab = (k: 'stories' | 'feed' | 'podcast') => {
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   setMainTab(k);
@@ -1465,9 +1507,10 @@ useFocusEffect(
     sortedStatusItems.forEach((i: any) => {
       if (shuffleRef.current[i.id] === undefined) shuffleRef.current[i.id] = Math.random();
     });
-    return [...sortedStatusItems].filter((i: any) => String(i.group.user_id) !== String(user?.id)).sort((a: any, b: any) =>
-      (statusOrder[String(a.group.user_id)] ?? 9999) - (statusOrder[String(b.group.user_id)] ?? 9999));
-  }, [sortedStatusItems, statusOrder]);
+    return [...sortedStatusItems]
+      .filter((i: any) => String(i.group.user_id) !== String(user?.id) && !i.group.is_following)
+      .sort((a: any, b: any) => shuffleRef.current[a.id] - shuffleRef.current[b.id]);
+  }, [sortedStatusItems, shuffleKey]);
     const FEED_STALE_MS = 30 * 60 * 1000;
   const [nowTick, setNowTick] = useState(Date.now());
   useEffect(() => {
@@ -1609,7 +1652,7 @@ const feedHandlers = useMemo(() => ({
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
-         <View ref={headerRef} style={{ backgroundColor: colors.card, paddingBottom: 34, position: 'relative' }}>
+         <View ref={headerRef} style={{ backgroundColor: theme === 'dark' ? colors.card : '#ffffff', paddingBottom: 34, position: 'relative' }}>
         <View
           onLayout={(e) => {
             const measured = e.nativeEvent.layout.height;
@@ -1865,18 +1908,30 @@ const feedHandlers = useMemo(() => ({
       </View>
 
       {mainTab === 'podcast' ? (
-        <View style={{ flex: 1, marginTop: -14, backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
-          <PodcastTab colors={colors} mainTab={mainTab} onChange={changeMainTab} />
+        <View style={{ flex: 1, marginTop: -14 }}>
+          <View style={{ flex: 1, backgroundColor: bodyBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
+            <PodcastTab colors={colors} mainTab={mainTab} onChange={changeMainTab} />
+          </View>
+          <CurveEdge
+            cornerFill={theme === 'dark' ? colors.card : '#ffffff'}
+            line={theme === 'dark' ? undefined : colors.border}
+          />
         </View>
       ) : reelStyle === 'vertical' && statusList.length === 0 && spotlightAll.length === 0 ? (
         <EmptyState colors={colors} onAdd={() => router.push('/stories/new')} />
       ) : (
         <View style={{ flex: 1, marginTop: -14 }}>
+        <View
+          style={{
+            flex: 1, backgroundColor: bodyBg, overflow: 'hidden',
+            borderTopLeftRadius: 24, borderTopRightRadius: 24,
+          }}
+        >
         <Animated.ScrollView
           ref={mainScrollRef}
           scrollEnabled={!mainScrollLocked}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 0 }}
           nestedScrollEnabled
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -1889,11 +1944,7 @@ const feedHandlers = useMemo(() => ({
           onTouchEnd={onPullTouchEnd}
           onTouchCancel={onPullTouchEnd}
           onMomentumScrollEnd={() => { clearTimeout(snapTimeoutRef.current); snapHeaderIfNeeded(); }}
-          style={{
-            backgroundColor: colors.background,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-          }}
+          style={{ backgroundColor: bodyBg }}
           onScrollBeginDrag={() => { tabsArmedRef.current = false; }}
         >
           {/* Status — half the size of Spotlight cards, own horizontal-scrolling
@@ -1915,7 +1966,7 @@ const feedHandlers = useMemo(() => ({
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                  {mainTab !== 'podcast' && (
+                  {mainTab === 'feed' && (
                     <>
                       <Pressable
                         onPress={() => setFilterOpen(true)}
@@ -1941,17 +1992,18 @@ const feedHandlers = useMemo(() => ({
           )}
 
           <View
-            style={{ marginTop: 14 }}
+            style={{ marginTop: 14, zIndex: 10, elevation: 10 }}
             onLayout={(e) => { tabsYRef.current = e.nativeEvent.layout.y; setTabsY(e.nativeEvent.layout.y); }}
           >
             <View style={{ flexDirection: 'row', marginBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-              <MainTabs mainTab={mainTab} colors={colors} onChange={changeMainTab} />
+              <MainTabs mainTab={mainTab} colors={colors} onChange={changeMainTab} pullY={pullY} refreshing={refreshing} />
             </View>
             <View style={{ marginTop: -4, marginBottom: -3 }}>
               <PullLine scrollY={pullY} refreshing={refreshing} colors={colors} />
             </View>
           </View>
 
+          <View style={{ backgroundColor: bodyBg, minHeight: SCREEN_HEIGHT, paddingBottom: 40 }}>
           {reelStyle !== 'vertical' && (
             <View style={{ marginTop: 10 }}>
               <ScrollView
@@ -1959,7 +2011,7 @@ const feedHandlers = useMemo(() => ({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
               >
-                {(reelStyle === 'vertical' ? ([] as typeof sortedStatusItems) : sortedStatusItems.filter((i: any) => i.group.is_following)).map((item) => (
+                {(reelStyle === 'vertical' ? ([] as typeof sortedStatusItems) : [...sortedStatusItems].filter((i: any) => i.group.is_following).sort((a: any, b: any) => (shuffleRef.current[a.id] ?? 0) - (shuffleRef.current[b.id] ?? 0))).map((item) => (
                   <StatusCard
                     key={item.id}
                     item={item}
@@ -2004,15 +2056,8 @@ const feedHandlers = useMemo(() => ({
           {/* Reel feed (vertical mode) */}
           {reelStyle === 'vertical' && (
             <View
-              style={{ marginTop: 6 }}
+              style={{ marginTop: 0 }}
             >
-<View style={{ flexDirection: 'row', marginBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-  <FeedTabs
-  feedTab={feedTab}
-  colors={colors}
-  onChange={(key) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFeedTab(key); setVisibleCount(PAGE_SIZE); }}
-/>
-              </View>
               {feedTab === 'following' && feedItems.length === 0 && (
                 <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 15, marginTop: 40, paddingHorizontal: 30 }}>
                   Follow people to see their posts here
@@ -2055,6 +2100,7 @@ const feedHandlers = useMemo(() => ({
           {loadingMore && (
             <ActivityIndicator color={colors.brand} style={{ marginTop: 20 }} />
           )}
+          </View>
         </Animated.ScrollView>
 
         {mainTab !== 'podcast' && (
@@ -2063,7 +2109,7 @@ const feedHandlers = useMemo(() => ({
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
               paddingTop: 14,
-              backgroundColor: colors.background,
+              backgroundColor: bodyBg,
               borderTopLeftRadius: 24, borderTopRightRadius: 24,
               opacity: scrollY.interpolate({
                 inputRange: [tabsLockY - 1, tabsLockY],
@@ -2076,6 +2122,20 @@ const feedHandlers = useMemo(() => ({
               <MainTabs mainTab={mainTab} colors={colors} onChange={changeMainTab} />
             </View>
           </Animated.View>
+        )}
+        </View>
+        <CurveEdge
+          cornerFill={theme === 'dark' ? colors.card : '#ffffff'}
+          line={theme === 'dark' ? undefined : colors.border}
+        />
+                {mainTab === 'feed' && (
+          <FloatingTabs
+            tabs={FEED_FT}
+            value={feedTab}
+            colors={colors}
+            scrollY={scrollY}
+            onChange={(key) => { setFeedTab(key); setVisibleCount(PAGE_SIZE); }}
+          />
         )}
         </View>
       )}
@@ -2308,7 +2368,7 @@ const feedHandlers = useMemo(() => ({
         onRequestClose={() => setActiveGroupIndex(null)}
       >
         {activeGroupIndex !== null && !!groups[activeGroupIndex] && (
-          <StoryViewerLocal
+          <StoryViewer
             group={groups[activeGroupIndex]}
             story={groups[activeGroupIndex].stories[activeStoryIndex]}
             durationMs={
@@ -2653,6 +2713,9 @@ function StatusCardInner({
   item, colors, onPress,
 }: { item: any; colors: any; onPress: () => void }) {
   const { story, group } = item;
+  const router = useRouter();
+  const openProfile = () =>
+    router.push({ pathname: '/SpotlightProfile', params: { userId: group.user_id, guest: '1' } });
 
   return (
     <Pressable onPress={onPress} style={{ width: STATUS_CARD_WIDTH }}>
@@ -2688,12 +2751,12 @@ function StatusCardInner({
           }}
         >
           <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff', letterSpacing: 0.4 }}>
-            STORY
+            {formatPostedAt(story.created_at)}
           </Text>
         </View>
 
         <View style={{ position: 'absolute', left: 8, right: 8, bottom: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+          <Pressable onPress={openProfile} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
             <View
               style={{
                 width: 18, height: 18, borderRadius: 9, overflow: 'hidden',
@@ -2716,7 +2779,7 @@ function StatusCardInner({
               </Text>
               <PlanBadge plan={group.user_plan} size={10} />
             </View>
-          </View>
+          </Pressable>
           {story.caption && (
             <Text
               numberOfLines={1}
@@ -2862,6 +2925,8 @@ function FeedPostInner({
   const onFollow = h.follow;
   const onChat = (s: Story) => h.chat(group, s);
   const router = useRouter();
+  const { theme } = useTheme();
+  const postBg = theme === 'dark' ? colors.background : '#ffffff';
   const stories: Story[] = group.stories;
   const [index, setIndex] = useState(0);
   const activeIdx = Math.min(index, stories.length - 1);
@@ -2951,7 +3016,7 @@ function FeedPostInner({
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Pressable onPress={() => onOpenProfile(group)} hitSlop={4} style={{ flexShrink: 1 }}>
-              <Text numberOfLines={1} style={{ fontSize: 17, fontWeight: '800', color: colors.text }}>
+              <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>
                 {group.user_name}
               </Text>
             </Pressable>
@@ -2978,7 +3043,7 @@ function FeedPostInner({
               <Text
                 numberOfLines={expanded ? undefined : 1}
                 ellipsizeMode="tail"
-                style={{ fontSize: 16, lineHeight: 20, color: colors.textMuted, marginTop: 2 }}
+                style={{ fontSize: 14, lineHeight: 20, color: colors.textMuted, marginTop: 2 }}
               >
                 {story.caption}
               </Text>
@@ -3109,7 +3174,7 @@ function FeedPostInner({
           <View style={{ width: STORE_W + CORNER_R, height: ACTION_H }}>
             <Svg width={STORE_W + CORNER_R} height={ACTION_H} style={{ position: 'absolute', left: 0, top: 0 }}>
               <Path
-                fill={colors.background}
+                fill={postBg}
                 d={`M0 0 L${STORE_W - CORNER_R} 0 A${CORNER_R} ${CORNER_R} 0 0 1 ${STORE_W} ${CORNER_R} L${STORE_W} ${ACTION_H - CORNER_R} A${CORNER_R} ${CORNER_R} 0 0 0 ${STORE_W + CORNER_R} ${ACTION_H} L0 ${ACTION_H} Z`}
               />
             </Svg>
@@ -3897,6 +3962,7 @@ export function StoryViewerLocal({
   const router = useRouter();
   const colors = useColors();
   const isVertical = reelStyle === 'vertical';
+  const { theme } = useTheme();
   const isStaticFeedImage = story.kind === 'spotlight' && story.media_type === 'image';
   const hasSound = story.media_type === 'video' || !!story.sound;
   const [exportOpen, setExportOpen] = useState(false);
@@ -5438,7 +5504,7 @@ const openProfile = () => {
           pointerEvents="box-none"
           style={{
             position: 'absolute', left: 0, right: 0, bottom: keyboardHeight,
-            backgroundColor: colors.background, opacity: dragOpacity,
+            backgroundColor: theme === 'dark' ? colors.background : '#18181b', opacity: dragOpacity,
             paddingHorizontal: 14, paddingTop: 12,
             paddingBottom: keyboardHeight > 0 ? 16 : insets.bottom + 16,
           }}
@@ -6465,6 +6531,13 @@ function RepostedBy({ story, color, nameColor, fontSize = 10 }: { story: Story; 
   );
 }
 
+function formatPostedAt(dateStr: string) {
+  if (!dateStr) return '';
+  return new Date(dateStr)
+    .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    .replace(' ', '');
+}
+
 function formatCount(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
@@ -7070,7 +7143,7 @@ function CommentsSheet({
                           onPress={() => { setReplyTo({ id: c.id, name: c.user_name }); inputRef.current?.focus(); }}
                           hitSlop={8}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                        >
+                        >             
                           <Reply size={13} color={colors.textMuted} />
                           <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Reply</Text>
                         </Pressable>
@@ -7265,10 +7338,34 @@ function ViewerTextOverlay({ overlay }: { overlay: { text: string; y: number } }
   );
 }
 
+function CurveEdge({ cornerFill, line }: { cornerFill: string; line?: string }) {
+  const W = SCREEN_WIDTH;
+  const R = 24;
+  return (
+    <Svg pointerEvents="none" width={W} height={R} style={{ position: 'absolute', top: 0, left: 0, zIndex: 20 }}>
+      <Path fill={cornerFill} d={`M0 0 L${R} 0 A${R} ${R} 0 0 0 0 ${R} Z`} />
+      <Path fill={cornerFill} d={`M${W} 0 L${W - R} 0 A${R} ${R} 0 0 1 ${W} ${R} Z`} />
+      {!!line && (
+        <Path
+          fill="none" stroke={line} strokeWidth={1}
+          d={`M0.5 ${R} A${R - 0.5} ${R - 0.5} 0 0 1 ${R} 0.5 L${W - R} 0.5 A${R - 0.5} ${R - 0.5} 0 0 1 ${W - 0.5} ${R}`}
+        />
+      )}
+    </Svg>
+  );
+}
+
 function PullLine({ scrollY, refreshing, colors }: { scrollY: Animated.Value; refreshing: boolean; colors: any }) {
   const sweep = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const [w, setW] = useState(0);
+  const [pullW, setPullW] = useState(0);
+  useEffect(() => {
+    const id = scrollY.addListener(({ value }) => {
+      setPullW(Math.min(1, Math.max(0, -value / 70)) * w);
+    });
+    return () => scrollY.removeListener(id);
+  }, [w]);
 
   useEffect(() => {
     Animated.timing(fade, { toValue: refreshing ? 1 : 0, duration: 120, useNativeDriver: true }).start();
@@ -7288,8 +7385,8 @@ function PullLine({ scrollY, refreshing, colors }: { scrollY: Animated.Value; re
   return (
     <View pointerEvents="none" onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ height: 3, overflow: 'hidden' }}>
       {/* pull layer: grows from the centre while dragging */}
-      <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: pullOpacity }}>
-        <Animated.View style={{ height: 3, width: w, borderRadius: 2, backgroundColor: colors.brand, transform: [{ scaleX: pull }] }} />
+      <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', opacity: pullOpacity }}>
+        <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.brand, width: pullW }} />
       </Animated.View>
 
       {/* refreshing layer: faint track + moving bar, loops until the refresh ends */}
@@ -7306,7 +7403,302 @@ function PullLine({ scrollY, refreshing, colors }: { scrollY: Animated.Value; re
   );
 }
 
-function MainTabs({ mainTab, onChange, colors }: { mainTab: string; onChange: (k: 'stories' | 'feed' | 'podcast') => void; colors: any }) {
+const FT_WC = 30;      // collapsed width
+const FT_HC = 46;      // collapsed height
+const FT_MARGIN = 4;
+const FT_ROW = 36;
+const FT_W = 126;
+const FT_DIM = 0.35;
+type FTab = { key: string; label: string; Icon: any; IconOn?: any; fillOn?: boolean };
+const FEED_FT: FTab[] = [
+  { key: 'all', label: 'All', Icon: GridOutline, IconOn: GridSolid },
+  { key: 'foryou', label: 'For you', Icon: FireOutline, IconOn: FireSolid },
+  { key: 'following', label: 'Following', Icon: UsersOutline, IconOn: UsersSolid },
+];
+const PODCAST_FT: FTab[] = [
+  { key: 'all', label: 'All', Icon: GridOutline, IconOn: GridSolid },
+  { key: 'fav', label: 'Favourites', Icon: Heart, fillOn: true },
+  { key: 'later', label: 'Watch Later', Icon: Clock },
+];
+
+function FloatingTabs({
+  tabs, value, onChange, colors, scrollY, top = 70, bottom = 24,
+}: {
+  tabs: FTab[]; value: string; onChange: (k: any) => void; colors: any;
+  scrollY: Animated.Value; top?: number; bottom?: number;
+}) {
+  const { theme } = useTheme();
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [side, setSide] = useState<'left' | 'right'>('right');
+  const [up, setUp] = useState(false);
+  const [open, setOpen] = useState(false);
+  const o = useRef(new Animated.Value(0)).current;
+  const dim = useRef(new Animated.Value(FT_DIM)).current;
+    const nudge = useRef(new Animated.Value(0)).current;
+  const ring = useRef(new Animated.Value(0)).current;
+  const idleRef = useRef<any>(null);
+  const pos = useRef(new Animated.ValueXY({ x: -100, y: 0 })).current;
+  const cur = useRef({ x: 0, y: 0 });
+  const startRef = useRef({ x: 0, y: 0 });
+  const openRef = useRef(false);
+  const awakeRef = useRef(false);
+  const wasAwakeRef = useRef(false);
+  const movedRef = useRef(false);
+  const timerRef = useRef<any>(null);
+  const dimTimer = useRef<any>(null);
+  const inited = useRef(false);
+  const scrollStart = useRef(0);
+  const lastScroll = useRef(0);
+  const boxRef = useRef(box);
+  boxRef.current = box;
+  const limits = useRef({ top, bottom });
+  limits.current = { top, bottom };
+
+  useEffect(() => {
+    const id = pos.addListener((v) => { cur.current = v; });
+    return () => pos.removeListener(id);
+  }, []);
+  useEffect(() => {
+    scheduleNudge();
+    return () => { clearTimeout(timerRef.current); clearTimeout(dimTimer.current); clearTimeout(idleRef.current); };
+  }, []);
+
+  const playNudge = () => {
+    if (openRef.current) return;
+    nudge.setValue(0);
+    ring.setValue(0);
+    Animated.timing(dim, { toValue: 1, duration: 150, useNativeDriver: false }).start();
+    Animated.parallel([
+      Animated.sequence(
+        [1, -1, 1, -1, 1, -1, 0].map((v) => Animated.timing(nudge, { toValue: v, duration: 55, useNativeDriver: false }))
+      ),
+      Animated.loop(
+        Animated.timing(ring, { toValue: 1, duration: 800, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        { iterations: 2 }
+      ),
+    ]).start(() => {
+      if (!awakeRef.current && !openRef.current) {
+        Animated.timing(dim, { toValue: FT_DIM, duration: 300, useNativeDriver: false }).start();
+      }
+    });
+  };
+  const scheduleNudge = () => {
+    clearTimeout(idleRef.current);
+    idleRef.current = setTimeout(() => { playNudge(); scheduleNudge(); }, 15000);
+  };
+
+  const setAwake = (on: boolean, autoDimMs?: number) => {
+    scheduleNudge();
+    clearTimeout(dimTimer.current);
+    awakeRef.current = on;
+    Animated.timing(dim, { toValue: on ? 1 : FT_DIM, duration: 200, useNativeDriver: false }).start();
+    if (on && autoDimMs) {
+      dimTimer.current = setTimeout(() => { if (!openRef.current) setAwake(false); }, autoDimMs);
+    }
+  };
+
+  const setExpanded = (next: boolean) => {
+    clearTimeout(timerRef.current);
+    openRef.current = next;
+    setOpen(next);
+    if (next) {
+      setAwake(true);
+      setUp(cur.current.y > boxRef.current.h / 2);
+      scrollStart.current = lastScroll.current;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      timerRef.current = setTimeout(() => setExpanded(false), 5000);
+    } else {
+      setAwake(false); // dims after collapsing
+    }
+    Animated.spring(o, { toValue: next ? 1 : 0, friction: 8, tension: 90, useNativeDriver: false }).start();
+  };
+
+  useEffect(() => {
+    const id = scrollY.addListener(({ value: y }) => {
+      lastScroll.current = y;
+      if (openRef.current && Math.abs(y - scrollStart.current) > 12) setExpanded(false);
+    });
+    return () => scrollY.removeListener(id);
+  }, []);
+
+  useEffect(() => {
+    if (inited.current || box.w === 0) return;
+    inited.current = true;
+    pos.setValue({ x: box.w - FT_WC - FT_MARGIN, y: Math.max(top, box.h * 0.4) });
+  }, [box.w]);
+
+  const clampY = (y: number) =>
+    Math.min(Math.max(y, limits.current.top), Math.max(limits.current.top, boxRef.current.h - FT_HC - limits.current.bottom));
+
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => !openRef.current,
+    onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 6 || Math.abs(g.dy) > 6,
+    onPanResponderGrant: () => {
+      startRef.current = { ...cur.current };
+      movedRef.current = false;
+      wasAwakeRef.current = awakeRef.current;
+      clearTimeout(timerRef.current);
+      setAwake(true);
+    },
+    onPanResponderMove: (_e, g) => {
+      if (Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4) movedRef.current = true;
+      pos.setValue({ x: startRef.current.x + g.dx, y: clampY(startRef.current.y + g.dy) });
+    },
+    onPanResponderRelease: (_e, g) => {
+      if (!movedRef.current) {
+        if (wasAwakeRef.current) setExpanded(true);   // 2nd tap: expand
+        else setAwake(true, 4000);                    // 1st tap: wake up
+        return;
+      }
+      const w = boxRef.current.w;
+      const toRight = startRef.current.x + g.dx + FT_WC / 2 > w / 2;
+      const y = clampY(startRef.current.y + g.dy);
+      setSide(toRight ? 'right' : 'left');
+      setUp(y > boxRef.current.h / 2);
+      Animated.spring(pos, {
+        toValue: { x: toRight ? w - FT_WC - FT_MARGIN : FT_MARGIN, y },
+        useNativeDriver: false, friction: 7,
+      }).start();
+      setAwake(true, 3000);
+    },
+  })).current;
+
+  const pick = (k: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onChange(k);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setExpanded(false), 220);
+  };
+
+  const active = tabs.find((t) => t.key === value) ?? tabs[0];
+  const DotIcon = active.IconOn ?? active.Icon;
+  const H = tabs.length * FT_ROW + 8;
+  const w = o.interpolate({ inputRange: [0, 1], outputRange: [FT_WC, FT_W] });
+  const h = o.interpolate({ inputRange: [0, 1], outputRange: [FT_HC, H] });
+  const r = o.interpolate({ inputRange: [0, 1], outputRange: [FT_WC / 2, 18], extrapolate: 'clamp' });
+  const rowsOpacity = o.interpolate({ inputRange: [0.5, 1], outputRange: [0, 1], extrapolate: 'clamp' });
+  const dotOpacity = o.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
+  const fill = { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0 };
+  const dark = theme === 'dark';
+
+  return (
+    <View
+      pointerEvents="box-none"
+      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      style={{ ...fill, zIndex: 30 }}
+    >
+      {open && <Pressable onPress={() => setExpanded(false)} style={fill} />}
+      <Animated.View
+        {...pan.panHandlers}
+        style={{
+          position: 'absolute', width: FT_WC, height: FT_HC, opacity: dim,
+          transform: [
+            ...pos.getTranslateTransform(),
+            { translateX: nudge.interpolate({ inputRange: [-1, 1], outputRange: [-3, 3] }) },
+            { rotate: nudge.interpolate({ inputRange: [-1, 1], outputRange: ['-7deg', '7deg'] }) },
+          ],
+        }}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute', [up ? 'bottom' : 'top']: 0, [side]: 0,
+            width: FT_WC, height: FT_HC, borderRadius: FT_WC / 2,
+            borderWidth: 2, borderColor: colors.brand,
+            opacity: ring.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.8, 0] }),
+            transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }],
+          }}
+        />
+        <Animated.View
+          style={{
+            position: 'absolute', [up ? 'bottom' : 'top']: 0, [side]: 0,
+            width: w, height: h, borderRadius: r, overflow: 'hidden',
+            borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.14)' : colors.border,
+          }}
+        >
+          {GLASS ? (
+            <GlassView glassEffectStyle="regular" isInteractive style={fill} />
+          ) : (
+            <BlurView
+              intensity={50}
+              tint={dark ? 'dark' : 'light'}
+              style={{ ...fill, backgroundColor: dark ? 'rgba(30,30,34,0.55)' : 'rgba(255,255,255,0.7)' }}
+            />
+          )}
+
+          {/* collapsed: current tab icon */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute', top: 0, [side]: 0, width: FT_WC, height: FT_HC,
+              alignItems: 'center', justifyContent: 'center', opacity: dotOpacity,
+            }}
+          >
+            <DotIcon size={16} color={colors.brand} {...(active.fillOn ? { fill: colors.brand } : {})} />
+          </Animated.View>
+
+          {/* expanded: vertical list */}
+          <Animated.View
+            pointerEvents={open ? 'auto' : 'none'}
+            style={{ ...fill, padding: 4, justifyContent: 'center', opacity: rowsOpacity }}
+          >
+            {tabs.map((t) => {
+              const on = t.key === value;
+              const IconC = on && t.IconOn ? t.IconOn : t.Icon;
+              return (
+                <Pressable
+                  key={t.key}
+                  onPress={() => pick(t.key)}
+                  style={{
+                    height: FT_ROW, flexDirection: side === 'right' ? 'row-reverse' : 'row', alignItems: 'center',
+                    gap: 8, paddingHorizontal: 10, borderRadius: 14,
+                    backgroundColor: on ? `${colors.brand}22` : 'transparent',
+                  }}
+                >
+                  <IconC
+                    size={17}
+                    color={on ? colors.brand : colors.textMuted}
+                    {...(on && t.fillOn ? { fill: colors.brand } : {})}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: 13, fontWeight: on ? '800' : '600', color: on ? colors.brand : colors.text }}
+                  >
+                    {t.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+        </Animated.View>
+      </Animated.View>
+    </View>
+  );
+}
+
+function AnimatedTabIcon({ kind, active = true, children }: { kind: string; active?: boolean; children: React.ReactNode }) {
+  const v = useRef(new Animated.Value(0)).current;
+  const cfg = ICON_ANIMS[kind] ?? ICON_ANIMS.all;
+
+  useEffect(() => {
+    v.setValue(0);
+    if (!active) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: cfg.duration, easing: cfg.easing ?? Easing.linear, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
+        Animated.delay(cfg.pause),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [kind, active]);
+
+  const I = (inputRange: number[], outputRange: any[]) => v.interpolate({ inputRange, outputRange });
+  return <Animated.View style={{ transform: cfg.transform(I) }}>{children}</Animated.View>;
+}
+
+function MainTabs({ mainTab, onChange, colors, pullY, refreshing }: { mainTab: string; onChange: (k: 'stories' | 'feed' | 'podcast') => void; colors: any; pullY?: Animated.Value; refreshing?: boolean }) {
   const tabs = [
     { key: 'stories', label: 'Stories', Icon: Sparkles },
     { key: 'feed', label: 'Feed', Icon: Flame },
@@ -7327,10 +7719,15 @@ function MainTabs({ mainTab, onChange, colors }: { mainTab: string; onChange: (k
               {t.label}
             </Text>
             {active && (
-              <View
+              <Animated.View
                 style={{
                   position: 'absolute', bottom: -1, alignSelf: 'center',
                   height: 3, width: 33, borderRadius: 999, backgroundColor: colors.brand,
+                  opacity: refreshing
+                    ? 0
+                    : pullY
+                      ? pullY.interpolate({ inputRange: [-12, 0], outputRange: [0, 1], extrapolate: 'clamp' })
+                      : 1,
                 }}
               />
             )}
@@ -7352,12 +7749,22 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
   const [favs, setFavs] = useState<Podcast[]>([]);
   const [later, setLater] = useState<Podcast[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
+    const listY = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  const [refreshingPod, setRefreshingPod] = useState(false);
+  const loadPodcasts = () =>
     api.get('/podcasts')
-      .then((r) => setItems(r.data || []))
+      .then((r) => { setItems(r.data || []); setFailed(false); })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
+  const refreshPodcasts = async () => {
+    setRefreshingPod(true);
+    await loadPodcasts();
+    setRefreshingPod(false);
+  };
+
+  useEffect(() => {
+    loadPodcasts();
     AsyncStorage.getItem('podcast_favs').then((v) => v && setFavs(JSON.parse(v))).catch(() => {});
     AsyncStorage.getItem('podcast_later').then((v) => v && setLater(JSON.parse(v))).catch(() => {});
   }, []);
@@ -7399,35 +7806,6 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
 
       <View style={{ marginTop: 14, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <MainTabs mainTab={mainTab} colors={colors} onChange={onChange} />
-      </View>
-
-      {/* sub tabs */}
-      <View style={{ flexDirection: 'row', height: 34, marginTop: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        {SUBS.map((t) => {
-          const active = sub === t.key;
-          const color = active ? colors.brand : colors.textFaint;
-          const Icon: any = t.key === 'all' ? (active ? GridSolid : GridOutline) : t.key === 'fav' ? Heart : Clock;
-          return (
-            <Pressable
-              key={t.key}
-              onPress={() => setSub(t.key)}
-              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingBottom: active ? 4 : 0 }}
-            >
-              <Icon size={active ? 18 : 15} color={color} />
-              <Text style={{ fontSize: active ? 15 : 13, fontWeight: active ? '800' : '500', color }}>
-                {t.label}
-              </Text>
-              {active && (
-                <View
-                  style={{
-                    position: 'absolute', bottom: -1, alignSelf: 'center',
-                    height: 3, width: 30, borderRadius: 999, backgroundColor: colors.brand,
-                  }}
-                />
-              )}
-            </Pressable>
-          );
-        })}
       </View>
 
       {/* channel chips */}
@@ -7476,6 +7854,10 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
           keyExtractor={(i) => i.video_id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          onScroll={(e) => listY.setValue(e.nativeEvent.contentOffset.y)}
+          scrollEventThrottle={16}
+          refreshing={refreshingPod}
+          onRefresh={refreshPodcasts}
           ListEmptyComponent={
             <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 40 }}>
               {sub === 'fav' ? 'No favourites yet' : sub === 'later' ? 'Nothing in Watch Later' : 'No podcasts yet'}
@@ -7522,42 +7904,7 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
           }}
         />
       )}
-    </View>
-  );
-}
-
-function FeedTabs({ feedTab, onChange, colors }: { feedTab: string; onChange: (k: 'all' | 'foryou' | 'following') => void; colors: any }) {
-  const tabs = [
-    { key: 'all', label: 'All', outline: GridOutline, solid: GridSolid },
-    { key: 'foryou', label: 'For you', outline: FireOutline, solid: FireSolid },
-    { key: 'following', label: 'Following', outline: UsersOutline, solid: UsersSolid },
-  ] as const;
-  return (
-    <View style={{ flex: 1, flexDirection: 'row', height: 34 }}>
-      {tabs.map((t) => {
-        const active = feedTab === t.key;
-        const Icon = active ? t.solid : t.outline;
-        return (
-          <Pressable
-            key={t.key}
-            onPress={() => onChange(t.key)}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingBottom: active ? 4 : 0 }}
-          >
-            <Icon size={active ? 18 : 15} color={active ? colors.brand : colors.textFaint} />
-            <Text style={{ fontSize: active ? 15 : 13, fontWeight: active ? '800' : '500', color: active ? colors.brand : colors.textFaint }}>
-              {t.label}
-            </Text>
-            {active && (
-              <View
-                style={{
-                  position: 'absolute', bottom: -1, alignSelf: 'center',
-                  height: 3, width: 30, borderRadius: 999, backgroundColor: colors.brand,
-                }}
-              />
-            )}
-          </Pressable>
-        );
-      })}
+      <FloatingTabs tabs={PODCAST_FT} value={sub} colors={colors} scrollY={listY} top={120} onChange={(k) => setSub(k)} />
     </View>
   );
 }

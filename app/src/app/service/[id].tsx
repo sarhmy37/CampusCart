@@ -549,9 +549,6 @@ export default function ServiceDetail() {
                       }}
                     >
                       {sellerPlan === 'premium' ? <Sparkles size={11} color="#7c3aed" /> : <Star size={11} color="#2563eb" />}
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: sellerPlan === 'premium' ? '#7c3aed' : '#2563eb' }}>
-                        {sellerPlan === 'premium' ? 'Premium Seller' : 'Pro Seller'}
-                      </Text>
                     </View>
                   )}
                 </View>

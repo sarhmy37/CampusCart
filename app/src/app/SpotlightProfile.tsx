@@ -34,7 +34,7 @@ import Toast from 'react-native-toast-message';
 import api from '@/api/client';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
-import { StoryViewerLocal } from './stories';
+import StoryViewer from '@/components/StoryViewer';
 import { useChat } from '@/context/ChatContext';
 import PostSettingsSheet, { PostSettingsT } from '@/components/PostSettingsSheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1203,7 +1203,7 @@ export default function SpotlightProfile() {
 
       <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={closeViewer}>
         {viewer && vg && vs && (
-          <StoryViewerLocal
+          <StoryViewer
             group={vg}
             story={vs}
             durationMs={durationsRef.current[vs.id] ?? PHOTO_MS}

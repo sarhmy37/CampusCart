@@ -49,6 +49,7 @@ export const BROWSE_HEADER_IMAGES = [
 // ---- LOCAL (bundled) app images ----
 export const LOGO_LIGHT = require('../../assets/hero/logo-light.png');
 export const LOGO_DARK = require('../../assets/hero/logo-dark.png');
+export const LOGO_BLACK_BACKGROUND = require('../../assets/hero/logo-blackbackground.png');
 export const LOGO_PRO = require('../../assets/hero/logo-pro.png');
 export const LOGO_PREMIUM = require('../../assets/hero/logo-premium.png');
 

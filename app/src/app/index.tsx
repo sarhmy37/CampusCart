@@ -5,11 +5,16 @@ import Hero from '@/components/Hero';
 import ValueStrip from '@/components/ValueStrip';
 import PullLine from '@/components/PullLine';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import HomeFooter from '@/components/HomeFooter';
 import ExclusiveOffers from '@/components/ExclusiveOffers';
 import HomePlans from '@/components/HomePlans';
 import TopSellers from '@/components/TopSellers';
+import HomeDiscovery from '@/components/HomeDiscovery';
+import ActiveOrders from '@/components/ActiveOrders';
+import RecentlyViewed from '@/components/RecentlyViewed';
+import SponsoredProducts from '@/components/SponsoredProducts';
 import { LinearGradient } from 'expo-linear-gradient';
 import { triggerLogoBounce } from '@/utils/logoBounce';
 
@@ -78,14 +83,42 @@ function SectionDivider() {
   );
 }
 
+function Section({
+  show, divider, colors, children,
+}: { show: boolean; divider: boolean; colors: any; children: React.ReactNode }) {
+  return (
+    <>
+      {show && divider && <SectionDivider />}
+      {show && <InsetShadow direction="down" />}
+      <View style={{ paddingBottom: show ? 6 : 0 }}>{children}</View>
+      {show && <InsetShadow direction="up" />}
+      {show && <View style={{ height: 1, backgroundColor: colors.border }} />}
+    </>
+  );
+}
+
 const PULL_THRESHOLD = 70; // how far the line must "fill" before release refreshes
 const PULL_FACTOR = 0.8;   // finger distance -> pull distance (lower = need to drag further)
 
 export default function HomeScreen() {
   const colors = useColors();
+  const { user } = useAuth();
+
+  // People on an active Pro/Premium plan manage everything from the Benefits screen,
+  // so the pricing section is hidden for them. An expired plan counts as free.
+  const hidePlans = !!(
+    user?.plan &&
+    String(user.plan).toLowerCase() !== 'free' &&
+    user?.plan_expires_at &&
+    new Date(user.plan_expires_at) > new Date()
+  );
+
   const [scrolled, setScrolled] = useState(false);
   const [hasOffers, setHasOffers] = useState(false);
   const [hasSellers, setHasSellers] = useState(false);
+  const [hasSponsored, setHasSponsored] = useState(false);
+  const [hasDiscovery, setHasDiscovery] = useState(false);
+  const [hasRecent, setHasRecent] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const scrolledRef = useRef(false);
 
@@ -202,20 +235,29 @@ export default function HomeScreen() {
           </View>
 
           {/* ── Below the fold: scrolls normally ── */}
-          {hasOffers && <InsetShadow direction="down" />}
-          <View style={{ paddingBottom: hasOffers ? 6 : 0 }}>
+          <ActiveOrders />
+
+          <Section show={hasOffers} divider={false} colors={colors}>
             <ExclusiveOffers active={scrolled} onHasOffers={setHasOffers} />
-          </View>
-          {hasOffers && <InsetShadow direction="up" />}
-          {hasOffers && <View style={{ height: 1, backgroundColor: colors.border }} />}
-          {hasOffers && (hasSellers ? <SectionDivider /> : <View style={{ height: 28 }} />)}
-          {hasSellers && <InsetShadow direction="down" red />}
-          <View style={{ paddingBottom: hasSellers ? 6 : 0 }}>
+          </Section>
+
+          <Section show={hasDiscovery} divider={hasOffers} colors={colors}>
+            <HomeDiscovery onHasItems={setHasDiscovery} />
+          </Section>
+
+          <Section show={hasRecent} divider={hasOffers || hasDiscovery} colors={colors}>
+            <RecentlyViewed onHasItems={setHasRecent} />
+          </Section>
+
+          <Section show={hasSellers} divider={hasOffers || hasDiscovery || hasRecent} colors={colors}>
             <TopSellers onHasSellers={setHasSellers} />
-          </View>
-          {hasSellers && <InsetShadow direction="up" red />}
-          {hasSellers && <View style={{ height: 1, backgroundColor: colors.border }} />}
-          <HomePlans />
+          </Section>
+
+          <Section show={hasSponsored} divider={hasOffers || hasDiscovery || hasRecent || hasSellers} colors={colors}>
+            <SponsoredProducts onHasProducts={setHasSponsored} />
+          </Section>
+
+          {!hidePlans && <HomePlans />}
           <HomeFooter />
         </View>
       </ScrollView>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import Toast from 'react-native-toast-message';
 import {
@@ -14,6 +14,7 @@ import {
 export default function UsersTab() {
   const colors = useColors();
   const [users, setUsers] = useState<any[]>([]);
+  const [unusableAvatars, setUnusableAvatars] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,6 +25,7 @@ export default function UsersTab() {
   const [showFilters, setShowFilters] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [planPicker, setPlanPicker] = useState<{ id: string; plan: 'pro' | 'premium' } | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -75,9 +77,9 @@ export default function UsersTab() {
     }
   };
 
-  const setPlan = async (id: string, plan: string) => {
+  const setPlan = async (id: string, plan: string, durationMonths?: number) => {
     try {
-      await api.post(`/admin/users/${id}/set-plan`, { plan });
+      await api.post(`/admin/users/${id}/set-plan`, { plan, durationMonths });
       Toast.show({ type: 'success', text1: plan === 'free' ? 'Reverted to free' : `Granted ${plan}` });
       load();
     } catch (err: any) {
@@ -230,14 +232,18 @@ export default function UsersTab() {
         <View style={{ gap: 8 }}>
           {filteredUsers.map((u) => {
             const planActive = u.plan && u.plan !== 'free' && u.plan_expires_at && new Date(u.plan_expires_at) > new Date();
+            const avatarUrl = u.avatar_url || u.avatar;
+            const showAvatar = Boolean(avatarUrl) && !unusableAvatars[u.id];
             return (
               <View key={u.id} style={cardStyle(colors)}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-                  {u.avatar_url ? (
+                  {showAvatar ? (
                     <Image
-                      source={{ uri: u.avatar_url }}
+                      source={{ uri: avatarUrl }}
                       style={{ width: 40, height: 40, borderRadius: 20 }}
                       contentFit="cover"
+                      cachePolicy="disk"
+                      onError={() => setUnusableAvatars((current) => ({ ...current, [u.id]: true }))}
                     />
                   ) : (
                     <View
@@ -309,14 +315,18 @@ export default function UsersTab() {
                   </IconButton>
 
                   <IconButton
-                    onPress={() => setPlan(u.id, planActive && u.plan === 'pro' ? 'free' : 'pro')}
+                    onPress={() => planActive && u.plan === 'pro'
+                      ? setPlan(u.id, 'free')
+                      : setPlanPicker({ id: u.id, plan: 'pro' })}
                     active={planActive && u.plan === 'pro'}
                   >
                     {(tint: string) => <Star size={15} color={tint} />}
                   </IconButton>
 
                   <IconButton
-                    onPress={() => setPlan(u.id, planActive && u.plan === 'premium' ? 'free' : 'premium')}
+                    onPress={() => planActive && u.plan === 'premium'
+                      ? setPlan(u.id, 'free')
+                      : setPlanPicker({ id: u.id, plan: 'premium' })}
                     active={planActive && u.plan === 'premium'}
                   >
                     {(tint: string) => <Sparkles size={15} color={tint} />}
@@ -343,6 +353,16 @@ export default function UsersTab() {
           onClose={() => setSelectedUser(null)}
         />
       )}
+      <PlanDurationModal
+        selection={planPicker}
+        onClose={() => setPlanPicker(null)}
+        onSelect={(months) => {
+          if (!planPicker) return;
+          const current = planPicker;
+          setPlanPicker(null);
+          setPlan(current.id, current.plan, months);
+        }}
+      />
     </View>
   );
 }
@@ -402,16 +422,57 @@ function InvestigateModal({ user, onClose }: { user: any; onClose: () => void })
   const [orders, setOrders] = useState<any[]>([]);
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feeStatus, setFeeStatus] = useState<any>(null);
+  const [servicesHidden, setServicesHidden] = useState(false);
+  const [listingsHidden, setListingsHidden] = useState(false);
+  const [updatingVisibility, setUpdatingVisibility] = useState<'listings' | 'services' | null>(null);
 
   useEffect(() => {
     Promise.all([
       api.get(`/admin/users/${user.id}/orders`).then((res) => res.data).catch(() => []),
       api.get(`/admin/users/${user.id}/listings`).then((res) => res.data).catch(() => []),
-    ]).then(([o, l]) => {
+      api.get(`/admin/users/${user.id}/fee-status`).then((res) => res.data).catch(() => null),
+    ]).then(([o, l, fees]) => {
       setOrders(o);
       setListings(l);
+      setFeeStatus(fees);
     }).finally(() => setLoading(false));
   }, [user.id]);
+
+  useEffect(() => {
+    if (!feeStatus) return;
+    setServicesHidden(Number(feeStatus.visible_services) === 0 && Number(feeStatus.hidden_services) > 0);
+  }, [feeStatus]);
+
+  useEffect(() => {
+    if (!listings.length) return;
+    const products = listings.filter((listing) => listing.category !== 'Services');
+    if (products.length) setListingsHidden(products.every((listing) => listing.status === 'hidden'));
+    const services = listings.filter((listing) => listing.category === 'Services');
+    if (services.length) setServicesHidden(services.every((listing) => listing.status === 'hidden'));
+  }, [listings]);
+
+  const updateVisibility = async (type: 'listings' | 'services') => {
+    setUpdatingVisibility(type);
+    try {
+      const currentHidden = type === 'listings' ? listingsHidden : servicesHidden;
+      const nextHidden = !currentHidden;
+      const endpoint = type === 'listings'
+        ? `/admin/users/${user.id}/listings-visibility`
+        : `/admin/users/${user.id}/services-visibility`;
+      await api.post(endpoint, { hidden: nextHidden });
+      setListings((current) => current.map((listing) => (
+        (type === 'listings' && listing.category !== 'Services') || (type === 'services' && listing.category === 'Services')
+          ? { ...listing, status: nextHidden ? 'hidden' : 'active' }
+          : listing
+      )));
+      Toast.show({ type: 'success', text1: nextHidden ? `${type === 'listings' ? 'Listings' : 'Services'} hidden` : `${type === 'listings' ? 'Listings' : 'Services'} restored` });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Could not update visibility' });
+    } finally {
+      setUpdatingVisibility(null);
+    }
+  };
 
   return (
     <View
@@ -461,6 +522,42 @@ function InvestigateModal({ user, onClose }: { user: any; onClose: () => void })
           <InfoRow label="Joined" value={new Date(user.created_at).toLocaleDateString()} colors={colors} />
         </View>
 
+        {feeStatus && (
+          <View style={{ marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: colors.chipBg, gap: 8 }}>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Visibility & platform fees</Text>
+            <InfoRow label="Fees owed" value={`GHS ${parseFloat(feeStatus.amount_owed || 0).toFixed(2)}`} colors={colors} />
+            <InfoRow label="Overdue periods" value={String(feeStatus.overdue_periods || 0)} colors={colors} />
+            <InfoRow
+              label="Listings"
+              value={`${listings.filter((listing) => listing.category !== 'Services' && listing.status !== 'hidden').length} visible · ${listings.filter((listing) => listing.category !== 'Services' && listing.status === 'hidden').length} hidden`}
+              colors={colors}
+            />
+            <InfoRow
+              label="Services"
+              value={`${listings.filter((listing) => listing.category === 'Services' && listing.status !== 'hidden').length} visible · ${listings.filter((listing) => listing.category === 'Services' && listing.status === 'hidden').length} hidden`}
+              colors={colors}
+            />
+            <Pressable
+              onPress={() => updateVisibility('listings')}
+              disabled={updatingVisibility !== null || loading || listings.filter((listing) => listing.category !== 'Services').length === 0}
+              style={{ alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: listingsHidden ? colors.successSoft : colors.errorSoft, opacity: loading || listings.filter((listing) => listing.category !== 'Services').length === 0 ? 0.5 : 1 }}
+            >
+              <Text style={{ color: listingsHidden ? colors.success : colors.error, fontWeight: '800', fontSize: 13 }}>
+                {updatingVisibility === 'listings' ? 'Updating…' : listingsHidden ? 'Restore product listings' : 'Hide product listings'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => updateVisibility('services')}
+              disabled={updatingVisibility !== null || loading || listings.filter((listing) => listing.category === 'Services').length === 0}
+              style={{ alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: servicesHidden ? colors.successSoft : colors.errorSoft, opacity: loading || listings.filter((listing) => listing.category === 'Services').length === 0 ? 0.5 : 1 }}
+            >
+              <Text style={{ color: servicesHidden ? colors.success : colors.error, fontWeight: '800', fontSize: 13 }}>
+                {updatingVisibility === 'services' ? 'Updating…' : servicesHidden ? 'Restore service listings' : 'Hide service listings'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 16 }}>
           Listings ({listings.length})
         </Text>
@@ -502,6 +599,44 @@ function InvestigateModal({ user, onClose }: { user: any; onClose: () => void })
         )}
       </View>
     </View>
+  );
+}
+
+function PlanDurationModal({
+  selection, onClose, onSelect,
+}: {
+  selection: { id: string; plan: 'pro' | 'premium' } | null;
+  onClose: () => void;
+  onSelect: (months: number) => void;
+}) {
+  const colors = useColors();
+  return (
+    <Modal visible={!!selection} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+        <View style={{ backgroundColor: colors.card, borderRadius: 20, padding: 20, gap: 12 }}>
+          <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>
+            Gift {selection?.plan === 'premium' ? 'Premium' : 'Pro'}
+          </Text>
+          <Text style={{ color: colors.textMuted, fontSize: 14 }}>
+            Choose how long this plan should remain active. The user will be notified with the exact expiry date.
+          </Text>
+          {[1, 3, 6, 12].map((months) => (
+            <Pressable
+              key={months}
+              onPress={() => onSelect(months)}
+              style={{ paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.chipBg, borderWidth: 1, borderColor: colors.border }}
+            >
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>
+                {months} {months === 1 ? 'month' : 'months'}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={onClose} style={{ alignItems: 'center', paddingVertical: 8 }}>
+            <Text style={{ color: colors.textMuted, fontWeight: '700' }}>Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

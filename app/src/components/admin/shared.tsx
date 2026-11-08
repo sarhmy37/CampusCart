@@ -1,5 +1,6 @@
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { lightHaptic } from '@/utils/haptics';
 
 // ─── TAG ─────────────────────────────────────────────────────────────
 export function Tag({ children, color = 'slate' }: { children: any; color?: string }) {
@@ -60,7 +61,10 @@ export function IconButton({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        lightHaptic();
+        onPress();
+      }}
       style={{
         padding: 8,
         borderRadius: 8,

@@ -30,6 +30,8 @@ const SUPPORT_LABEL_ALT = 'Message People';
 
 const RIGHT_R = 20; // bottom-right corner of the hero
 const LEFT_R = 32;  // how far the hero curves down on the left
+const GESTURE_TIMEOUT_MS = 4000;
+const DOUBLE_TAP_MS = 220;
 
 function GlassButton({ onPress, style, tint, children, allowGlass = true }: any) {
   if (allowGlass && Platform.OS === 'ios' && isLiquidGlassAvailable()) {
@@ -73,6 +75,9 @@ export default function Hero({ fillViewport = false }: { fillViewport?: boolean 
   const [sellIsAlt, setSellIsAlt] = useState(false);
   const [supportDisplay, setSupportDisplay] = useState(SUPPORT_LABEL_DEFAULT);
   const supportIsAltRef = useRef(false);
+  const adminGestureStep = useRef(0);
+  const lastAndTap = useRef(0);
+  const gestureTimer = useRef<any>(null);
 
   const arrowScale = useRef(new Animated.Value(1)).current;
   const arrowRotate = useRef(new Animated.Value(0)).current;
@@ -179,6 +184,10 @@ export default function Hero({ fillViewport = false }: { fillViewport?: boolean 
     return () => { cancelled = true; };
   }, []);
 
+    useEffect(() => () => {
+    if (gestureTimer.current) clearTimeout(gestureTimer.current);
+  }, []);
+
   const sellCurrentLabel = sellIsAlt ? SELL_LABEL_ALT : SELL_LABEL_DEFAULT;
   const sellNextLabel = sellIsAlt ? SELL_LABEL_DEFAULT : SELL_LABEL_ALT;
 
@@ -223,6 +232,55 @@ export default function Hero({ fillViewport = false }: { fillViewport?: boolean 
     }
   };
 
+  const resetAdminGesture = () => {
+    adminGestureStep.current = 0;
+    lastAndTap.current = 0;
+    if (gestureTimer.current) {
+      clearTimeout(gestureTimer.current);
+      gestureTimer.current = null;
+    }
+  };
+
+  const armGestureTimer = () => {
+    if (gestureTimer.current) clearTimeout(gestureTimer.current);
+    gestureTimer.current = setTimeout(resetAdminGesture, GESTURE_TIMEOUT_MS);
+  };
+
+  const handleAdminWordHold = (word: 'buy' | 'sell') => {
+    if (word === 'buy' && adminGestureStep.current === 0) {
+      adminGestureStep.current = 1;
+      armGestureTimer();
+      return;
+    }
+    if (word === 'sell' && adminGestureStep.current === 1) {
+      adminGestureStep.current = 2;
+      return;
+    }
+    resetAdminGesture();
+  };
+
+  const handleAdminAndPress = () => {
+    if (adminGestureStep.current !== 2) {
+      resetAdminGesture();
+      return;
+    }
+    const now = Date.now();
+    if (now - lastAndTap.current < DOUBLE_TAP_MS) {
+      adminGestureStep.current = 3;
+    } else {
+      lastAndTap.current = now;
+    }
+  };
+
+  const handleAdminFinalSellPress = () => {
+    if (adminGestureStep.current === 3) {
+      resetAdminGesture();
+      router.push('/admin-login');
+      return;
+    }
+    resetAdminGesture();
+  };
+
   return (
     <View style={fillViewport ? { flex: 1, minHeight: 320 } : { height: 400 + LEFT_R }}>
       <View
@@ -251,7 +309,33 @@ export default function Hero({ fillViewport = false }: { fillViewport?: boolean 
 
           <Reveal delay={100}>
             <Text style={{ marginTop: 20, fontSize: 45, fontWeight: '800', lineHeight: 48, color: 'white' }}>
-              Buy and Sell within your campus,Safely.
+              <Text
+                suppressHighlighting
+                selectable={false}
+                delayLongPress={150}
+                onLongPress={() => handleAdminWordHold('buy')}
+              >
+                Buy
+              </Text>
+              <Text> </Text>
+              <Text
+                suppressHighlighting
+                selectable={false}
+                onPress={handleAdminAndPress}
+              >
+                and
+              </Text>
+              <Text> </Text>
+              <Text
+                suppressHighlighting
+                selectable={false}
+                delayLongPress={150}
+                onLongPress={() => handleAdminWordHold('sell')}
+                onPress={handleAdminFinalSellPress}
+              >
+                Sell
+              </Text>
+              <Text> within your campus,Safely.</Text>
             </Text>
           </Reveal>
 

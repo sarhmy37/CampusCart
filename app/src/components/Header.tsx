@@ -70,9 +70,8 @@ export default function Header() {
 
   const isAdmin = user?.role === 'admin';
   const logoSrc = theme === 'dark' ? LOGO_LIGHT : LOGO_DARK;
-
-  const logoClickCount = useRef(0);
-  const logoClickTimeout = useRef<any>(null);
+  const adminLogoClickCount = useRef(0);
+  const adminLogoClickTimeout = useRef<any>(null);
 
   // Logo animation values
   const logoY = useRef(new Animated.Value(0)).current;
@@ -160,13 +159,6 @@ export default function Header() {
     outputRange: ['-14deg', '0deg', '14deg'],
   });
 
-  const resetLogoCounter = () => {
-    if (logoClickTimeout.current) clearTimeout(logoClickTimeout.current);
-    logoClickTimeout.current = setTimeout(() => {
-      logoClickCount.current = 0;
-    }, 3000);
-  };
-
   const handleAdminLogout = () => {
     Alert.alert(
       'Log out of Admin?',
@@ -187,27 +179,22 @@ export default function Header() {
   };
 
   const handleLogoPress = () => {
-    const next = logoClickCount.current + 1;
-    logoClickCount.current = next;
-
     if (isAdmin) {
-      // Admin: 5 taps → confirm logout
-      if (next === 5) {
-        logoClickCount.current = 0;
+      adminLogoClickCount.current += 1;
+      if (adminLogoClickCount.current === 5) {
+        adminLogoClickCount.current = 0;
+        if (adminLogoClickTimeout.current) clearTimeout(adminLogoClickTimeout.current);
         handleAdminLogout();
         return;
       }
-    } else {
-      // Regular user (or logged out): 5 taps → admin login
-      if (next === 5) {
-        logoClickCount.current = 0;
-        router.push('/admin-login');
-        return;
-      }
+      if (adminLogoClickTimeout.current) clearTimeout(adminLogoClickTimeout.current);
+      adminLogoClickTimeout.current = setTimeout(() => {
+        adminLogoClickCount.current = 0;
+      }, 3000);
+      playLogoAnimation();
+      return;
     }
-
     playLogoAnimation();
-    resetLogoCounter();
   };
 
   const toggleNotifications = () => {

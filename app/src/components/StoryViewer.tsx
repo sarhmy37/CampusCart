@@ -25,6 +25,7 @@ import Toast from 'react-native-toast-message';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import { useTheme } from '@/context/ThemeContext';
 import PostSettingsSheet, { PostSettingsT } from '@/components/PostSettingsSheet';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -65,6 +66,8 @@ type Story = {
   text_overlay?: { text: string; y: number } | null;
   sound?: { id: number; url: string; start?: number | null; end?: number | null; owner: string } | null;
   music_url?: string | null;
+  music_start_ms?: number | null;
+  music_end_ms?: number | null;
   allow_chat?: boolean | null;
   show_likes?: boolean | null;
   allow_repost?: boolean | null;
@@ -245,14 +248,9 @@ export default function StoryViewer({
   const router = useRouter();
   const colors = useColors();
   const isVertical = reelStyle === 'vertical';
+  const { theme } = useTheme();
+  const isStaticFeedImage = story.kind === 'spotlight' && story.media_type === 'image';
   const hasSound = story.media_type === 'video' || !!story.sound;
-  const musicPlayer = useAudioPlayer(story.music_url ?? null);
-  useEffect(() => {
-    if (!story.music_url) return;
-    musicPlayer.loop = true;
-    musicPlayer.play();
-    return () => musicPlayer.pause();
-  }, [story.id, story.music_url, musicPlayer]);
   const [exportOpen, setExportOpen] = useState(false);
   const [followDone, setFollowDone] = useState(false);
   const followTimerRef = useRef<any>(null);
@@ -686,7 +684,7 @@ export default function StoryViewer({
     const current = barAnims[currentIndex];
     if (!current) return;
     current.setValue(0);
-    if (!mediaReady) return;
+    if (!mediaReady || isStaticFeedImage) return;
 
     currentAnimRef.current = Animated.timing(current, {
       toValue: 1,
@@ -702,7 +700,7 @@ export default function StoryViewer({
       currentAnimRef.current?.stop();
       clearTimeout(advanceTimerRef.current);
     };
-  }, [currentIndex, mediaReady, group.user_id, replayKey]);
+  }, [currentIndex, mediaReady, group.user_id, replayKey, isStaticFeedImage]);
 
   // ── Swipe-down-to-dismiss / swipe left-right to switch story groups ──
   const DISMISS_THRESHOLD = 120;
@@ -1251,8 +1249,17 @@ export default function StoryViewer({
 {!!story.sound && mediaReady && (
   <SoundTrack key={`sound-${story.id}-${replayKey}`} sound={story.sound} paused={barPaused} />
 )}
+                  {!!story.music_url && mediaReady && (
+                    <MusicTrack
+                      key={`music-${story.id}-${replayKey}`}
+                      url={story.music_url}
+                      startMs={story.music_start_ms}
+                      endMs={story.music_end_ms}
+                      paused={barPaused}
+                    />
+                  )}
                   {!mediaReady && <DelayedLoader delay={500} />}
-                  {!isVertical && (
+                  {!isVertical && !isStaticFeedImage && (
                     <View
                       onLayout={(e) => setBarRowWidth(e.nativeEvent.layout.width)}
                       style={{
@@ -1294,7 +1301,7 @@ export default function StoryViewer({
                       ))}
                     </View>
                   )}
-                  {!isVertical && (
+                  {!isVertical && !isStaticFeedImage && (
                     <View
                       style={{
                         position: 'absolute',
@@ -1306,6 +1313,7 @@ export default function StoryViewer({
                         opacity: isPaused ? 0 : 1,
                       }}
                     >
+                      <Pressable onPress={openProfile} hitSlop={6} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <LinearGradient
                         colors={['#f59e0b', '#ef4444', '#a855f7']}
                         start={{ x: 0, y: 0 }}
@@ -1330,12 +1338,13 @@ export default function StoryViewer({
                         </Text>
                         <RepostedBy story={story} color={colors.brand} nameColor="rgba(255,255,255,0.75)" fontSize={11} />
                       </View>
+                      </Pressable>
                       <Pressable onPress={onClose} style={{ padding: 6 }}>
                         <X size={22} color="#fff" />
                       </Pressable>
                     </View>
                   )}
-                  {!isVertical && !!story.caption && (
+                  {!isVertical && !isStaticFeedImage && !!story.caption && (
                     <View
                       pointerEvents="none"
                       style={{
@@ -1773,7 +1782,7 @@ export default function StoryViewer({
           pointerEvents="box-none"
           style={{
             position: 'absolute', left: 0, right: 0, bottom: keyboardHeight,
-            backgroundColor: colors.background, opacity: dragOpacity,
+            backgroundColor: theme === 'dark' ? colors.background : '#18181b', opacity: dragOpacity,
             paddingHorizontal: 14, paddingTop: 12,
             paddingBottom: keyboardHeight > 0 ? 16 : insets.bottom + 16,
           }}
@@ -2259,6 +2268,37 @@ function SoundTrack({ sound, paused }: { sound: { url: string; start?: number | 
     }, 200);
     return () => clearInterval(t);
   }, [player]);
+  return null;
+}
+
+function MusicTrack({
+  url, startMs, endMs, paused,
+}: { url: string; startMs?: number | null; endMs?: number | null; paused: boolean }) {
+  const player = useAudioPlayer(url);
+  const start = Math.max(0, startMs ?? 0);
+  const end = endMs != null ? Math.max(start + 1000, endMs) : null;
+
+  useEffect(() => {
+    try {
+      player.loop = false;
+      player.currentTime = start / 1000;
+      if (!paused) player.play();
+    } catch {}
+    return () => { try { player.pause(); } catch {} };
+  }, [player, start, paused]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        if (end != null && player.currentTime * 1000 >= end) {
+          player.pause();
+          player.currentTime = start / 1000;
+        }
+      } catch {}
+    }, 100);
+    return () => clearInterval(timer);
+  }, [player, start, end]);
+
   return null;
 }
 

@@ -19,6 +19,7 @@ import ReviewsSection from '@/components/ReviewsSection';
 import ReportModal from '@/components/ReportModal';
 import LocationPickerModal from '@/components/LocationPickerModal';
 import { useColors } from '@/hooks/useColors';
+import { addRecentlyViewed } from '@/utils/recentlyViewed';
 
 function formatWhatsAppNumber(n: string) {
   return (n || '').replace(/\D/g, '');
@@ -135,6 +136,17 @@ export default function ProductDetail() {
       .then((res) => setSimilar(res.data.filter((p: any) => p.id !== product.id).slice(0, 6)))
       .catch(() => {});
   }, [product]);
+
+  // Must stay above the early return (hooks can't come after it)
+  useEffect(() => {
+    if (!product?.id) return;
+    addRecentlyViewed({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      primary_image: product.images?.[0]?.image_url || product.primary_image,
+    });
+  }, [product?.id]);
 
   if (!product) {
     return (
