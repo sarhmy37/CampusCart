@@ -302,6 +302,7 @@ router.get('/showcase', async (req, res) => {
              WHERE p.status IS DISTINCT FROM 'hidden'
                AND p.boosted_until IS NOT NULL AND p.boosted_until > now()
                AND (c.name IS NULL OR c.name != 'Services')
+               AND p.seller_id NOT IN (SELECT seller_id FROM seller_payments WHERE status = 'overdue')
              ORDER BY p.boosted_until ASC
              LIMIT 8`
         );

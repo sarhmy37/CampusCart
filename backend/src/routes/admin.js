@@ -174,16 +174,38 @@ router.post('/users/:id/force-logout', async (req, res) => {
 router.get('/listings', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT p.id, p.title, p.price, p.stock, p.primary_image, p.created_at,
+            `SELECT p.id, p.title, p.price, p.stock, p.status, p.subcategory,
+                    p.primary_image, p.created_at, c.name AS category,
                     u.name AS seller_name, u.university_email AS seller_email
              FROM products p
              JOIN users u ON u.id = p.seller_id
+             LEFT JOIN categories c ON c.id = p.category_id
              ORDER BY p.created_at DESC`
         );
         res.json(result.rows);
     } catch (err) {
         console.error('Admin get listings error:', err);
         res.status(500).json({ error: 'Something went wrong fetching listings' });
+    }
+});
+
+// POST /api/admin/listings/:id/visibility
+router.post('/listings/:id/visibility', async (req, res) => {
+    const { hidden } = req.body;
+    if (typeof hidden !== 'boolean') return res.status(400).json({ error: 'hidden must be true or false' });
+    try {
+        const result = await pool.query(
+            `UPDATE products
+             SET status = $1, updated_at = now()
+             WHERE id = $2
+             RETURNING id, status`,
+            [hidden ? 'hidden' : 'active', req.params.id]
+        );
+        if (!result.rows[0]) return res.status(404).json({ error: 'Listing not found' });
+        res.json({ id: result.rows[0].id, hidden: result.rows[0].status === 'hidden' });
+    } catch (err) {
+        console.error('Admin listing visibility error:', err);
+        res.status(500).json({ error: 'Failed to update listing visibility' });
     }
 });
 
@@ -347,6 +369,10 @@ router.post('/users/:id/listings-visibility', async (req, res) => {
             `UPDATE products
              SET status = $1, updated_at = now()
              WHERE seller_id = $2
+               AND (
+                   category_id IS NULL
+                   OR category_id NOT IN (SELECT id FROM categories WHERE name = 'Services')
+               )
              RETURNING id`,
             [hidden ? 'hidden' : 'active', req.params.id]
         );
