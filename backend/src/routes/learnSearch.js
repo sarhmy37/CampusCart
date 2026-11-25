@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');                          // adjust to your pool import
-const requireAuth = require('../middleware/requireAuth'); // adjust to your auth middleware
+const pool = require('../db/pool');                          // adjust to your pool import
+const { requireAuth } = require('../middleware/auth');
 
 const LIMIT = 100;
 const dayKey = () =>
