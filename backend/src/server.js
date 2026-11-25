@@ -137,6 +137,8 @@ app.use('/api/boosts', require('./routes/boosts').router);
 
 app.use('/api/wishlist', wishlistRoutes);
 
+app.use('/learn', require('./routes/learnSearch'));
+
 app.use('/api/sellers', sellerRoutes);
 
 app.use('/api/admin', adminRoutes);
