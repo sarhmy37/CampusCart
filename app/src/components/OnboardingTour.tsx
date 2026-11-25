@@ -135,7 +135,7 @@ const ROTATIONS = [-8, 6, -4, 9, -6];
 
 // The tour is shown once per signed-in user. Use the replay event for testing
 // or for an intentional "show me the tour again" action.
-const ALWAYS_SHOW = false;
+const ALWAYS_SHOW = true;
 const doneKey = (id: string) => `trex_tour_done_${id}`;
 
 // Converts a '50% 30%' string (from the shot() helper) into the
@@ -509,6 +509,17 @@ export default function OnboardingTour() {
       scrollRef.current?.scrollTo({ y: 0, animated: false });
     }
   }, [open, step]);
+
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (open) {
+      wasOpenRef.current = true;
+      emitter.emit('trex-tour-open');
+    } else if (wasOpenRef.current) {
+      wasOpenRef.current = false;
+      emitter.emit('trex-tour-closed');
+    }
+  }, [open]);
 
   if (!open || !user) return null;
 

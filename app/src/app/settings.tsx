@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, TextInput, Pressable, ScrollView, Modal, Linking, Animated, LayoutAnimation, Platform, UIManager, useWindowDimensions } from 'react-native';
+import { View, TextInput, Pressable, ScrollView, Modal, Linking, Animated, LayoutAnimation, Platform, UIManager, useWindowDimensions, Switch } from 'react-native';
 import { Text as AppText } from 'react-native';
-import { getScrollbarEnabled, setScrollbarEnabled } from '@/utils/scrollbarPref';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -12,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowLeft, Lock, Bell, Eye, EyeOff, MapPin, Shield,
   ChevronDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, Moon, Sun, Gift, Store, Copy, X,
+  Sparkles, Zap, Check, Palette, MessageSquare, Heart, Repeat, Download,
 } from 'lucide-react-native';
 import { CheckBadgeIcon as BadgeCheck } from 'react-native-heroicons/outline';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -243,17 +243,15 @@ export default function SettingsScreen() {
   };
 
   const [termsOpen, setTermsOpen] = useState(false);
-  const [scrollbarOn, setScrollbarOn] = useState(true);
-  useEffect(() => { getScrollbarEnabled().then(setScrollbarOn); }, []);
 
   const [notifyListings, setNotifyListings] = useState(true);
   const [notifyMessages, setNotifyMessages] = useState(user?.notify_messages !== false);
 
   const spotlightPrefs = [
-    { key: 'spotlight_allow_chat', label: 'Allow chat', desc: 'Let people message you from your Feed profile and search' },
-    { key: 'spotlight_show_likes', label: 'Show like counts', desc: 'Show likes on your Feed posts' },
-    { key: 'spotlight_allow_repost', label: 'Allow reposts', desc: 'Let others repost your Feed posts' },
-    { key: 'spotlight_allow_export', label: 'Allow downloads', desc: 'Let others save or share your Feed posts' },
+    { key: 'spotlight_allow_chat', label: 'Allow chat', desc: 'Let people message you from your Feed profile and search', icon: MessageSquare },
+    { key: 'spotlight_show_likes', label: 'Show like counts', desc: 'Show likes on your Feed posts', icon: Heart },
+    { key: 'spotlight_allow_repost', label: 'Allow reposts', desc: 'Let others repost your Feed posts', icon: Repeat },
+    { key: 'spotlight_allow_export', label: 'Allow downloads', desc: 'Let others save or share your Feed posts', icon: Download },
   ];
   const setSpotlightPref = async (key: string, value: boolean) => {
     setUser({ ...user, [key]: value } as any);
@@ -316,6 +314,24 @@ export default function SettingsScreen() {
     alignItems: 'center' as const,
   };
 
+  // Native iOS 26 system switch — gold tinted
+  const NativeToggle = ({ value, onToggle }: { value: boolean; onToggle: () => void }) => (
+    <Switch
+      value={value}
+      onValueChange={onToggle}
+      trackColor={{ false: 'rgba(120,120,128,0.32)', true: colors.brand }}
+      ios_backgroundColor="rgba(120,120,128,0.32)"
+      thumbColor="#ffffff"
+    />
+  );
+
+  const renderToggle = (value: boolean, onToggle: () => void) => {
+    if (Platform.OS === 'ios' && GLASS) {
+      return <NativeToggle value={value} onToggle={onToggle} />;
+    }
+    return <IOSToggle value={value} onToggle={onToggle} colors={colors} />;
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       {/* FIXED VIDEO BACKGROUND */}
@@ -333,7 +349,7 @@ export default function SettingsScreen() {
         />
       </View>
 
-      {/* HEADER TEXT (fades on scroll) */}
+      {/* HEADER TEXT */}
       <Animated.View
         pointerEvents="none"
         style={{
@@ -347,7 +363,7 @@ export default function SettingsScreen() {
         <AppText style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Manage your account and preferences</AppText>
       </Animated.View>
 
-      {/* BACK BUTTON (fades on scroll) */}
+      {/* BACK BUTTON */}
       <Animated.View
         pointerEvents="box-none"
         style={{ position: 'absolute', top: 16, left: 16, zIndex: 20, opacity: backButtonOpacity }}
@@ -372,7 +388,7 @@ export default function SettingsScreen() {
         </Pressable>
       </Animated.View>
 
-      {/* SCROLLABLE BODY (scrolls over the video) */}
+      {/* SCROLLABLE BODY */}
       <Animated.ScrollView
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -387,412 +403,342 @@ export default function SettingsScreen() {
             backgroundColor: colors.background,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
-            padding: 16,
+            paddingHorizontal: 16,
             paddingTop: 24,
             paddingBottom: 40,
             gap: 16,
             minHeight: height,
           }}
         >
-        {/* BUSINESS PROFILE */}
-        {isSeller && (
-          <Card colors={colors}>
-            <View style={{ backgroundColor: colors.cardAlt, padding: 20, borderRadius: 16, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-               {/* Blurred avatar background — radial fade to hide the hard circular edge */}
-              {user?.avatar_url && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    right: -100, top: -80,
-                    width: 360, height: 280,
-                  }}
-                  pointerEvents="none"
-                >
-                  <Image
-                    source={{ uri: user.avatar_url }}
-                    style={{
-                      width: 360, height: 280,
-                      opacity: theme === 'dark' ? 0.55 : 0.3,
-                    }}
-                    blurRadius={theme === 'dark' ? 22 : 8}
-                    contentFit="cover"
-                  />
-                  {/* Radial fade overlay — transparent in center, card color at edges */}
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                    <Svg width={360} height={280}>
-                      <Defs>
-                        <RadialGradient id="edgeFade" cx="50%" cy="50%" r="50%">
-                          <Stop offset="30%" stopColor={colors.cardAlt} stopOpacity="0" />
-                          <Stop offset="72%" stopColor={colors.cardAlt} stopOpacity="1" />
-                        </RadialGradient>
-                      </Defs>
-                      <SvgRect x="0" y="0" width={360} height={280} fill="url(#edgeFade)" />
-                    </Svg>
+          {/* ═══════════════ BUSINESS PROFILE ═══════════════ */}
+          {isSeller && (
+            <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+              <View style={{ backgroundColor: colors.cardAlt, padding: 18, overflow: 'hidden', position: 'relative' }}>
+                {user?.avatar_url && (
+                  <View style={{ position: 'absolute', right: -100, top: -80, width: 360, height: 280 }} pointerEvents="none">
+                    <Image
+                      source={{ uri: user.avatar_url }}
+                      style={{ width: 360, height: 280, opacity: theme === 'dark' ? 0.55 : 0.3 }}
+                      blurRadius={theme === 'dark' ? 22 : 8}
+                      contentFit="cover"
+                    />
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                      <Svg width={360} height={280}>
+                        <Defs>
+                          <RadialGradient id="edgeFade" cx="50%" cy="50%" r="50%">
+                            <Stop offset="30%" stopColor={colors.cardAlt} stopOpacity="0" />
+                            <Stop offset="72%" stopColor={colors.cardAlt} stopOpacity="1" />
+                          </RadialGradient>
+                        </Defs>
+                        <SvgRect x="0" y="0" width={360} height={280} fill="url(#edgeFade)" />
+                      </Svg>
+                    </View>
                   </View>
+                )}
+
+                <Pressable onPress={toggleBusiness} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.chipBg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                    {user?.avatar_url ? (
+                      <Image source={{ uri: user.avatar_url }} style={{ width: '100%', height: '100%' }} cachePolicy="disk" />
+                    ) : (
+                      <AppText style={{ fontSize: 24, fontWeight: '800', color: colors.textSecondary }}>{sellerInitial}</AppText>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{user?.name}</AppText>
+                      {user?.verified && <BadgeCheck size={20} color={colors.success} />}
+                    </View>
+                    <AppText style={{ fontSize: 16, color: colors.textMuted }}>{user?.school}</AppText>
+                  </View>
+                  <Animated.View style={{ transform: [{ rotate: chevronAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+                    <ChevronDown size={20} color={colors.textMuted} />
+                  </Animated.View>
+                </Pressable>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border }}>
+                  <View style={{ alignItems: 'flex-start' }}>
+                    <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.listingCount ?? 0}</AppText>
+                    <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>Listings</AppText>
+                  </View>
+                  <View style={{ alignItems: 'center' }}>
+                    <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.salesCount ?? 0}</AppText>
+                    <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>Sales</AppText>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '—')}</AppText>
+                    <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>{storeStats?.reviewCount ?? 0} reviews</AppText>
+                  </View>
+                </View>
+              </View>
+
+              <Animated.View
+                style={{
+                  height: bodyHeight > 0 ? bodyAnim.interpolate({ inputRange: [0, 1], outputRange: [0, bodyHeight] }) : undefined,
+                  opacity: bodyAnim,
+                  overflow: 'hidden',
+                }}
+              >
+                <View onLayout={(e) => { if (bodyHeight === 0) setBodyHeight(e.nativeEvent.layout.height); }}>
+                  <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Store size={20} color={colors.brand} />
+                    <View style={{ flex: 1 }}>
+                      <AppText style={{ fontSize: 17, fontWeight: '700', color: colors.text }}>Business Profile</AppText>
+                      <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
+                        {isPlanActive ? 'Your storefront link' : 'Your public storefront'}
+                      </AppText>
+                    </View>
+                    <Pressable onPress={() => setShowStorePreview(true)}>
+                      <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>Preview →</AppText>
+                    </Pressable>
+                  </View>
+
+                  {isPlanActive && (
+                    <View style={{ paddingHorizontal: 18, paddingBottom: 18 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <TextInput value={businessProfileUrl} editable={false} style={[inputStyle, { flex: 1, fontSize: 14, color: colors.textMuted }]} />
+                        <GlassSecondaryButton onPress={copyBusinessLink} fallbackStyle={{ backgroundColor: colors.chipBg }} style={{ padding: 12 }}>
+                          <Copy size={16} color={colors.textSecondary} />
+                        </GlassSecondaryButton>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, marginBottom: 8 }}>
+                        <AppText style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Share on:</AppText>
+                      </View>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                        <SocialBtn bg="#1877F2" icon="facebook-f" onPress={() => shareOnSocial('facebook')} />
+                        <SocialBtn bg={colors.text} icon="x-twitter" textColor={colors.card} onPress={() => shareOnSocial('twitter')} />
+                        <SocialBtn bg="#25D366" icon="whatsapp" onPress={() => shareOnSocial('whatsapp')} />
+                        <SocialBtn bg="#0A66C2" icon="linkedin-in" onPress={() => shareOnSocial('linkedin')} />
+                        {socialsExpanded && (
+                          <>
+                            <SocialBtn bg="#26A5E4" icon="telegram" onPress={() => shareOnSocial('telegram')} />
+                            <SocialBtn bg="#d62976" icon="instagram" onPress={shareInstagram} />
+                            <SocialBtn bg="#FFFC00" icon="snapchat" textColor="#000" onPress={shareSnapchat} />
+                          </>
+                        )}
+                        <GlassSecondaryButton onPress={() => setSocialsExpanded((v) => !v)} fallbackStyle={{ backgroundColor: colors.chipBg }} style={{ padding: 10, alignItems: 'center', justifyContent: 'center' }}>
+                          {socialsExpanded ? <ChevronLeft size={16} color={colors.textMuted} /> : <ChevronRight size={16} color={colors.textMuted} />}
+                        </GlassSecondaryButton>
+                      </View>
+
+                      <Pressable onPress={() => setShowHandlesModal(true)} style={{ marginTop: 12 }}>
+                        <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.brand }}>+ Add your social handles</AppText>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              </Animated.View>
+            </View>
+          )}
+
+          {/* ═══════════════ APPEARANCE ═══════════════ */}
+          <SettingsSection icon={Palette} title="Appearance" desc="How the app looks" colors={colors}>
+            <SettingsRow
+              icon={theme === 'dark' ? Moon : Sun}
+              title="Dark mode"
+              desc={theme === 'dark' ? 'Dark mode is on' : 'Light mode is on'}
+              colors={colors}
+              right={renderToggle(theme === 'dark', toggleTheme)}
+            />
+          </SettingsSection>
+
+          {/* ═══════════════ BUYER TERMS ═══════════════ */}
+          {!isSeller && (
+            <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+              <Pressable onPress={() => setTermsOpen((o) => !o)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Shield size={18} color={colors.brand} strokeWidth={2.2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Buyer Terms of Service</AppText>
+                    <AppText style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>Your shopping rights and protections</AppText>
+                  </View>
+                </View>
+                <ChevronDown size={18} color={colors.textFaint} style={{ transform: [{ rotate: termsOpen ? '180deg' : '0deg' }] }} />
+              </Pressable>
+              {termsOpen && (
+                <View style={{ paddingHorizontal: 18, paddingBottom: 18, gap: 10 }}>
+                  {[
+                    'You are protected by our Buyer Guarantee — if an item doesn\'t match the listing, contact support for a full refund.',
+                    'Only confirm "Order Received" once you have physically received the item in the agreed condition.',
+                    'Sellers are responsible for delivering items as described. You will never be charged a platform fee as a buyer.',
+                    'Always communicate with sellers through our built-in messaging system for safety and dispute resolution.',
+                    `A small service fee (${BUYER_SERVICE_FEE_RATE}%) is applied to your checkout to cover payment processing charges by our payment provider (Paystack).`,
+                  ].map((t, i) => (
+                    <View key={i} style={{ flexDirection: 'row', gap: 8 }}>
+                      <AppText style={{ color: colors.brand, fontWeight: '800' }}>•</AppText>
+                      <AppText style={{ flex: 1, fontSize: 14, color: colors.textSecondary, lineHeight: 19 }}>{t}</AppText>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ═══════════════ DELIVERY LOCATIONS ═══════════════ */}
+          {!isSeller && <DeliveryLocations colors={colors} inputStyle={inputStyle} />}
+
+          {/* ═══════════════ SPOTLIGHT PRIVACY ═══════════════ */}
+          <SettingsSection icon={Eye} title="Spotlight privacy" desc="Defaults for your Feed posts" colors={colors}>
+            {spotlightPrefs.map((p) => (
+              <SettingsRow
+                key={p.key}
+                icon={p.icon}
+                title={p.label}
+                desc={p.desc}
+                colors={colors}
+                right={renderToggle((user as any)?.[p.key] ?? true, () => setSpotlightPref(p.key, !((user as any)?.[p.key] ?? true)))}
+              />
+            ))}
+          </SettingsSection>
+
+          {/* ═══════════════ NOTIFICATIONS ═══════════════ */}
+          <SettingsSection icon={Bell} title="Notifications" desc="What you get alerted about" colors={colors}>
+            <SettingsRow
+              icon={Sparkles}
+              title="New listings"
+              desc="Get notified when new items match your interests"
+              colors={colors}
+              right={renderToggle(notifyListings, () => setNotifyListings((v) => !v))}
+            />
+            <SettingsRow
+              icon={MessageSquare}
+              title="Messages"
+              desc="Get notified when a buyer or seller messages you"
+              colors={colors}
+              right={renderToggle(notifyMessages, () => setNotifyMessages((v) => !v))}
+            />
+          </SettingsSection>
+
+          {/* ═══════════════ CHANGE PASSWORD ═══════════════ */}
+          <SettingsSection icon={Lock} title="Change password" desc="Keep your account secure" colors={colors}>
+            <View style={{ paddingHorizontal: 18, paddingBottom: 18 }}>
+              {pwStep === 1 ? (
+                <View style={{ gap: 12 }}>
+                  <AppText style={{ fontSize: 13, color: colors.textFaint, lineHeight: 18 }}>
+                    Confirm your current password — we'll email a verification code to your university email.
+                  </AppText>
+                  <TextInput
+                    value={current}
+                    onChangeText={setCurrent}
+                    placeholder="Current password"
+                    placeholderTextColor={colors.textFaint}
+                    secureTextEntry={!show}
+                    style={inputStyle}
+                  />
+                  <Pressable onPress={() => setShow((s) => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {show ? <EyeOff size={13} color={colors.textMuted} /> : <Eye size={13} color={colors.textMuted} />}
+                    <AppText style={{ fontSize: 13, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} password</AppText>
+                  </Pressable>
+                  <Pressable onPress={requestPasswordCode} disabled={saving} style={[primaryBtn, { opacity: saving ? 0.6 : 1 }]}>
+                    <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{saving ? 'Sending code…' : 'Send verification code'}</AppText>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  <AppText style={{ fontSize: 13, color: colors.textFaint, lineHeight: 18 }}>
+                    Enter the code we emailed you, along with your new password.
+                  </AppText>
+                  <TextInput value={code} onChangeText={setCode} placeholder="6-digit code" placeholderTextColor={colors.textFaint} maxLength={6} keyboardType="number-pad" style={[inputStyle, { textAlign: 'center', letterSpacing: 6, fontWeight: '600' }]} />
+                  <TextInput value={next} onChangeText={setNext} placeholder="New password" placeholderTextColor={colors.textFaint} secureTextEntry={!show} style={inputStyle} />
+                  <PasswordStrength password={next} />
+                  <TextInput value={confirm} onChangeText={setConfirm} placeholder="Confirm new password" placeholderTextColor={colors.textFaint} secureTextEntry={!show} style={inputStyle} />
+                  <Pressable onPress={() => setShow((s) => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {show ? <EyeOff size={13} color={colors.textMuted} /> : <Eye size={13} color={colors.textMuted} />}
+                    <AppText style={{ fontSize: 13, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} passwords</AppText>
+                  </Pressable>
+                  <Pressable onPress={confirmPasswordChange} disabled={saving} style={[primaryBtn, { opacity: saving ? 0.6 : 1 }]}>
+                    <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{saving ? 'Updating…' : 'Confirm & update password'}</AppText>
+                  </Pressable>
+                  <Pressable onPress={() => setPwStep(1)}>
+                    <AppText style={{ fontSize: 13, color: colors.textFaint, textAlign: 'center' }}>← Start over</AppText>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </SettingsSection>
+
+          {/* ═══════════════ REFER A FRIEND ═══════════════ */}
+          <SettingsSection icon={Gift} title="Refer a friend" desc="Earn 25% off Pro and Premium" colors={colors}>
+            <View style={{ paddingHorizontal: 18, paddingBottom: 18 }}>
+              <AppText style={{ fontSize: 13, color: colors.textFaint, marginBottom: 14, lineHeight: 18 }}>
+                When a friend signs up with your link, you get 25% off Pro and Premium for 24 hours. Every extra friend adds 12 more hours.
+              </AppText>
+
+              {discountActive && (
+                <View style={{ backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Zap size={16} color={colors.warning} fill={colors.warning} />
+                    <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.warning }}>25% off Pro and Premium active</AppText>
+                  </View>
+                  <AppText style={{ fontSize: 13, color: colors.warning, marginTop: 4 }}>
+                    Ends in {formatCountdown(discountExpiry - nowTs)}. Each new friend adds 12 hours.
+                  </AppText>
                 </View>
               )}
 
-              <Pressable
-                onPress={toggleBusiness}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
-              >
-                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.chipBg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-                   {user?.avatar_url ? (
-                    <Image source={{ uri: user.avatar_url }} style={{ width: '100%', height: '100%' }} cachePolicy="disk" />
-                  ) : (
-                    <AppText style={{ fontSize: 24, fontWeight: '800', color: colors.textSecondary }}>{sellerInitial}</AppText>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{user?.name}</AppText>
-                    {user?.verified && <BadgeCheck size={20} color={colors.success} />}
-                  </View>
-                  <AppText style={{ fontSize: 16, color: colors.textMuted }}>{user?.school}</AppText>
-                </View>
-                <Animated.View
-                  style={{
-                    transform: [{
-                      rotate: chevronAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }),
-                    }],
-                  }}
-                >
-                  <ChevronDown size={20} color={colors.textMuted} />
-                </Animated.View>
-              </Pressable>
-
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
-                <View style={{ alignItems: 'flex-start' }}>
-                  <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.listingCount ?? 0}</AppText>
-                  <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>Listings</AppText>
-                </View>
-                <View style={{ alignItems: 'center' }}>
-                  <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : storeStats?.salesCount ?? 0}</AppText>
-                  <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>Sales</AppText>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{storeStatsLoading ? '···' : (storeStats?.avgRating ? `★ ${storeStats.avgRating}` : '—')}</AppText>
-                  <AppText style={{ fontSize: 13, color: colors.textFaint, textTransform: 'uppercase' }}>{storeStats?.reviewCount ?? 0} reviews</AppText>
-                </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput value={referralLink} editable={false} style={[inputStyle, { flex: 1, fontSize: 14, color: colors.textMuted }]} />
+                <Pressable onPress={copyReferralLink} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
+                  <AppText style={{ color: colors.textOnGold, fontSize: 14, fontWeight: '600' }}>Copy</AppText>
+                </Pressable>
               </View>
-            </View>
 
-            <Animated.View
-              style={{
-                height: bodyHeight > 0
-                  ? bodyAnim.interpolate({ inputRange: [0, 1], outputRange: [0, bodyHeight] })
-                  : undefined,
-                opacity: bodyAnim,
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                onLayout={(e) => {
-                  if (bodyHeight === 0) setBodyHeight(e.nativeEvent.layout.height);
-                }}
-              >
-                <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Store size={20} color={colors.brand} />
-                  <View style={{ flex: 1 }}>
-                    <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Business Profile</AppText>
-                    <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
-                      {isPlanActive ? 'Your storefront link' : 'Your public storefront'}
-                    </AppText>
-                  </View>
-                  <Pressable onPress={() => setShowStorePreview(true)}>
-                    <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>Preview →</AppText>
-                  </Pressable>
-                </View>
-
-                {isPlanActive && (
-                  <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <TextInput value={businessProfileUrl} editable={false} style={[inputStyle, { flex: 1, fontSize: 15, color: colors.textMuted }]} />
-                      <GlassSecondaryButton onPress={copyBusinessLink} fallbackStyle={{ backgroundColor: colors.chipBg }} style={{ padding: 12 }}>
-                        <Copy size={16} color={colors.textSecondary} />
-                      </GlassSecondaryButton>
-                    </View>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
-                      <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted }}>Share on:</AppText>
-                    </View>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      <SocialBtn bg="#1877F2" icon="facebook-f" onPress={() => shareOnSocial('facebook')} />
-                      <SocialBtn bg={colors.text} icon="x-twitter" textColor={colors.card} onPress={() => shareOnSocial('twitter')} />
-                      <SocialBtn bg="#25D366" icon="whatsapp" onPress={() => shareOnSocial('whatsapp')} />
-                      <SocialBtn bg="#0A66C2" icon="linkedin-in" onPress={() => shareOnSocial('linkedin')} />
-                      {socialsExpanded && (
-                        <>
-                          <SocialBtn bg="#26A5E4" icon="telegram" onPress={() => shareOnSocial('telegram')} />
-                          <SocialBtn bg="#d62976" icon="instagram" onPress={shareInstagram} />
-                          <SocialBtn bg="#FFFC00" icon="snapchat" textColor="#000" onPress={shareSnapchat} />
-                        </>
-                      )}
-                      <GlassSecondaryButton onPress={() => setSocialsExpanded((v) => !v)} fallbackStyle={{ backgroundColor: colors.chipBg }} style={{ padding: 10, alignItems: 'center', justifyContent: 'center' }}>
-                        {socialsExpanded ? <ChevronLeft size={16} color={colors.textMuted} /> : <ChevronRight size={16} color={colors.textMuted} />}
-                      </GlassSecondaryButton>
-                    </View>
-
-                    <Pressable onPress={() => setShowHandlesModal(true)} style={{ marginTop: 12 }}>
-                      <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.brand }}>+ Add your social handles</AppText>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            </Animated.View>
-          </Card>
-        )}
-
-        {/* APPEARANCE */}
-        <Card colors={colors}>
-          <View style={{ padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                {theme === 'dark' ? <Moon size={20} color={colors.brand} /> : <Sun size={20} color={colors.brand} />}
-                <View>
-                  <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Appearance</AppText>
-                  <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
-                    {theme === 'dark' ? 'Dark mode is on' : 'Light mode is on'}
+              {referrals.length > 0 && (
+                <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.borderMuted, gap: 8 }}>
+                  <AppText style={{ fontSize: 11, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                    Friends you referred ({referrals.length})
                   </AppText>
+                  {referrals.map((r, i) => (
+                    <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                          <Check size={12} color={colors.brand} strokeWidth={3} />
+                        </View>
+                        <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{r.name}</AppText>
+                      </View>
+                      <AppText style={{ fontSize: 12, color: colors.textFaint }}>
+                        {new Date(r.joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </AppText>
+                    </View>
+                  ))}
                 </View>
-              </View>
-              <IOSToggle value={theme === 'dark'} onToggle={toggleTheme} colors={colors} />
+              )}
             </View>
+          </SettingsSection>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Browse scrollbar</AppText>
-                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>
-                  Show the draggable scrollbar on Browse
-                </AppText>
-              </View>
-              <IOSToggle
-                value={scrollbarOn}
-                onToggle={() => {
-                  const next = !scrollbarOn;
-                  setScrollbarOn(next);
-                  setScrollbarEnabled(next);
-                }}
-                colors={colors}
-              />
-            </View>
-          </View>
-        </Card>
-
-        {/* BUYER TERMS */}
-        {!isSeller && (
-          <Card colors={colors}>
-            <Pressable onPress={() => setTermsOpen((o) => !o)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                <Shield size={20} color={colors.brand} />
-                <View style={{ flex: 1 }}>
-                  <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Buyer Terms of Service</AppText>
-                  <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Your shopping rights and protections</AppText>
+          {/* ═══════════════ DANGER ZONE ═══════════════ */}
+          <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.error, overflow: 'hidden' }}>
+            <View style={{ padding: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <AlertTriangle size={18} color={colors.error} strokeWidth={2.2} />
                 </View>
+                <AppText style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Danger zone</AppText>
               </View>
-              {termsOpen ? <ChevronDown size={18} color={colors.textFaint} style={{ transform: [{ rotate: '180deg' }] }} /> : <ChevronDown size={18} color={colors.textFaint} />}
-            </Pressable>
-            {termsOpen && (
-              <View style={{ paddingHorizontal: 20, paddingBottom: 20, gap: 10 }}>
-                {[
-                  'You are protected by our Buyer Guarantee — if an item doesn\'t match the listing, contact support for a full refund.',
-                  'Only confirm "Order Received" once you have physically received the item in the agreed condition.',
-                  'Sellers are responsible for delivering items as described. You will never be charged a platform fee as a buyer.',
-                  'Always communicate with sellers through our built-in messaging system for safety and dispute resolution.',
-                  `A small service fee (${BUYER_SERVICE_FEE_RATE}%) is applied to your checkout to cover payment processing charges by our payment provider (Paystack).`,
-                ].map((t, i) => (
-                  <View key={i} style={{ flexDirection: 'row', gap: 8 }}>
-                    <AppText style={{ color: colors.brand, fontWeight: '800' }}>•</AppText>
-                    <AppText style={{ flex: 1, fontSize: 15, color: colors.textSecondary, lineHeight: 19 }}>{t}</AppText>
-                  </View>
-                ))}
-              </View>
-            )}
-          </Card>
-        )}
-
-        {/* DELIVERY LOCATIONS */}
-        {!isSeller && <DeliveryLocations colors={colors} inputStyle={inputStyle} />}
-
-        {/* CHANGE PASSWORD */}
-        <Card colors={colors}>
-          <View style={{ padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <Lock size={20} color={colors.brand} />
-              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Change password</AppText>
-            </View>
-
-            {pwStep === 1 ? (
-              <View style={{ gap: 12 }}>
-                <AppText style={{ fontSize: 14, color: colors.textFaint }}>
-                  Confirm your current password — we'll email a verification code to your university email.
-                </AppText>
-                <TextInput
-                  value={current}
-                  onChangeText={setCurrent}
-                  placeholder="Current password"
-                  placeholderTextColor={colors.textFaint}
-                  secureTextEntry={!show}
-                  style={inputStyle}
-                />
-                <Pressable onPress={() => setShow((s) => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {show ? <EyeOff size={13} color={colors.textMuted} /> : <Eye size={13} color={colors.textMuted} />}
-                  <AppText style={{ fontSize: 14, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} password</AppText>
-                </Pressable>
-                <Pressable onPress={requestPasswordCode} disabled={saving} style={[primaryBtn, { opacity: saving ? 0.6 : 1 }]}>
-                  <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>{saving ? 'Sending code…' : 'Send verification code'}</AppText>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={{ gap: 12 }}>
-                <AppText style={{ fontSize: 14, color: colors.textFaint }}>
-                  Enter the code we emailed you, along with your new password.
-                </AppText>
-                <TextInput value={code} onChangeText={setCode} placeholder="6-digit code" placeholderTextColor={colors.textFaint} maxLength={6} keyboardType="number-pad" style={[inputStyle, { textAlign: 'center', letterSpacing: 6, fontWeight: '600' }]} />
-                <TextInput value={next} onChangeText={setNext} placeholder="New password" placeholderTextColor={colors.textFaint} secureTextEntry={!show} style={inputStyle} />
-                <PasswordStrength password={next} />
-                <TextInput value={confirm} onChangeText={setConfirm} placeholder="Confirm new password" placeholderTextColor={colors.textFaint} secureTextEntry={!show} style={inputStyle} />
-                <Pressable onPress={() => setShow((s) => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {show ? <EyeOff size={13} color={colors.textMuted} /> : <Eye size={13} color={colors.textMuted} />}
-                  <AppText style={{ fontSize: 14, color: colors.textMuted }}>{show ? 'Hide' : 'Show'} passwords</AppText>
-                </Pressable>
-                <Pressable onPress={confirmPasswordChange} disabled={saving} style={[primaryBtn, { opacity: saving ? 0.6 : 1 }]}>
-                  <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>{saving ? 'Updating…' : 'Confirm & update password'}</AppText>
-                </Pressable>
-                <Pressable onPress={() => setPwStep(1)}>
-                  <AppText style={{ fontSize: 14, color: colors.textFaint, textAlign: 'center' }}>← Start over</AppText>
-                </Pressable>
-              </View>
-            )}
-          </View>
-        </Card>
-
-        {/* SPOTLIGHT PRIVACY */}
-        <Card colors={colors}>
-          <View style={{ padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <Eye size={20} color={colors.brand} />
-              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Spotlight privacy</AppText>
-            </View>
-            <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 8 }}>
-              Defaults for your Feed posts. You can override them on any single post.
-            </AppText>
-            {spotlightPrefs.map((p) => (
-              <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
-                <View style={{ flex: 1, marginRight: 12 }}>
-                  <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>{p.label}</AppText>
-                  <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>{p.desc}</AppText>
-                </View>
-                <IOSToggle
-                  value={(user as any)?.[p.key] ?? true}
-                  onToggle={() => setSpotlightPref(p.key, !((user as any)?.[p.key] ?? true))}
-                  colors={colors}
-                />
-              </View>
-            ))}
-          </View>
-        </Card>
-
-        {/* NOTIFICATIONS */}
-        <Card colors={colors}>
-          <View style={{ padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <Bell size={20} color={colors.brand} />
-              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Notifications</AppText>
-            </View>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>New listings</AppText>
-                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Get notified when new items match your interests</AppText>
-              </View>
-              <IOSToggle value={notifyListings} onToggle={() => setNotifyListings((v) => !v)} colors={colors} />
-            </View>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.borderMuted }}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Messages</AppText>
-                <AppText style={{ fontSize: 14, color: colors.textFaint, marginTop: 2 }}>Get notified when a buyer or seller messages you</AppText>
-              </View>
-              <IOSToggle value={notifyMessages} onToggle={() => setNotifyMessages((v) => !v)} colors={colors} />
-            </View>
-          </View>
-        </Card>
-
-        {/* REFER A FRIEND */}
-        <Card colors={colors}>
-          <View style={{ padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <Gift size={20} color={colors.brand} />
-              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Refer a friend</AppText>
-            </View>
-            <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
-              When a friend signs up with your link, you get 25% off Pro and Premium for 24 hours. Every extra friend adds 12 more hours.
-            </AppText>
-
-            {discountActive && (
-              <View style={{ backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, borderRadius: 12, padding: 12, marginBottom: 16 }}>
-                <AppText style={{ fontSize: 16, fontWeight: '700', color: colors.warning }}>25% off Pro and Premium is active</AppText>
-                <AppText style={{ fontSize: 14, color: colors.warning, marginTop: 2 }}>
-                  Ends in {formatCountdown(discountExpiry - nowTs)}. Each new friend adds 12 hours.
-                </AppText>
-              </View>
-            )}
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput value={referralLink} editable={false} style={[inputStyle, { flex: 1, fontSize: 15, color: colors.textMuted }]} />
-              <Pressable onPress={copyReferralLink} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand }}>
-                <AppText style={{ color: colors.textOnGold, fontSize: 15, fontWeight: '600' }}>Copy</AppText>
+              <AppText style={{ fontSize: 13, color: colors.textFaint, marginBottom: 14, lineHeight: 18 }}>
+                Deleting your account is permanent — your listings, orders, and messages will be removed and cannot be recovered.
+              </AppText>
+              <Pressable onPress={() => setDeleteOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.error, alignSelf: 'flex-start' }}>
+                <Trash2 size={15} color={colors.error} />
+                <AppText style={{ color: colors.error, fontSize: 14, fontWeight: '600' }}>Delete my account</AppText>
               </Pressable>
             </View>
-
-            {referrals.length > 0 && (
-              <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.borderMuted, gap: 8 }}>
-                <AppText style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Friends you referred ({referrals.length})
-                </AppText>
-                {referrals.map((r, i) => (
-                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <AppText style={{ fontSize: 16, fontWeight: '500', color: colors.textSecondary }}>{r.name}</AppText>
-                    <AppText style={{ fontSize: 14, color: colors.textFaint }}>
-                      Joined {new Date(r.joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </AppText>
-                  </View>
-                ))}
-              </View>
-            )}
           </View>
-        </Card>
-
-        {/* DANGER ZONE */}
-        <Card colors={colors} borderColor={colors.error}>
-          <View style={{ padding: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <AlertTriangle size={20} color={colors.error} />
-              <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Danger zone</AppText>
-            </View>
-            <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
-              Deleting your account is permanent — your listings, orders, and messages will be removed and cannot be recovered.
-            </AppText>
-            <Pressable onPress={() => setDeleteOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.error, alignSelf: 'flex-start' }}>
-              <Trash2 size={15} color={colors.error} />
-              <AppText style={{ color: colors.error, fontSize: 16, fontWeight: '600' }}>Delete my account</AppText>
-            </Pressable>
-          </View>
-        </Card>
         </View>
       </Animated.ScrollView>
 
       {/* DELETE ACCOUNT MODAL */}
       <Modal visible={deleteOpen} transparent animationType="fade" onRequestClose={() => setDeleteOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 20 }} onPress={() => setDeleteOpen(false)}>
-          <Pressable onPress={(e) => e.stopPropagation?.()} style={{ backgroundColor: colors.card, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.border }}>
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Pressable onPress={(e) => e.stopPropagation?.()} style={{ backgroundColor: colors.card, borderRadius: 20, padding: 22, borderWidth: 1, borderColor: colors.border }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
               <AlertTriangle size={20} color={colors.error} />
             </View>
             <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Delete your account?</AppText>
-            <AppText style={{ fontSize: 16, color: colors.textMuted, marginTop: 6 }}>This can't be undone. Enter your password to confirm.</AppText>
+            <AppText style={{ fontSize: 14, color: colors.textMuted, marginTop: 6, lineHeight: 20 }}>This can't be undone. Enter your password to confirm.</AppText>
 
             <TextInput
               value={deletePassword}
@@ -800,15 +746,15 @@ export default function SettingsScreen() {
               placeholder="Password"
               placeholderTextColor={colors.textFaint}
               secureTextEntry
-              style={[inputStyle, { marginTop: 16 }]}
+              style={[inputStyle, { marginTop: 14 }]}
             />
 
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 20 }}>
-              <Pressable onPress={() => { setDeleteOpen(false); setDeletePassword(''); }} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-                <AppText style={{ fontSize: 16, fontWeight: '600', color: colors.textSecondary }}>Cancel</AppText>
+              <Pressable onPress={() => { setDeleteOpen(false); setDeletePassword(''); }} style={{ flex: 1, paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Cancel</AppText>
               </Pressable>
-              <Pressable onPress={handleDeleteAccount} disabled={deleting || !deletePassword} style={{ flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.error, alignItems: 'center', opacity: deleting || !deletePassword ? 0.6 : 1 }}>
-                <AppText style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>{deleting ? 'Deleting…' : 'Delete account'}</AppText>
+              <Pressable onPress={handleDeleteAccount} disabled={deleting || !deletePassword} style={{ flex: 1, paddingVertical: 11, borderRadius: 12, backgroundColor: colors.error, alignItems: 'center', opacity: deleting || !deletePassword ? 0.6 : 1 }}>
+                <AppText style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>{deleting ? 'Deleting…' : 'Delete account'}</AppText>
               </Pressable>
             </View>
           </Pressable>
@@ -818,12 +764,12 @@ export default function SettingsScreen() {
       {/* SOCIAL HANDLES MODAL */}
       <Modal visible={showHandlesModal} transparent animationType="fade" onRequestClose={() => setShowHandlesModal(false)}>
         <Pressable style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 20 }} onPress={() => setShowHandlesModal(false)}>
-          <Pressable onPress={(e) => e.stopPropagation?.()} style={{ backgroundColor: colors.card, borderRadius: 20, padding: 24, maxHeight: '85%', borderWidth: 1, borderColor: colors.border }}>
-            <Pressable onPress={() => setShowHandlesModal(false)} style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
+          <Pressable onPress={(e) => e.stopPropagation?.()} style={{ backgroundColor: colors.card, borderRadius: 20, padding: 22, maxHeight: '85%', borderWidth: 1, borderColor: colors.border }}>
+            <Pressable onPress={() => setShowHandlesModal(false)} style={{ position: 'absolute', top: 14, right: 14, zIndex: 10 }}>
               <X size={18} color={colors.textFaint} />
             </Pressable>
-            <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Add your social handles</AppText>
-            <AppText style={{ fontSize: 16, color: colors.textMuted, marginTop: 4 }}>All optional — shown on your store page.</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Social handles</AppText>
+            <AppText style={{ fontSize: 14, color: colors.textMuted, marginTop: 4 }}>All optional — shown on your store page.</AppText>
 
             <ScrollView style={{ marginTop: 16 }}>
               {[
@@ -836,7 +782,7 @@ export default function SettingsScreen() {
                 { key: 'social_telegram', label: 'Telegram', placeholder: '@yourhandle' },
               ].map(({ key, label, placeholder }) => (
                 <View key={key} style={{ marginBottom: 12 }}>
-                  <AppText style={{ fontSize: 14, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>{label}</AppText>
+                  <AppText style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>{label}</AppText>
                   <TextInput
                     value={(handles as any)[key]}
                     onChangeText={(v) => setHandles((h) => ({ ...h, [key]: v }))}
@@ -849,73 +795,82 @@ export default function SettingsScreen() {
             </ScrollView>
 
             <Pressable onPress={handleSaveHandles} disabled={savingHandles} style={[primaryBtn, { marginTop: 12, opacity: savingHandles ? 0.6 : 1 }]}>
-              <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 16 }}>{savingHandles ? 'Updating…' : 'Update'}</AppText>
+              <AppText style={{ color: colors.textOnGold, fontWeight: '700', fontSize: 15 }}>{savingHandles ? 'Updating…' : 'Update'}</AppText>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
 
-       {/* STORE PREVIEW MODAL */}
+      {/* STORE PREVIEW MODAL */}
       <Modal visible={showStorePreview} transparent animationType="fade" onRequestClose={() => setShowStorePreview(false)}>
         <Pressable
           onPress={() => setShowStorePreview(false)}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(15,23,42,0.6)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
+          style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
           <Pressable
             onPress={() => {}}
-            style={{
-              width: '100%',
-              maxWidth: 420,
-              height: '60%',
-              backgroundColor: colors.card,
-              borderRadius: 24,
-              overflow: 'hidden',
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
+            style={{ width: '100%', maxWidth: 420, height: '60%', backgroundColor: colors.card, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}
           >
-            {/* Top bar */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-                backgroundColor: colors.card,
-              }}
-            >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card }}>
               <AppText style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Store preview</AppText>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <Pressable
-                  onPress={() => {
-                    setShowStorePreview(false);
-                    router.push(`/seller/${user?.id}` as any);
-                  }}
-                >
-                  <AppText style={{ fontSize: 15, fontWeight: '700', color: colors.brand }}>Open →</AppText>
+                <Pressable onPress={() => { setShowStorePreview(false); router.push(`/seller/${user?.id}` as any); }}>
+                  <AppText style={{ fontSize: 14, fontWeight: '700', color: colors.brand }}>Open →</AppText>
                 </Pressable>
                 <Pressable onPress={() => setShowStorePreview(false)} hitSlop={10}>
                   <X size={20} color={colors.textMuted} />
                 </Pressable>
               </View>
             </View>
-
-            {/* Scrollable preview */}
             <ScrollView showsVerticalScrollIndicator={false}>
               {user?.id && <StorePage id={user.id} embedded />}
             </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
+    </View>
+  );
+}
+
+// ─── Reusable section header ──────────────────────────────
+function SettingsSection({ icon: Ico, title, desc, colors, children }: {
+  icon: any; title: string; desc?: string; colors: any; children: React.ReactNode;
+}) {
+  return (
+    <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 12 }}>
+        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Ico size={18} color={colors.brand} strokeWidth={2.2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppText style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{title}</AppText>
+          {!!desc && <AppText style={{ fontSize: 13, color: colors.textFaint, marginTop: 2 }}>{desc}</AppText>}
+        </View>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+// ─── Reusable row ────────────────────────────────────────
+function SettingsRow({ icon: Ico, title, desc, colors, right }: {
+  icon: any; title: string; desc?: string; colors: any; right: React.ReactNode;
+}) {
+  return (
+    <View style={{
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 18, paddingVertical: 14,
+      borderTopWidth: 1, borderTopColor: colors.borderMuted,
+      gap: 12,
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+        <Ico size={16} color={colors.textMuted} strokeWidth={2} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <AppText style={{ fontSize: 15, fontWeight: '600', color: colors.text }} numberOfLines={1}>{title}</AppText>
+          {!!desc && <AppText style={{ fontSize: 12, color: colors.textFaint, marginTop: 2 }} numberOfLines={2}>{desc}</AppText>}
+        </View>
+      </View>
+      {right}
     </View>
   );
 }
@@ -933,7 +888,7 @@ function SettingsVideo({ uri }: { uri: string | number }) {
   );
 }
 
-// ---- Delivery Locations sub-component ----
+// ─── Delivery Locations ──────────────────────────────────
 function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: any }) {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1004,22 +959,14 @@ function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: an
   };
 
   return (
-    <Card colors={colors}>
-      <View style={{ padding: 20 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <MapPin size={20} color={colors.brand} />
-          <AppText style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Delivery Locations</AppText>
-        </View>
-        <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 16 }}>
-          Your first saved location is used by default at checkout.
-        </AppText>
-
+    <SettingsSection icon={MapPin} title="Delivery Locations" desc="Your saved addresses for checkout" colors={colors}>
+      <View style={{ paddingHorizontal: 18, paddingBottom: 18 }}>
         {loading ? (
           <View style={{ height: 60, borderRadius: 12, backgroundColor: colors.cardAlt }} />
         ) : locations.length === 0 ? (
-          <AppText style={{ fontSize: 16, color: colors.textFaint, marginBottom: 16 }}>No saved locations yet.</AppText>
+          <AppText style={{ fontSize: 14, color: colors.textFaint, marginBottom: 14 }}>No saved locations yet.</AppText>
         ) : (
-          <View style={{ gap: 8, marginBottom: 16 }}>
+          <View style={{ gap: 8, marginBottom: 14 }}>
             {locations.map((loc) => (
               <View key={loc.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: loc.is_default ? colors.brand : colors.border, backgroundColor: loc.is_default ? colors.brandSoft : colors.card }}>
                 <Pressable onPress={() => !loc.is_default && setDefault(loc.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
@@ -1027,8 +974,8 @@ function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: an
                     {loc.is_default && <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.brand }} />}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <AppText numberOfLines={1} style={{ fontSize: 16, fontWeight: '500', color: colors.text }}>{loc.location}</AppText>
-                    {loc.is_default && <AppText style={{ fontSize: 12, fontWeight: '700', color: colors.brand }}>Default</AppText>}
+                    <AppText numberOfLines={1} style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>{loc.location}</AppText>
+                    {loc.is_default && <AppText style={{ fontSize: 11, fontWeight: '800', color: colors.brand, marginTop: 2, letterSpacing: 0.5 }}>DEFAULT</AppText>}
                   </View>
                 </Pressable>
                 <Pressable onPress={() => handleDeleteClick(loc.id)} disabled={deletingId === loc.id} style={{ padding: 6, borderRadius: 8, backgroundColor: pendingDeleteId === loc.id ? colors.errorSoft : 'transparent' }}>
@@ -1048,28 +995,15 @@ function DeliveryLocations({ colors, inputStyle }: { colors: any; inputStyle: an
             style={[inputStyle, { flex: 1 }]}
           />
           <Pressable onPress={handleAdd} disabled={adding} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.brand, opacity: adding ? 0.6 : 1 }}>
-            <AppText style={{ color: colors.textOnGold, fontSize: 16, fontWeight: '600' }}>{adding ? 'Adding…' : 'Add'}</AppText>
+            <AppText style={{ color: colors.textOnGold, fontSize: 14, fontWeight: '600' }}>{adding ? 'Adding…' : 'Add'}</AppText>
           </Pressable>
         </View>
       </View>
-    </Card>
+    </SettingsSection>
   );
 }
 
-// ---- small helpers ----
-function Card({ children, borderColor, colors }: { children: React.ReactNode; borderColor?: string; colors: any }) {
-  return (
-    <View style={{ backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: borderColor || colors.border, overflow: 'hidden' }}>
-      {children}
-    </View>
-  );
-}
-
-// ─── Glassy iOS-style toggle ─────────────────────────────────────────
-// Track uses GlassView (same as SubmitButton / onboarding Next).
-// Knob is a CHILD of the GlassView so it sits inside the frosted
-// surface. Tint uses the app brand color (not iOS green). Falls back
-// to a solid pill on Android and older iOS.
+// ─── Fallback glass toggle (Android + older iOS) ────────
 function IOSToggle({
   value,
   onToggle,
@@ -1085,34 +1019,23 @@ function IOSToggle({
   const TRACK_H = 31;
   const PAD = 2;
   const KNOB = 27;
-  const TRAVEL = TRACK_W - KNOB - PAD * 2; // 20
+  const TRAVEL = TRACK_W - KNOB - PAD * 2;
   const trackColor = value ? colors.brand : 'rgba(120,120,128,0.32)';
 
   const trackFill = (
     <View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        borderRadius: 999,
-        backgroundColor: trackColor,
-      }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999, backgroundColor: trackColor }}
     />
   );
 
   const knob = (
     <View
       style={{
-        width: KNOB,
-        height: KNOB,
-        borderRadius: 999,
+        width: KNOB, height: KNOB, borderRadius: 999,
         backgroundColor: '#ffffff',
         marginLeft: value ? TRAVEL : 0,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.18,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 4, elevation: 3,
       }}
     />
   );
@@ -1122,58 +1045,21 @@ function IOSToggle({
       onPress={onToggle}
       disabled={disabled}
       hitSlop={6}
-      style={{
-        width: TRACK_W,
-        height: TRACK_H,
-        opacity: disabled ? 0.5 : 1,
-        borderRadius: 999,
-        overflow: 'hidden',
-      }}
+      style={{ width: TRACK_W, height: TRACK_H, opacity: disabled ? 0.5 : 1, borderRadius: 999, overflow: 'hidden' }}
     >
       {GLASS ? (
         <GlassView
           glassEffectStyle="regular"
           isInteractive
           tintColor={trackColor}
-          style={{
-            width: TRACK_W,
-            height: TRACK_H,
-            borderRadius: 999,
-            overflow: 'hidden',
-            justifyContent: 'center',
-          }}
+          style={{ width: TRACK_W, height: TRACK_H, borderRadius: 999, overflow: 'hidden', justifyContent: 'center' }}
         >
           {trackFill}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: PAD,
-            }}
-          >
-            {knob}
-          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: PAD }}>{knob}</View>
         </GlassView>
       ) : (
-        <View
-          style={{
-            width: TRACK_W,
-            height: TRACK_H,
-            borderRadius: 999,
-            backgroundColor: trackColor,
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: PAD,
-            }}
-          >
-            {knob}
-          </View>
+        <View style={{ width: TRACK_W, height: TRACK_H, borderRadius: 999, backgroundColor: trackColor, justifyContent: 'center', overflow: 'hidden' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: PAD }}>{knob}</View>
         </View>
       )}
     </Pressable>

@@ -14,7 +14,7 @@ export default function SponsoredProducts({ onHasProducts }: { onHasProducts?: (
   const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
-    api.get('/products/showcase')
+    api.get('/products/boosted')
       .then((res) => setProducts((res.data || []).filter((item: any) => item.primary_image).slice(0, 12)))
       .catch(() => setProducts([]));
   }, []);
@@ -31,10 +31,10 @@ export default function SponsoredProducts({ onHasProducts }: { onHasProducts?: (
         <Megaphone size={40} color={colors.brand} strokeWidth={1.8} />
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 15, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-            Featured on Antika
+            Boosted
           </Text>
           <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
-            Promoted picks and standout sellers worth discovering.
+            Listings sellers have paid to promote.
           </Text>
         </View>
       </View>
@@ -57,7 +57,7 @@ export default function SponsoredProducts({ onHasProducts }: { onHasProducts?: (
               <Image source={{ uri: product.primary_image }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
               <View style={{ position: 'absolute', top: 6, left: 6, backgroundColor: colors.brand, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                 <Text style={{ fontSize: 10, fontWeight: '900', color: colors.textOnGold }}>
-                  {product.boosted ? 'SPONSORED' : 'FEATURED'}
+                  SPONSORED
                 </Text>
               </View>
             </View>

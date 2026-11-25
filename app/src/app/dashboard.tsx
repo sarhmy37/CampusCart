@@ -346,7 +346,7 @@ useEffect(() => {
         {tabs.map((t) => (
           <View key={t} style={{ width: SCREEN_WIDTH, flex: 1 }}>
             <ScrollView ref={t === 'tasks' ? deliveriesScrollRef : undefined} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-              {visitedTabs.has(t) ?<TabPanel tab={t} period={period} isSeller={isSeller} active={t === tab} onScrollToY={(y: number) => deliveriesScrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true })} highlightOrder={(t === 'tasks' || t === 'orders') ? (highlightOrder ? String(highlightOrder) : undefined) : undefined} /> : <View style={{ height: 200 }} />}
+              {visitedTabs.has(t) ?<TabPanel onGoToTab={changeTab} tab={t} period={period} isSeller={isSeller} active={t === tab} onScrollToY={(y: number) => deliveriesScrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true })} highlightOrder={(t === 'tasks' || t === 'orders') ? (highlightOrder ? String(highlightOrder) : undefined) : undefined} /> : <View style={{ height: 200 }} />}
             </ScrollView>
           </View>
         ))}
@@ -471,7 +471,7 @@ function DashboardVideo({ uri }: { uri: string | number }) {
   );
 }
 
-function TabPanel({ tab, period, isSeller, active, highlightOrder, onScrollToY }: { tab: string; period: string; isSeller: boolean; active: boolean; highlightOrder?: string; onScrollToY?: (y: number) => void }) {  if (tab === 'overview') return <Overview period={period} />;
+function TabPanel({ tab, period, isSeller, active, highlightOrder, onScrollToY, onGoToTab }: { tab: string; period: string; isSeller: boolean; active: boolean; highlightOrder?: string; onScrollToY?: (y: number) => void; onGoToTab?: (t: string) => void }) {  if (tab === 'overview') return <Overview period={period} onGoToTab={onGoToTab} />;
   if (tab === 'listings') return <Listings />;
   if (tab === 'payouts') return <Payouts period={period} active={active} />;
   if (tab === 'orders') return <Orders period={period} isSeller={isSeller} highlightOrder={highlightOrder} />;

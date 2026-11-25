@@ -16,7 +16,35 @@ import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/ThemeContext';
 import AuthRollBall from './AuthRollBall';
 import { onLogoBounce } from '@/utils/logoBounce';
+import { emitter } from '@/api/client';
 import { useState } from 'react';
+
+const PLACEHOLDERS = [
+  'Looking for a textbook? 📚',
+  'Need a laptop for school? 💻',
+  'iPhone 11 under GH₵2000...',
+  'Cheap mini fridge for hostel 🧊',
+  'Electric kettle',
+  'What are you hunting for today? 👀',
+  'Study lamp for night reading',
+  'Past questions for level 200',
+  'Wireless earbuds 🎧',
+  'Power bank 20000mAh ⚡',
+  'Sneakers in size 42 👟',
+  'Need a mattress?',
+  'Lab coat, nursing scrubs...',
+  'Casio scientific calculator',
+  'Room fan that works 🔥',
+  'Thrift jeans and tops 👖',
+  'Hair braiding and wigs 💇🏾‍♀️',
+  'Perfume oils and body sprays',
+  'Second-hand bicycle 🚲',
+  'Gaming controller 🎮',
+  'Cooking pots for the hostel 🍳',
+  'Bags, backpacks, laptop sleeves',
+  'Sell something, someone wants it 💰',
+  'Find what you need on campus 🎓',
+];
 
 function formatBadgeCount(n: number) {
   return n > 9 ? '9+' : String(n);
@@ -79,9 +107,10 @@ export default function Header() {
   const logoSY = useRef(new Animated.Value(1)).current;
   const logoRot = useRef(new Animated.Value(0)).current;
   const logoBusy = useRef(false);
+  const tourOpenRef = useRef(false);
 
   const playLogoAnimation = () => {
-    if (logoBusy.current) return;
+    if (logoBusy.current || tourOpenRef.current) return;
     logoBusy.current = true;
 
     const t = (v: Animated.Value, to: number, duration: number, easing?: (n: number) => number) =>
@@ -154,10 +183,46 @@ export default function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    const onOpen = () => { tourOpenRef.current = true; };
+    const onClosed = () => { tourOpenRef.current = false; };
+    emitter.on('trex-tour-open', onOpen);
+    emitter.on('trex-tour-closed', onClosed);
+    return () => {
+      emitter.off('trex-tour-open', onOpen);
+      emitter.off('trex-tour-closed', onClosed);
+    };
+  }, []);
+
   const logoRotate = logoRot.interpolate({
     inputRange: [-1, 0, 1],
     outputRange: ['-14deg', '0deg', '14deg'],
   });
+
+  // Rotating search placeholder
+  const [phIndex, setPhIndex] = useState(0);
+  const phY = useRef(new Animated.Value(0)).current;
+  const phOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (tourOpenRef.current) return;
+      // old one slides down and fades out
+      Animated.parallel([
+        Animated.timing(phY, { toValue: 12, duration: 250, useNativeDriver: true }),
+        Animated.timing(phOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+      ]).start(() => {
+        setPhIndex((i) => (i + 1) % PLACEHOLDERS.length);
+        phY.setValue(-12);
+        // new one drops in from the top and fades in
+        Animated.parallel([
+          Animated.timing(phY, { toValue: 0, duration: 250, useNativeDriver: true }),
+          Animated.timing(phOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        ]).start();
+      });
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleAdminLogout = () => {
     Alert.alert(
@@ -266,9 +331,19 @@ export default function Header() {
               backgroundColor: colors.chipBg,
             }}
           >
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, color: colors.textFaint }}>
-              Search textbooks, electronics...
-            </Text>
+            <View style={{ flex: 1, overflow: 'hidden' }}>
+              <Animated.Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 15,
+                  color: colors.textFaint,
+                  opacity: phOpacity,
+                  transform: [{ translateY: phY }],
+                }}
+              >
+                {PLACEHOLDERS[phIndex]}
+              </Animated.Text>
+            </View>
             <Search size={16} color={colors.textFaint} strokeWidth={2} />
           </Pressable>
         )}

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useVideoPlayer as useBaseVideoPlayer, VideoView } from 'expo-video';
 import StoryViewer from '@/components/StoryViewer';
+import DockedMini, { createProgressStore, MINI_W } from '@/components/DockedMini';
 import { useAudioPlayer } from 'expo-audio';
 import { BlurView } from 'expo-blur';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -17,7 +18,8 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   Plus, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Eye, Sparkles, Star, Flame, Send, Play, Heart,
   MessageCircle, Repeat, Reply, MoreHorizontal, Maximize2, Download, Share2, Check, Pause, Archive,
-  Trash2, EyeOff, Ban, Flag, Pin, Rocket, Pencil, Volume2, VolumeX, Music, Settings, Clock
+  Trash2, EyeOff, Ban, Flag, Pin, Rocket, Pencil, Volume2, VolumeX, Music, Settings, Clock,
+  GraduationCap, History, Search
 } from 'lucide-react-native';
 import InsetShadow from '@/components/InsetShadow';
 import { useColors } from '@/hooks/useColors';
@@ -36,7 +38,7 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { FlatList } from 'react-native';
 import * as Sharing from 'expo-sharing';
-import { Squares2X2Icon as GridOutline, FireIcon as FireOutline, UsersIcon as UsersOutline, UserIcon, ChartBarIcon } from 'react-native-heroicons/outline';
+import { Squares2X2Icon as GridOutline, FireIcon as FireOutline, UsersIcon as UsersOutline, UserIcon, ChartBarIcon, Bars3Icon } from 'react-native-heroicons/outline';
 import { Squares2X2Icon as GridSolid, FireIcon as FireSolid, UsersIcon as UsersSolid } from 'react-native-heroicons/solid';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -564,7 +566,7 @@ export default function Stories() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { openStoryId } = useLocalSearchParams<{ openStoryId?: string }>();
+  const { openStoryId, tab } = useLocalSearchParams<{ openStoryId?: string; tab?: string }>();
   const { user } = useAuth();
   useEffect(() => { exportRunning = false; }, [user?.id]);
   const planActive = user?.plan && user.plan !== 'free' &&
@@ -722,6 +724,15 @@ const { openChat, sendQuickMessage } = useChat();
   const [commentsStoryId, setCommentsStoryId] = useState<string | null>(null);
   const [exportStory, setExportStory] = useState<Story | null>(null);
   const [mainTab, setMainTab] = useState<'stories' | 'feed' | 'podcast'>('stories');
+    const isLearnRef = useRef(false);
+  isLearnRef.current = mainTab === 'podcast';
+useEffect(() => {
+  if (tab === 'learn' || tab === 'feed') {
+    setMainTab(tab === 'learn' ? 'podcast' : 'feed');
+    setVisibleCount(PAGE_SIZE);
+    router.setParams({ tab: undefined } as any);
+  }
+}, [tab]);
 const reelStyle: 'horizontal' | 'vertical' = mainTab === 'feed' ? 'vertical' : 'horizontal';
   const subtitle = useMemo(() => {
     const SUBTITLES: Record<string, string[]> = {
@@ -754,18 +765,18 @@ const reelStyle: 'horizontal' | 'vertical' = mainTab === 'feed' ? 'vertical' : '
         "Watch, like and share the best posts",
       ],
       podcast: [
-        "Talks on how to grow your business",
-        "Learn from people who built it",
-        "Press play and level up your hustle",
+        "Learn something new in a few minutes",
+        "Grow your skills between classes",
+        "Study tips, business ideas and more",
+        "Short lessons you can watch anywhere",
+        "Level up while you wait for class",
+        "Save a lesson for later",
         "Smart ideas for student entrepreneurs",
-        "Business lessons in your earbuds",
-        "Listen, learn and start selling",
-        "Stories of founders who started small",
-        "Grow your brand one episode at a time",
-        "Tips to turn your side hustle into a business",
-        "Save an episode for later",
-        "Your next big idea might be one talk away",
+        "Learn from people who built it",
+        "Your next big idea might be one video away",
         "Make every walk to class count",
+        "Skills that help you sell and succeed",
+        "Watch, learn and put it to work",
       ],
     };
     const lines = SUBTITLES[mainTab] || SUBTITLES.stories;
@@ -843,6 +854,7 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
   // 0 (rings in their normal row) → 1 (rings tucked/overlapping in the
   // header), and reverses automatically as the user scrolls back up.
   const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollNative = useRef(new Animated.Value(0)).current; // scroll offset on the UI thread
   const ringScrollX = useRef(new Animated.Value(0)).current;
   const collapseStateRef = useRef<'expanded' | 'collapsed' | 'mid'>('expanded');
   const [textRowHeight, setTextRowHeight] = useState(61);
@@ -863,6 +875,7 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
   };
 
   const collapseProgress = useRef(new Animated.Value(0)).current;
+  const collapseNative = useRef(new Animated.Value(0)).current; // drives the circles on the UI thread
   const progressRef = useRef(0);
   const targetRef = useRef(0);
   const anchorRef = useRef({ p: 0, y: 0 });
@@ -937,11 +950,12 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
   useEffect(() => () => clearTimeout(topBtnTimerRef.current), []);
 
   const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    [{ nativeEvent: { contentOffset: { y: scrollNative } } }],
     {
-      useNativeDriver: false,
+      useNativeDriver: true,
       listener: (e: any) => {
         const y = e.nativeEvent.contentOffset.y;
+        scrollY.setValue(y); // keeps the JS listeners (feed video, floating tabs) working
         lastScrollYRef.current = y;
 
         if (settlingRef.current) {
@@ -969,10 +983,10 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
         if (y > TOP_BTN_THRESHOLD && dyScroll < -2) showTopBtn();
         else if (dyScroll > 2 || y <= TOP_BTN_THRESHOLD) hideTopBtn();
 
-        if (y <= 0 && collapseStateRef.current !== 'expanded') {
+        if (y <= 3 && collapseStateRef.current !== 'expanded') {
           collapseStateRef.current = 'expanded';
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } else if (y >= COLLAPSE_SCROLL_DISTANCE && collapseStateRef.current !== 'collapsed') {
+        } else if (y >= COLLAPSE_SCROLL_DISTANCE - 3 && collapseStateRef.current !== 'collapsed') {
           collapseStateRef.current = 'collapsed';
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         } else if (y > 0 && y < COLLAPSE_SCROLL_DISTANCE) {
@@ -982,6 +996,21 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
     },
   );
 
+  const learnListRef = useRef<any>(null);
+
+  const handleLearnScroll = (y: number) => {
+    lastScrollYRef.current = y;
+    if (y <= 3 && collapseStateRef.current !== 'expanded') {
+      collapseStateRef.current = 'expanded';
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else if (y >= COLLAPSE_SCROLL_DISTANCE - 3 && collapseStateRef.current !== 'collapsed') {
+      collapseStateRef.current = 'collapsed';
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } else if (y > 3 && y < COLLAPSE_SCROLL_DISTANCE - 3) {
+      collapseStateRef.current = 'mid';
+    }
+    collapseProgress.setValue(Math.min(1, Math.max(0, y / COLLAPSE_SCROLL_DISTANCE)));
+  };
   const handleRingRowScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: ringScrollX } } }],
     { useNativeDriver: false },
@@ -1064,8 +1093,20 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
   const snapHeaderIfNeeded = () => {
     const p = progressRef.current;
     if (p <= 0.001 || p >= 0.999) return;
-    animateCollapse(p >= 0.5 ? 1 : 0);
+    const to = p >= 0.5 ? 1 : 0;
+    if (isLearnRef.current) {
+      learnListRef.current?.scrollToOffset({ offset: to * COLLAPSE_SCROLL_DISTANCE, animated: true });
+    } else {
+      mainScrollRef.current?.scrollTo({ y: to * COLLAPSE_SCROLL_DISTANCE, animated: true });
+    }
   };
+
+  
+  useEffect(() => {
+    scrollNative.setValue(0);
+    collapseProgress.setValue(0);
+    anchorRef.current = { p: 0, y: 0 };
+  }, [mainTab]);
 
   const scheduleSnapCheck = () => {
     clearTimeout(snapTimeoutRef.current);
@@ -1074,14 +1115,46 @@ const [reelList, setReelList] = useState<StoryGroup[]>([]);
 
   // The 4 most recent groups participate in the collapse animation;
   // anything beyond that just fades away with the rest of the row.
+  const [recentVideos, setRecentVideos] = useState<Podcast[]>([]);
+  const [recentProgress, setRecentProgress] = useState<Record<string, number>>({});
+  useFocusEffect(
+    useCallback(() => {
+      Promise.all([
+        AsyncStorage.getItem('podcast_history'),
+        AsyncStorage.getItem('podcast_resume'),
+      ]).then(([v, r]) => {
+        const h: Record<string, number> = v ? JSON.parse(v) : {};
+        const res: Record<string, { t: number; d: number }> = r ? JSON.parse(r) : {};
+        const prog: Record<string, number> = {};
+        Object.keys(h).forEach((id) => {
+          const e = res[id];
+          prog[id] = e?.d ? Math.min(1, Math.max(0, e.t / e.d)) : 1; // no resume entry = finished
+        });
+        setRecentProgress(prog);
+        setRecentVideos(DEMO_VIDEOS.filter((x) => h[x.video_id]).sort((a, b) => h[b.video_id] - h[a.video_id]).slice(0, 10));
+      }).catch(() => {});
+    }, [])
+  );
   const myGroup = statusList.find((g) => String(g.user_id) === String(user?.id)) || null;
-  const otherGroups = statusList.filter((g) => g !== myGroup);
-const hasYouSlot = true;
+  const showRecent = mainTab === 'podcast' && recentVideos.length > 0;
+  const recentGroups: StoryGroup[] = useMemo(() => recentVideos.map((v) => ({
+    user_id: v.video_id,
+    user_name: v.title,
+    user_avatar: v.thumbnail,
+    allViewed: false,
+    stories: [{
+      id: v.video_id, user_id: v.video_id, user_name: v.title, user_avatar: v.thumbnail,
+      media_url: v.thumbnail, media_type: 'image' as const,
+      created_at: new Date().toISOString(), viewed: false,
+    }],
+  })), [recentVideos]);
+  const otherGroups = showRecent ? recentGroups : statusList.filter((g) => g !== myGroup);
+  const hasYouSlot = !showRecent;
   const collapsibleGroups = otherGroups.slice(0, MAX_COLLAPSIBLE);
   const restGroups = otherGroups.slice(MAX_COLLAPSIBLE);
 
-  const rowContentOpacity = collapseProgress.interpolate({
-    inputRange: [0, 0.12, 1],
+  const rowContentOpacity = scrollNative.interpolate({
+    inputRange: [0, 1, COLLAPSE_SCROLL_DISTANCE],
     outputRange: [1, 0, 0],
     extrapolate: 'clamp',
   });
@@ -1395,6 +1468,11 @@ useFocusEffect(
     goToStory(index, 0);
   };
 
+  const openRing = (group: StoryGroup) => {
+    if (showRecent) router.push(`/watch/${group.user_id}` as any);
+    else openGroup(groups.indexOf(group));
+  };
+
   // Horizontal swipe — jumps straight to a different person's stories
   // (always starting at their first story), separate from the tap
   // zones which step through stories within the same group.
@@ -1645,6 +1723,12 @@ const feedHandlers = useMemo(() => ({
   }),
 }), []);
 
+  const bodyTranslateY = scrollNative.interpolate({
+    inputRange: [0, COLLAPSE_SCROLL_DISTANCE],
+    outputRange: [0, -ringRowHeight],
+    extrapolate: 'clamp',
+  });
+
   if (loading) {
     return <StoriesSkeleton colors={colors} />;
   }
@@ -1678,7 +1762,7 @@ const feedHandlers = useMemo(() => ({
         </View>
 
         {/* Your story row — height collapses to 0 on scroll, no gap left behind */}
-        <Animated.View style={{ height: animatedRingRowHeight, overflow: 'hidden' }}>
+        <Animated.View style={{ height: ringRowHeight, overflow: 'hidden' }}>
           <View
             ref={ringRowInnerRef}
             onLayout={(e) => {
@@ -1749,10 +1833,10 @@ const feedHandlers = useMemo(() => ({
               {collapsibleGroups.map((group, index) => (
                 <Animated.View key={`${group.user_id}-${index}`} style={{ opacity: rowContentOpacity }}>
                   <Pressable
-                    onPress={() => openGroup(groups.indexOf(group))}
+                    onPress={() => openRing(group)}
                     style={{ alignItems: 'center', width: RING_SIZE }}
                   >
-                    <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group}>
+                    <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group} progress={showRecent ? (recentProgress[String(group.user_id)] ?? 1) : undefined}>
                       {group.user_avatar ? (
                         <Image
                           source={{ uri: group.user_avatar }}
@@ -1783,10 +1867,10 @@ const feedHandlers = useMemo(() => ({
                 return (
                   <Animated.View key={group.user_id} style={{ opacity: rowContentOpacity }}>
                     <Pressable
-                      onPress={() => openGroup(groups.indexOf(group))}
+                      onPress={() => openRing(group)}
                       style={{ alignItems: 'center', width: RING_SIZE }}
                     >
-                      <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group}>
+                      <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group} progress={showRecent ? (recentProgress[String(group.user_id)] ?? 1) : undefined}>
                         {group.user_avatar ? (
                           <Image
                             source={{ uri: group.user_avatar }}
@@ -1815,102 +1899,15 @@ const feedHandlers = useMemo(() => ({
             </ScrollView>
           </View>
         </Animated.View>
-
-        {/* Overlay: the actual 4 collapsible circles — same elements throughout,
-            they translate/scale from their row position into the tucked,
-            overlapping spot beside the title/subtitle. Never faded in/out. */}
-        <View
-          pointerEvents={ringOverlayInteractive ? 'box-none' : 'none'}
-          style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
-        >
-          {collapsibleGroups.map((group, i) => {
-            const startX = HEADER_PADDING_H + (hasYouSlot ? RING_SIZE + RING_ROW_GAP : 0) + i * (RING_SIZE + RING_ROW_GAP);
-            const startY = ringRowOffsetY;
-            const endX = SCREEN_WIDTH - HEADER_PADDING_H - MINI_RING_SIZE - i * MINI_RING_STEP;
-            const endY = miniRowCenterY;
-
-            const baseTranslateX = collapseProgress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [startX, endX - scaleInset],
-              extrapolate: 'clamp',
-            });
-            const translateX = Animated.add(
-              baseTranslateX,
-              Animated.multiply(Animated.multiply(ringScrollX, -1), ringScrollInfluence),
-            );
-            const translateY = collapseProgress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [startY, endY - scaleInset],
-              extrapolate: 'clamp',
-            });
-            const scale = collapseProgress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [1, MINI_RING_SIZE / RING_SIZE],
-              extrapolate: 'clamp',
-            });
-            const labelOpacity = collapseProgress.interpolate({
-              inputRange: [0, 0.3, 1],
-              outputRange: [1, 0, 0],
-              extrapolate: 'clamp',
-            });
-            const overlayOpacity = collapseProgress.interpolate({
-              inputRange: [0, 0.15, 1],
-              outputRange: [0, 1, 1],
-              extrapolate: 'clamp',
-            });
-
-            return (
-              <Animated.View
-                key={group.user_id}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  width: RING_SIZE,
-                  alignItems: 'center',
-                  zIndex: collapsibleGroups.length - i,
-                  opacity: overlayOpacity,
-                  transform: [{ translateX }, { translateY }],
-                }}
-              >
-                <Animated.View style={{ transform: [{ scale }] }}>
-                  <Pressable onPress={() => openGroup(groups.indexOf(group))}>
-                    <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group}>
-                      {group.user_avatar ? (
-                        <Image
-                          source={{ uri: group.user_avatar }}
-                          style={{ width: '100%', height: '100%' }}
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            flex: 1,
-                            backgroundColor: colors.chipBg,
-                            alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >
-                          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.brand }}>
-                            {group.user_name?.[0]?.toUpperCase() || '?'}
-                          </Text>
-                        </View>
-                      )}
-                    </GradientRing>
-                  </Pressable>
-                </Animated.View>
-<Animated.View style={{ opacity: labelOpacity }}>
-  <RingName group={group} colors={colors} />
-</Animated.View>
-              </Animated.View>
-            );
-          })}
-        </View>
       </View>
 
+      <Animated.View
+        style={{ flex: 1, marginBottom: -ringRowHeight, transform: [{ translateY: bodyTranslateY }] }}
+      >
       {mainTab === 'podcast' ? (
         <View style={{ flex: 1, marginTop: -14 }}>
           <View style={{ flex: 1, backgroundColor: bodyBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
-            <PodcastTab colors={colors} mainTab={mainTab} onChange={changeMainTab} />
+            <PodcastTab bottomInset={ringRowHeight} colors={colors} mainTab={mainTab} onChange={changeMainTab} onListScroll={handleLearnScroll} onListSnap={snapHeaderIfNeeded} scrollNative={scrollNative} listRef={learnListRef} />
           </View>
           <CurveEdge
             cornerFill={theme === 'dark' ? colors.card : '#ffffff'}
@@ -2130,6 +2127,7 @@ const feedHandlers = useMemo(() => ({
         />
                 {mainTab === 'feed' && (
           <FloatingTabs
+            bottom={24 + ringRowHeight}
             tabs={FEED_FT}
             value={feedTab}
             colors={colors}
@@ -2139,6 +2137,56 @@ const feedHandlers = useMemo(() => ({
         )}
         </View>
       )}
+
+            </Animated.View>
+
+      <View
+        pointerEvents={ringOverlayInteractive ? 'box-none' : 'none'}
+        style={{ position: 'absolute', left: 0, top: 0, right: 0, height: ringRowOffsetY + ringRowHeight, zIndex: 40 }}
+      >
+        {collapsibleGroups.map((group, i) => {
+          const startX = HEADER_PADDING_H + (hasYouSlot ? RING_SIZE + RING_ROW_GAP : 0) + i * (RING_SIZE + RING_ROW_GAP);
+          const startY = ringRowOffsetY;
+          const endX = SCREEN_WIDTH - HEADER_PADDING_H - MINI_RING_SIZE - i * MINI_RING_STEP;
+          const endY = miniRowCenterY;
+          const D = COLLAPSE_SCROLL_DISTANCE;
+          const translateX = scrollNative.interpolate({ inputRange: [0, D], outputRange: [startX, endX - scaleInset], extrapolate: 'clamp' });
+          const translateY = scrollNative.interpolate({ inputRange: [0, D], outputRange: [startY, endY - scaleInset], extrapolate: 'clamp' });
+          const scale = scrollNative.interpolate({ inputRange: [0, D], outputRange: [1, MINI_RING_SIZE / RING_SIZE], extrapolate: 'clamp' });
+          const labelOpacity = scrollNative.interpolate({ inputRange: [0, D * 0.3, D], outputRange: [1, 0, 0], extrapolate: 'clamp' });
+          const overlayOpacity = scrollNative.interpolate({ inputRange: [0, 1, D], outputRange: [0, 1, 1], extrapolate: 'clamp' });
+
+          return (
+            <Animated.View
+              key={group.user_id}
+              style={{
+                position: 'absolute', left: 0, top: 0, width: RING_SIZE, alignItems: 'center',
+                zIndex: collapsibleGroups.length - i, opacity: overlayOpacity,
+                transform: [{ translateX }, { translateY }],
+              }}
+            >
+              <Animated.View shouldRasterizeIOS renderToHardwareTextureAndroid style={{ transform: [{ scale }] }}>
+                <Pressable onPress={() => openRing(group)}>
+                  <GradientRing viewed={group.allViewed} storiesViewed={group.stories.map((s) => Boolean(s.viewed))} colors={colors} segments={group.stories.length} group={group} progress={showRecent ? (recentProgress[String(group.user_id)] ?? 1) : undefined}>
+                    {group.user_avatar ? (
+                      <Image source={{ uri: group.user_avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                    ) : (
+                      <View style={{ flex: 1, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 22, fontWeight: '800', color: colors.brand }}>
+                          {group.user_name?.[0]?.toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                    )}
+                  </GradientRing>
+                </Pressable>
+              </Animated.View>
+              <Animated.View style={{ opacity: labelOpacity }}>
+                <RingName group={group} colors={colors} />
+              </Animated.View>
+            </Animated.View>
+          );
+        })}
+      </View>
 
       <Modal
         visible={!!exportStory}
@@ -2157,6 +2205,8 @@ const feedHandlers = useMemo(() => ({
         />
         <Toast />
       </Modal>
+
+      {mainTab === 'podcast' && <LastWatched bottom={8} />}
 
       {/* Scroll-to-top button */}
       <Animated.View
@@ -2477,9 +2527,9 @@ const feedHandlers = useMemo(() => ({
 const RING_SEGMENT_GAP_DEG = 10;
 
 function SegmentedRingSvg({
-  size, strokeWidth, segmentsViewed, dimColor, activeColor, gradientId,
+  size, strokeWidth, segmentsViewed, dimColor, activeColor, gradientId, progress,
 }: {
-  size: number; strokeWidth: number; segmentsViewed: boolean[]; dimColor: string; activeColor: string; gradientId?: string;
+  size: number; strokeWidth: number; segmentsViewed: boolean[]; dimColor: string; activeColor: string; gradientId?: string; progress?: number;
 }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -2501,7 +2551,33 @@ function SegmentedRingSvg({
           </SvgLinearGradient>
         </Defs>
       )}
-      {segmentsViewed.map((wasViewed, i) => (
+      {progress !== undefined && (
+        <>
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={dimColor}
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          {progress > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={gradientId ? `url(#${gradientId})` : activeColor}
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${circumference * progress}, ${circumference}`}
+              strokeLinecap={progress < 1 ? 'round' : 'butt'}
+              fill="none"
+              rotation={-90}
+              origin={`${size / 2}, ${size / 2}`}
+            />
+          )}
+        </>
+      )}
+      {progress === undefined && segmentsViewed.map((wasViewed, i) => (
         <Circle
           key={i}
           cx={size / 2}
@@ -2525,14 +2601,14 @@ function SegmentedRingSvg({
 const GradientRing = memo(GradientRingInner, (a: any, b: any) =>
   !!a.group && a.group === b.group && a.colors === b.colors &&
   a.viewed === b.viewed && a.size === b.size && a.segments === b.segments &&
-  a.dashed === b.dashed && a.plan === b.plan &&
+  a.dashed === b.dashed && a.plan === b.plan && a.progress === b.progress &&
   (a.storiesViewed || []).join() === (b.storiesViewed || []).join());
 
 function GradientRingInner({
-  viewed, storiesViewed, plan, colors, children, size = RING_SIZE, segments = 1, group, dashed,
+  viewed, storiesViewed, plan, colors, children, size = RING_SIZE, segments = 1, group, dashed, progress,
 }: {
   viewed: boolean; storiesViewed?: boolean[]; plan?: 'pro' | 'premium'; colors: any; children?: React.ReactNode;
-  size?: number; segments?: number; group?: StoryGroup; dashed?: boolean;
+  size?: number; segments?: number; group?: StoryGroup; dashed?: boolean; progress?: number;
 }) {
   const gradientIdRef = useRef(`ring-grad-${Math.random().toString(36).slice(2)}`);
 
@@ -2586,6 +2662,7 @@ function GradientRingInner({
         dimColor={colors.border}
         activeColor={activeColor}
         gradientId={hasUnviewedSegment && plan !== 'pro' ? gradientIdRef.current : undefined}
+        progress={progress}
       />
       <View
         style={{
@@ -2600,21 +2677,6 @@ function GradientRingInner({
       >
         {group ? <StoryCircleThumb group={group} colors={colors} /> : children}
       </View>
-    </View>
-  );
-}
-// ─── EXPLORE STORY VIDEO THUMBNAIL ───────────────────────────────────
-// Shows the video's own first frame (paused) instead of a static image,
-// since a video URL can't be dropped straight into an <Image>.
-function ExploreStoryVideoThumb({ uri, crop }: { uri: string; crop?: VideoCropT | null }) {
-  const player = useVideoPlayer({ uri, useCaching: true }, (p) => {
-    p.loop = false;
-    p.muted = true;
-  });
-
-  return (
-    <View style={{ width: '100%', height: '100%' }}>
-      <CroppedVideoView player={player} crop={crop} />
     </View>
   );
 }
@@ -2852,14 +2914,31 @@ function EmptyState({ colors, onAdd }: { colors: any; onAdd: () => void }) {
   );
 }
 
+// First frame of a video (paused, muted) for the swipe previews
+function ExploreStoryVideoThumb({ uri, crop }: { uri: string; crop?: VideoCropT | null }) {
+  const player = useVideoPlayer({ uri, useCaching: true }, (p) => {
+    p.loop = false;
+    p.muted = true;
+  });
+  return (
+    <View style={{ width: '100%', height: '100%' }}>
+      <CroppedVideoView player={player} crop={crop} />
+    </View>
+  );
+}
+
 // ─── STORY GROUP PREVIEW (shown only mid-swipe transition) ────────────
-function StoryGroupPreview({ group }: { group?: StoryGroup }) {
+function StoryGroupPreview({ group, video }: { group?: StoryGroup; video?: boolean }) {
   if (!group) return <View style={{ flex: 1, backgroundColor: '#000' }} />;
   const cover = group.stories[0]; // matches goToStory(idx, 0) landing on the first story
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       {cover.media_type === 'video' ? (
-        <View style={{ flex: 1, backgroundColor: '#000' }} />
+        video ? (
+          <ExploreStoryVideoThumb uri={cover.media_url} crop={cover.crop} />
+        ) : (
+          <View style={{ flex: 1, backgroundColor: '#000' }} />
+        )
       ) : (
         <Image source={{ uri: cover.media_url }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
       )}
@@ -4892,6 +4971,22 @@ const openProfile = () => {
         }}
       >
         <Animated.View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, transform: [{ translateY: slideY }] }}>
+          {isVertical && (
+            <>
+              <View
+                pointerEvents="none"
+                style={{ position: 'absolute', top: -SCREEN_HEIGHT, left: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+              >
+                <StoryGroupPreview group={prevGroup} video />
+              </View>
+              <View
+                pointerEvents="none"
+                style={{ position: 'absolute', top: SCREEN_HEIGHT, left: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+              >
+                <StoryGroupPreview group={nextGroup} video />
+              </View>
+            </>
+          )}
           <View
             pointerEvents="none"
             style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}
@@ -4904,7 +4999,7 @@ const openProfile = () => {
               }}
             >
               <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-                <StoryGroupPreview group={prevGroup} />
+                <StoryGroupPreview group={prevGroup} video={!isVertical} />
               </View>
             </Animated.View>
             <Animated.View
@@ -4915,7 +5010,7 @@ const openProfile = () => {
               }}
             >
               <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-                <StoryGroupPreview group={nextGroup} />
+                <StoryGroupPreview group={nextGroup} video={!isVertical} />
               </View>
             </Animated.View>
           </View>
@@ -7355,7 +7450,7 @@ function CurveEdge({ cornerFill, line }: { cornerFill: string; line?: string }) 
   );
 }
 
-function PullLine({ scrollY, refreshing, colors }: { scrollY: Animated.Value; refreshing: boolean; colors: any }) {
+export function PullLine({ scrollY, refreshing, colors }: { scrollY: Animated.Value; refreshing: boolean; colors: any }) {
   const sweep = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const [w, setW] = useState(0);
@@ -7417,6 +7512,7 @@ const FEED_FT: FTab[] = [
 ];
 const PODCAST_FT: FTab[] = [
   { key: 'all', label: 'All', Icon: GridOutline, IconOn: GridSolid },
+  { key: 'recent', label: 'Recent', Icon: History },
   { key: 'fav', label: 'Favourites', Icon: Heart, fillOn: true },
   { key: 'later', label: 'Watch Later', Icon: Clock },
 ];
@@ -7702,7 +7798,7 @@ function MainTabs({ mainTab, onChange, colors, pullY, refreshing }: { mainTab: s
   const tabs = [
     { key: 'stories', label: 'Stories', Icon: Sparkles },
     { key: 'feed', label: 'Feed', Icon: Flame },
-    { key: 'podcast', label: 'Podcast', Icon: Music },
+    { key: 'podcast', label: 'Learn', Icon: GraduationCap },
   ] as const;
   return (
     <View style={{ flex: 1, flexDirection: 'row', height: 32 }}>
@@ -7740,34 +7836,714 @@ function MainTabs({ mainTab, onChange, colors, pullY, refreshing }: { mainTab: s
 
 type Podcast = { video_id: string; title: string; thumbnail: string; channel: string; published_at: string };
 
-function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: string; onChange: (k: 'stories' | 'feed' | 'podcast') => void }) {
+const CHANNEL_ABOUT: Record<string, string> = {
+  'Konnected Minds Podcast': 'Ghanaian entrepreneurs on money, business and wealth',
+  'The Sound of Accra Podcast': 'Ghana-based talks on founders, investing and culture',
+  'WODE MAYA': 'Success stories of African entrepreneurs across the continent',
+  'The Diary Of A CEO': 'Long interviews on business, mindset and success',
+  'My First Million': 'Business ideas and trends, discussed casually',
+  'How I Built This': 'Founders tell how famous companies began',
+  'Alex Hormozi': 'Sales, pricing and growing a business',
+  'Codie Sanchez': 'Buying and running everyday small businesses',
+  'BigDeal by Codie Sanchez': 'Business, money and life lessons from Codie',
+  'Richie Mensah': 'Masterminds: wealth, mindset and real stories',
+  'Founders Connect': 'African startup founders share how they built',
+  'Entrepreneurs Chat Podcast': 'South African entrepreneurs on how they make money',
+  'School of Hard Knocks': 'Street interviews with millionaires and billionaires',
+  'Earn Your Leisure': 'Business ownership, investing and wealth building',
+  'Starter Story': 'How founders started and what they now earn',
+  'Noah Kagan': 'Starting a business fast with little money',
+  'Greg Isenberg': 'Startup ideas and turning them into products',
+};
+
+const LEARN_DEMO: { id: string; title: string; channel: string }[] = [
+  // ── Konnected Minds / Ghana business ──
+  { id: '0gCROK5_f_o', title: "Lebanese Businessman: Why Foreigners Own Ghana's Biggest Businesses While Ghanaians Complain", channel: 'Konnected Minds Podcast' },
+  { id: 'D3qOFavKLp4', title: 'The Man Who Owns 6 Businesses Reveals The One Skill That Made Him Millions', channel: 'Konnected Minds Podcast' },
+  { id: 'Q1yWPiJH8aw', title: 'How to Start a Wholesale Business in Ghana with Zero Capital', channel: 'Konnected Minds Podcast' },
+  { id: 'W5oouqOkMRs', title: '$1 Billion Fund Manager Reveals the Secrets to Building Wealth', channel: 'Konnected Minds Podcast' },
+  { id: 'mqEYHOuacS4', title: 'How a 17-Year-Old Made Over GHS 1 Million During COVID', channel: 'Konnected Minds Podcast' },
+  { id: 'zUv549FHvIg', title: "How the 'Youth' can Make Money in Ghana Today", channel: 'Konnected Minds Podcast' },
+  { id: 'tLmXshBc9iw', title: 'Why African Startups Fail - The Brutal Truth About Building Tech in Ghana', channel: 'Konnected Minds Podcast' },
+  { id: 'TSXBZe9B66g', title: 'Why He Lost €25 MILLION & Went -€7M… Then GHANA Saved Him', channel: 'Konnected Minds Podcast' },
+  { id: '_Qsd6WxR-gE', title: 'The Man Who Used $10 to Change his Entire Life and Built a Business in Africa', channel: 'Konnected Minds Podcast' },
+  { id: 'HpJfN_Wui7g', title: 'How to Start a Business in Africa Without Money - Ghanaian Billionaire McDan', channel: 'Konnected Minds Podcast' },
+  { id: 'Jzpw1h_yUF4', title: 'How to SUCCEED in Ghana: Secrets for Diasporans and Locals - Obeng Darko', channel: 'Konnected Minds Podcast' },
+  { id: 'nPgOBZRYISs', title: 'Airbnb Millionaire: How he makes $50,000 a month in Ghana', channel: 'Konnected Minds Podcast' },
+  { id: 'gGp7Vzj6fqw', title: "She Revealed the 'SECRETS' That Can Make Anyone Rich In Ghana", channel: 'Konnected Minds Podcast' },
+  { id: 'wV0dd8DHbrA', title: '"I Turned Down $3 Million" - The Truth About Raising Money In Ghana', channel: 'Konnected Minds Podcast' },
+  { id: '8bZMPhsqYUo', title: "Why this 'SECRET' is keeping you poor", channel: 'Konnected Minds Podcast' },
+  { id: 'Hwt3KNZFnnc', title: 'Why Everyone Is Talking About Konnected Minds Live 2026 in Ghana', channel: 'Konnected Minds Podcast' },
+  { id: '2WTR18bW7uA', title: 'AM Club (The Plug) - Derrick Abaitey on Building Konnected Minds', channel: 'Konnected Minds Podcast' },
+  { id: 'J52vmTBpqBs', title: "The farmer's son became a Millionaire in Africa using 'The Shark Mentality'", channel: 'Konnected Minds Podcast' },
+  { id: 'G78vUthk36U', title: "Why this 'SECRET' Creates Millionaires Yet Many Remain Broke - Hon Kennedy Agyapong", channel: 'Konnected Minds Podcast' },
+  { id: 'eVZYdH8ehuk', title: 'How to start a Business in Ghana (without Loans) - Obeng Darko', channel: 'Konnected Minds Podcast' },
+  { id: 'Fjg5b1858_o', title: 'Why Most People Lose Money in Farming (And How to Avoid It)', channel: 'Konnected Minds Podcast' },
+  { id: 'LDqdZeoNeKc', title: 'How Importation Can Make You Rich in Ghana', channel: 'Konnected Minds Podcast' },
+  { id: 'EOBCeBjjJuM', title: "I Made MORE Money Selling BREAD Than Making MUSIC | Hammer's Success Story", channel: 'Konnected Minds Podcast' },
+  { id: 'FKyytoASyr8', title: "If You Can't Make it Here, You Can't Make it Abroad", channel: 'Konnected Minds Podcast' },
+  { id: '7Lc6qBzvYHo', title: "If you can't make it in GHANA, you can't make it ANYWHERE!", channel: 'Konnected Minds Podcast' },
+  { id: 'DcSOlOcbpNA', title: 'From $11/Month to Millionaire at 23: 5 high income Skills Every Poor African Must Learn', channel: 'Konnected Minds Podcast' },
+  { id: 'sVzV8nudh4s', title: 'Why Most Businesses FAIL (And How to Start Without Money) in Ghana', channel: 'Konnected Minds Podcast' },
+  { id: 'Up0R_d65AsY', title: 'Forex Millionaire: Why trading can make you financially independent', channel: 'Konnected Minds Podcast' },
+  { id: 'RDpHJYY8lAA', title: 'How to Escape Generational Poverty and Build Real Wealth', channel: 'Konnected Minds Podcast' },
+  { id: 'YuZNUGSm5vw', title: 'Start a Business in Ghana without MONEY - Aisha Bengai', channel: 'Konnected Minds Podcast' },
+
+  // ── The Sound of Accra Podcast ──
+  { id: 'iVwauiGRSYg', title: "From Quitting Music To Launching Ghana's Top Podcast - Adrian Daniels", channel: 'The Sound of Accra Podcast' },
+  { id: 'qHdoyy_5Cxk', title: "Africa's Mobile Money Revolution: How PawaPay Processes 3 Billion Transactions Across 20 Countries", channel: 'The Sound of Accra Podcast' },
+  { id: '0-Lj3wfya2k', title: 'Clubhouse and Lockdowns', channel: 'The Sound of Accra Podcast' },
+  { id: 'uEzXLuzR9tI', title: 'The Power of Personal Branding & Public Speaking x Paa Kwesi Folson', channel: 'The Sound of Accra Podcast' },
+  { id: 'G2INLm6ZsK0', title: 'Asamoah Gyan World Cup Penalty Upset | The Rise of Ghana Football', channel: 'The Sound of Accra Podcast' },
+  { id: 'pJtL1pETa28', title: 'Africa Sales Academy: Empowering Next Gen Leaders', channel: 'The Sound of Accra Podcast' },
+  { id: 'XmImSv5-2II', title: 'The Ghanaian who walked 300 miles across Ghana | A Conversation with Tim Swain', channel: 'The Sound of Accra Podcast' },
+  { id: 'zPX11h5aCl4', title: 'Season 3 Official Trailer (UK Version)', channel: 'The Sound of Accra Podcast' },
+  { id: 'tv5DTJQWxb0', title: 'From $100K Debt to Multi-Millionaire: Step-By-Step Blueprint for Business Success', channel: 'The Sound of Accra Podcast' },
+  { id: 'Xs4yc8KFkPs', title: "Authentic African's Role In The Digital Gold Rush", channel: 'The Sound of Accra Podcast' },
+  { id: '5tN_A2W_prE', title: "Personal Finance isn't Rocket Science: Investing 101", channel: 'The Sound of Accra Podcast' },
+  { id: 'Ar8hPbxlO64', title: "Talking To Ghana's Best (Live)", channel: 'The Sound of Accra Podcast' },
+  { id: 'KFbd1bEC5KY', title: 'What Does the African Dream Look Like in Ghana? x James Mercer', channel: 'The Sound of Accra Podcast' },
+  { id: 'zb5gIiE643Y', title: 'Season 2 Official Trailer (Video)', channel: 'The Sound of Accra Podcast' },
+  { id: '7-f0VG-_AIM', title: 'Starting a Podcast in Ghana | Joy FM Geek Squad interview PT1', channel: 'The Sound of Accra Podcast' },
+  { id: 'WpIPB8gUIdg', title: "Mahama vs Nkrumah: 5 Jaw Dropping Parallels That Show Ghana's Future", channel: 'The Sound of Accra Podcast' },
+  { id: 'AlG4LSMIqDY', title: 'The Future of Ghana Real Estate, Economy & The Rise of Digital Africa x Kofi Anku', channel: 'The Sound of Accra Podcast' },
+  { id: 'vYd2BYK4MC4', title: "Unlocking Africa's Economic Potential in the 21st Century x Terser Adamu", channel: 'The Sound of Accra Podcast' },
+  { id: 'w6SxC3xvh6g', title: 'You Know My Name Not My Story x Darren Bond', channel: 'The Sound of Accra Podcast' },
+  { id: 'EWq79yNKq1s', title: 'What Running 100KForGhana Is Really Like', channel: 'The Sound of Accra Podcast' },
+
+  // ── Wode Maya ──
+  { id: 'Gl57GrUN1mY', title: 'How She Became A Millionaire In Northern Nigeria Will Shock You!', channel: 'WODE MAYA' },
+  { id: 'mO-uw1dcuNY', title: 'He Left Europe To Build The Biggest Local Beverage Company In Congo', channel: 'WODE MAYA' },
+  { id: 'FHz4Va__ixQ', title: 'How This Man From Botswana Became A Millionaire Before 30!', channel: 'WODE MAYA' },
+  { id: 'v0CgfA8NPrM', title: 'She Is Just 24 Years & Owns Rice & Vegetable Farm In Northern Nigeria', channel: 'WODE MAYA' },
+  { id: 'JD4l2ycm6II', title: 'I Used My School Fees To Build The Biggest Charcoal Factory In Ghana', channel: 'WODE MAYA' },
+  { id: 'hqBUL0BpGW8', title: 'She Became A Millionaire By Selling Clothes & Renovating Old Buildings!', channel: 'WODE MAYA' },
+  { id: 'CQ9cDYmjSkY', title: 'A Ghanaian Billionaire Transformed His Village Into A City!', channel: 'WODE MAYA' },
+  { id: '6-vVuK81gdw', title: 'How This Malawian Billionaire Transformed His Village Into A City!', channel: 'WODE MAYA' },
+  { id: 'Ri1_R92ozUo', title: 'How 2000 Congolese Established A Made In Congo Supermarket!', channel: 'WODE MAYA' },
+  { id: 'T0amDvCFDXc', title: 'She Established A Factory To Process A Vegetable That Saved Her Life!', channel: 'WODE MAYA' },
+  { id: 'TKOBXG0MwbA', title: 'How An Ivorian And Cameroonians Convert Coconut Waste To Charcoal', channel: 'WODE MAYA' },
+  { id: '9VKlzMAWuYc', title: 'How Three Young Ladies Started A Lucrative Business Out Of Sea Weeds In Tanzania', channel: 'WODE MAYA' },
+  { id: 'W_F4A9BfaCs', title: 'I Met The Youngest Real Estate Entrepreneur In Ghana', channel: 'WODE MAYA' },
+  { id: 'pSKWtgMvv5w', title: 'I Left America To Kenya & Now Own 20 Acres Organic Farm!', channel: 'WODE MAYA' },
+  { id: 'mux1Sfotkqw', title: 'I Made More Money In Kenya Than Germany!', channel: 'WODE MAYA' },
+  { id: 'npFBO7JkYtE', title: 'How A Young Ugandan Became A Billionaire at 40!', channel: 'WODE MAYA' },
+  { id: 'bYBPvTa8rLk', title: 'She Left The UK & Established A Furniture Manufacturing Company In Nigeria', channel: 'WODE MAYA' },
+  { id: '4AXdlawIgqI', title: 'He Built Nigerias First Car Manufacturing Plant', channel: 'WODE MAYA' },
+  { id: 'TPeLQigTsFM', title: 'How This Kenyan Woman Built 200 Homes In Kenya?', channel: 'WODE MAYA' },
+  { id: 'RrrZmVxIDBY', title: 'Sudanese Left The UK To Be A Poultry Farmer In Northern Nigeria', channel: 'WODE MAYA' },
+
+  // ── The Diary of a CEO ──
+  { id: 'kxLmeUIXXtU', title: 'Entrepreneurship Expert: How To Build A $1m Business Without Hard Work!', channel: 'The Diary Of A CEO' },
+  { id: '6VTSAs4Rsck', title: 'Mark Cuban: The Brutal Truth About The Next Market Crash!', channel: 'The Diary Of A CEO' },
+  { id: 'hVlAOIUA71Y', title: 'The SIMPLE (& Proven) Way To Earn $100,000 From Nothing!', channel: 'The Diary Of A CEO' },
+  { id: '32u5T6lO8qk', title: "Billionaire's WARNING: I'm SELLING. The Crash Is Already Here!", channel: 'The Diary Of A CEO' },
+  { id: 'Q-zuTZuYeCg', title: 'Simon Sinek: The Number One Reason Why Youre Not Succeeding', channel: 'The Diary Of A CEO' },
+  { id: 'rtufWBLOXgw', title: 'James Clear: Your Goals Are Quietly Restricting Your Happiness', channel: 'The Diary Of A CEO' },
+  { id: 'eocM1C3HfQg', title: 'Senator Bernie Sanders: The Interference Was Real', channel: 'The Diary Of A CEO' },
+  { id: 'ls9be-9C-uk', title: '6 BEST Pieces Of Business Advice That Made Me Millions', channel: 'The Diary Of A CEO' },
+  { id: 'Kl-I7sUcAOY', title: 'Alex Hormozi: Turn $0 to $10k With This Step By Step Formula!', channel: 'The Diary Of A CEO' },
+  { id: 'IRCZ1Mt2a8M', title: 'Jordan Peterson: STOP WASTING YOUR LIFE!', channel: 'The Diary Of A CEO' },
+  { id: 'rKOx5qlLyaA', title: "Scott Galloway: We're Raising The Most Unhappy Generation In History!", channel: 'The Diary Of A CEO' },
+
+  // ── My First Million ──
+  { id: 'ADrtzt146Gs', title: 'The Step By Step Guide To Starting A Business From $0', channel: 'My First Million' },
+  { id: '3BDccYXH4cA', title: 'My 6-Step Process To Find +$1,000,000 Business Ideas (#479)', channel: 'My First Million' },
+  { id: 'EAZq8Ly98Ls', title: "We found the next pickleball (and it's making $40M/yr)", channel: 'My First Million' },
+  { id: '7x5M4lxK-dw', title: '5 Business Ideas With High Demand & Low Supply (#374)', channel: 'My First Million' },
+  { id: '3WtHtZOotQU', title: "If you're in your 40s, build a business on these trends.", channel: 'My First Million' },
+  { id: 'qKc-wlDxYfI', title: 'Life Hacks From The King of Introverts + 7 Business Ideas', channel: 'My First Million' },
+  { id: '4zvicsf1bJQ', title: '3 businesses we think are about to blow up', channel: 'My First Million' },
+  { id: '-HfUCbnapKo', title: "Five $10M+ Ideas (from a guy who's done it 3 times)", channel: 'My First Million' },
+  { id: 'm8iedLDiE0o', title: 'Super niche businesses making millions in 2026', channel: 'My First Million' },
+  { id: '6geIxfCmRfo', title: '2 business ideas, moats and the best stuff we found on X', channel: 'My First Million' },
+  { id: '0MaFPFjGWt0', title: 'Drunk Business Ideas That Could Make You Millions', channel: 'My First Million' },
+  { id: 'EjjI5oLW-R4', title: '9 killer $10M+ business ideas in 56 minutes', channel: 'My First Million' },
+  { id: 'scmf3gd9ZjI', title: "Building easy AI apps is a bad idea. Here's 8 better bets", channel: 'My First Million' },
+  { id: 'SUYBggpA3ZU', title: '5 Simple business Ideas Even Your Mother Can Start', channel: 'My First Million' },
+  { id: 'OZbcrfWfqZc', title: '"Health is a HUGE opportunity" - 3 Business Ideas To Start In 2025', channel: 'My First Million' },
+  { id: '7nWa1F3GJy4', title: 'Data Backed Businesses Guaranteed To Make +$1M From Day 1', channel: 'My First Million' },
+  { id: '3q1QvEkbbyk', title: '$50M Founder Explains How He Finds "Golden" Businesses', channel: 'My First Million' },
+
+  // ── How I Built This ──
+  { id: 'ZYf-DfxJg1c', title: 'Airbnb CEO Brian Chesky: "I Was a Great Founder and a Terrible CEO"', channel: 'How I Built This' },
+  { id: '2r-Dx0OpvjM', title: 'Jensen Huang: What Building NVIDIA Cost Me', channel: 'How I Built This' },
+  { id: 'XXFGVi0L9mw', title: 'How a Soap Side Hustle Became a $1.5 Billion Business', channel: 'How I Built This' },
+  { id: 'KWziPJvxkmc', title: 'Discord: Jason Citron', channel: 'How I Built This' },
+  { id: 'Y334D183ofE', title: 'Jensen Huang: The Man Behind NVIDIA', channel: 'How I Built This' },
+  { id: 'sWPalmrDxY0', title: 'The Knot: Carley Roney & David Liu', channel: 'How I Built This' },
+
+  // ── Alex Hormozi ──
+  { id: 'uWdIgftpvBI', title: "If I Started A Business in 2026, I'd Do This", channel: 'Alex Hormozi' },
+  { id: 'F84olnKkseM', title: 'Business Was Hard Until I Understood These 4 Concepts', channel: 'Alex Hormozi' },
+  { id: 'oVPXgRs0IdI', title: "The Most Valuable Sales Training You'll Ever Watch - $100M Sales Team", channel: 'Alex Hormozi' },
+  { id: 'HxEQCHpZzHk', title: 'How to Grow Your Business SO Fast in 2026 It Feels ILLEGAL', channel: 'Alex Hormozi' },
+  { id: 'unshZobTt6Q', title: 'How to Start a Business From Nothing (Thank Me Later)', channel: 'Alex Hormozi' },
+  { id: 'KhFlD54nQrY', title: '13 Years Of Brutally Honest Business Advice in 90 Mins', channel: 'Alex Hormozi' },
+  { id: 'nIk3DedjxJM', title: '"I\'m Broke, What Business Do I Start?"', channel: 'Alex Hormozi' },
+  { id: 'qsXxckCbci0', title: 'How To Grow ANY Business FASTER (Masterclass)', channel: 'Alex Hormozi' },
+  { id: 'HsQeQM1jUeg', title: "If I Had To Start a Business From Scratch, I'd Do This", channel: 'Alex Hormozi' },
+  { id: 'StVqS0jD7Ls', title: 'The Ultimate Sales Training for 2026 [Full Course]', channel: 'Alex Hormozi' },
+  { id: 'jqo0lVveh98', title: 'Watch This If You Have a Service Business', channel: 'Alex Hormozi' },
+  { id: '--9kOXNCUdE', title: '$100M Investor Answers The Most Important Business Questions for 1 Hour', channel: 'Alex Hormozi' },
+  { id: 'BYpTRiRqS1Y', title: 'Helping 4 Educational Business Owners Build a $1M Business in 25 Minutes', channel: 'Alex Hormozi' },
+  { id: 'MzAIP_WJ-jE', title: 'Brutally Honest Truths That Give You an Unfair Advantage in Life', channel: 'Alex Hormozi' },
+  { id: 'sjt5G3YPjmY', title: "Give Me 47 minutes, And I'll Fix Your Small Business", channel: 'Alex Hormozi' },
+  { id: '0lMn_-EXyhQ', title: "If You're in Your 20s or 30s, Here's How to Win (at Anything)", channel: 'Alex Hormozi' },
+  { id: 'sL16tsGafcQ', title: 'If You Want To Create Wealth In 2026, Watch This (4 Paths)', channel: 'Alex Hormozi' },
+  { id: 'Ys3o-iqGcoE', title: 'If You Only Watch One Wealth Video, Make It This', channel: 'Alex Hormozi' },
+
+  // ── Codie Sanchez ──
+  { id: '16PCOFyqAdg', title: 'How To Change Your Entire Life In 24 Hours', channel: 'Codie Sanchez' },
+  { id: 'FN4w-4KcyXc', title: 'How to Build Systems So Good… Your Business Runs Itself', channel: 'BigDeal by Codie Sanchez' },
+  { id: 'DZNhrv5sv_0', title: "If You Don't Understand Debt, You Don't Understand Business", channel: 'Codie Sanchez' },
+  { id: '3mtS8rOAqoM', title: 'How to Find Businesses to Buy NO ONE ELSE Knows About (80 MIN Playbook)', channel: 'Codie Sanchez' },
+  { id: '_IwYLXAXzx8', title: 'There Are Only 3 Types Of Profitable Businesses (Pick ONE)', channel: 'Codie Sanchez' },
+  { id: 'o0uJCMBh11c', title: '7 Businesses That ALMOST Never Fail (Backed By Data)', channel: 'Codie Sanchez' },
+  { id: 'MkP37sMi4KY', title: '20 Years Of Money Advice in 22 Minutes (How I Made Millions)', channel: 'Codie Sanchez' },
+  { id: 't260757b_vU', title: 'Stop Rambling: The 3-2-1 Speaking Trick That Makes You Sound Like A CEO', channel: 'BigDeal by Codie Sanchez' },
+  { id: '3U20c5AgNDg', title: 'How to Completely Change Your Life in 60 Days (Or Less)', channel: 'BigDeal by Codie Sanchez' },
+  { id: 'LDPE3wa9f2k', title: 'How To Grow Your Business SO Fast It Feels Illegal', channel: 'Codie Sanchez' },
+  { id: 'eAFrX-0o-2g', title: 'This Is The Ultimate Guide To Buying A Business', channel: 'Codie Sanchez' },
+  { id: 'uU05slDehkA', title: '9 Income Streams You Can Build While STILL an Employee', channel: 'Codie Sanchez' },
+  { id: 'nSlZZ7TxNM8', title: "You Don't Need To Start A Business, Just Buy One Of These", channel: 'Codie Sanchez' },
+  { id: 'GWoABwqXl5A', title: "If I Wanted to Build a Business for $0 in 2026, I'd Do This…", channel: 'Codie Sanchez' },
+  { id: '8wbjlHuLGA8', title: 'Unfortunately, Sales Really Is This Simple (4 Steps)', channel: 'Codie Sanchez' },
+  { id: 'hOUYKvldrUw', title: 'How To Speak Like The Richest 1%', channel: 'Codie Sanchez' },
+  { id: 'ZvAwqGH_79Q', title: "Don't Become A Content Creator, Build A Content Business.", channel: 'Codie Sanchez' },
+  { id: 'K213Pn9ffIc', title: '$20 Billion Worth of Sales Knowledge in 57 Minutes | Ryan Serhant', channel: 'BigDeal by Codie Sanchez' },
+  { id: 'kMV3vvZPk6Q', title: 'The Psychology of Sales (How We Sell $100M)', channel: 'Codie Sanchez' },
+
+    // ── Masterminds – Richie Mensah ──
+  { id: 'ebr6T1qCYDg', title: 'Think Like the Market Woman: Kingsley Opoku Simpeh', channel: 'Richie Mensah' },
+  { id: 'ajlpomePey8', title: 'Principles Over Tactics: Vusi Thembekwayo Breaks It Down', channel: 'Richie Mensah' },
+  { id: '9bmay9mXsCY', title: 'You Were Programmed to Be Poor: Niyi Adesanya', channel: 'Richie Mensah' },
+  { id: 'yMJ3WMZmeME', title: "She Built an Empire From Her Father's Trade: The Shoemaker Girl", channel: 'Richie Mensah' },
+  { id: 'b8S2uJ6G6oI', title: 'From Banking to Baking: The Cupcake Boutique Story', channel: 'Richie Mensah' },
+  { id: 'D_9WzNrlCwM', title: 'From a Third Class Degree to Box Office King: Deyemi Okanlawon', channel: 'Richie Mensah' },
+  { id: 'Le_SXwugLx4', title: 'Damn the Consequences. You Must Try: Nana Aba Anamoah', channel: 'Richie Mensah' },
+  { id: 'x8MLcDYM5rY', title: 'The Person Who Can Suffer the Longest Wins', channel: 'Richie Mensah' },
+  { id: '4wHaklPDVi4', title: '7 Steps to Become Rich', channel: 'Richie Mensah' },
+  { id: '8bhcR_tE5i8', title: 'The Truth About Wealth Nobody Taught You: Derrick Abaitey', channel: 'Richie Mensah' },
+  { id: 'EitsV0ebCGc', title: 'From Stuttering to Unstoppable: Sam Koranteng', channel: 'Richie Mensah' },
+  { id: 'vGq81xa0FV0', title: 'You Are More Powerful Than You Think: Kafui Dey', channel: 'Richie Mensah' },
+  { id: 'cZ_EHFfFw9w', title: 'People Pleasing Is Slowly Destroying Your Life', channel: 'Richie Mensah' },
+
+  // ── Founders Connect ──
+  { id: 'E7W3hcWPOBo', title: 'Paul Onwuanibe on Building a $150M Empire: The Secret Most African Founders Will Never Know', channel: 'Founders Connect' },
+  { id: 'OEOb48jG4Cc', title: 'The Story of Odun Eweniyi, Tech Founder, Investor and Operator', channel: 'Founders Connect' },
+  { id: 'P9bP_DOacJA', title: 'How Chowdeck is Changing the Food Delivery Game', channel: 'Founders Connect' },
+  { id: 'oOFgJXF_raM', title: 'Inside Raenest: The Startup Changing How You Get Paid', channel: 'Founders Connect' },
+  { id: 'TIn_TqqoL6U', title: 'Meet Ized Uanikhehi, the Marketing Genius Behind Zedi Africa', channel: 'Founders Connect' },
+  { id: 'kckBFllRXO0', title: "Wale Adetula's TNC Might be the Future of Entertainment in Africa", channel: 'Founders Connect' },
+  { id: '8bR7DmOUY30', title: 'Fola Olatunji-David, Ex-Google Employee, Founder Sporting Lagos', channel: 'Founders Connect' },
+  { id: 'QyViPx6bt6Y', title: 'Yele Bademosi, Co-founder of Nestcoin, Founder of Bundle Africa', channel: 'Founders Connect' },
+  { id: 'qJuEjO1oVk0', title: "Obi Emetarom, The Fintech Pioneer Building Africa's Future With Blockchain", channel: 'Founders Connect' },
+  { id: 'ji2R6f0H8jo', title: 'Joe Kinvi, Founder of PLTM, Cofounder HOAQ, Top African Angel Investing Syndicate', channel: 'Founders Connect' },
+  { id: 'CxBb3yCMyEQ', title: 'A Chat with Tosin Eniolorunda, CEO of Moniepoint Group', channel: 'Founders Connect' },
+
+  // ── Entrepreneurs Chat Podcast ──
+  { id: 'rX4apagagvQ', title: 'The Secret Behind My Fintech, Mining & Business Success', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'vMWRvXtj3iQ', title: 'Supplying Big Retailers Can Bankrupt Your Business', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'KldwTeFBZVo', title: 'He Exposes the Truth About Building Wealth and Retiring in South Africa', channel: 'Entrepreneurs Chat Podcast' },
+  { id: '4wv_Bcs_PMA', title: 'She Is Starting A Gold Mine In Limpopo', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'eXt4SItMz3w', title: 'His E-commerce Shop Made R4.3 Million In One Year', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'nxA735rUCmw', title: 'Improve Your Speaking Ability And Get More Promotions At Work And Business Deals', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'LewX2Ck4WrA', title: 'Mindset Coach: Rewire Your Brain To Attract More Money', channel: 'Entrepreneurs Chat Podcast' },
+  { id: '-vFP6DfoASY', title: 'Buy Houses With Zero Mortgage and Zero Savings', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'CSU6qWrAWFQ', title: 'The Truth About Making Money In The Trucking Industry', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'iEZnJM6WErE', title: 'The Truth About Getting Business From Big South African Corporates', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'GL3UW6LDf6U', title: 'Ex SARS Auditor Built 7 Businesses: Mining, Logistics, Plant Hire, Shuttles, Property Rentals', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'xzvIQmMJ44s', title: 'He Exposes The Truth About Franchising Success In South Africa', channel: 'Entrepreneurs Chat Podcast' },
+  { id: '8XsgPpqdYz4', title: 'My Team Used These Sales Secrets To Close 86 Property Deals This Year', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'U8gtyYIAMVU', title: 'How a Side Hustle Made Him R500,000 in 2 Months', channel: 'Entrepreneurs Chat Podcast' },
+  { id: 'dEVSqKcnuOc', title: 'She Turned R1K Into R1.8M on Shopify, Then Lost It All', channel: 'Entrepreneurs Chat Podcast' },
+
+  // ── School of Hard Knocks ──
+  { id: 'g9K6l15bQGc', title: 'Asking Nigerian Billionaires How They Got RICH!', channel: 'School of Hard Knocks' },
+  { id: '2tqW6a5tWoc', title: "Asking Africa's Richest Man How He Made $30 Billion!", channel: 'School of Hard Knocks' },
+  { id: 'aGrMOowjMag', title: "I Interviewed 30 Billionaires... Here's What I Learned", channel: 'School of Hard Knocks' },
+  { id: 'QZhB_KADwoA', title: 'I Asked Celebrities How They Got Rich!', channel: 'School of Hard Knocks' },
+  { id: 'Z7aS-7Mw_Wg', title: 'Asking Billionaires What To Invest In!', channel: 'School of Hard Knocks' },
+  { id: 'VW2t21zzYl8', title: 'Asking Wealthy Americans How They Got Rich! (Atlanta)', channel: 'School of Hard Knocks' },
+  { id: 'jlH_t_b0I-M', title: 'Asking Black Millionaires How They Got Rich! (Atlanta)', channel: 'School of Hard Knocks' },
+  { id: 'dwd9i-z1HIY', title: 'Asking Monaco Billionaires How They Got Rich!', channel: 'School of Hard Knocks' },
+  { id: '9aBfrKtWJc8', title: "I Was Bankrupt... Now I've Made $3 Billion", channel: 'School of Hard Knocks' },
+  { id: 'KPeslt6FvxI', title: "I Was a Homeless Drug Addict... Now I'm a Millionaire", channel: 'School of Hard Knocks' },
+  { id: 'wbW_tl9NgUc', title: "They're Lying To You About Debt... Here's How To Get Rich", channel: 'School of Hard Knocks' },
+  { id: 'yOSsd1Tpno4', title: 'Young Entrepreneur Interviews Billionaire Grant Cardone', channel: 'School of Hard Knocks' },
+  { id: 'bPPc2coTClU', title: 'Meet The Kid Who Interviews Billionaires For a Living', channel: 'School of Hard Knocks' },
+
+  // ── Earn Your Leisure ──
+  { id: 'm6EoZUECyqk', title: "Create 7 Streams of Income: Derrick Faulcon's Blueprint for Hustling & Business", channel: 'Earn Your Leisure' },
+  { id: '4Y0MPhxOxoA', title: "If I Lost Everything, Here's EXACTLY How I'd Start Over from Scratch", channel: 'Earn Your Leisure' },
+  { id: '2Qx4U17x-wA', title: 'How the Wealthy Own Nothing, Control Everything & Pass Wealth to Their Kids', channel: 'Earn Your Leisure' },
+  { id: 'sv5-Kg7p31g', title: 'How to Run your Family like a Corporation: Private Wealth Strategies', channel: 'Earn Your Leisure' },
+  { id: 'WzopzV7s8gk', title: 'The Truth About Building a Business: Franchises, Funding & The Future', channel: 'Earn Your Leisure' },
+  { id: 'KgFsb6g0g3U', title: 'How To Build A Six-Figure HVAC Business With No Experience', channel: 'Earn Your Leisure' },
+  { id: '-gTCqyBCX2w', title: 'How to Go from 9-to-5 Employee to 6-Figure Entrepreneur with David Shands', channel: 'Earn Your Leisure' },
+  { id: 'wNjFcDpJdG4', title: 'How to Build a Million-Dollar Salon Suite Business', channel: 'Earn Your Leisure' },
+  { id: 'pDy7lH9EOJ0', title: 'How to Make Money Online: Digital Products & Marketing w/ Smitty The Goat', channel: 'Earn Your Leisure' },
+  { id: '3-PTiJOGb5s', title: 'Everything You Need to Know About Credit: Personal, Child & Business Credit', channel: 'Earn Your Leisure' },
+  { id: '2EXJ2E_SK6s', title: 'How to Start a Vending Machine Business', channel: 'Earn Your Leisure' },
+
+  // ── Starter Story ──
+  { id: '5MaPEK-yVVY', title: 'I Make $845,601 Writing This Online', channel: 'Starter Story' },
+  { id: 'PoEJ9t9rUb4', title: 'How I Built It: $600K/Month SaaS', channel: 'Starter Story' },
+  { id: 'PSx0vcUY-sk', title: 'I Got Rejected From YC, Then Built a $200M Startup', channel: 'Starter Story' },
+  { id: 'gU9FtZIfb_M', title: 'I Quit My Job & Accidentally Built A $10M Business', channel: 'Starter Story' },
+  { id: '0T55DRYqeeA', title: 'From Zero to $42K/Month in 90 Days with AI', channel: 'Starter Story' },
+  { id: 'T_wEmB5MapE', title: 'How I Built A $1M Business From This Starbucks', channel: 'Starter Story' },
+  { id: 'IuoscQiQQLg', title: 'The Underdog: He Turned His Last $4,000 Into $48M', channel: 'Starter Story' },
+  { id: 'Gv2fzC96Z40', title: "The Underdog: From His Parent's Basement to $25M", channel: 'Starter Story' },
+  { id: 'LWPN-PAhtLA', title: 'My website makes $35K/month (built in 3 hours)', channel: 'Starter Story' },
+  { id: 'X2T92MVx7xs', title: 'How I Made $1M Building 30 Micro-Apps', channel: 'Starter Story' },
+  { id: 'v-uhjlMg9L0', title: 'I sold my company', channel: 'Starter Story' },
+
+  // ── Noah Kagan ──
+  { id: 'Lz8qWI1ixGs', title: 'I Started A $1,000,000 Business In 24 Hours', channel: 'Noah Kagan' },
+  { id: 'wBEA6Wrx94g', title: 'I Started a $1M Business in Just 48 Hours', channel: 'Noah Kagan' },
+  { id: 'W0KdKhTeVKM', title: 'How To Start A Business In 48 Hours', channel: 'Noah Kagan' },
+  { id: '_htIvi4JzOs', title: 'How to Launch a Million-Dollar Business This Weekend', channel: 'Noah Kagan' },
+  { id: '39sx4A1gL9E', title: 'How To Start A Business While Working A 9 to 5', channel: 'Noah Kagan' },
+  { id: 'FbDkTKfPC5U', title: 'How To Start A $1,000,000 Business With 0 Employees', channel: 'Noah Kagan' },
+  { id: 'kcikCLINuVg', title: 'Start a Million-Dollar Business This Weekend', channel: 'Noah Kagan' },
+  { id: 'vxs2Bj8zKXk', title: 'How To Start ANY Business With Less Than $100', channel: 'Noah Kagan' },
+  { id: 'kVbrJs0Sq1M', title: '10 Exercises To Come Up With Profitable Business Ideas', channel: 'Noah Kagan' },
+  { id: 'CEQV8O6DWVM', title: '3 NEW Ways to Start a Business for $0 (Live Examples)', channel: 'Noah Kagan' },
+  { id: '5MH3motJ-uA', title: 'Why 98% of Entrepreneurs Fail This!', channel: 'Noah Kagan' },
+  { id: 'pef26wZ8P-4', title: 'I Helped a Subscriber Start a $1,000,000 Business In 48 Hours', channel: 'Noah Kagan' },
+
+  // ── Greg Isenberg ──
+  { id: 'IFLY6L3YPGo', title: '9 biggest startup ideas right now (AI, B2C, mobile etc)', channel: 'Greg Isenberg' },
+  { id: 'F7MxPxNbFUw', title: 'How I Use AI & Reddit to Find $1M+ Startup Ideas (FULL Blueprint)', channel: 'Greg Isenberg' },
+  { id: '8vXoI7lUroQ', title: 'How I use Reddit and AI to find winning startup ideas', channel: 'Greg Isenberg' },
+  { id: 'bQPU6UJ4iCw', title: '13 Businesses for the Age of AI', channel: 'Greg Isenberg' },
+  { id: 'LuOZ2PKvd4s', title: '10 Unknown Apps Making $50K+ MRR (Copy Them)', channel: 'Greg Isenberg' },
+  { id: 'b3tMAOFB71o', title: '8 Businesses for the AI Age', channel: 'Greg Isenberg' },
+  { id: 'VZZpjxMA6Ow', title: 'I Used AI to Build 4 $1M+/year businesses (FULL Playbook)', channel: 'Greg Isenberg' },
+  { id: 'XXIC5f_W1Es', title: 'These 7 AI startup ideas will print $100k/Month (with proof)', channel: 'Greg Isenberg' },
+  { id: 'D0SVz12Os24', title: '5 $1M+ startup ideas you can launch tomorrow with $0', channel: 'Greg Isenberg' },
+  { id: 'LWuCIxfWKK8', title: 'The $1,000/Day boring business anyone can start tomorrow', channel: 'Greg Isenberg' },
+  { id: 'HKNpCwG3nlc', title: 'The $1,000/hour 1-person AI business', channel: 'Greg Isenberg' },
+];
+
+function shuffleArr<T>(a: T[]): T[] {
+  const r = [...a];
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+}
+
+export const DEMO_VIDEOS: Podcast[] = shuffleArr(LEARN_DEMO).map((v) => ({
+  video_id: v.id,
+  title: v.title,
+  channel: v.channel,
+  thumbnail: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
+  published_at: '',
+}));
+
+function LastWatched({ bottom }: { bottom: number }) {
+  const colors = useColors();
+  const { theme } = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [v, setV] = useState<any>(null);
+  const [playing, setPlaying] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [big, setBig] = useState(false);
+  const [side, setSide] = useState<'left' | 'right'>('right');
+  const [boxH, setBoxH] = useState(SCREEN_HEIGHT);
+  const store = useRef(createProgressStore()).current;
+  const playerRef = useRef<any>(null);
+  const vRef = useRef<any>(null);
+  vRef.current = v;
+  const resumeAtRef = useRef(0);
+
+  const slotH = (MINI_W * 9) / 16;
+  const BIG_W = Math.round(SCREEN_WIDTH * 0.62);
+  const bigH = (BIG_W * 9) / 16;
+  const ACT = 50;   // 40px button + 10px gap
+  const EDGE = 12;
+
+  const smallPos = { x: 16, y: boxH - (bottom + 8) - slotH };
+  const defaultBig = { x: SCREEN_WIDTH - EDGE - BIG_W, y: boxH - (bottom + 16) - bigH };
+
+  const pos = useRef(new Animated.ValueXY({ x: 16, y: 0 })).current;
+  const cur = useRef({ x: 16, y: 0 });
+  const startRef = useRef({ x: 0, y: 0 });
+  const movedRef = useRef(false);
+  const lastBig = useRef<{ x: number; y: number } | null>(null);
+  const bigRef = useRef(big);
+  bigRef.current = big;
+  const sideRef = useRef(side);
+  sideRef.current = side;
+  const limitsRef = useRef({ minY: 0, maxY: 0 });
+  limitsRef.current = { minY: insets.top + 8, maxY: Math.max(insets.top + 8, boxH - bigH - 8) };
+  const tapRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    const id = pos.addListener((p) => { cur.current = p; });
+    return () => pos.removeListener(id);
+  }, []);
+
+  // move the player to the right spot when switching between small and big
+  useEffect(() => {
+    if (big) {
+      const p = lastBig.current ?? defaultBig;
+      pos.setValue(p);
+      setSide(p.x + BIG_W / 2 > SCREEN_WIDTH / 2 ? 'right' : 'left');
+    } else {
+      pos.setValue(smallPos);
+    }
+  }, [big, boxH, bottom]);
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        startRef.current = { ...cur.current };
+        movedRef.current = false;
+      },
+      onPanResponderMove: (_e, g) => {
+        if (!bigRef.current) return;
+        if (Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4) movedRef.current = true;
+        const { minY, maxY } = limitsRef.current;
+        const x = Math.min(Math.max(startRef.current.x + g.dx, EDGE), SCREEN_WIDTH - EDGE - BIG_W);
+        const y = Math.min(Math.max(startRef.current.y + g.dy, minY), maxY);
+        pos.setValue({ x, y });
+        const next = x + BIG_W / 2 > SCREEN_WIDTH / 2 ? 'right' : 'left';
+        if (next !== sideRef.current) {
+          sideRef.current = next;
+          setSide(next);
+        }
+      },
+      onPanResponderRelease: () => {
+        if (bigRef.current && movedRef.current) {
+          lastBig.current = { ...cur.current };
+          return;
+        }
+        tapRef.current();
+      },
+      onPanResponderTerminate: () => {
+        if (bigRef.current && movedRef.current) lastBig.current = { ...cur.current };
+      },
+    })
+  ).current;
+
+  const saveResume = async () => {
+    const vid = vRef.current?.video_id;
+    const { t, d } = store.get();
+    if (!vid || !d || t < 3) return;
+    try {
+      const res = JSON.parse((await AsyncStorage.getItem('podcast_resume')) || '{}');
+      if (t > d - 8) delete res[vid];
+      else res[vid] = { t, d };
+      await AsyncStorage.setItem('podcast_resume', JSON.stringify(res));
+    } catch {}
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const last = JSON.parse((await AsyncStorage.getItem('podcast_last')) || 'null');
+          const res = JSON.parse((await AsyncStorage.getItem('podcast_resume')) || '{}');
+          const r = last ? res[last.video_id] : null;
+          resumeAtRef.current = r?.t ?? 0;
+          store.set(r?.t ?? 0, r?.d ?? 0);
+          setV(last);
+        } catch {}
+      })();
+      return () => {
+        setPlaying(false);
+        setStarted(false);
+        setBig(false);
+        saveResume();
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    if (!started) return;
+    let n = 0;
+    const id = setInterval(async () => {
+      const p = playerRef.current;
+      if (!p) return;
+      try {
+        const [t, d] = await Promise.all([p.getCurrentTime(), p.getDuration()]);
+        store.set(t, d);
+        n += 1;
+        if (n % 10 === 0) saveResume();
+      } catch {}
+    }, 500);
+    return () => clearInterval(id);
+  }, [started]);
+
+  useEffect(() => {
+    if (started && !playing) saveResume();
+  }, [playing]);
+
+  if (!v) return null;
+
+  const toggle = () => {
+    if (!started) {
+      setStarted(true);
+      setPlaying(true);
+    } else {
+      setPlaying((p) => !p);
+    }
+  };
+
+  const open = () => {
+    setPlaying(false);
+    saveResume().finally(() => router.push(`/watch/${v.video_id}` as any));
+  };
+
+  // tap on the video: small -> play and enlarge, big -> play/pause
+  tapRef.current = () => {
+    if (big) { setPlaying((p) => !p); return; }
+    if (!started) { setStarted(true); setPlaying(true); }
+    setBig(true);
+  };
+
+  // when the video sits on the right, the buttons go on its left, and the other way round
+  const offX = big && side === 'right' ? ACT : 0;
+  const vidW = big ? BIG_W : MINI_W;
+  const vidH = big ? bigH : slotH;
+
+  return (
+    <View
+      pointerEvents="box-none"
+      onLayout={(e) => setBoxH(e.nativeEvent.layout.height)}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 }}
+    >
+      {!big && (
+        <DockedMini
+          video={v}
+          thumbnail={v.thumbnail}
+          store={store}
+          playing={playing}
+          onExpand={open}
+          onToggle={toggle}
+          onClose={() => {
+            setPlaying(false);
+            setStarted(false);
+            setBig(false);
+            saveResume();
+            setV(null);
+            AsyncStorage.removeItem('podcast_last').catch(() => {});
+          }}
+          colors={colors}
+          isDark={theme === 'dark'}
+          bottom={bottom}
+          slotH={slotH}
+        />
+      )}
+
+      <Animated.View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute', left: 0, top: 0, zIndex: 60,
+          width: big ? BIG_W + ACT : MINI_W,
+          height: vidH,
+          transform: [{ translateX: Animated.add(pos.x, -offX) }, { translateY: pos.y }],
+        }}
+      >
+        {started && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute', left: offX, top: 0, width: vidW, height: vidH,
+              borderRadius: 12, overflow: 'hidden', backgroundColor: '#000',
+            }}
+          >
+            <YoutubePlayer
+              ref={playerRef}
+              height={vidH}
+              width={vidW}
+              play={playing}
+              videoId={v.video_id}
+              initialPlayerParams={{ controls: false, rel: false, iv_load_policy: 3 }}
+              onReady={() => {
+                if (resumeAtRef.current > 10) playerRef.current?.seekTo(resumeAtRef.current, true);
+              }}
+              onChangeState={(s: string) => {
+                if (s === 'ended') setPlaying(false);
+              }}
+            />
+          </View>
+        )}
+
+        {/* touch layer: tap = play/enlarge, drag (when big) = move anywhere */}
+        <View
+          {...pan.panHandlers}
+          style={{ position: 'absolute', left: offX, top: 0, width: vidW, height: vidH }}
+        />
+
+        {big && started && (
+          <View
+            style={{
+              position: 'absolute', gap: 10,
+              left: side === 'right' ? 0 : BIG_W + 10,
+              top: bigH - 90,
+            }}
+          >
+            <Pressable
+              onPress={() => setBig(false)}
+              hitSlop={8}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ChevronDown size={18} color={colors.textOnGold} strokeWidth={2.8} />
+            </Pressable>
+            <Pressable
+              onPress={() => setPlaying((p) => !p)}
+              hitSlop={8}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}
+            >
+              {playing
+                ? <Pause size={16} color={colors.textOnGold} fill={colors.textOnGold} />
+                : <Play size={16} color={colors.textOnGold} fill={colors.textOnGold} style={{ marginLeft: 2 }} />}
+            </Pressable>
+          </View>
+        )}
+      </Animated.View>
+    </View>
+  );
+}
+
+function PodcastTab({ colors, mainTab, onChange, onListScroll, onListSnap, bottomInset = 0, scrollNative, listRef }: { scrollNative: Animated.Value; listRef: any; bottomInset?: number; colors: any; mainTab: string; onChange: (k: 'stories' | 'feed' | 'podcast') => void; onListScroll?: (y: number) => void; onListSnap?: () => void }) {
   const [items, setItems] = useState<Podcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [sub, setSub] = useState<'all' | 'fav' | 'later'>('all');
-  const [channel, setChannel] = useState('All');
+  const [sub, setSub] = useState<'all' | 'recent' | 'fav' | 'later'>('all');
+  const [history, setHistory] = useState<Record<string, number>>({});
   const [favs, setFavs] = useState<Podcast[]>([]);
   const [later, setLater] = useState<Podcast[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
-    const listY = useRef(new Animated.Value(0)).current;
+  const router = useRouter();
+  const listY = useRef(new Animated.Value(0)).current;
+  const onScrollEvt = useRef(
+    Animated.event([{ nativeEvent: { contentOffset: { y: scrollNative } } }], {
+      useNativeDriver: true,
+      listener: (e: any) => {
+        const y = e.nativeEvent.contentOffset.y;
+        listY.setValue(y);
+        lastYRef.current = y;
+        onListScroll?.(y);
+      },
+    })
+  ).current;
+  const PULL_THRESHOLD = 70;
+  const PULL_FACTOR = 0.8;
+  const pullY = useRef(new Animated.Value(0)).current;
+  const lastYRef = useRef(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pullArmedRef = useRef(false);
+  const resetPull = () =>
+    Animated.timing(pullY, { toValue: 0, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  const pullHandlers = {
+    onTouchStart: (e: any) => {
+      const { pageX, pageY } = e.nativeEvent;
+      touchStartRef.current = lastYRef.current <= 0 && !refreshingPod ? { x: pageX, y: pageY } : null;
+      pullArmedRef.current = false;
+    },
+    onTouchMove: (e: any) => {
+      const start = touchStartRef.current;
+      if (!start) return;
+      const dx = e.nativeEvent.pageX - start.x;
+      const dy = e.nativeEvent.pageY - start.y;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        touchStartRef.current = null;
+        pullArmedRef.current = false;
+        pullY.setValue(0);
+        return;
+      }
+      if (dy <= 0) { pullY.setValue(0); pullArmedRef.current = false; return; }
+      pullY.setValue(-Math.min(PULL_THRESHOLD, dy * PULL_FACTOR));
+      const reached = dy * PULL_FACTOR >= PULL_THRESHOLD;
+      if (reached && !pullArmedRef.current) {
+        pullArmedRef.current = true;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } else if (!reached && pullArmedRef.current) {
+        pullArmedRef.current = false;
+      }
+    },
+    onTouchEnd: () => {
+      if (!touchStartRef.current) return;
+      const go = pullArmedRef.current;
+      touchStartRef.current = null;
+      pullArmedRef.current = false;
+      resetPull();
+      if (go) refreshPodcasts();
+    },
+    onTouchCancel: () => {
+      touchStartRef.current = null;
+      pullArmedRef.current = false;
+      resetPull();
+    },
+  };
+
+  const SEARCH_H = 40;
+  const SEARCH_ROW_H = SEARCH_H + 10;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
+  const [typesOpen, setTypesOpen] = useState(false);
+  const [channelFilter, setChannelFilter] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const rowAnim = useRef(new Animated.Value(0)).current;
+  const expandAnim = useRef(new Animated.Value(0)).current;
+
+  const openSearch = () => {
+    Haptics.selectionAsync();
+    setSearchOpen(true);
+    Animated.sequence([
+      Animated.timing(rowAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(expandAnim, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+    ]).start(({ finished }) => { if (finished) searchInputRef.current?.focus(); });
+  };
+
+  const closeSearch = () => {
+    searchInputRef.current?.blur();
+    setQuery('');
+    setChannelFilter(null);
+    setTypesOpen(false);
+    setSearchOpen(false);
+    Animated.sequence([
+      Animated.timing(expandAnim, { toValue: 0, duration: 220, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(rowAnim, { toValue: 0, duration: 220, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }),
+    ]).start();
+  };
 
   const [refreshingPod, setRefreshingPod] = useState(false);
   const loadPodcasts = () =>
-    api.get('/podcasts')
+    Promise.resolve({ data: DEMO_VIDEOS })
       .then((r) => { setItems(r.data || []); setFailed(false); })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   const refreshPodcasts = async () => {
+    if (refreshingPod) return;
+    const t0 = Date.now();
     setRefreshingPod(true);
     await loadPodcasts();
-    setRefreshingPod(false);
+    setTimeout(() => setRefreshingPod(false), Math.max(0, 1000 - (Date.now() - t0)));
   };
 
-  useEffect(() => {
-    loadPodcasts();
-    AsyncStorage.getItem('podcast_favs').then((v) => v && setFavs(JSON.parse(v))).catch(() => {});
-    AsyncStorage.getItem('podcast_later').then((v) => v && setLater(JSON.parse(v))).catch(() => {});
-  }, []);
+  useEffect(() => { loadPodcasts(); }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem('podcast_favs').then((v) => setFavs(v ? JSON.parse(v) : [])).catch(() => {});
+      AsyncStorage.getItem('podcast_later').then((v) => setLater(v ? JSON.parse(v) : [])).catch(() => {});
+      AsyncStorage.getItem('podcast_history').then((v) => setHistory(v ? JSON.parse(v) : {})).catch(() => {});
+    }, [])
+  );
 
   const toggle = (
     list: Podcast[], setList: (l: Podcast[]) => void, key: string, p: Podcast,
@@ -7780,101 +8556,152 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
     AsyncStorage.setItem(key, JSON.stringify(next)).catch(() => {});
   };
 
-  const channels = ['All', ...Array.from(new Set(items.map((i) => i.channel)))];
-  const data =
+  const baseData =
     sub === 'fav' ? favs :
     sub === 'later' ? later :
-    channel === 'All' ? items : items.filter((i) => i.channel === channel);
+    sub === 'recent'
+      ? items.filter((i) => history[i.video_id]).sort((a, b) => history[b.video_id] - history[a.video_id])
+      : items;
+
+  const q = query.trim().toLowerCase();
+  const words = q.split(/\s+/).filter(Boolean);
+  const channelList = useMemo(() => {
+    const m = new Map<string, number>();
+    items.forEach((i) => m.set(i.channel, (m.get(i.channel) ?? 0) + 1));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [items]);
+  const scoped = channelFilter ? baseData.filter((i) => i.channel === channelFilter) : baseData;
+  const data = words.length
+    ? scoped.filter((i) => {
+        const hay = `${i.title} ${i.channel}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+      })
+    : scoped;
 
   const SUBS = [
     { key: 'all', label: 'All' },
+    { key: 'recent', label: 'Recent' },
     { key: 'fav', label: 'Favourites' },
     { key: 'later', label: 'Watch Later' },
   ] as const;
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, marginTop: 20 }}>
-        <Music size={22} color={colors.brand} strokeWidth={2.2} />
+      <Pressable
+        onPress={() => Keyboard.dismiss()}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, marginTop: 20 }}
+      >
+        <GraduationCap size={22} color={colors.brand} strokeWidth={2.2} />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>Podcast</Text>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.brand, letterSpacing: 0.6, textTransform: 'uppercase' }}>Learn</Text>
           <Text numberOfLines={1} style={{ fontSize: 14, color: colors.textMuted, marginTop: 3, lineHeight: 15 }}>
-            Talks on how to grow your business
+            Videos to help you learn and grow your business
           </Text>
         </View>
-      </View>
+        <Pressable
+          onPress={searchOpen ? closeSearch : openSearch}
+          hitSlop={8}
+          style={{ width: SEARCH_H, height: SEARCH_H, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Search size={20} color={searchOpen ? colors.brand : colors.text} />
+        </Pressable>
+      </Pressable>
+
+            <Animated.View
+        style={{
+          height: rowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, SEARCH_ROW_H] }),
+          overflow: 'hidden',
+          paddingHorizontal: 16,
+        }}
+      >
+        <Animated.View
+          style={{
+            marginTop: 10,
+            alignSelf: 'flex-end',
+            height: SEARCH_H,
+            borderRadius: SEARCH_H / 2,
+            backgroundColor: colors.chipBg,
+            overflow: 'hidden',
+            justifyContent: 'center',
+            opacity: rowAnim,
+            width: expandAnim.interpolate({ inputRange: [0, 1], outputRange: [SEARCH_H, SCREEN_WIDTH - 32] }),
+          }}
+        >
+          <Animated.View
+            pointerEvents={searchOpen ? 'auto' : 'none'}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, opacity: expandAnim }}
+          >
+            <TextInput
+              ref={searchInputRef}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={`Search ${sub === 'all' ? 'videos' : sub === 'fav' ? 'favourites' : sub === 'later' ? 'watch later' : 'recent'}`}
+              placeholderTextColor={colors.textFaint}
+              returnKeyType="search"
+              style={{ flex: 1, paddingVertical: 0, color: colors.text, fontSize: 15 }}
+            />
+            {query.length > 0 && (
+              <Pressable onPress={() => setQuery('')} hitSlop={8}>
+                <X size={16} color={colors.textFaint} />
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => { Haptics.selectionAsync(); Keyboard.dismiss(); setTypesOpen(true); }}
+              hitSlop={8}
+              style={{ marginLeft: 12 }}
+            >
+              <Bars3Icon size={20} color={channelFilter ? colors.brand : colors.textFaint} />
+            </Pressable>
+          </Animated.View>
+        </Animated.View>
+      </Animated.View>
 
       <View style={{ marginTop: 14, flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <MainTabs mainTab={mainTab} colors={colors} onChange={onChange} />
+        <MainTabs mainTab={mainTab} colors={colors} onChange={onChange} pullY={pullY} refreshing={refreshingPod} />
       </View>
-
-      {/* channel chips */}
-      {sub === 'all' && channels.length > 2 && (
-        <View style={{ paddingTop: 10 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-            {channels.map((c) => {
-              const active = channel === c;
-              return (
-                <Pressable
-                  key={c}
-                  onPress={() => setChannel(c)}
-                  style={{
-                    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, borderWidth: 1,
-                    borderColor: active ? colors.brand : colors.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: active ? colors.brand : colors.textMuted }}>{c}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* inline player */}
-      {!!playingId && (
-        <View style={{ marginTop: 12 }}>
-          <YoutubePlayer
-            height={(SCREEN_WIDTH * 9) / 16}
-            width={SCREEN_WIDTH}
-            play
-            videoId={playingId}
-            onChangeState={(s: string) => { if (s === 'ended') setPlayingId(null); }}
-          />
-        </View>
-      )}
+      <View style={{ marginTop: -4, marginBottom: -3 }}>
+        <PullLine scrollY={pullY} refreshing={refreshingPod} colors={colors} />
+      </View>
 
       {loading ? (
         <ActivityIndicator color={colors.brand} style={{ marginTop: 40 }} />
       ) : failed ? (
-        <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 40 }}>Couldn't load podcasts</Text>
+        <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 40 }}>Couldn't load videos</Text>
       ) : (
-        <FlatList
+        <Animated.FlatList
+          ref={listRef}
           data={data}
-          keyExtractor={(i) => i.video_id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          keyExtractor={(i: any) => i.video_id}
+          contentContainerStyle={{ padding: 16, paddingBottom: 100, minHeight: SCREEN_HEIGHT }}
           showsVerticalScrollIndicator={false}
-          onScroll={(e) => listY.setValue(e.nativeEvent.contentOffset.y)}
+          onScroll={onScrollEvt}
+          onScrollEndDrag={() => onListSnap?.()}
+          onMomentumScrollEnd={() => onListSnap?.()}
+          keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
-          refreshing={refreshingPod}
-          onRefresh={refreshPodcasts}
+          ItemSeparatorComponent={() => (
+            <View style={{ height: 1, backgroundColor: colors.border, marginLeft: 136, marginBottom: 10 }} />
+          )}
+          bounces={false}
+          overScrollMode="never"
+          {...pullHandlers}
           ListEmptyComponent={
             <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 40 }}>
-              {sub === 'fav' ? 'No favourites yet' : sub === 'later' ? 'Nothing in Watch Later' : 'No podcasts yet'}
+              {q ? `No results for "${query.trim()}"` : sub === 'fav' ? 'No favourites yet' : sub === 'later' ? 'Nothing in Watch Later' : sub === 'recent' ? 'Nothing watched yet' : 'Nothing to learn from yet'}
             </Text>
           }
-          renderItem={({ item }) => {
+          renderItem={({ item }: any) => {
             const isFav = favs.some((x) => x.video_id === item.video_id);
             const isLater = later.some((x) => x.video_id === item.video_id);
             const playing = playingId === item.video_id;
             return (
               <View
                 style={{
-                  flexDirection: 'row', alignItems: 'center', marginBottom: 14, padding: 4, borderRadius: 12,
+                  flexDirection: 'row', alignItems: 'center', marginBottom: 10, padding: 4, borderRadius: 12,
                   backgroundColor: playing ? colors.brandSoft : 'transparent',
                 }}
               >
-                <Pressable onPress={() => setPlayingId(item.video_id)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Pressable onPress={() => router.push(`/watch/${item.video_id}` as any)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <View style={{ width: 120, height: 90, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.chipBg, marginRight: 12 }}>
                     <Image source={{ uri: item.thumbnail }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                     <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -7893,7 +8720,7 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
                 </Pressable>
                 <View style={{ alignItems: 'center', gap: 14, marginLeft: 8 }}>
                   <Pressable hitSlop={8} onPress={() => toggle(favs, setFavs, 'podcast_favs', item)}>
-                    <Heart size={22} color={isFav ? '#ef4444' : colors.textMuted} fill={isFav ? '#ef4444' : 'transparent'} />
+                    <Heart size={22} color={isFav ? colors.brand : colors.textMuted} fill={isFav ? colors.brand : 'transparent'} />
                   </Pressable>
                   <Pressable hitSlop={8} onPress={() => toggle(later, setLater, 'podcast_later', item)}>
                     <Clock size={22} color={isLater ? colors.brand : colors.textMuted} />
@@ -7904,7 +8731,77 @@ function PodcastTab({ colors, mainTab, onChange }: { colors: any; mainTab: strin
           }}
         />
       )}
-      <FloatingTabs tabs={PODCAST_FT} value={sub} colors={colors} scrollY={listY} top={120} onChange={(k) => setSub(k)} />
+
+      <Modal visible={typesOpen} transparent animationType="fade" onRequestClose={() => setTypesOpen(false)}>
+        <Pressable
+          onPress={() => setTypesOpen(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{ marginHorizontal: 12, marginBottom: insets.bottom + 12, maxHeight: SCREEN_HEIGHT * 0.6, borderRadius: 28, overflow: 'hidden' }}
+          >
+            {GLASS ? (
+              <GlassView
+                glassEffectStyle="regular"
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                pointerEvents="none"
+              />
+            ) : (
+              <BlurView
+                intensity={70}
+                tint={theme === 'dark' ? 'dark' : 'light'}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 28,
+                  backgroundColor: theme === 'dark' ? 'rgba(30,30,34,0.55)' : 'rgba(255,255,255,0.6)',
+                  borderWidth: 1, borderColor: colors.border,
+                }}
+              />
+            )}
+            <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 8 }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>Search in</Text>
+              <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>Pick a channel to search only its videos</Text>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 14 }}>
+              {[[null, items.length], ...channelList].map(([name, count]: any) => {
+                const on = channelFilter === name;
+                return (
+                  <Pressable
+                    key={name ?? 'all'}
+                    onPress={() => { Haptics.selectionAsync(); setChannelFilter(name); setTypesOpen(false); }}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 10,
+                      paddingVertical: 13, paddingHorizontal: 12, borderRadius: 16,
+                      backgroundColor: on ? colors.brandSoft : 'transparent',
+                    }}
+                  >
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: on ? '800' : '600', color: on ? colors.brand : colors.text }}>
+                        {name ?? 'All channels'}
+                      </Text>
+                      <Text numberOfLines={1} style={{ fontSize: 12.5, color: colors.textMuted, marginTop: 2 }}>
+                        {name ? (CHANNEL_ABOUT[name] ?? '') : 'Every video in Learn'}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 13, color: colors.textMuted }}>{count}</Text>
+                    {on && <Check size={16} color={colors.brand} strokeWidth={3} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <FloatingTabs
+        bottom={24 + bottomInset}
+        tabs={PODCAST_FT}
+        value={sub}
+        colors={colors}
+        scrollY={listY}
+        onChange={(key) => setSub(key)}
+      />
     </View>
   );
 }

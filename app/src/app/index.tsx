@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Hero from '@/components/Hero';
@@ -17,6 +17,8 @@ import RecentlyViewed from '@/components/RecentlyViewed';
 import SponsoredProducts from '@/components/SponsoredProducts';
 import { LinearGradient } from 'expo-linear-gradient';
 import { triggerLogoBounce } from '@/utils/logoBounce';
+import { emitter } from '@/api/client';
+import { SCREEN_PADDING_X } from '@/constants/theme';
 
 function InsetShadow({ direction, red = false }: { direction: 'down' | 'up'; red?: boolean }) {
   const { theme } = useTheme();
@@ -97,6 +99,60 @@ function Section({
   );
 }
 
+function HomeSkeleton({ colors }: { colors: any }) {
+  const pulse = useRef(new Animated.Value(0.45)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.45, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const Block = ({ style }: { style: any }) => (
+    <Animated.View style={[{ backgroundColor: colors.chipBg, opacity: pulse }, style]} />
+  );
+
+  return (
+    <View style={{ flexGrow: 1, backgroundColor: colors.background }}>
+      {/* hero */}
+      <View style={{ backgroundColor: colors.card, paddingHorizontal: SCREEN_PADDING_X, paddingTop: 24, paddingBottom: 16 }}>
+        <Block style={{ width: '75%', height: 28, borderRadius: 8 }} />
+        <Block style={{ width: '55%', height: 28, borderRadius: 8, marginTop: 10 }} />
+        <Block style={{ width: '90%', height: 14, borderRadius: 7, marginTop: 16 }} />
+        <Block style={{ width: 140, height: 44, borderRadius: 22, marginTop: 20 }} />
+      </View>
+
+      {/* categories + card */}
+      <View style={{ backgroundColor: colors.card, paddingHorizontal: SCREEN_PADDING_X, paddingBottom: 14 }}>
+        <View style={{ flexDirection: 'row', gap: 16, overflow: 'hidden', marginTop: 4 }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View key={i} style={{ alignItems: 'center', width: 60 }}>
+              <Block style={{ width: 60, height: 60, borderRadius: 30 }} />
+              <Block style={{ width: 44, height: 10, borderRadius: 5, marginTop: 8 }} />
+            </View>
+          ))}
+        </View>
+        <View style={{ height: 1, backgroundColor: colors.border, marginTop: 10, marginBottom: 12 }} />
+        <Block style={{ width: '100%', height: 170, borderRadius: 20 }} />
+      </View>
+
+      {/* a section */}
+      <View style={{ paddingHorizontal: SCREEN_PADDING_X, paddingTop: 28 }}>
+        <Block style={{ width: 140, height: 14, borderRadius: 7, marginBottom: 14 }} />
+        <View style={{ flexDirection: 'row', gap: 12, overflow: 'hidden' }}>
+          {[0, 1, 2].map((i) => (
+            <Block key={i} style={{ width: 150, height: 190, borderRadius: 16 }} />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const PULL_THRESHOLD = 70; // how far the line must "fill" before release refreshes
 const PULL_FACTOR = 0.8;   // finger distance -> pull distance (lower = need to drag further)
 
@@ -145,6 +201,29 @@ export default function HomeScreen() {
       setRefreshing(false);
     }, Math.max(0, 1000 - (Date.now() - t0)));
   };
+
+  const [tourOpen, setTourOpen] = useState(false);
+  const resumeTimerRef = useRef<any>(null);
+  useEffect(() => {
+    const onOpen = () => {
+      clearTimeout(resumeTimerRef.current);
+      setTourOpen(true);
+    };
+    const onClosed = () => {
+      clearTimeout(resumeTimerRef.current);
+      resumeTimerRef.current = setTimeout(() => {
+        setTourOpen(false);
+        doRefresh();
+      }, 1500);
+    };
+    emitter.on('trex-tour-open', onOpen);
+    emitter.on('trex-tour-closed', onClosed);
+    return () => {
+      emitter.off('trex-tour-open', onOpen);
+      emitter.off('trex-tour-closed', onClosed);
+      clearTimeout(resumeTimerRef.current);
+    };
+  }, []);
 
   const resetPull = () => {
     Animated.timing(pullY, {
@@ -227,6 +306,7 @@ export default function HomeScreen() {
           <PullLine scrollY={pullY} refreshing={refreshing} colors={colors} />
         </View>
 
+        {tourOpen ? <HomeSkeleton colors={colors} /> : (
         <View key={refreshKey} style={{ flexGrow: 1 }}>
           {/* ── Above-the-fold: hero + balance fill remaining viewport ── */}
           <View style={{ flexGrow: 1, minHeight: 0 }}>
@@ -241,25 +321,26 @@ export default function HomeScreen() {
             <ExclusiveOffers active={scrolled} onHasOffers={setHasOffers} />
           </Section>
 
-          <Section show={hasDiscovery} divider={hasOffers} colors={colors}>
-            <HomeDiscovery onHasItems={setHasDiscovery} />
-          </Section>
-
-          <Section show={hasRecent} divider={hasOffers || hasDiscovery} colors={colors}>
-            <RecentlyViewed onHasItems={setHasRecent} />
-          </Section>
-
-          <Section show={hasSellers} divider={hasOffers || hasDiscovery || hasRecent} colors={colors}>
-            <TopSellers onHasSellers={setHasSellers} />
-          </Section>
-
-          <Section show={hasSponsored} divider={hasOffers || hasDiscovery || hasRecent || hasSellers} colors={colors}>
+          <Section show={hasSponsored} divider={hasOffers} colors={colors}>
             <SponsoredProducts onHasProducts={setHasSponsored} />
           </Section>
 
-          {!hidePlans && <HomePlans />}
+          <Section show={hasDiscovery} divider={hasOffers || hasSponsored} colors={colors}>
+            <HomeDiscovery onHasItems={setHasDiscovery} />
+          </Section>
+
+          <Section show={hasRecent} divider={hasOffers || hasSponsored || hasDiscovery} colors={colors}>
+            <RecentlyViewed onHasItems={setHasRecent} />
+          </Section>
+
+          <Section show={hasSellers} divider={hasOffers || hasSponsored || hasDiscovery || hasRecent} colors={colors}>
+            <TopSellers onHasSellers={setHasSellers} />
+          </Section>
+
+          {user && !hidePlans && <HomePlans />}
           <HomeFooter />
         </View>
+        )}
       </ScrollView>
     </View>
   );

@@ -156,14 +156,31 @@ function GlassOrView({ glass, tint, style, children }: any) {
   return <View style={style}>{children}</View>;
 }
 
+// First frame of a video (paused, muted) for the swipe previews
+function ExploreStoryVideoThumb({ uri, crop }: { uri: string; crop?: VideoCropT | null }) {
+  const player = useVideoPlayer({ uri, useCaching: true }, (p) => {
+    p.loop = false;
+    p.muted = true;
+  });
+  return (
+    <View style={{ width: '100%', height: '100%' }}>
+      <CroppedVideoView player={player} crop={crop} />
+    </View>
+  );
+}
+
 // ─── STORY GROUP PREVIEW (shown only mid-swipe transition) ────────────
-function StoryGroupPreview({ group }: { group?: StoryGroup }) {
+function StoryGroupPreview({ group, video }: { group?: StoryGroup; video?: boolean }) {
   if (!group) return <View style={{ flex: 1, backgroundColor: '#000' }} />;
   const cover = group.stories[0]; // matches goToStory(idx, 0) landing on the first story
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       {cover.media_type === 'video' ? (
-        <View style={{ flex: 1, backgroundColor: '#000' }} />
+        video ? (
+          <ExploreStoryVideoThumb uri={cover.media_url} crop={cover.crop} />
+        ) : (
+          <View style={{ flex: 1, backgroundColor: '#000' }} />
+        )
       ) : (
         <Image source={{ uri: cover.media_url }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
       )}
@@ -1177,6 +1194,22 @@ export default function StoryViewer({
         }}
       >
         <Animated.View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, transform: [{ translateY: slideY }] }}>
+          {isVertical && (
+            <>
+              <View
+                pointerEvents="none"
+                style={{ position: 'absolute', top: -SCREEN_HEIGHT, left: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+              >
+                <StoryGroupPreview group={prevGroup} video />
+              </View>
+              <View
+                pointerEvents="none"
+                style={{ position: 'absolute', top: SCREEN_HEIGHT, left: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+              >
+                <StoryGroupPreview group={nextGroup} video />
+              </View>
+            </>
+          )}
           <View
             pointerEvents="none"
             style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}
@@ -1189,7 +1222,7 @@ export default function StoryViewer({
               }}
             >
               <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-                <StoryGroupPreview group={prevGroup} />
+                <StoryGroupPreview group={prevGroup} video={!isVertical} />
               </View>
             </Animated.View>
             <Animated.View
@@ -1200,7 +1233,7 @@ export default function StoryViewer({
               }}
             >
               <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-                <StoryGroupPreview group={nextGroup} />
+                <StoryGroupPreview group={nextGroup} video={!isVertical} />
               </View>
             </Animated.View>
           </View>
@@ -2868,7 +2901,7 @@ function ExportSheet({
             <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>{isImage ? 'Export photo' : 'Export video'}</Text>
             <View style={{ marginTop: 4, marginBottom: 18 }}>
               <Text style={{ fontSize: 13, color: colors.textMuted }}>
-                'Your export will not include a watermark.'
+                Your export will not include a watermark.
               </Text>
             </View>
           </View>

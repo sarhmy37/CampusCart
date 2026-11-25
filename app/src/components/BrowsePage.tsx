@@ -849,7 +849,7 @@ useEffect(() => {
     });
   };
   const gridData = inStock;
-    const GAP = 8;
+    const GAP = 6;
   const SCREEN_W = Dimensions.get('window').width;
   // alternate rows: 3 small cards, then 2 bigger ones
   const rows = useMemo(() => {
@@ -1158,7 +1158,7 @@ useEffect(() => {
                    <View key={`oos-${item.id}`} style={{ width: '31.5%' }}>
                       {(item.category || item.category_name) === 'Services'
                         ? <ServiceCard service={item} />
-                        : <ProductCard product={item} />}
+                        : <ProductCard compact product={item} />}
                     </View>
                   ))}
                 </View>
@@ -1172,9 +1172,9 @@ useEffect(() => {
           onEndReachedThreshold={0.6}
           scrollEventThrottle={16}
           renderItem={({ item: row }) => (
-            <View style={{ flexDirection: 'row', gap: GAP, paddingHorizontal: 16 }}>
+            <View style={{ flexDirection: 'row', gap: GAP, paddingHorizontal: 12 }}>
               {row.items.map((item: any) => (
-              <View key={item.id} style={{ width: (SCREEN_W - 32 - GAP * (row.n - 1)) / row.n }}>
+              <View key={item.id} style={{ width: (SCREEN_W - 24 - GAP * (row.n - 1)) / row.n }}>
               <Dangle active={!!isBoosted(item)}>
                 {needsLocation(item) && (
                   <Pressable
@@ -1203,6 +1203,7 @@ useEffect(() => {
                   )
                   : (
                     <ProductCard
+                      compact
                       product={item}
                       boostMode={boostMode}
                       boostSelected={selectedBoostIds.includes(item.id)}

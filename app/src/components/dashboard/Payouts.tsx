@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, Pressable, TextInput, ScrollView, Modal, ImageBackground,
-  ActivityIndicator,
+  View, Text, Pressable, TextInput, ScrollView, Modal,
+  ActivityIndicator, Animated, Easing,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import {
@@ -9,8 +9,6 @@ import {
 } from 'lucide-react-native';
 import api from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
-import { BALANCE_DARK_IMAGE, BALANCE_LIGHT_IMAGE } from '@/data/media';
 import ModalPicker from '@/components/ModalPicker';
 import { SkeletonList, ErrorState } from './shared';
 import { useColors } from '@/hooks/useColors';
@@ -32,7 +30,6 @@ const MOBILE_MONEY_NETWORKS = [
 export default function Payouts({ period, active }: { period: string; active?: boolean }) {
   const colors = useColors();
   const { user } = useAuth();
-  const { theme } = useTheme();
 
   const isPlanActive = user?.plan && user.plan !== 'free' &&
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date();
@@ -322,7 +319,55 @@ export default function Payouts({ period, active }: { period: string; active?: b
     }
   };
 
-  const balanceBg = theme === 'dark' ? BALANCE_DARK_IMAGE : BALANCE_LIGHT_IMAGE;
+  // ── Background orbs: each circle orbits its own corner, no crossing ──
+  const planTier: 'free' | 'pro' | 'premium' = isPlanActive ? (String(user!.plan).toLowerCase() as any) : 'free';
+  const tierColor = planTier === 'premium' ? '#a855f7' : planTier === 'pro' ? '#3b82f6' : colors.brand;
+
+  const orb = useRef(new Animated.Value(0)).current;
+  const orbTint = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    orb.setValue(0);
+    const orbit = Animated.loop(
+      Animated.timing(orb, { toValue: 1, duration: 18000, easing: Easing.linear, useNativeDriver: false })
+    );
+    const tint = Animated.loop(
+      Animated.sequence([
+        Animated.delay(7000),
+        Animated.timing(orbTint, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.delay(1800),
+        Animated.timing(orbTint, { toValue: 0, duration: 900, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+      ])
+    );
+    orbit.start();
+    tint.start();
+    return () => { orbit.stop(); tint.stop(); };
+  }, []);
+
+  const PTS = Array.from({ length: 17 }, (_, i) => i / 16);
+  const wave = (fn: (a: number) => number, amp: number, phase: number, dir: number) =>
+    orb.interpolate({
+      inputRange: PTS,
+      outputRange: PTS.map((t) => amp * fn(2 * Math.PI * (dir * t + phase))),
+    });
+
+  const orbAStyle = {
+    opacity: orb.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0.1, 0.22, 0.1, 0.22, 0.1] }),
+    transform: [
+      { translateX: wave(Math.sin, 34, 0, 1) },
+      { translateY: wave(Math.cos, 24, 0, 1) },
+      { scale: orb.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [1, 1.22, 1, 1.22, 1] }) },
+    ],
+  };
+  const orbBStyle = {
+    opacity: orb.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0.16, 0.07, 0.16, 0.07, 0.16] }),
+    transform: [
+      { translateX: wave(Math.sin, 30, 0.5, -1) },
+      { translateY: wave(Math.cos, 26, 0.5, -1) },
+      { scale: orb.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [1, 0.8, 1, 0.8, 1] }) },
+    ],
+  };
+  const orbColor = orbTint.interpolate({ inputRange: [0, 1], outputRange: [colors.brand, tierColor] });
 
   const inputStyle = {
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
@@ -340,66 +385,148 @@ export default function Payouts({ period, active }: { period: string; active?: b
   return (
     <View style={{ gap: 16 }}>
       {/* BALANCE CARD */}
-      <View style={{ borderRadius: 16, overflow: 'hidden' }}>
-        <ImageBackground source={balanceBg} style={{ padding: 24 }} imageStyle={{ borderRadius: 16 }}>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 16 }} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Available Balance</Text>
-                <Pressable onPress={handleToggleBalance}>
-                  {balanceRevealed ? <EyeOff size={14} color="rgba(255,255,255,0.8)" /> : <Eye size={14} color="rgba(255,255,255,0.8)" />}
-                </Pressable>
-              </View>
-              <Text style={{ fontSize: 29, fontWeight: '800', color: 'white', marginTop: 6 }}>
-                {balanceRevealed ? `GHS ${money(balance)}` : 'GHS ••••••'}
+      <View
+        style={{
+          borderRadius: 20,
+          overflow: 'hidden',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.12,
+          shadowRadius: 16,
+          elevation: 6,
+        }}
+      >
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.card }} />
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            { position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: orbColor },
+            orbAStyle,
+          ]}
+        />
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            { position: 'absolute', bottom: -80, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: orbColor },
+            orbBStyle,
+          ]}
+        />
+        <View
+          style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20,
+            borderWidth: 1, borderColor: `${colors.brand}22`,
+          }}
+        />
+
+        <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
+          {/* Label + eye */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', letterSpacing: 0.3, color: colors.textMuted }}>
+              Available Balance
+            </Text>
+            <Pressable onPress={handleToggleBalance} hitSlop={12}>
+              {balanceRevealed ? (
+                <EyeOff size={19} color={colors.textMuted} />
+              ) : (
+                <Eye size={19} color={colors.textMuted} />
+              )}
+            </Pressable>
+          </View>
+
+          {/* Big number + USD */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', flex: 1 }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textMuted, marginRight: 6, marginBottom: 5 }}>
+                GHS
               </Text>
-              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
-                {isPlanActive ? '100% of your completed sales' : '98.5% of your completed sales'}
+              <Text
+                style={{ fontSize: 38, fontWeight: '900', color: colors.text, letterSpacing: -1.2, fontVariant: ['tabular-nums'] }}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {balanceRevealed ? money(balance) : '••••••'}
               </Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: 0.5 }}>USD</Text>
-              <Text style={{ fontSize: 29, fontWeight: '800', color: 'white', marginTop: 6 }}>
-                {!balanceRevealed ? '$••.••' : ghsToUsdRate !== null ? `$${money(balance * ghsToUsdRate)}` : '—'}
+
+            <View
+              style={{
+                paddingHorizontal: 11, paddingVertical: 7, borderRadius: 10,
+                backgroundColor: colors.inputBg ?? `${colors.border}30`,
+                borderWidth: 1, borderColor: `${colors.border}60`,
+                marginLeft: 10, marginBottom: 5,
+              }}
+            >
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.2 }}>
+                {balanceRevealed
+                  ? ghsToUsdRate !== null ? `≈ $${money(balance * ghsToUsdRate)}` : '≈ $—'
+                  : '≈ $••.••'}
               </Text>
-              {changePct !== null && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
-                  {changePct >= 0 ? <ChevronUp size={12} color="#6ee7b7" /> : <ChevronDown size={12} color="#fca5a5" />}
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: changePct >= 0 ? '#6ee7b7' : '#fca5a5' }}>
-                    {Math.abs(changePct).toFixed(1)}%
-                  </Text>
-                </View>
-              )}
             </View>
           </View>
-          <Text style={{ color: 'rgba(255,255,255,0.9)', marginTop: 16, fontWeight: '700' }}>
+
+          {/* Trend tag */}
+          <View style={{ flexDirection: 'row', marginTop: 14 }}>
+            <View
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 2,
+                paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+                backgroundColor: changePct === null ? (colors.inputBg ?? `${colors.border}30`) : changePct >= 0 ? '#22c55e' : '#ef4444',
+              }}
+            >
+              {changePct !== null && (changePct >= 0 ? (
+                <ChevronUp size={13} color="#fff" strokeWidth={3} />
+              ) : (
+                <ChevronDown size={13} color="#fff" strokeWidth={3} />
+              ))}
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: changePct === null ? colors.textMuted : '#fff' }}>
+                {changePct === null ? '—' : `${Math.abs(changePct).toFixed(1)}%`}
+              </Text>
+            </View>
+          </View>
+
+          {/* Fees owed */}
+          <View style={{ height: 1, backgroundColor: `${colors.border}80`, marginTop: 14 }} />
+          <Text style={{ color: colors.text, marginTop: 12, fontWeight: '700' }}>
             Fees owed: GHS {money(fees.owed)}
           </Text>
           {fees.overdue && (
-            <Text style={{ color: '#fecaca', fontSize: 12, marginTop: 4 }}>
+            <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>
               Overdue. Your listings are hidden until you pay in full.
             </Text>
           )}
           {fees.owed > 0 && (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              <Pressable onPress={() => startFeePayment()} disabled={payingFee} style={[primaryBtn, { flex: 1, backgroundColor: 'white' }]}>
-                <Text style={{ color: colors.brand, fontWeight: '700' }}>Pay full</Text>
+              <Pressable onPress={() => startFeePayment()} disabled={payingFee} style={[primaryBtn, { flex: 1 }]}>
+                <Text style={{ color: colors.textOnGold, fontWeight: '700' }}>Pay full</Text>
               </Pressable>
-              <Pressable onPress={() => setShowFlex((v) => !v)} style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'white', alignItems: 'center' }}>
-                <Text style={{ color: 'white', fontWeight: '700' }}>Pay part</Text>
+              <Pressable
+                onPress={() => setShowFlex((v) => !v)}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.brand, alignItems: 'center' }}
+              >
+                <Text style={{ color: colors.brand, fontWeight: '700' }}>Pay part</Text>
               </Pressable>
             </View>
           )}
           {showFlex && fees.owed > 0 && (
             <View style={{ marginTop: 10 }}>
-              <TextInput value={flexAmount} onChangeText={setFlexAmount} placeholder={`1.00 – ${fees.owed.toFixed(2)}`} placeholderTextColor="rgba(255,255,255,0.7)" keyboardType="decimal-pad" style={[inputStyle, { color: 'white', borderColor: 'rgba(255,255,255,0.5)' }]} />
-              <Pressable onPress={() => startFeePayment(parseFloat(flexAmount))} disabled={payingFee || !parseFloat(flexAmount)} style={[primaryBtn, { marginTop: 8, backgroundColor: 'white' }]}>
-                <Text style={{ color: colors.brand, fontWeight: '700' }}>Pay this amount</Text>
+              <TextInput
+                value={flexAmount}
+                onChangeText={setFlexAmount}
+                placeholder={`1.00 – ${fees.owed.toFixed(2)}`}
+                placeholderTextColor={colors.textFaint}
+                keyboardType="decimal-pad"
+                style={inputStyle}
+              />
+              <Pressable
+                onPress={() => startFeePayment(parseFloat(flexAmount))}
+                disabled={payingFee || !parseFloat(flexAmount)}
+                style={[primaryBtn, { marginTop: 8 }]}
+              >
+                <Text style={{ color: colors.textOnGold, fontWeight: '700' }}>Pay this amount</Text>
               </Pressable>
             </View>
           )}
-        </ImageBackground>
+        </View>
       </View>
 
       {/* WITHDRAW FUNDS */}
@@ -705,7 +832,7 @@ export default function Payouts({ period, active }: { period: string; active?: b
                   We couldn't find an account with these details. Check the number and network.
                 </Text>
               )}
-               {accountTaken && (
+              {accountTaken && (
                 <Text style={{ fontSize: 13, color: colors.error, marginTop: 6 }}>
                   An account with this number already exists. Use a different account.
                 </Text>

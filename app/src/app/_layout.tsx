@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from 'expo
 import * as SplashScreen from 'expo-splash-screen';
 import { Dimensions, Pressable, View, Text, TextInput, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { Stack } from 'expo-router';
@@ -247,6 +248,7 @@ const hideHeader = hideTabs || lowerPath === '/chat' || lowerPath === '/dashboar
           <Stack.Screen name="SpotlightProfile" />
           <Stack.Screen name="register" />
           <Stack.Screen name="stories" />
+<Stack.Screen name="watch/[id]" />
           <Stack.Screen
             name="seller/[id]"
             options={{

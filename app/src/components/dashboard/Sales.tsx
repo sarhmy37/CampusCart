@@ -77,12 +77,6 @@ export default function Sales() {
               </View>
             </View>
             )}
-
-            {s.reward_contributed && (
-              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.warning, marginTop: 10 }}>
-                🏆 Counted toward a reward milestone
-              </Text>
-            )}
           </View>
         );
       })}

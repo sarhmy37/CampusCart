@@ -5,6 +5,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { History } from 'lucide-react-native';
 import { useColors } from '@/hooks/useColors';
 import { getRecentlyViewed, ViewedItem } from '@/utils/recentlyViewed';
+import { useAuth } from '@/context/AuthContext';
 
 const CARD_W = 128;
 
@@ -12,14 +13,20 @@ export default function RecentlyViewed({ onHasItems }: { onHasItems?: (v: boolea
   const colors = useColors();
   const router = useRouter();
   const [items, setItems] = useState<ViewedItem[]>([]);
+  const { user } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
-      getRecentlyViewed().then((list) => {
+      if (!user) {
+        setItems([]);
+        onHasItems?.(false);
+        return;
+      }
+      getRecentlyViewed(user.id).then((list) => {
         setItems(list);
         onHasItems?.(list.length > 0);
       });
-    }, []),
+    }, [user?.id]),
   );
 
   if (items.length === 0) return null;

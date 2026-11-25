@@ -4,9 +4,10 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Eye, EyeOff, ChevronUp, ChevronDown, X, Shirt, Footprints, Gem, Utensils, Armchair, Dumbbell, Sparkles, Star, Check } from 'lucide-react-native';
+import { Eye, EyeOff, ChevronUp, ChevronDown, X, Shirt, Footprints, Gem, Utensils, Armchair, Dumbbell, Sparkles, Star, Check, ChevronRight } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import Toast from 'react-native-toast-message';
+import * as Haptics from 'expo-haptics';
 import { ShieldCheckIcon, StarIcon, CurrencyDollarIcon } from 'react-native-heroicons/solid';
 import {
   SignalIcon, WrenchScrewdriverIcon, ShoppingBagIcon, DevicePhoneMobileIcon, PencilIcon, BookOpenIcon,
@@ -20,6 +21,7 @@ import { SCREEN_PADDING_X } from '@/constants/theme';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { onLogoBounce } from '@/utils/logoBounce';
 
 const FALLBACK_GHS_TO_USD_RATE = 0.067;
 // `key` is sent to /sellers/overview as ?period= (backend: week | 2weeks | month | 6months | year).
@@ -190,6 +192,8 @@ export default function ValueStrip() {
   const useGlass = Platform.OS === 'ios' && isLiquidGlassAvailable();
 
   const isSeller = !!user && user.account_type !== 'buyer';
+  const isBuyer = !!user && user.account_type === 'buyer';
+  const showCard = !!user;
   const isPlanActive = !!(user?.plan && user.plan !== 'free' &&
     user?.plan_expires_at && new Date(user.plan_expires_at) > new Date());
   const planTier: 'free' | 'pro' | 'premium' = isPlanActive ? (String(user!.plan).toLowerCase() as any) : 'free';
@@ -253,13 +257,35 @@ export default function ValueStrip() {
     }, [isSeller, period.key])
   );
 
+  const [buyerActive, setBuyerActive] = useState<number | null>(null);
+  const [buyerDone, setBuyerDone] = useState<number | null>(null);
+  const [escrowOpen, setEscrowOpen] = useState(false);
+  const [buyerSpent, setBuyerSpent] = useState<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isBuyer) return;
+      api.get('/orders/my')
+        .then((res) => {
+          const list: any[] = Array.isArray(res.data) ? res.data : res.data?.orders || [];
+          const st = (o: any) => String(o.status).toLowerCase();
+          setBuyerDone(list.filter((o) => st(o) === 'completed').length);
+          setBuyerActive(list.filter((o) => st(o) !== 'completed' && st(o) !== 'cancelled').length);
+          setBuyerSpent(
+            list.filter((o) => st(o) !== 'cancelled')
+              .reduce((sum, o) => sum + (Number(o.total_amount ?? o.total) || 0), 0)
+          );
+        })
+        .catch(() => {});
+    }, [isBuyer])
+  );
+
   useEffect(() => {
-    if (!isSeller) return;
+    if (!showCard) return;
     fetch('https://open.er-api.com/v6/latest/GHS')
       .then((r) => r.json())
       .then((d) => setRate(typeof d?.rates?.USD === 'number' ? d.rates.USD : FALLBACK_GHS_TO_USD_RATE))
       .catch(() => setRate(FALLBACK_GHS_TO_USD_RATE));
-  }, [isSeller]);
+    }, [showCard]);
 
   // Reveal behind the password, same as the dashboard
   const [revealed, setRevealed] = useState(false);
@@ -374,37 +400,87 @@ export default function ValueStrip() {
     catX.current = x;
   };
 
-  // ── Background circles: idle = gold, tint appears only while moving ──
+  // ── Background circles: still at rest, move once on load / refresh ──
   const orb = useRef(new Animated.Value(0)).current;      // drives position/scale 0 -> 1 -> 0
   const orbTint = useRef(new Animated.Value(0)).current;  // 0 = gold, 1 = tier color (only during motion)
+  const orbBusy = useRef(false);
   const [cardSize, setCardSize] = useState({ w: Dimensions.get('window').width - SCREEN_PADDING_X * 2, h: 170 });
 
-  useEffect(() => {
-    if (!isSeller) return;
+  const playOrbs = useCallback(() => {
+    if (orbBusy.current) return;
+    orbBusy.current = true;
+    orb.setValue(0);
+    orbTint.setValue(0);
+
     const ease = Easing.inOut(Easing.cubic);
-    const HOLD_MS = 10000;   // idle time at rest (gold)
-    const MOVE_MS = 1700;   // one-way motion duration
-    const TINT_IN_MS = 400; // how fast the color blends in when motion starts
-    const TINT_OUT_MS = 400; // how fast it fades back to gold after motion ends
+    const MOVE_MS = 1700;
+    const TINT_MS = 400;
 
-    const cycle = () =>
-      Animated.sequence([
-        Animated.delay(HOLD_MS),
-        Animated.parallel([
-          Animated.timing(orbTint, { toValue: 1, duration: TINT_IN_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-          Animated.timing(orb, { toValue: 1, duration: MOVE_MS, easing: ease, useNativeDriver: false }),
-        ]),
-        Animated.parallel([
-          Animated.timing(orbTint, { toValue: 0, duration: TINT_OUT_MS, easing: Easing.in(Easing.quad), useNativeDriver: false }),
-          Animated.timing(orb, { toValue: 0, duration: MOVE_MS, easing: ease, useNativeDriver: false }),
-        ]),
-      ]).start(({ finished }) => {
-        if (finished) cycle();
-      });
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(orbTint, { toValue: 1, duration: TINT_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.timing(orb, { toValue: 1, duration: MOVE_MS, easing: ease, useNativeDriver: false }),
+      ]),
+      Animated.parallel([
+        Animated.timing(orbTint, { toValue: 0, duration: TINT_MS, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+        Animated.timing(orb, { toValue: 0, duration: MOVE_MS, easing: ease, useNativeDriver: false }),
+      ]),
+    ]).start(() => {
+      orbBusy.current = false;
+    });
+  }, []);
 
-    const first = setTimeout(cycle, 1000); // let layout settle before the first hold
-    return () => { clearTimeout(first); orb.stopAnimation(); orbTint.stopAnimation(); };
-  }, [isSeller]);
+    // ── Gold comet running around the card edge ──
+  const comet = useRef(new Animated.Value(0)).current;
+  const cometBusy = useRef(false);
+
+  const playComet = useCallback(() => {
+    if (cometBusy.current) return;
+    cometBusy.current = true;
+    comet.setValue(0);
+    Animated.timing(comet, {
+      toValue: 1.15,
+      duration: 2600,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => { cometBusy.current = false; });
+  }, []);
+
+  useEffect(() => {
+    if (!showCard) return;
+    const id = setTimeout(playComet, 600);  // on load
+    const unsub = onLogoBounce(playComet);  // on refresh
+    return () => {
+      clearTimeout(id);
+      unsub();
+      comet.stopAnimation();
+      cometBusy.current = false;
+    };
+  }, [showCard, playComet]);
+
+  const buildCometPath = (shift: number) => {
+    const { w, h } = cardSize;
+    const r = 20, inset = 1.5;
+    let pts = [{ x: r, y: inset }];
+    const arc = (cx: number, cy: number, a0: number) => {
+      for (let k = 0; k <= 6; k++) {
+        const a = a0 + (Math.PI / 2) * (k / 6);
+        pts.push({ x: cx + (r - inset) * Math.cos(a), y: cy + (r - inset) * Math.sin(a) });
+      }
+    };
+    arc(w - r, r, -Math.PI / 2);
+    arc(w - r, h - r, 0);
+    arc(r, h - r, Math.PI / 2);
+    arc(r, r, Math.PI);
+    pts = pts.slice(shift).concat(pts.slice(1, shift + 1)); // start somewhere else on the loop
+    const dist = [0];
+    for (let k = 1; k < pts.length; k++) {
+      dist.push(dist[k - 1] + Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y));
+    }
+    const total = dist[dist.length - 1] || 1;
+    return { input: dist.map((d) => d / total), xs: pts.map((p) => p.x), ys: pts.map((p) => p.y) };
+  };
+  const cometPaths = [buildCometPath(0), buildCometPath(14)];
 
   // circle A sits top-right (center ≈ w-60, 40), circle B bottom-left (center ≈ 50, h-30)
   const swapDx = 110 - cardSize.w;
@@ -434,6 +510,7 @@ export default function ValueStrip() {
   });
 
   const up = (changePct ?? 0) >= 0;
+  const activeGreen = theme === 'dark' ? '#4ade80' : '#16a34a'; // dark = light green, light = normal green
 
   // slightly lighter shade of the plan color for text/icon on the glass chip
   const chipFg = planTier === 'premium' ? '#c084fc' : planTier === 'pro' ? '#60a5fa' : tierColor;
@@ -476,6 +553,24 @@ export default function ValueStrip() {
           </Pressable>
         );
       })}
+    </View>
+  );
+
+  const escrowContent = (
+    <View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <ShieldCheckIcon size={26} color={colors.brand} />
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: theme === 'dark' ? colors.text : '#000' }}>What is escrow?</Text>
+      </View>
+      <Text style={{ fontSize: 14, lineHeight: 21, color: theme === 'dark' ? colors.textMuted : '#000', marginTop: 10 }}>
+        Escrow means we hold your payment safely while the order is on its way.
+      </Text>
+      <Text style={{ fontSize: 14, lineHeight: 21, color: theme === 'dark' ? colors.textMuted : '#000', marginTop: 8 }}>
+        The seller only gets paid after you confirm you received it. If something is wrong, report it from your Orders tab.
+      </Text>
+      <Pressable onPress={() => setEscrowOpen(false)} style={{ marginTop: 16, alignSelf: 'flex-end' }}>
+        <GlassPill small label="Got it" onPress={() => setEscrowOpen(false)} />
+      </Pressable>
     </View>
   );
 
@@ -564,7 +659,7 @@ export default function ValueStrip() {
       <View style={{ height: 1, backgroundColor: colors.border, marginTop: 6, marginBottom: 10 }} />
 
       {/* SELLER: balance card */}
-      {isSeller && (
+      {showCard && (
         <Reveal>
           <View
             onLayout={(e) => setCardSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
@@ -601,41 +696,114 @@ export default function ValueStrip() {
                 borderWidth: 1, borderColor: `${colors.brand}22`,
               }}
             />
+            {/* Two gold comets racing around the card */}
+            {cometPaths.map((path, c) =>
+              Array.from({ length: 36 }).map((_, i) => {
+                const s = i * 0.004;
+                const t = i / 36;
+                const size = i === 0 ? 10 : Math.max(2.5, 8.5 - i * 0.18);
+                const peak = i === 0 ? 1 : 0.95 * Math.pow(1 - t, 1.6);
+                const color = i === 0 ? '#ffffff' : i < 5 ? '#fff0b0' : colors.brand;
+                return (
+                  <Animated.View
+                    key={`comet-${c}-${i}`}
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: size,
+                      height: size,
+                      borderRadius: size / 2,
+                      backgroundColor: color,
+                      shadowColor: colors.brand,
+                      shadowOpacity: 1,
+                      shadowRadius: i === 0 ? 12 : 5,
+                      shadowOffset: { width: 0, height: 0 },
+                      opacity: comet.interpolate({
+                        inputRange: [0, s + 0.001, s + 0.03, 1 + s - 0.03, 1 + s],
+                        outputRange: [0, 0, peak, peak, 0],
+                        extrapolate: 'clamp',
+                      }),
+                      transform: [
+                        {
+                          translateX: comet.interpolate({
+                            inputRange: path.input.map((v) => v + s),
+                            outputRange: path.xs.map((x) => x - size / 2),
+                            extrapolate: 'clamp',
+                          }),
+                        },
+                        {
+                          translateY: comet.interpolate({
+                            inputRange: path.input.map((v) => v + s),
+                            outputRange: path.ys.map((y) => y - size / 2),
+                            extrapolate: 'clamp',
+                          }),
+                        },
+                      ],
+                    }}
+                  />
+                );
+              })
+            )}
 
             <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
               {/* Plan chip (left) + payout (far right) */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Pressable onPress={() => router.push('/benefits' as any)} hitSlop={8}>
-                  {useGlass ? (
-                    <GlassView
-                      glassEffectStyle="regular"
-                      isInteractive
-                      tintColor={`${tierColor}33`}
-                      style={{ borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: `${tierColor}30` }}
-                    >
-                      {planChip(chipFg)}
-                    </GlassView>
-                  ) : (
-                    <BlurView
-                      intensity={30}
-                      tint={theme === 'dark' ? 'dark' : 'light'}
-                      style={{
-                        borderRadius: 8,
-                        overflow: 'hidden',
-                        backgroundColor: `${tierColor}1f`,
-                        borderWidth: 1,
-                        borderColor: `${tierColor}40`,
-                      }}
-                    >
-                      {planChip(tierColor)}
-                    </BlurView>
-                  )}
-                </Pressable>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.text }}>
-                  {isPlanActive ? '100% payout' : '98.5% payout'}
-                </Text>
+<Pressable onPress={() => router.push('/benefits' as any)} hitSlop={8}>
+  {useGlass ? (
+    <GlassView
+      glassEffectStyle="regular"
+      isInteractive
+      tintColor={`${tierColor}22`}
+      style={{
+        borderRadius: 3,
+        overflow: 'hidden',
+        borderWidth: 0.5,
+        borderColor: `${tierColor}55`,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 0, paddingHorizontal: 3 }}>
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tierColor }} />
+        {planChip(chipFg)}
+      </View>
+    </GlassView>
+  ) : (
+    <BlurView
+      intensity={30}
+      tint={theme === 'dark' ? 'dark' : 'light'}
+      style={{
+        borderRadius: 3,
+        overflow: 'hidden',
+        backgroundColor: `${tierColor}1a`,
+        borderWidth: 0.5,
+        borderColor: `${tierColor}55`,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 0, paddingHorizontal: 3 }}>
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tierColor }} />
+        {planChip(tierColor)}
+      </View>
+    </BlurView>
+  )}
+</Pressable>
+                {isSeller ? (
+                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.text }}>
+                    {isPlanActive ? '100% payout' : '98.5% payout'}
+                  </Text>
+                ) : (
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEscrowOpen(true); }}
+                    hitSlop={10}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                  >
+                    <ShieldCheckIcon size={15} color={colors.brand} />
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.text }}>Escrow protected</Text>
+                  </Pressable>
+                )}
               </View>
 
+              {isSeller ? (<>
               {/* Label + eye */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', letterSpacing: 0.3, color: colors.textMuted }}>
@@ -728,13 +896,68 @@ export default function ValueStrip() {
 
                 <GlassPill small label="Withdraw" onPress={handleWithdraw} />
               </View>
+              </>) : (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', letterSpacing: 0.3, color: colors.textMuted }}>
+                    Total Spent
+                  </Text>
+                  <Pressable onPress={toggleReveal} hitSlop={12}>
+                    {revealed ? (
+                      <EyeOff size={19} color={colors.textMuted} />
+                    ) : (
+                      <Eye size={19} color={colors.textMuted} />
+                    )}
+                  </Pressable>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', flex: 1 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textMuted, marginRight: 6, marginBottom: 5 }}>
+                      GHS
+                    </Text>
+                    <Text
+                      style={{ fontSize: 38, fontWeight: '900', color: colors.text, letterSpacing: -1.2, fontVariant: ['tabular-nums'] }}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {revealed ? money(buyerSpent ?? 0) : '••••••'}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      paddingHorizontal: 11, paddingVertical: 7, borderRadius: 10, marginLeft: 10, marginBottom: 5,
+                      backgroundColor: colors.inputBg ?? `${colors.border}30`,
+                      borderWidth: 1, borderColor: `${colors.border}60`,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.2 }}>
+                      {revealed ? (rate !== null ? `≈ $${money((buyerSpent ?? 0) * rate)}` : '≈ $—') : '≈ $••.••'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 12 }}>
+                    {(buyerActive ?? 0) > 0 && (
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: activeGreen }} />
+                    )}
+                    <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '800', color: (buyerActive ?? 0) > 0 ? activeGreen : colors.textMuted }}>
+                      {buyerActive ?? 0} active
+                      <Text style={{ fontWeight: '600', color: colors.textMuted }}>  ·  {buyerDone ?? 0} completed</Text>
+                    </Text>
+                  </View>
+                  <GlassPill small label="View orders" onPress={() => router.push('/dashboard?tab=orders' as any)} />
+                </View>
+              </>
+              )}
             </View>
           </View>
         </Reveal>
       )}
 
       {/* BUYER: value row */}
-      {!isSeller && (
+      {!showCard && (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {VALUES.map((v, i) => (
             <View key={v.label} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
@@ -814,6 +1037,33 @@ export default function ValueStrip() {
               </Pressable>
             </Animated.View>
           )}
+        </Pressable>
+      </Modal>
+
+      {/* Escrow explainer (glass) */}
+      <Modal visible={escrowOpen} transparent animationType="fade" onRequestClose={() => setEscrowOpen(false)}>
+        <Pressable
+          onPress={() => setEscrowOpen(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}
+        >
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 320, borderRadius: 22, overflow: 'hidden' }}>
+            {useGlass ? (
+              <GlassView glassEffectStyle="regular" style={{ padding: 18 }}>
+                {escrowContent}
+              </GlassView>
+            ) : (
+              <BlurView
+                intensity={60}
+                tint={theme === 'dark' ? 'dark' : 'light'}
+                style={{
+                  padding: 18,
+                  backgroundColor: theme === 'dark' ? 'rgba(22,20,17,0.75)' : 'rgba(255,255,255,0.75)',
+                }}
+              >
+                {escrowContent}
+              </BlurView>
+            )}
+          </Pressable>
         </Pressable>
       </Modal>
 

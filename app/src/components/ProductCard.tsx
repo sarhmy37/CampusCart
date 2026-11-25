@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Platform, Animated } from 'react-native';
+import { View, Text, Pressable, Platform, Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
@@ -14,16 +14,54 @@ import { useColors } from '@/hooks/useColors';
 const GLASS = Platform.OS === 'ios' && isLiquidGlassAvailable();
 const LINK_PAD = GLASS ? { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 } : {};
 
+function MarqueeText({ text, style }: { text: string; style: any }) {
+  const [boxW, setBoxW] = useState(0);
+  const [textW, setTextW] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+  const overflow = textW - boxW;
+
+  useEffect(() => {
+    x.setValue(0);
+    if (boxW === 0 || overflow <= 0) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1200),
+        Animated.timing(x, { toValue: -overflow, duration: overflow * 40, easing: Easing.linear, useNativeDriver: true }),
+        Animated.delay(800),
+        Animated.timing(x, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [boxW, textW]);
+
+  return (
+    <View style={{ overflow: 'hidden' }} onLayout={(e) => setBoxW(e.nativeEvent.layout.width)}>
+      {/* hidden copy to measure the full text width */}
+      <View style={{ position: 'absolute', opacity: 0, width: 1000 }} pointerEvents="none">
+        <Text style={style} onTextLayout={(e) => setTextW(e.nativeEvent.lines[0]?.width ?? 0)}>
+          {text}
+        </Text>
+      </View>
+      <Animated.View style={{ width: overflow > 0 ? textW + 2 : '100%', transform: [{ translateX: x }] }}>
+        <Text numberOfLines={1} style={style}>{text}</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function ProductCard({
   product,
   boostMode = false,
   boostSelected = false,
   onBoostSelect,
+  compact = false,
 }: {
   product: any;
   boostMode?: boolean;
   boostSelected?: boolean;
   onBoostSelect?: (p: any) => void;
+  compact?: boolean;
 }) {
   const colors = useColors();
   const router = useRouter();
@@ -95,7 +133,7 @@ export default function ProductCard({
         overflow: 'hidden',
       }}
     >
-      <View style={{ aspectRatio: 1.15, backgroundColor: colors.cardAlt, position: 'relative' }}>
+      <View style={{ aspectRatio: compact ? 1 : 1.15, backgroundColor: colors.cardAlt, position: 'relative' }}>
         {product.primary_image ? (
           <Image
             source={{ uri: product.primary_image }}
@@ -179,6 +217,7 @@ export default function ProductCard({
             <Pressable
               onPress={(e) => {
                 e.stopPropagation?.();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 if (addItem(product)) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               }}
@@ -203,6 +242,14 @@ export default function ProductCard({
         </Pressable>
       </View>
 
+      {compact ? (
+        <View style={{ padding: 8 }}>
+          <MarqueeText text={product.title} style={{ fontSize: 14, fontWeight: '600', color: colors.text }} />
+          <Text style={{ alignSelf: 'flex-start', marginTop: 2, fontSize: 14, fontWeight: '800', color: colors.brand }}>
+            ₵{currentPrice.toFixed(2)}
+          </Text>
+        </View>
+      ) : (
       <View style={{ padding: 8 }}>
         <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: '600', color: colors.text, lineHeight: 15 }}>
           {product.title}
@@ -260,6 +307,7 @@ export default function ProductCard({
           </View>
         )}
       </View>
+      )}
     </Wrapper>
   );
 
